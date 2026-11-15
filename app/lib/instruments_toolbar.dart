@@ -184,11 +184,7 @@ class _StavesMenu extends StatelessWidget {
       child: AppPopupMenuButton<int>(
         tooltip: 'Staves'.tr,
         position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: toolbarMenuStyle(context, left: 6),
         onSelected: (n) => controller.lanes.setStaffShown(n, shown[n - 1] != true),
         itemBuilder: (context) => [
           for (final (i, s) in shown.indexed)
@@ -234,11 +230,7 @@ class _TransitionMenu extends StatelessWidget {
       child: AppPopupMenuButton<double>(
         tooltip: tip,
         position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 6, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: toolbarMenuStyle(context, left: 6),
         onSelected: (s) => controller.lanes.setTransition(s == _project ? null : s),
         itemBuilder: (context) => [
           checkedMenuItem(context,

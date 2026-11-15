@@ -210,11 +210,7 @@ class RatioMenu extends StatelessWidget {
       child: AppPopupMenuButton<VideoRatio>(
         tooltip: 'Video ratio'.tr,
         position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 8, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: toolbarMenuStyle(context),
         onSelected: (r) async {
           if (r != _custom) return onSelected(r);
           final typed = await showVideoRatioDialog(context, ratio);
@@ -260,11 +256,7 @@ class _ExportMenu extends StatelessWidget {
         tooltip: 'Export'.tr,
         enabled: enabled,
         position: PopupMenuPosition.under,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 32),
-          padding: const EdgeInsets.only(left: 8, right: 2),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: toolbarMenuStyle(context),
         onSelected: (export) => export(),
         itemBuilder: (context) => [
           menuItem(context, value: onVideo, child: item('Export Video…', '⌘E')),
