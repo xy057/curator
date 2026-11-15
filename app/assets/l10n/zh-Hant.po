@@ -241,7 +241,7 @@ msgstr "強調色"
 msgid "Accidentals"
 msgstr "變音記號"
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr "加入"
 
@@ -405,6 +405,7 @@ msgstr "每次啟動時向 GitHub 查詢新版本。"
 msgid "Assets"
 msgstr "素材"
 
+#: assets/plugins/navigator/src/bookmarks.lua
 msgid "At"
 msgstr "位置"
 
@@ -676,7 +677,7 @@ msgstr "音樂會音高"
 msgid "Condensing"
 msgstr "聲部合併"
 
-#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
 msgid "Copy"
 msgstr "拷貝"
 
@@ -992,7 +993,7 @@ msgstr "刻譜"
 msgid "Engraving…"
 msgstr "正在刻譜…"
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "請輸入小節或「小節.拍」，如 12 或 12.3"
 
@@ -1041,14 +1042,14 @@ msgstr "匯出影片"
 msgid "Export Video…"
 msgstr "匯出影片…"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Exported “{name}”"
 msgstr "已匯出「{name}」"
 
 msgid "Exporting Video…"
 msgstr "正在匯出影片…"
 
-#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Export…"
 msgstr "匯出…"
 
@@ -1254,7 +1255,7 @@ msgstr "影像"
 msgid "Images and spacers that scroll with the score."
 msgstr "隨樂譜捲動的影像和間隔。"
 
-#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Import…"
 msgstr "匯入…"
 
@@ -1314,7 +1315,7 @@ msgstr "語言"
 msgid "Large"
 msgstr "大"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Leave empty to remove"
 msgstr "留空即可移除"
 
@@ -1436,7 +1437,7 @@ msgstr "音樂字型"
 msgid "Music symbols"
 msgstr "音樂符號"
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr "名稱"
 
@@ -1495,7 +1496,7 @@ msgstr "這些字幕都不在音樂範圍內。"
 msgid "No subtitles found in this file."
 msgstr "這個檔案中沒有字幕。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua assets/plugins/navigator/src/main.lua
 msgid "None"
 msgstr "無"
 
@@ -1918,7 +1919,7 @@ msgstr "沙色"
 msgid "Saturation"
 msgstr "飽和度"
 
-#: lib/ai_settings.dart lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart assets/plugins/navigator/src/main.lua
 msgid "Save"
 msgstr "儲存"
 
@@ -2277,7 +2278,7 @@ msgstr "速度：{from} → {to}"
 msgid "Tenor"
 msgstr "次中音譜號"
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Text"
 msgstr "文字"
 
@@ -2642,7 +2643,7 @@ msgstr "影片比例"
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
 msgstr "影片和 AAC/M4A 音訊需要 FFmpeg（免費）。安裝後請重新加入錄音："
 
-#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua
 msgid "View"
 msgstr "顯示方式"
 
@@ -2751,7 +2752,7 @@ msgstr "{n} 格"
 msgid "{n} images"
 msgstr "{n} 張影像"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "{n} imported"
 msgstr "已匯入 {n} 條"
 
@@ -3008,7 +3009,7 @@ msgstr "縮寫"
 msgid "Add Instrument"
 msgstr "新增樂器"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/pdf_import.dart lib/score_editor.dart assets/plugins/navigator/src/bookmarks.lua
 msgid "Bar {n}"
 msgstr "第 {n} 小節"
 
@@ -3542,7 +3543,7 @@ msgstr "移除章節"
 msgid "Chapters"
 msgstr "章節"
 
-#: assets/extensions/chapters/src/export.lua
+#: assets/extensions/chapters/src/export.lua assets/plugins/navigator/src/cues.lua
 msgid "Start"
 msgstr "開頭"
 
@@ -4954,34 +4955,190 @@ msgstr "匯出前儲存"
 msgid "Saves the project each time it is exported."
 msgstr "每次匯出時先儲存專案。"
 
-#: assets/plugins/scoreFacts/plugin.json assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts"
-msgstr "樂譜概況"
+#: assets/plugins/navigator/plugin.json assets/plugins/navigator/src/main.lua
+msgid "Navigator"
+msgstr "導覽"
 
-#: assets/plugins/scoreFacts/plugin.json
-msgid "A command that counts the score’s bars, parts and staves."
-msgstr "統計樂譜小節、聲部和譜表數量的指令。"
+#: assets/plugins/navigator/plugin.json
+msgid "A Go menu: rehearsal marks, bookmarks, a loop and timestamps."
+msgstr "「前往」選單：排練記號、書籤、循環和時間戳記。"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Bars: {n}"
-msgstr "小節：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Bookmark added"
+msgstr "已加入書籤"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Parts: {n}"
-msgstr "聲部：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks"
+msgstr "沒有書籤"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Staves: {n}"
-msgstr "譜表：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "This file is too big for bookmarks"
+msgstr "這個檔案太大，不像是書籤檔案"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Rehearsal marks: {n}"
-msgstr "排練記號：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks in this file"
+msgstr "這個檔案裡沒有書籤"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Length: {time}"
-msgstr "長度：{time}"
+#: assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/main.lua
+msgid "Bookmarks"
+msgstr "書籤"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts…"
-msgstr "樂譜概況…"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Add Bookmark"
+msgstr "加入書籤"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{name} (bar {n})"
+msgstr "{name}（第 {n} 小節）"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{n} timestamps copied"
+msgstr "已拷貝 {n} 個時間戳記"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Cue Sheet"
+msgstr "提示表"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "CSV"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Markdown"
+msgstr ""
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop: {from} to {to}"
+msgstr "循環：{from} 至 {to}"
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "The loop ends before it starts"
+msgstr "循環的終點在起點之前"
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop cleared"
+msgstr "已清除循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark after the playhead"
+msgstr "播放磁頭之後沒有記號"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark before the playhead"
+msgstr "播放磁頭之前沒有記號"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No rehearsal marks or bookmarks yet"
+msgstr "還沒有排練記號或書籤"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place"
+msgstr "前往位置"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go"
+msgstr "前往"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Place"
+msgstr "位置"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Next Mark"
+msgstr "下一個記號"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Previous Mark"
+msgstr "上一個記號"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place…"
+msgstr "前往位置…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Copy Timestamps"
+msgstr "拷貝時間戳記"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Export Cue Sheet…"
+msgstr "匯出提示表…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark…"
+msgstr "加入書籤…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Edit Bookmarks…"
+msgstr "編輯書籤…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark Here…"
+msgstr "在此處加入書籤…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Playback"
+msgstr "循環播放"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop"
+msgstr "循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Playhead"
+msgstr "從播放磁頭處開始循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Playhead"
+msgstr "循環到播放磁頭處"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Between Marks"
+msgstr "在記號之間循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Clear Loop"
+msgstr "清除循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Here"
+msgstr "從此處開始循環"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Here"
+msgstr "循環到此處"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Continue Last Project"
+msgstr "繼續上次的專案"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "1 second"
+msgstr "1 秒"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "2 seconds"
+msgstr "2 秒"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Return to where the playhead was left"
+msgstr "回到播放磁頭上次停留的位置"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to start stops at the loop’s start"
+msgstr "「回到開頭」先停在循環起點"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Bar numbers in timestamps"
+msgstr "時間戳記中包含小節號碼"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Lead-in before the loop"
+msgstr "循環前的預備時間"
+
+#: assets/plugins/navigator/src/places.lua
+msgid "{name} · bar {n}"
+msgstr "{name} · 第 {n} 小節"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Rehearsal Marks"
+msgstr "排練記號"

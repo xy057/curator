@@ -64,7 +64,7 @@ class PluginPackage implements ScriptPackage {
   final String? readme;
 
   /// Stable for good: the app keeps its switch and its settings under it. Curator's own are
-  /// one word ("scoreFacts"); anyone else's has a dot, a domain backwards ("com.example.hello").
+  /// one word ("navigator"); anyone else's has a dot, a domain backwards ("com.example.hello").
   @override
   String get id => _text('id') ?? '';
   @override

@@ -241,7 +241,7 @@ msgstr "アクセントカラー"
 msgid "Accidentals"
 msgstr "臨時記号"
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr "追加"
 
@@ -405,6 +405,7 @@ msgstr "アプリの起動ごとに GitHub で新しいバージョンを確認�
 msgid "Assets"
 msgstr "アセット"
 
+#: assets/plugins/navigator/src/bookmarks.lua
 msgid "At"
 msgstr "位置"
 
@@ -676,7 +677,7 @@ msgstr "実音"
 msgid "Condensing"
 msgstr "コンデンス"
 
-#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
 msgid "Copy"
 msgstr "コピー"
 
@@ -992,7 +993,7 @@ msgstr "浄書"
 msgid "Engraving…"
 msgstr "浄書中…"
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr "小節または 小節.拍 を入力（例：12 や 12.3）"
 
@@ -1041,14 +1042,14 @@ msgstr "ビデオを書き出す"
 msgid "Export Video…"
 msgstr "ビデオを書き出す…"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Exported “{name}”"
 msgstr "「{name}」を書き出しました"
 
 msgid "Exporting Video…"
 msgstr "ビデオを書き出し中…"
 
-#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Export…"
 msgstr "書き出す…"
 
@@ -1254,7 +1255,7 @@ msgstr "画像"
 msgid "Images and spacers that scroll with the score."
 msgstr "楽譜と一緒にスクロールする画像とスペーサー。"
 
-#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Import…"
 msgstr "読み込む…"
 
@@ -1314,7 +1315,7 @@ msgstr "言語"
 msgid "Large"
 msgstr "大"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Leave empty to remove"
 msgstr "空にすると削除"
 
@@ -1436,7 +1437,7 @@ msgstr "音楽フォント"
 msgid "Music symbols"
 msgstr "音楽記号"
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr "名前"
 
@@ -1495,7 +1496,7 @@ msgstr "これらの字幕はどれも音楽の範囲内にありません。"
 msgid "No subtitles found in this file."
 msgstr "このファイルに字幕が見つかりませんでした。"
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua assets/plugins/navigator/src/main.lua
 msgid "None"
 msgstr "なし"
 
@@ -1918,7 +1919,7 @@ msgstr "サンド"
 msgid "Saturation"
 msgstr "彩度"
 
-#: lib/ai_settings.dart lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart assets/plugins/navigator/src/main.lua
 msgid "Save"
 msgstr "保存"
 
@@ -2277,7 +2278,7 @@ msgstr "テンポ：{from} → {to}"
 msgid "Tenor"
 msgstr "テナー記号"
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Text"
 msgstr "テキスト"
 
@@ -2642,7 +2643,7 @@ msgstr "ビデオの比率"
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
 msgstr "ビデオと AAC/M4A オーディオには FFmpeg（無料）が必要です。インストールしてから、もう一度録音を追加してください："
 
-#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua
 msgid "View"
 msgstr "表示"
 
@@ -2751,7 +2752,7 @@ msgstr "{n} フレーム"
 msgid "{n} images"
 msgstr "画像 {n} 枚"
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "{n} imported"
 msgstr "{n} 件読み込みました"
 
@@ -3008,7 +3009,7 @@ msgstr "略称"
 msgid "Add Instrument"
 msgstr "楽器を追加"
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/pdf_import.dart lib/score_editor.dart assets/plugins/navigator/src/bookmarks.lua
 msgid "Bar {n}"
 msgstr "{n} 小節目"
 
@@ -3542,7 +3543,7 @@ msgstr "チャプターを削除"
 msgid "Chapters"
 msgstr "チャプター"
 
-#: assets/extensions/chapters/src/export.lua
+#: assets/extensions/chapters/src/export.lua assets/plugins/navigator/src/cues.lua
 msgid "Start"
 msgstr "冒頭"
 
@@ -4954,34 +4955,190 @@ msgstr "書き出し前に保存"
 msgid "Saves the project each time it is exported."
 msgstr "書き出すたびにプロジェクトを保存します。"
 
-#: assets/plugins/scoreFacts/plugin.json assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts"
-msgstr "楽譜情報"
+#: assets/plugins/navigator/plugin.json assets/plugins/navigator/src/main.lua
+msgid "Navigator"
+msgstr "ナビゲーター"
 
-#: assets/plugins/scoreFacts/plugin.json
-msgid "A command that counts the score’s bars, parts and staves."
-msgstr "楽譜の小節、パート、譜表を数えるコマンド。"
+#: assets/plugins/navigator/plugin.json
+msgid "A Go menu: rehearsal marks, bookmarks, a loop and timestamps."
+msgstr "「移動」メニュー：リハーサルマーク、ブックマーク、ループ、タイムスタンプ。"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Bars: {n}"
-msgstr "小節：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Bookmark added"
+msgstr "ブックマークを追加しました"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Parts: {n}"
-msgstr "パート：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks"
+msgstr "ブックマークなし"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Staves: {n}"
-msgstr "譜表：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "This file is too big for bookmarks"
+msgstr "このファイルはブックマークには大きすぎます"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Rehearsal marks: {n}"
-msgstr "リハーサルマーク：{n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks in this file"
+msgstr "このファイルにブックマークはありません"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Length: {time}"
-msgstr "長さ：{time}"
+#: assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/main.lua
+msgid "Bookmarks"
+msgstr "ブックマーク"
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts…"
-msgstr "楽譜情報…"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Add Bookmark"
+msgstr "ブックマークを追加"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{name} (bar {n})"
+msgstr "{name}（{n} 小節目）"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{n} timestamps copied"
+msgstr "{n} 件のタイムスタンプをコピーしました"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Cue Sheet"
+msgstr "キューシート"
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "CSV"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Markdown"
+msgstr ""
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop: {from} to {to}"
+msgstr "ループ：{from} から {to}"
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "The loop ends before it starts"
+msgstr "ループの終わりが始まりより前です"
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop cleared"
+msgstr "ループを消去しました"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark after the playhead"
+msgstr "再生ヘッドより後にマークはありません"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark before the playhead"
+msgstr "再生ヘッドより前にマークはありません"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No rehearsal marks or bookmarks yet"
+msgstr "リハーサルマークもブックマークもまだありません"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place"
+msgstr "場所へ移動"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go"
+msgstr "移動"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Place"
+msgstr "場所"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Next Mark"
+msgstr "次のマーク"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Previous Mark"
+msgstr "前のマーク"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place…"
+msgstr "場所へ移動…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Copy Timestamps"
+msgstr "タイムスタンプをコピー"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Export Cue Sheet…"
+msgstr "キューシートを書き出す…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark…"
+msgstr "ブックマークを追加…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Edit Bookmarks…"
+msgstr "ブックマークを編集…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark Here…"
+msgstr "ここにブックマークを追加…"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Playback"
+msgstr "ループ再生"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop"
+msgstr "ループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Playhead"
+msgstr "再生ヘッドからループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Playhead"
+msgstr "再生ヘッドまでループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Between Marks"
+msgstr "マークの間をループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Clear Loop"
+msgstr "ループを消去"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Here"
+msgstr "ここからループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Here"
+msgstr "ここまでループ"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Continue Last Project"
+msgstr "前回のプロジェクトを続ける"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "1 second"
+msgstr "1 秒"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "2 seconds"
+msgstr "2 秒"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Return to where the playhead was left"
+msgstr "再生ヘッドを前回の位置に戻す"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to start stops at the loop’s start"
+msgstr "「先頭へ」はまずループの始まりで止まる"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Bar numbers in timestamps"
+msgstr "タイムスタンプに小節番号を入れる"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Lead-in before the loop"
+msgstr "ループ前のリードイン"
+
+#: assets/plugins/navigator/src/places.lua
+msgid "{name} · bar {n}"
+msgstr "{name} · {n} 小節目"
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Rehearsal Marks"
+msgstr "リハーサルマーク"

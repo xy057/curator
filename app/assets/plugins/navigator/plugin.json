@@ -1,0 +1,9 @@
+{
+  "format": "application/x-curator-plugin",
+  "id": "navigator",
+  "name": "Navigator",
+  "summary": "A Go menu: rehearsal marks, bookmarks, a loop and timestamps.",
+  "keywords": "go jump navigate rehearsal mark bookmark place loop repeat passage practice timestamp youtube chapters cue sheet resume position",
+  "icon": "next",
+  "api": 1
+}

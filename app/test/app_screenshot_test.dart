@@ -13,6 +13,7 @@ import 'package:curated_score/plugins/plugin_actions.dart';
 import 'package:curated_score/plugins/plugin_editor.dart';
 import 'package:curated_score/plugins/plugins.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,33 +50,53 @@ void main() {
 
     await screenshot(tester, 'app');
 
-    // Plugins: Score Facts, turned on, puts its button on the toolbar and takes its key; either
-    // shows what it counted in a dialog of the app's.
-    plugins.turn('scoreFacts', true);
+    // Plugins: Navigator, turned on, puts its button on the toolbar and a Go menu in the bar.
+    // Its keys and commands open the app's own dialogs, laid out from what its Lua describes:
+    // a form, a table to edit, a list to choose from, its settings.
+    plugins.turn('navigator', true);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    final button = find.byKey(const ValueKey('plugin scoreFacts'));
+    final button = find.byKey(const ValueKey('plugin navigator.loop'));
     expect(button, findsOneWidget);
-    await tester.tap(button);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('Bars: '), findsOneWidget);
-    await screenshot(tester, 'app-plugin-dialog', inside: find.textContaining('Bars: '), outermost: true);
-    await tester.tap(find.text('Copy'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('Bars: '), findsNothing);
+    expect(find.text('Go'), findsOneWidget, reason: 'its menu');
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('Bars: '), findsOneWidget, reason: 'its key');
-    await tester.tap(find.text('Cancel'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await settle();
+    expect(find.text('Add Bookmark'), findsOneWidget, reason: 'its key');
+    await screenshot(tester, 'app-plugin-form', inside: find.text('Add Bookmark'), outermost: true);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await settle();
+    expect(find.text('Bookmark added'), findsOneWidget);
+    expect(plugins.run('Edit Bookmarks…'), isTrue);
+    await settle();
+    expect(find.text('Bookmarks'), findsOneWidget);
+    await screenshot(tester, 'app-plugin-sheet', inside: find.text('Bookmarks'), outermost: true);
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await settle();
+    expect(plugins.run('Go to Place…'), isTrue);
+    await settle();
+    expect(find.text('Go to Place'), findsOneWidget);
+    await screenshot(tester, 'app-plugin-choice', inside: find.text('Go to Place'), outermost: true);
+    await tester.tap(find.widgetWithText(FilledButton, 'Go'));
+    await settle();
+    plugins.showSettings('navigator');
+    await settle();
+    expect(find.text('Lead-in before the loop'), findsOneWidget);
+    await screenshot(tester, 'app-plugin-settings', inside: find.text('Lead-in before the loop'), outermost: true);
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await settle();
+    // The toolbar's button turns the loop on, around the playhead, and is lit while it is.
+    await tester.tap(button);
+    await settle();
+    expect(find.textContaining('Loop: '), findsOneWidget);
+    expect(tester.widget<ToolbarButton>(button).selected, isTrue);
+    await screenshot(tester, 'app-plugin-toolbar');
     expect(plugins.problems.value, isEmpty);
     // Settings ▸ Plugins lists it, on, among Curator's own; its menu's View… shows its code.
     final page = tester.element(find.byType(ProjectPage));
@@ -87,7 +108,7 @@ void main() {
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    unawaited(PluginActions.edit(page, plugins, plugins.package('scoreFacts')!));
+    unawaited(PluginActions.edit(page, plugins, plugins.package('navigator')!));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(PluginEditor), findsOneWidget);
@@ -96,7 +117,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(PluginEditor), findsNothing);
-    plugins.turn('scoreFacts', false);
+    plugins.turn('navigator', false);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(button, findsNothing);

@@ -71,7 +71,9 @@ app.command{
   of the menu a right-click on the score opens (`run` is then given the place clicked, in
   quarter notes).
 - `enabled` and `checked` are functions, asked whenever the menu is drawn: whether it can be
-  chosen, whether it is ticked. Keep them quick.
+  chosen, whether it is ticked. Keep them quick. They are asked again after a command ran or
+  an event was told; when what they hang on changes at another time (a timer, a dialog's
+  answer), call `app.refresh()`.
 - `id`: what the command is called by. Left out, it is made from the title ("count-bars").
   Give one when the title may change.
 
@@ -221,10 +223,23 @@ app.on("settings", function()
 end)
 ```
 
-Curator's own plugins (Settings ▸ Plugins, View… in each one's menu) are working examples:
-Score Facts (a command with a key, a toolbar button and a dialog), Reopen Last Project
-(something done as the app starts), Appearance Menu (ticked commands that change a setting),
-Save Before Export (two of the app's commands wrapped).
+Curator's own plugins (Settings ▸ Plugins, View… in each one's menu) are working examples.
+Three are a few lines each: Reopen Last Project (something done as the app starts), Appearance
+Menu (ticked commands that change a setting), Save Before Export (two of the app's commands
+wrapped). Navigator is the large one: a Go menu with rehearsal marks, bookmarks kept for each
+project, a loop and timestamps, in six files. Where its code meets something a plugin can't
+do, a comment that starts with `Edge:` says so, and what it does in its place.
+
+## Where a plugin ends
+
+- It adds commands and asks for the app's dialogs. It draws nothing: no panel, no control of
+  its own, nothing on the score or the timeline.
+- It keeps settings in the app (`curator.settings`), not data in a project. What belongs to
+  a project and travels with it is an extension's.
+- It is told events and can wait with `app.after`. It isn't called every frame, and isn't
+  told that the score was edited or the playhead moved.
+- It reads the score showing and moves the playhead. It can't edit the score or the lanes.
+- It reaches a file only through `ui.open_file` and `ui.save_file`, and has no network.
 
 # Reference
 
@@ -276,6 +291,7 @@ The app: its commands, menus, keys and toolbar, what happens in it, its settings
   ```
 
 - `app.remove(id)`: Takes out a command the plugin added.
+- `app.refresh()`: Has every command asked again whether it can be chosen and is ticked (enabled, checked): after something they hang on changed in a timer or a dialog’s answer. A command that ran and an event that was told do it by themselves.
 - `app.run(name, ...) → boolean`: Does a command, the app’s own or a plugin’s, by its id ("exportVideo") or its title ("Export Video..."): as its menu item or its key would. false when it can’t be chosen now.
 
   ```lua

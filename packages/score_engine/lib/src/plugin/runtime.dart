@@ -311,6 +311,10 @@ class PluginRuntime extends ScriptRuntime {
         host.changed();
         return const [];
       },
+      'refresh': (a) {
+        host.changed();
+        return const [];
+      },
       'on': (a) {
         final event = a.string(0, 'app.on'), fn = a.function(1, 'app.on');
         if (PluginApi.event(event) == null) throw LuaError("bad argument #1 to 'app.on' (there is no event '$event')");

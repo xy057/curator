@@ -232,7 +232,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr ""
 
@@ -394,6 +394,7 @@ msgstr ""
 msgid "Assets"
 msgstr ""
 
+#: assets/plugins/navigator/src/bookmarks.lua
 msgid "At"
 msgstr ""
 
@@ -665,7 +666,7 @@ msgstr ""
 msgid "Condensing"
 msgstr ""
 
-#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart lib/edit_dialogs.dart lib/settings_dialog.dart
 msgid "Copy"
 msgstr ""
 
@@ -981,7 +982,7 @@ msgstr ""
 msgid "Engraving…"
 msgstr ""
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Enter a bar or bar.beat, like 12 or 12.3"
 msgstr ""
 
@@ -1030,14 +1031,14 @@ msgstr ""
 msgid "Export Video…"
 msgstr ""
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Exported “{name}”"
 msgstr ""
 
 msgid "Exporting Video…"
 msgstr ""
 
-#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/export_dialog.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart lib/web_export_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Export…"
 msgstr ""
 
@@ -1243,7 +1244,7 @@ msgstr ""
 msgid "Images and spacers that scroll with the score."
 msgstr ""
 
-#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua
+#: lib/app_menus.dart lib/home_screen.dart lib/settings_dialog.dart assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Import…"
 msgstr ""
 
@@ -1303,7 +1304,7 @@ msgstr ""
 msgid "Large"
 msgstr ""
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Leave empty to remove"
 msgstr ""
 
@@ -1425,7 +1426,7 @@ msgstr ""
 msgid "Music symbols"
 msgstr ""
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr ""
 
@@ -1484,7 +1485,7 @@ msgstr ""
 msgid "No subtitles found in this file."
 msgstr ""
 
-#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua
+#: lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/settings_dialog.dart lib/shortcut_settings.dart assets/extensions/captions/src/settings.lua assets/plugins/navigator/src/main.lua
 msgid "None"
 msgstr ""
 
@@ -1907,7 +1908,7 @@ msgstr ""
 msgid "Saturation"
 msgstr ""
 
-#: lib/ai_settings.dart lib/app_menus.dart
+#: lib/ai_settings.dart lib/app_menus.dart assets/plugins/navigator/src/main.lua
 msgid "Save"
 msgstr ""
 
@@ -2266,7 +2267,7 @@ msgstr ""
 msgid "Tenor"
 msgstr ""
 
-#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/cues.lua
 msgid "Text"
 msgstr ""
 
@@ -2631,7 +2632,7 @@ msgstr ""
 msgid "Videos and AAC/M4A audio need FFmpeg (free). Install it, then add the recording again:"
 msgstr ""
 
-#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua assets/plugins/scoreFacts/src/main.lua
+#: lib/app_menus.dart assets/plugins/appearanceMenu/src/main.lua
 msgid "View"
 msgstr ""
 
@@ -2740,7 +2741,7 @@ msgstr ""
 msgid "{n} images"
 msgstr ""
 
-#: assets/extensions/captions/src/sheet.lua
+#: assets/extensions/captions/src/sheet.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "{n} imported"
 msgstr ""
 
@@ -2997,7 +2998,7 @@ msgstr ""
 msgid "Add Instrument"
 msgstr ""
 
-#: lib/pdf_import.dart lib/score_editor.dart
+#: lib/pdf_import.dart lib/score_editor.dart assets/plugins/navigator/src/bookmarks.lua
 msgid "Bar {n}"
 msgstr ""
 
@@ -3519,7 +3520,7 @@ msgstr ""
 msgid "Chapters"
 msgstr ""
 
-#: assets/extensions/chapters/src/export.lua
+#: assets/extensions/chapters/src/export.lua assets/plugins/navigator/src/cues.lua
 msgid "Start"
 msgstr ""
 
@@ -4931,34 +4932,190 @@ msgstr ""
 msgid "Saves the project each time it is exported."
 msgstr ""
 
-#: assets/plugins/scoreFacts/plugin.json assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts"
+#: assets/plugins/navigator/plugin.json assets/plugins/navigator/src/main.lua
+msgid "Navigator"
 msgstr ""
 
-#: assets/plugins/scoreFacts/plugin.json
-msgid "A command that counts the score’s bars, parts and staves."
+#: assets/plugins/navigator/plugin.json
+msgid "A Go menu: rehearsal marks, bookmarks, a loop and timestamps."
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Bars: {n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Bookmark added"
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Parts: {n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks"
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Staves: {n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "This file is too big for bookmarks"
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Rehearsal marks: {n}"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "No bookmarks in this file"
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Length: {time}"
+#: assets/plugins/navigator/src/bookmarks.lua assets/plugins/navigator/src/main.lua
+msgid "Bookmarks"
 msgstr ""
 
-#: assets/plugins/scoreFacts/src/main.lua
-msgid "Score Facts…"
+#: assets/plugins/navigator/src/bookmarks.lua
+msgid "Add Bookmark"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{name} (bar {n})"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "{n} timestamps copied"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Cue Sheet"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "CSV"
+msgstr ""
+
+#: assets/plugins/navigator/src/cues.lua
+msgid "Markdown"
+msgstr ""
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop: {from} to {to}"
+msgstr ""
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "The loop ends before it starts"
+msgstr ""
+
+#: assets/plugins/navigator/src/loop.lua
+msgid "Loop cleared"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark after the playhead"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No mark before the playhead"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "No rehearsal marks or bookmarks yet"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Place"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Next Mark"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Previous Mark"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to Place…"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Copy Timestamps"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Export Cue Sheet…"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark…"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Edit Bookmarks…"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Add Bookmark Here…"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Playback"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Playhead"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Playhead"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop Between Marks"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Clear Loop"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop From Here"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Loop To Here"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Continue Last Project"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "1 second"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "2 seconds"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Return to where the playhead was left"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Go to start stops at the loop’s start"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Bar numbers in timestamps"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Lead-in before the loop"
+msgstr ""
+
+#: assets/plugins/navigator/src/places.lua
+msgid "{name} · bar {n}"
+msgstr ""
+
+#: assets/plugins/navigator/src/main.lua
+msgid "Rehearsal Marks"
 msgstr ""

@@ -329,7 +329,7 @@ class Plugins extends ChangeNotifier {
   /// [entry]'s icon: the one of the app's it names, else the plugins' own.
   static IconData iconOf(BuildContext context, PluginEntry entry) => (_icons[entry.command.icon] ?? AppIcon.plugins).of(context);
 
-  /// [entry]'s name with its key, as a button's tip has them: "Score Facts… (⇧⌘I)".
+  /// [entry]'s name with its key, as a button's tip has them: "Loop Playback (⌘L)".
   String tipOf(PluginEntry entry, KeyMap keys) => switch (chords(keys)[entry.command.id]) {
         final key? => '${titleOf(entry)} (${key.label})',
         null => titleOf(entry),
@@ -338,10 +338,21 @@ class Plugins extends ChangeNotifier {
   /// What choosing [entry] does, given [args]; null while it can't be chosen.
   VoidCallback? actionOf(PluginEntry entry, [List<Object?> args = const []]) => entry.runtime.canRun(entry.command, args) ? () => perform(entry, args) : null;
 
-  /// Does [entry], given [args] (Lua values), if it can be chosen now.
+  /// Does [entry], given [args] (Lua values), if it can be chosen now. What its plugin says of
+  /// its commands (ticked, to be chosen) may be other than it was, so they are asked again.
   void perform(PluginEntry entry, [List<Object?> args = const []]) {
-    if (identical(_runtimes[entry.runtime.id], entry.runtime) && entry.runtime.canRun(entry.command, args)) entry.runtime.perform(entry.command, args);
+    if (!identical(_runtimes[entry.runtime.id], entry.runtime) || !entry.runtime.canRun(entry.command, args)) return;
+    entry.runtime.perform(entry.command, args);
+    _changed();
   }
+
+  /// Does one of the app's own commands ([action], by its [id]) from a button, as plugins
+  /// have it where [context] is: [invoke], or [action] itself outside the app (a test of one
+  /// widget).
+  static void doOwn(BuildContext context, String id, VoidCallback action) => switch (PluginScope.read(context)) {
+        final plugins? => plugins.invoke(id, action),
+        null => action(),
+      };
 
   /// Whether plugin [id] has settings of its own to show (it listens to `settings`).
   bool hasSettings(String id) => _runtimes[id]?.listens('settings') ?? false;
@@ -353,13 +364,18 @@ class Plugins extends ChangeNotifier {
   /// it happen again as it is told (a tab shown from `project.shown`) is not told of that.
   void emit(String event, [List<Object?> args = const []]) {
     if (!_telling.add(event)) return;
+    var told = false;
     try {
       for (final runtime in running) {
+        if (!runtime.listens(event)) continue;
         runtime.emit(event, args);
+        told = true;
       }
     } finally {
       _telling.remove(event);
     }
+    // What a plugin told says of its commands may be other than it was.
+    if (told) _changed();
   }
 
   final _telling = <String>{};
@@ -427,6 +443,7 @@ class Plugins extends ChangeNotifier {
     if (found == null) return null;
     if (!found.runtime.canRun(found.command, args)) return false;
     found.runtime.perform(found.command, args);
+    _changed();
     return true;
   }
 

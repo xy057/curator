@@ -432,6 +432,10 @@ void main() {
       runtime.run('app.command{id = "greet", title = "Greet Again", run = function() end} app.remove("count-bars")');
       expect([for (final c in runtime.commands) (c.id, c.title)], [('greet', 'Greet Again')]);
       expect(host.changes, greaterThan(changes));
+      // app.refresh says so too: what its commands hang on changed where the app can't know.
+      final before = host.changes;
+      runtime.run('app.refresh()');
+      expect(host.changes, before + 1);
       runtime.run('app.show("exportWeb") app.rename("Export Video...", nil) app.wrap("close", nil)');
       expect(runtime.hidden.isEmpty && runtime.titles.isEmpty && runtime.wraps.isEmpty, isTrue);
       // What a plugin gets wrong says so, where it is written.

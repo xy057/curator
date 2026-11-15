@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.9.0+397
+version: 0.9.0+398
 
 environment:
   sdk: ^3.13.4
@@ -55,12 +55,12 @@ flutter:
     # Curator's own plugins, each a folder laid out as a .cgp is (lib/plugins/bundled.dart).
     - assets/plugins/appearanceMenu/
     - assets/plugins/appearanceMenu/src/
+    - assets/plugins/navigator/
+    - assets/plugins/navigator/src/
     - assets/plugins/reopenLast/
     - assets/plugins/reopenLast/src/
     - assets/plugins/saveBeforeExport/
     - assets/plugins/saveBeforeExport/src/
-    - assets/plugins/scoreFacts/
-    - assets/plugins/scoreFacts/src/
     - assets/help/ # the guides the extension editor's and the plugin editor's Help show (extensions.md, plugins.md)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
     - assets/LICENSE.txt # Curator's own licence (the GPL asks that a copy go with every copy), first in Settings ▸ About ▸ Licenses; the repository's LICENSE, kept the same by about_page_test

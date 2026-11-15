@@ -2017,7 +2017,15 @@ on Windows wherever the registry says that folder now is): it never replaces the
     `ProjectPage._editorCommands`). A new menu item or editor key is added to all three;
     `in_step_test` holds the list to `KeyCommand`.
   - What a plugin put around a command is looked up when the command is chosen
-    (`Plugins.invoke`), never kept from when a widget was built.
+    (`Plugins.invoke`), never kept from when a widget was built. A button that does one of
+    the app's commands does it through `Plugins.doOwn` (the toolbar's, Home's), and Space
+    through Play / Pause's, so a wrap holds however the command is chosen.
+  - A plugin's commands are asked again (`enabled`, `checked`) after one ran or an event was
+    told (`Plugins.perform`, `emit`); a timer or a dialog's answer says so itself
+    (`app.refresh`), since telling the app twenty times a second would build it as often.
+  - Navigator (`app/assets/plugins/navigator/`) is the showcase: it uses every part of the
+    API, and each comment in it that starts with `Edge:` is something a plugin can't do. A
+    new part of the API is shown there, and an edge that goes is taken out of it.
   - A plugin's Lua is asked while widgets are built (`enabled`, `checked`), so what it reports
     or changes then is told after the frame (`Plugins._later`), and a function that failed is
     not asked again.

@@ -519,7 +519,11 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   @override
   void open(String path) => _openPath(path);
   @override
-  void message(String text) => _messenger?.showSnackBar(SnackBar(content: Text(text)));
+  void message(String text) => _messenger
+    // In place of the line showing, never waiting behind it: a command chosen again and again
+    // (Next Mark) says where it is now.
+    ?..clearSnackBars()
+    ..showSnackBar(SnackBar(content: Text(text)));
 
   static PluginProject _asPlugins(_OpenProject project) => (name: project.label.value.name, path: project.label.value.path, edited: project.label.value.edited);
 
@@ -859,8 +863,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
                 builder: (context, recent, _) => HomeScreen(
                   settings: settings,
                   recentFiles: recent,
-                  onOpen: _open,
-                  onImport: _import,
+                  // As the menus' items do them: what a plugin put around one is what its button does.
+                  onOpen: () => plugins.invoke('open', _open),
+                  onImport: () => plugins.invoke('importScore', _import),
                   onOpenRecent: _openPath,
                   onRemoveRecent: settings.removeRecent,
                   onClearRecent: settings.clearRecent,
@@ -1686,7 +1691,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final delete = own('delete', _commands.delete), selectAll = own('selectAll', _commands.selectAll);
     return {
       // Space plays / pauses — or, in tap mode, marks the bar or beat sounding now.
-      const SingleActivator(LogicalKeyboardKey.space): _commands.space,
+      const SingleActivator(LogicalKeyboardKey.space): () => _commands.taps ? _commands.space() : does['playPause']!(),
       const SingleActivator(LogicalKeyboardKey.enter): does['playPause']!,
       const SingleActivator(LogicalKeyboardKey.numpadEnter): does['playPause']!,
       // P too: tap mode takes Space.
