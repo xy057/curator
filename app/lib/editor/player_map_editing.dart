@@ -37,42 +37,45 @@ class PlayerMapEditing {
   /// The score's instruments seated as [preset] places them.
   PlayerMap smart(SeatingPreset preset) => PlayerMap.smart(parts, preset: preset, nameOf: nameOf);
 
+  /// Seats the score's instruments as [preset] places them, in place of the project's map: one
+  /// Undo step.
+  void seat(SeatingPreset preset) => set(smart(preset));
+
   /// [map] (a file's, from another score perhaps) made this score's: its links found again by
   /// name, else by id.
   PlayerMap fitted(PlayerMap map) => map.relinked(parts, nameOf: nameOf);
 
   // MARK: Pulses
 
-  /// The score's notes (unpitched ones too) and dynamics, read on another isolate for the score
-  /// they belong to; null while being read; none for a PDF's score.
-  ({String xml, List<SoundingNote> notes, ScoreDynamics dynamics})? _notes;
+  /// The score's notes (unpitched ones too) as loud as its dynamics have them, read on another
+  /// isolate for the score they belong to; null while being read; none for a PDF's score.
+  ({String xml, PlayerNotes notes})? _notes;
   String? _reading;
 
-  /// How swollen the map's players are at each time: [PlayerPulses.none] until the notes have
-  /// been read (they are read the first time this is asked), worked out again only when the
-  /// notes, the performance or what the map links change.
+  /// How swollen players are at each time, whatever map they are in (the project's, or the one
+  /// its editor has): [PlayerPulses.none] until the notes have been read (they are read the first
+  /// time this is asked while there is a map), made again only when the notes or the performance
+  /// change, which costs nothing ([PlayerPulses]).
   PlayerPulses get pulses {
-    final score = _editor._score, map = this.map;
+    final score = _editor._score;
     if (score == null || map == null || _editor.isPdf) return PlayerPulses.none;
     final notes = _notes;
     if (notes == null || !identical(notes.xml, score.musicXML) && notes.xml != score.musicXML) {
       _read(score);
       return PlayerPulses.none;
     }
-    final timeline = _editor.timeline, links = map.links;
-    if (_pulses case (final n, final t, final l, final p) when identical(n, notes.notes) && identical(t, timeline) && setEquals(l, links)) {
-      return p;
-    }
-    final pulses = PlayerPulses.of(notes.notes, timeline, links, dynamics: notes.dynamics);
-    _pulses = (notes.notes, timeline, links, pulses);
+    final timeline = _editor.timeline;
+    if (_pulses case (final n, final t, final p) when identical(n, notes.notes) && identical(t, timeline)) return p;
+    final pulses = PlayerPulses(notes.notes, timeline);
+    _pulses = (notes.notes, timeline, pulses);
     return pulses;
   }
 
-  (List<SoundingNote>, ScoreTimeline, Set<PlayerLink>, PlayerPulses)? _pulses;
+  (PlayerNotes, ScoreTimeline, PlayerPulses)? _pulses;
 
   /// Static, so the isolate is sent the score's text and bars alone, never the controller.
-  static Future<(List<SoundingNote>, ScoreDynamics)> _notesOff(String xml, List<double> starts) =>
-      Isolate.run(() => (soundingNotes(xml, starts, unpitched: true).toList(), ScoreDynamics.read(xml, starts)));
+  static Future<PlayerNotes> _notesOff(String xml, List<double> starts) =>
+      Isolate.run(() => PlayerNotes.of(soundingNotes(xml, starts, unpitched: true), dynamics: ScoreDynamics.read(xml, starts)));
 
   void _read(LoadedScore score) {
     final xml = score.musicXML;
@@ -81,7 +84,7 @@ class PlayerMapEditing {
     final starts = score.timeline.measureStarts;
     unawaited(_notesOff(xml, starts).then((read) {
       if (_editor._disposed || _reading != xml) return;
-      _notes = (xml: xml, notes: read.$1, dynamics: read.$2);
+      _notes = (xml: xml, notes: read);
       _reading = null;
       _editor.playback._markDirty();
       _editor._changed();
@@ -89,7 +92,7 @@ class PlayerMapEditing {
       // A score that can't be read for its notes swells nothing.
       debugPrint('Player map: the notes couldn’t be read: $e');
       if (_editor._disposed || _reading != xml) return;
-      _notes = (xml: xml, notes: const [], dynamics: ScoreDynamics.none);
+      _notes = (xml: xml, notes: PlayerNotes.none);
       _reading = null;
     }));
   }

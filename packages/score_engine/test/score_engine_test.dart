@@ -135,7 +135,23 @@ void main() {
         expect(grown.sections[k].plan?.kind, seated.sections[k].plan?.kind, reason: '$name seated the same way');
         tidy(grown, '$name ×$count');
       }
-      expect([for (final s in grown.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      final flute = grown.sections.firstWhere((s) => s.name == 'Flute');
+      expect([for (final s in flute.seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      expect([for (final s in flute.withoutSeat(0).seats) s.link?.part], ['P3', null, null, null, null], reason: 'the rest keep what they play');
+      expect((flute.hasUnlinked, grown.sections.first.hasUnlinked), (true, false));
+      // A section added where another is (another of it) is put where there is room, on the stage.
+      final timpani = seated.sections.firstWhere((s) => s.name == 'Timpani'), copied = seated.adding(timpani);
+      expect(copied.sections.last, isNot(timpani));
+      tidy(copied, 'another timpani');
+      // A section set over another by hand stays there when that one grows, and a map with a
+      // section past the stage's edge isn't pulled in (nor reaches further off).
+      final fl = seated.sections.indexWhere((s) => s.name == 'Flute'), pc = seated.sections.indexWhere((s) => s.name == 'Piccolo');
+      final to = seated.sections[fl].center, from = seated.sections[pc].center;
+      final over = seated.sections[pc].moved(to.x - from.x, to.y - from.y), out = seated.sections.last.moved(0, 1.05 - seated.sections.last.bounds().bottom);
+      final byHand = seated.withSection(pc, over).withSection(seated.sections.length - 1, out);
+      final more = byHand.roomFor(fl, byHand.sections[fl].withCount(4));
+      expect(byHand.bounds!.bottom, greaterThan(1));
+      expect((more.sections[pc], more.sections.last, more.bounds), (over, out, byHand.bounds));
       // Seated in rows, then as Smart Seating seated it again: the fan, its players as many.
       final fan = grown.sections.first, rows = fan.arranged(SeatShape.rows, 18);
       expect((fan.shape, rows.shape, rows.plan?.kind), (SeatShape.auto, SeatShape.rows, SeatPlanKind.rows));
@@ -146,15 +162,31 @@ void main() {
       // A section from before plans: seen as the row it is.
       const old = MapSection(name: 'Old', color: 0xFF000000, labelX: 0.45, labelY: 0.6, seats: [MapSeat(0.4, 0.5), MapSeat(0.5, 0.5)]);
       expect(old.withCount(3).seats.map((s) => s.y).toSet(), hasLength(1));
-      // Counted from names and staves; a contrabassoon is no bass.
-      ScorePart part(String id, String name, [int staves = 1]) =>
-          ScorePart(id: id, name: name, abbreviation: '', sound: null, staffNumbers: [for (var i = 1; i <= staves; i++) i]);
-      final band = PlayerMap.smart([part('a', 'Horn in F 1-4', 2), part('b', 'Trumpets I–III'), part('c', 'Contrabassoon'), part('d', 'Violin')]);
+      // Dragged, it stops at the stage's edge, a player alone too; a place saved far off the stage
+      // (as a held arrow once left it) is read as one just off it, not refused.
+      expect(old.dragged(-3, 0).bounds().left, closeTo(0, 1e-9));
+      expect(old.dragged(0, 3, seat: 1).seats.map((s) => s.y), [0.5, closeTo(1 - old.size / 2, 1e-9)]);
+      final far = old.toJson()..['seats'] = [[9, 0.5]];
+      expect(MapSection.fromJson(far, 'section').seats.single.x, 2);
+      // Counted from names and staves; a contrabassoon is no bass, nor a contrabass clarinet;
+      // tubular bells are no tuba; a harp named in Chinese is known by its sound, and a guitar is
+      // no section of violins.
+      ScorePart part(String id, String name, [int staves = 1, String? sound]) =>
+          ScorePart(id: id, name: name, abbreviation: '', sound: sound, staffNumbers: [for (var i = 1; i <= staves; i++) i]);
+      final band = PlayerMap.smart([
+        part('a', 'Horn in F 1-4', 2), part('b', 'Trumpets I–III'), part('c', 'Contrabassoon'), part('d', 'Violin'), //
+        part('e', 'Contrabass Clarinet'), part('f', 'Tubular Bells'), part('g', '竖琴', 1, 'pluck.harp'), part('i', 'Guitar', 1, 'pluck.guitar'),
+      ]);
+      expect({for (final s in band.sections) s.name: (s.color, s.seats.length)}, containsPair('Contrabass Clarinet', (MapColors.woodwinds, 1)));
+      expect({for (final s in band.sections) s.name: (s.color, s.seats.length)},
+          allOf(containsPair('Tubular Bells', (MapColors.percussion, 1)), containsPair('竖琴', (MapColors.keyboards, 1)), containsPair('Guitar', (MapColors.other, 1))));
       final seats = {for (final s in band.sections) s.name: [for (var i = 0; i < s.seats.length; i++) s.linkOf(i)?.key]};
       expect(seats['Horn in F 1-4'], ['a', 'a', 'a', 'a']);
       expect(seats['Trumpets I–III'], ['b', 'b', 'b']);
       expect(seats['Contrabassoon'], ['c']);
       expect(PlayerMap.smart([part('h', 'Horns 1.2', 2)]).sections.single.seats.map((s) => s.link?.key), ['h#1', 'h#2']);
+      // A name is as wide as its characters are drawn: a Chinese one about twice a Latin one's.
+      expect([SeatPlan.labelEms('第一小提琴'), SeatPlan.labelEms('Viola')], [5, closeTo(2.9, 1e-9)]);
 
       final text = seated.encode();
       expect(PlayerMap.decode(text).encode(), text);
@@ -166,7 +198,7 @@ void main() {
           reason: 'by name; P2 is an oboe there, so no flute');
 
       final dynamics = ScoreDynamics.read(score.musicXML, starts);
-      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, seated.links, dynamics: dynamics);
+      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, dynamics: dynamics);
       final violins = seated.sections.first.link!;
       final first = soundingNotes(score.musicXML, starts).firstWhere((n) => n.partId == violins.part);
       final on = score.timeline.secondsAtQuarter(first.start);
@@ -174,6 +206,10 @@ void main() {
       expect(pulses.level(violins, on + PlayerPulses.attack), closeTo(PlayerPulses.strengthOf(dynamics.at(violins.part, first.start)), 1e-9),
           reason: 'as far as it is loud');
       expect(PlayerPulses.strengthOf(ScoreDynamics.levels['pp']!), lessThan(PlayerPulses.strengthOf(ScoreDynamics.levels['ff']!)));
+      // Whatever a map links asks the same pulses: the violins' one staff as all of them, a part
+      // the score hasn't nothing.
+      expect(pulses.level(violins.withStaff(1), on + PlayerPulses.attack), pulses.level(violins, on + PlayerPulses.attack));
+      expect(pulses.level(const PlayerLink('none'), on + PlayerPulses.attack), 0);
 
       // Dynamics: a mark holds, a hairpin ramps to the mark it reaches (a step where none), an
       // accent is its moment's, fp an accent then piano; mf before anything.

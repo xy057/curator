@@ -83,20 +83,18 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     _seek(at);
   }
 
-  /// The score's notes and dynamics, read the first time the map shows (a browser has no isolate
-  /// to spare).
-  List<SoundingNote>? _notes;
-  ScoreDynamics? _dynamics;
+  /// The score's notes as loud as its dynamics have them, read the first time the map shows (a
+  /// browser has no isolate to spare); the pulses, as the recording heard plays them.
+  PlayerNotes? _notes;
   PlayerPulses? _pulses;
 
   PlayerPulses get _mapPulses {
-    final map = _map;
-    if (map == null) return PlayerPulses.none;
-    final score = _loaded.score;
-    final starts = score.timeline.measureStarts, pdf = score.pdf != null;
-    _notes ??= pdf ? const [] : soundingNotes(score.musicXML, starts, unpitched: true).toList();
-    _dynamics ??= pdf ? ScoreDynamics.none : ScoreDynamics.read(score.musicXML, starts);
-    return _pulses ??= PlayerPulses.of(_notes!, _scene.timeline, map.links, dynamics: _dynamics);
+    if (_map == null) return PlayerPulses.none;
+    final score = _loaded.score, starts = score.timeline.measureStarts;
+    _notes ??= score.pdf != null
+        ? PlayerNotes.none
+        : PlayerNotes.of(soundingNotes(score.musicXML, starts, unpitched: true), dynamics: ScoreDynamics.read(score.musicXML, starts));
+    return _pulses ??= PlayerPulses(_notes!, _scene.timeline);
   }
 
   void _tick() {

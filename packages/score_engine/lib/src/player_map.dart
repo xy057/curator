@@ -63,6 +63,9 @@ class MapSeat {
   int get hashCode => Object.hash(x, y, link);
 }
 
+/// What a section or a map covers of the stage (0–1 across and down), names and dots alike.
+typedef StageBox = ({double left, double top, double right, double bottom});
+
 /// How [MapSection.arranged] seats a section's players: as Smart Seating seated them
 /// ([MapSection.auto]), or in rows, a bow or a line.
 enum SeatShape { auto, rows, arc, line }
@@ -192,8 +195,28 @@ class SeatPlan {
     return (x: x + at.x * unitX, y: y + at.y * unitY);
   }
 
+  /// About how wide [name] is drawn, in ems (its height): a Chinese, Japanese or Korean
+  /// character (or another drawn as wide) one, any other a little over half.
+  static double labelEms(String name) {
+    var ems = 0.0;
+    for (final r in name.runes) {
+      final wide = r >= 0x1100 &&
+          (r <= 0x115F || // Hangul Jamo
+              (r >= 0x2E80 && r <= 0xA4CF) || // CJK radicals … kana … ideographs … Yi
+              (r >= 0xAC00 && r <= 0xD7A3) || // Hangul syllables
+              (r >= 0xF900 && r <= 0xFAFF) || // compatibility ideographs
+              (r >= 0xFE30 && r <= 0xFE4F) || // compatibility forms
+              (r >= 0xFF00 && r <= 0xFF60) || // full-width forms
+              (r >= 0xFFE0 && r <= 0xFFE6) ||
+              (r >= 0x1F300 && r <= 0x1FAFF) || // emoji
+              (r >= 0x20000 && r <= 0x3FFFD)); // ideographs beyond the first plane
+      ems += wide ? 1.0 : 0.58;
+    }
+    return ems;
+  }
+
   /// Half a section's name's width (of the stage's) and height (of its height).
-  static double labelHalfWidth(String name, double aspect) => name.length * PlayerMap.labelSize * 0.29 / aspect + 0.008;
+  static double labelHalfWidth(String name, double aspect) => labelEms(name) * PlayerMap.labelSize * 0.5 / aspect + 0.008;
   static const labelHalfHeight = PlayerMap.labelSize * 0.62;
 
   Map<String, Object?> toJson() => {
@@ -289,6 +312,12 @@ class MapSection {
   /// What seat [i] plays: its own link, else the section's.
   PlayerLink? linkOf(int i) => seats[i].link ?? link;
 
+  /// Whether one of its players plays nothing: no link of its own, nor the section's.
+  bool get hasUnlinked => link == null && seats.any((s) => s.link == null);
+
+  /// With player [i] made [seat].
+  MapSection withSeat(int i, MapSeat seat) => copyWith(seats: [for (final (j, s) in seats.indexed) j == i ? seat : s]);
+
   MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats, SeatPlan? plan, SeatPlan? auto}) =>
       MapSection(
         name: name ?? this.name,
@@ -333,6 +362,51 @@ class MapSection {
       y += s.y;
     }
     return (x: x / seats.length, y: y / seats.length);
+  }
+
+  /// What its name covers of a stage [aspect] wide (its place alone, with no name).
+  StageBox labelBounds([double aspect = PlayerMap.defaultAspect]) {
+    final w = name.isEmpty ? 0.0 : SeatPlan.labelHalfWidth(name, aspect), h = name.isEmpty ? 0.0 : SeatPlan.labelHalfHeight;
+    return (left: labelX - w, top: labelY - h, right: labelX + w, bottom: labelY + h);
+  }
+
+  /// What its dots and name cover of a stage [aspect] wide.
+  StageBox bounds([double aspect = PlayerMap.defaultAspect]) {
+    final rx = size / 2 / aspect, ry = size / 2;
+    var box = name.isEmpty && seats.isNotEmpty
+        ? (left: double.infinity, top: double.infinity, right: double.negativeInfinity, bottom: double.negativeInfinity)
+        : labelBounds(aspect);
+    for (final s in seats) {
+      box = (
+        left: math.min(box.left, s.x - rx),
+        top: math.min(box.top, s.y - ry),
+        right: math.max(box.right, s.x + rx),
+        bottom: math.max(box.bottom, s.y + ry),
+      );
+    }
+    return box;
+  }
+
+  /// Moved by [dx], [dy] as a drag or an arrow moves it (all of it; its name alone for [label];
+  /// player [seat] alone), but never off the stage: only as far as keeps what moves on it. What
+  /// is off it already goes no further off.
+  MapSection dragged(double dx, double dy, {int? seat, bool label = false, double aspect = PlayerMap.defaultAspect}) {
+    final box = label
+        ? labelBounds(aspect)
+        : switch (seat) {
+            final i? => (left: seats[i].x - size / 2 / aspect, top: seats[i].y - size / 2, right: seats[i].x + size / 2 / aspect, bottom: seats[i].y + size / 2),
+            null => bounds(aspect),
+          };
+    double kept(double d, double lo, double hi) {
+      final a = -lo, b = 1 - hi;
+      return d.clamp(math.min(math.min(a, b), 0.0), math.max(math.max(a, b), 0.0));
+    }
+
+    dx = kept(dx, box.left, box.right);
+    dy = kept(dy, box.top, box.bottom);
+    if (label) return copyWith(labelX: labelX + dx, labelY: labelY + dy);
+    if (seat != null) return withSeat(seat, seats[seat].at(seats[seat].x + dx, seats[seat].y + dy));
+    return moved(dx, dy);
   }
 
   /// [count] players seated by [plan], each keeping its own link in order (new ones with none),
@@ -389,6 +463,15 @@ class MapSection {
     // A name moved from its plan's place stays as far from it.
     final was = own.label(seats.length, name: name, size: size, aspect: aspect);
     return next.copyWith(labelX: next.labelX + labelX - was.x, labelY: next.labelY + labelY - was.y);
+  }
+
+  /// Without player [i]: the rest seated anew as its plan seats one fewer ([withCount]), each
+  /// keeping what it plays. Its last player stays.
+  MapSection withoutSeat(int i, {double aspect = PlayerMap.defaultAspect}) {
+    if (seats.length < 2) return this;
+    final links = [for (final (j, s) in seats.indexed) if (j != i) s.link];
+    final fewer = withCount(seats.length - 1, aspect: aspect);
+    return fewer.copyWith(seats: [for (final (j, s) in fewer.seats.indexed) s.linked(links[j])]);
   }
 
   /// Its seats seen as rows: as many a row as its widest, its front row's middle the place.
@@ -471,16 +554,17 @@ class MapSection {
 
   @override
   bool operator ==(Object other) =>
+      identical(this, other) ||
       other is MapSection &&
-      other.name == name &&
-      other.color == color &&
-      other.size == size &&
-      other.labelX == labelX &&
-      other.labelY == labelY &&
-      other.link == link &&
-      other.plan == plan &&
-      other.auto == auto &&
-      listEquals(other.seats, seats);
+          other.name == name &&
+          other.color == color &&
+          other.size == size &&
+          other.labelX == labelX &&
+          other.labelY == labelY &&
+          other.link == link &&
+          other.plan == plan &&
+          other.auto == auto &&
+          listEquals(other.seats, seats);
   @override
   int get hashCode => Object.hash(name, color, size, labelX, labelY, link, seats.length);
 }
@@ -520,6 +604,19 @@ class PlayerMap {
   final double aspect;
 
   PlayerMap withSections(List<MapSection> sections) => PlayerMap(sections: List.unmodifiable(sections), aspect: aspect);
+
+  /// With section [k] made [section], nothing else moved ([roomFor] makes room for it).
+  PlayerMap withSection(int k, MapSection section) => withSections([...sections]..[k] = section);
+
+  /// Without section [k].
+  PlayerMap without(int k) => withSections([...sections]..removeAt(k));
+
+  /// With [section] added, last: moved the shortest way that leaves it clear of the others and
+  /// on the stage (where it is, when it is clear there, or when nowhere near is).
+  PlayerMap adding(MapSection section) => withSections([
+        ...sections,
+        sections.any((s) => _covers(s, section)) ? _cleared(section, sections, onStage: true) ?? section : section,
+      ]);
 
   /// Every link a seat plays by, once each.
   Set<PlayerLink> get links => {
@@ -593,39 +690,76 @@ class PlayerMap {
         for (final s in sections) s.linked(to(s.link)).copyWith(seats: [for (final seat in s.seats) seat.linked(to(seat.link))]),
       ]);
 
+  /// What its sections' dots and names cover of the stage; null with none.
+  StageBox? get bounds {
+    StageBox? all;
+    for (final s in sections) {
+      final box = s.bounds(aspect);
+      all = all == null
+          ? box
+          : (
+              left: math.min(all.left, box.left),
+              top: math.min(all.top, box.top),
+              right: math.max(all.right, box.right),
+              bottom: math.max(all.bottom, box.bottom),
+            );
+    }
+    return all;
+  }
+
   /// This map with section [k] made [section], the sections it would now cover moved out of its
-  /// way (each away from it, and those they would then cover in turn), and the whole made smaller
-  /// where it would leave the stage.
+  /// way (each away from it, and those they would then cover in turn; one it covered already, set
+  /// there by hand, stays), and the whole made smaller where it would leave the stage (or reach
+  /// further off it than it did).
   PlayerMap roomFor(int k, MapSection section) {
-    final out = [...sections]..[k] = section;
+    final out = withSection(k, section).sections.toList();
     final settled = <int>{k}, queue = [k];
-    while (queue.isNotEmpty) {
-      final i = queue.removeAt(0), from = out[i].center;
+    for (var head = 0; head < queue.length; head++) {
+      final i = queue[head];
       for (var j = 0; j < out.length; j++) {
-        if (settled.contains(j) || !_covers(out[i], out[j])) continue;
-        // The shortest way clear of every settled section, of the ways leading away from it.
-        final to = out[j].center;
-        var ax = (to.x - from.x) * aspect, ay = to.y - from.y;
-        final d = math.sqrt(ax * ax + ay * ay);
-        (ax, ay) = d < 1e-6 ? (0.0, -1.0) : (ax / d, ay / d);
-        MapSection? best;
-        var bestStep = 1 << 30;
-        for (var w = 0; w < 24; w++) {
-          final dx = math.cos(w * math.pi / 12), dy = math.sin(w * math.pi / 12);
-          if (dx * ax + dy * ay < 0.2) continue;
-          for (var step = 1; step < bestStep && step <= 120; step++) {
-            final moved = out[j].moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
-            if (settled.any((m) => _covers(out[m], moved))) continue;
-            (best, bestStep) = (moved, step);
-            break;
-          }
-        }
-        out[j] = best ?? out[j];
+        if (settled.contains(j) || !_covers(out[i], out[j]) || _covers(sections[i], sections[j])) continue;
+        out[j] = _cleared(out[j], [for (final m in settled) out[m]], from: out[i].center) ?? out[j];
         settled.add(j);
         queue.add(j);
       }
     }
-    return withSections(out)._onStage();
+    const margin = 0.01;
+    final was = bounds ?? (left: margin, top: margin, right: 1 - margin, bottom: 1 - margin);
+    return withSections(out)._keptIn((
+      left: math.min(margin, was.left),
+      top: math.min(margin, was.top),
+      right: math.max(1 - margin, was.right),
+      bottom: math.max(1 - margin, was.bottom),
+    ));
+  }
+
+  /// [section] moved the shortest way that leaves it clear of every one of [others] (of the ways
+  /// leading away from [from], when given; only to where all of it is on the stage, for
+  /// [onStage]); null when no way a good part of the stage long does.
+  MapSection? _cleared(MapSection section, List<MapSection> others, {({double x, double y})? from, bool onStage = false}) {
+    var ax = 0.0, ay = -1.0;
+    if (from != null) {
+      final to = section.center, x = (to.x - from.x) * aspect, y = to.y - from.y, d = math.sqrt(x * x + y * y);
+      if (d >= 1e-6) (ax, ay) = (x / d, y / d);
+    }
+    MapSection? best;
+    var bestStep = 121;
+    for (var w = 0; w < 24; w++) {
+      final dx = math.cos(w * math.pi / 12), dy = math.sin(w * math.pi / 12);
+      if (from != null && dx * ax + dy * ay < 0.2) continue;
+      for (var step = 1; step < bestStep; step++) {
+        final moved = section.moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
+        if (onStage) {
+          // Further this way only leaves it further.
+          final box = moved.bounds(aspect);
+          if (box.left < 0 || box.right > 1 || box.top < 0 || box.bottom > 1) break;
+        }
+        if (others.any((o) => _covers(o, moved))) continue;
+        (best, bestStep) = (moved, step);
+        break;
+      }
+    }
+    return best;
   }
 
   /// Whether [a]'s dots or name and [b]'s meet (a dot's width apart at the least).
@@ -648,36 +782,24 @@ class PlayerMap {
     return p != null && q != null && (p.x - q.x).abs() < p.w + q.w && (p.y - q.y).abs() < p.h + q.h;
   }
 
-  /// The map moved, and made smaller about the stage's middle when that isn't enough, so that
-  /// every dot and name is on the stage.
-  PlayerMap _onStage() {
-    const margin = 0.01;
+  /// The map moved, and made smaller when that isn't enough, so that every dot and name is in
+  /// [room] of the stage.
+  PlayerMap _keptIn(StageBox room) {
     var map = this;
     for (var round = 0; round < 4; round++) {
-      var x0 = double.infinity, x1 = double.negativeInfinity, y0 = double.infinity, y1 = double.negativeInfinity;
-      for (final s in map.sections) {
-        for (final p in s.seats) {
-          x0 = math.min(x0, p.x - s.size / 2 / aspect);
-          x1 = math.max(x1, p.x + s.size / 2 / aspect);
-          y0 = math.min(y0, p.y - s.size / 2);
-          y1 = math.max(y1, p.y + s.size / 2);
-        }
-        if (s.name.isNotEmpty) {
-          final w = SeatPlan.labelHalfWidth(s.name, aspect), h = SeatPlan.labelHalfHeight;
-          x0 = math.min(x0, s.labelX - w);
-          x1 = math.max(x1, s.labelX + w);
-          y0 = math.min(y0, s.labelY - h);
-          y1 = math.max(y1, s.labelY + h);
-        }
+      final box = map.bounds;
+      if (box == null || (box.left >= room.left && box.right <= room.right && box.top >= room.top && box.bottom <= room.bottom)) return map;
+      final f = math.min(1.0, math.min((room.right - room.left) / (box.right - box.left), (room.bottom - room.top) / (box.bottom - box.top)));
+      // Into the room: as little as moves it in.
+      double into(double lo, double hi, double from, double to) => lo < from ? from - lo : (hi > to ? to - hi : 0);
+      if (f >= 1) {
+        final dx = into(box.left, box.right, room.left, room.right), dy = into(box.top, box.bottom, room.top, room.bottom);
+        return map.withSections([for (final s in map.sections) s.moved(dx, dy)]);
       }
-      if (x0 > x1 || (x0 >= margin && x1 <= 1 - margin && y0 >= margin && y1 <= 1 - margin)) return map;
-      final room = 1 - 2 * margin, f = math.min(1.0, math.min(room / (x1 - x0), room / (y1 - y0)));
-      // Into the stage: as little as moves it in.
-      double into(double lo, double hi) => lo < margin ? margin - lo : (hi > 1 - margin ? 1 - margin - hi : 0);
-      if (f >= 1) return map.withSections([for (final s in map.sections) s.moved(into(x0, x1), into(y0, y1))]);
-      // Smaller about the middle of what it covers, then moved in.
-      final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      map = map.withSections([for (final s in map.sections) s.scaled(f * 0.98, cx, cy).moved(0.5 - cx, 0.5 - cy)]);
+      // Smaller about the middle of what it covers, then that put at the room's middle.
+      final cx = (box.left + box.right) / 2, cy = (box.top + box.bottom) / 2;
+      final dx = (room.left + room.right) / 2 - cx, dy = (room.top + room.bottom) / 2 - cy;
+      map = map.withSections([for (final s in map.sections) s.scaled(f * 0.98, cx, cy).moved(dx, dy)]);
     }
     return map;
   }
@@ -690,23 +812,107 @@ class PlayerMap {
       _Seating(parts, preset, nameOf ?? (p) => p.name).map();
 
   @override
-  bool operator ==(Object other) => other is PlayerMap && other.aspect == aspect && listEquals(other.sections, sections);
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PlayerMap && other.aspect == aspect && listEquals(other.sections, sections);
   @override
   int get hashCode => Object.hash(aspect, sections.length);
 }
 
 // MARK: Pulses
 
-/// When each linked instrument's notes sound in a performance, to make its players swell: a note
-/// makes them swell at once, as far as how loud it is played ([strengthOf] its [ScoreDynamics]
-/// level: a pp note a little, an ff one nearly to [level] 1), fading to nothing over a time its
-/// length sets ([envelope]), a short note quickly, a long one slowly; while one still sounds they
-/// stay a little lit ([held], as loud). A function of time alone, as a frame is.
+/// A score's notes as a player map hears them: for each instrument, and each staff of it, where
+/// its notes start and end in the score (quarters; ties joined, a chord one note) and how far each
+/// swells its players ([PlayerPulses.strengthOf] its dynamic). Read once for a score ([of]: the
+/// work of it, so done on another isolate where there is one), whatever plays it and however fast.
+class PlayerNotes {
+  PlayerNotes._(this._spans);
+
+  /// No notes.
+  static final none = PlayerNotes._(const {});
+
+  /// By [PlayerLink.key].
+  final Map<String, _Spans> _spans;
+
+  /// [notes] (each as [soundingNotes] reads it, ties carried on), each as loud as [dynamics]
+  /// says (none: all mf).
+  factory PlayerNotes.of(Iterable<SoundingNote> notes, {ScoreDynamics? dynamics}) {
+    final loud = dynamics ?? ScoreDynamics.none;
+    final byStaff = <String, Map<int, List<_Span>>>{};
+    // Each note once, ties joined to the note they carry on.
+    final open = <(String, int, String, int), _Span>{};
+    for (final n in notes) {
+      final at = (n.partId, n.staff, n.voice, n.midi);
+      if (open[at] case final span? when n.tied && (span.end - n.start).abs() < 1e-6) {
+        span.end = n.end;
+        continue;
+      }
+      final span = open[at] = _Span(n.start, n.end);
+      ((byStaff[n.partId] ??= {})[n.staff] ??= []).add(span);
+    }
+    final out = <String, _Spans>{};
+    for (final MapEntry(key: part, value: staves) in byStaff.entries) {
+      _Spans pack(List<_Span> spans) => _Spans.of(spans, (start) => PlayerPulses.strengthOf(loud.at(part, start)));
+      for (final MapEntry(key: staff, value: spans) in staves.entries) {
+        out['$part#$staff'] = pack(spans);
+      }
+      // The whole instrument: its one staff's, or all of them together.
+      out[part] = staves.length == 1 ? out['$part#${staves.keys.single}']! : pack([for (final spans in staves.values) ...spans]);
+    }
+    return PlayerNotes._(out);
+  }
+}
+
+/// A note from where it starts to where it (and what is tied to it) ends, in score quarters.
+class _Span {
+  _Span(this.start, this.end);
+  final double start;
+  double end;
+}
+
+/// One instrument's (or staff's) notes in the score, in order: where each starts and ends, and
+/// how far it swells its players; a chord is one, its longest.
+class _Spans {
+  _Spans(this.starts, this.ends, this.strengths);
+  final Float64List starts, ends, strengths;
+
+  factory _Spans.of(List<_Span> spans, double Function(double start) strength) {
+    spans.sort((a, b) => a.start.compareTo(b.start));
+    final starts = Float64List(spans.length), ends = Float64List(spans.length);
+    var n = 0;
+    for (final s in spans) {
+      if (n > 0 && s.start - starts[n - 1] < 1e-9) {
+        if (s.end > ends[n - 1]) ends[n - 1] = s.end;
+        continue;
+      }
+      starts[n] = s.start;
+      ends[n++] = s.end;
+    }
+    final strengths = Float64List(n);
+    for (var i = 0; i < n; i++) {
+      strengths[i] = strength(starts[i]);
+    }
+    return _Spans(Float64List.sublistView(starts, 0, n), Float64List.sublistView(ends, 0, n), strengths);
+  }
+}
+
+/// When each instrument's notes sound in a performance, to make its players swell: a note makes
+/// them swell at once, as far as how loud it is played ([strengthOf] its [ScoreDynamics] level: a
+/// pp note a little, an ff one nearly to [level] 1), fading to nothing over a time its length sets
+/// ([envelope]), a short note quickly, a long one slowly; while one still sounds they stay a
+/// little lit ([held], as loud). A function of time alone, as a frame is.
+///
+/// Made in no time, for a performance changes as often as a beat is dragged: an instrument's
+/// notes are put in the performance's seconds the first time one is asked of ([level]), so only
+/// those a map links ever are, and whatever a map links it asks the same pulses.
 class PlayerPulses {
-  PlayerPulses._(this._events);
+  PlayerPulses(this._notes, this._timeline);
 
   /// No notes: nothing ever swells.
-  static final none = PlayerPulses._(const {});
+  static final none = PlayerPulses(PlayerNotes.none, null);
+
+  /// [notes] as [timeline] plays them, each as loud as [dynamics] says ([PlayerNotes.of]).
+  factory PlayerPulses.of(Iterable<SoundingNote> notes, ScoreTimeline timeline, {ScoreDynamics? dynamics}) =>
+      PlayerPulses(PlayerNotes.of(notes, dynamics: dynamics), timeline);
 
   /// The swell's rise, and the shortest and longest fade, in seconds.
   static const attack = 0.025, shortest = 0.15, longest = 3.0;
@@ -714,50 +920,59 @@ class PlayerPulses {
   /// How lit players stay while a note of theirs sounds past its fade.
   static const held = 0.2;
 
-  final Map<String, _Events> _events;
+  final PlayerNotes _notes;
+  final ScoreTimeline? _timeline;
+
+  /// Each link's notes in the performance's seconds, once asked for (null: it has none).
+  final _events = <PlayerLink, _Events?>{};
 
   /// How far a note played at dynamic [level] (0–1, [ScoreDynamics]) swells its players.
   static double strengthOf(double level) => 0.15 + 0.85 * level.clamp(0.0, 1.0);
 
-  /// [notes] (each as [soundingNotes] reads it, ties carried on) as [timeline] plays them, pass
-  /// by pass, for what [links] play, each as loud as [dynamics] says (none: all mf).
-  factory PlayerPulses.of(Iterable<SoundingNote> notes, ScoreTimeline timeline, Iterable<PlayerLink> links, {ScoreDynamics? dynamics}) {
-    final keys = {for (final l in links) l.key};
-    if (keys.isEmpty) return none;
-    // Each note once, ties joined to the note they carry on.
-    final joined = <({String part, int staff, double start, double end})>[];
-    final open = <(String, int, String, int), int>{};
-    for (final n in notes) {
-      if (!keys.contains(n.partId) && !keys.contains('${n.partId}#${n.staff}')) continue;
-      final at = (n.partId, n.staff, n.voice, n.midi);
-      if (open[at] case final i? when n.tied && (joined[i].end - n.start).abs() < 1e-6) {
-        final j = joined[i];
-        joined[i] = (part: j.part, staff: j.staff, start: j.start, end: n.end);
-        continue;
+  /// The notes of [key] as the timeline plays them, pass by pass.
+  _Events? _played(String key) {
+    final spans = _notes._spans[key], timeline = _timeline;
+    if (spans == null || timeline == null) return null;
+    final passes = timeline.passes, starts = spans.starts;
+    // A pass plays the notes that start in it.
+    int firstFrom(double quarter) {
+      var lo = 0, hi = starts.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (starts[mid] < quarter) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
       }
-      open[at] = joined.length;
-      joined.add((part: n.partId, staff: n.staff, start: n.start, end: n.end));
+      return lo;
     }
-    final passes = timeline.passes, byKey = <String, List<(double, double, double)>>{};
-    final loud = dynamics ?? ScoreDynamics.none;
-    for (final n in joined) {
-      final strength = strengthOf(loud.at(n.part, n.start));
-      for (final (k, p) in passes.indexed) {
-        if (n.start < p.start - 1e-9 || n.start >= p.end - 1e-9) continue;
-        final on = timeline.secondsAtQuarter(n.start, pass: k), off = timeline.secondsAtQuarter(math.min(n.end, p.end), pass: k);
-        final event = (on, math.max(0.0, off - on), strength);
-        if (keys.contains(n.part)) (byKey[n.part] ??= []).add(event);
-        final staff = '${n.part}#${n.staff}';
-        if (keys.contains(staff)) (byKey[staff] ??= []).add(event);
+
+    final from = [for (final p in passes) firstFrom(p.start - 1e-9)], to = [for (final p in passes) firstFrom(p.end - 1e-9)];
+    var count = 0;
+    for (var k = 0; k < passes.length; k++) {
+      count += math.max(0, to[k] - from[k]);
+    }
+    final onsets = Float64List(count), lengths = Float64List(count), strengths = Float64List(count);
+    var n = 0, inOrder = true;
+    for (final (k, p) in passes.indexed) {
+      for (var i = from[k]; i < to[k]; i++) {
+        final on = timeline.secondsAtQuarter(starts[i], pass: k);
+        if (n > 0 && on < onsets[n - 1]) inOrder = false;
+        onsets[n] = on;
+        lengths[n] = math.max(0.0, timeline.secondsAtQuarter(math.min(spans.ends[i], p.end), pass: k) - on);
+        strengths[n++] = spans.strengths[i];
       }
     }
-    return PlayerPulses._({for (final MapEntry(:key, :value) in byKey.entries) key: _Events.of(value)});
+    return _Events.of(onsets, lengths, strengths, inOrder: inOrder);
   }
 
   /// How swollen players playing [link] are at [seconds]: 0 at rest, 1 at a note's start.
   double level(PlayerLink? link, double seconds) {
-    if (link == null) return 0;
-    return _events[link.key]?.level(seconds) ?? 0;
+    if (link == null || _timeline == null) return 0;
+    var events = _events[link];
+    if (events == null && !_events.containsKey(link)) events = _events[link] = _played(link.key);
+    return events?.level(seconds) ?? 0;
   }
 
   /// A note's swell [since] seconds after it started, for a note [length] seconds long: up over
@@ -780,28 +995,34 @@ class _Events {
   _Events(this.onsets, this.lengths, this.strengths, this.ends);
   final Float64List onsets, lengths, strengths, ends;
 
-  factory _Events.of(List<(double, double, double)> events) {
-    events.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : b.$2.compareTo(a.$2));
-    // A chord's notes are one onset: its longest, as loud as its loudest.
-    final kept = <(double, double, double)>[];
-    for (final e in events) {
-      if (kept.isNotEmpty && (kept.last.$1 - e.$1).abs() < 1e-4) {
-        kept.last = (kept.last.$1, kept.last.$2, math.max(kept.last.$3, e.$3));
+  /// [onsets] with their [lengths] and [strengths] (the lists are used, and changed); sorted
+  /// first unless [inOrder].
+  factory _Events.of(Float64List onsets, Float64List lengths, Float64List strengths, {required bool inOrder}) {
+    if (!inOrder) {
+      // A performance whose passes aren't played one after another.
+      final order = [for (var i = 0; i < onsets.length; i++) i]..sort((a, b) => onsets[a].compareTo(onsets[b]));
+      Float64List by(Float64List list) => Float64List.fromList([for (final i in order) list[i]]);
+      (onsets, lengths, strengths) = (by(onsets), by(lengths), by(strengths));
+    }
+    // Notes that start together are one onset: its longest, as loud as its loudest.
+    var n = 0;
+    for (var i = 0; i < onsets.length; i++) {
+      if (n > 0 && onsets[i] - onsets[n - 1] < 1e-4) {
+        lengths[n - 1] = math.max(lengths[n - 1], lengths[i]);
+        strengths[n - 1] = math.max(strengths[n - 1], strengths[i]);
         continue;
       }
-      kept.add(e);
+      onsets[n] = onsets[i];
+      lengths[n] = lengths[i];
+      strengths[n++] = strengths[i];
     }
-    final onsets = Float64List(kept.length), lengths = Float64List(kept.length), strengths = Float64List(kept.length);
-    final ends = Float64List(kept.length);
+    final ends = Float64List(n);
     var end = double.negativeInfinity;
-    for (final (i, (on, length, strength)) in kept.indexed) {
-      onsets[i] = on;
-      lengths[i] = length;
-      strengths[i] = strength;
-      end = math.max(end, on + length);
+    for (var i = 0; i < n; i++) {
+      end = math.max(end, onsets[i] + lengths[i]);
       ends[i] = end;
     }
-    return _Events(onsets, lengths, strengths, ends);
+    return _Events(Float64List.sublistView(onsets, 0, n), Float64List.sublistView(lengths, 0, n), Float64List.sublistView(strengths, 0, n), ends);
   }
 
   double level(double t) {
@@ -864,11 +1085,11 @@ class _Seating {
   /// A dot's width, and the gap between sections side by side, in seats.
   static const _dot = 0.62, _gap = 0.9;
 
-  /// How many seats a name's letter takes across: a guess, then what the first fitting found.
-  double _perLetter = 0.27;
+  /// How many seats an em of a name takes across: a guess, then what the first fitting found.
+  double _perEm = 0.47;
 
-  /// About how many seats a name of [name] takes across.
-  double _nameWidth(String name) => math.min(name.length, 28) * _perLetter + 0.5;
+  /// About how many seats a name of [name] takes across (a very long one counted as 28 letters).
+  double _nameWidth(String name) => math.min(SeatPlan.labelEms(name), 28 * 0.58) * _perEm + 0.5;
 
   PlayerMap map() {
     final groups = _groups();
@@ -876,8 +1097,7 @@ class _Seating {
     List<(_Draft, SeatPlan)> placed() => preset == SeatingPreset.ensemble ? _bow(groups) : _orchestra(groups);
     // Seated again with names as wide as the scale it was fitted at makes them.
     final first = _fitted(placed());
-    final k = first.sections.first.size / _dot;
-    _perLetter = (SeatPlan.labelHalfWidth('ab', PlayerMap.defaultAspect) - SeatPlan.labelHalfWidth('a', PlayerMap.defaultAspect)) * 2 * PlayerMap.defaultAspect / k;
+    _perEm = PlayerMap.labelSize / (first.sections.first.size / _dot);
     return _fitted(placed());
   }
 
@@ -912,29 +1132,37 @@ class _Seating {
     return (count: found.length, first: found.first.$1);
   }
 
+  /// What [p] is: by its name (and its abbreviation), an instrument's own name before a word
+  /// several share ("Contrabass Clarinet" a clarinet, "Bass Trombone" a trombone, "Tubular Bells"
+  /// no tuba), else by its sound (a name in a language these patterns don't know), else its family.
   _Role _role(ScorePart p, bool choir) {
     final name = '${nameOf(p)} ${p.name} ${p.abbreviation}'.toLowerCase(), sound = (p.sound ?? '').toLowerCase();
     bool has(String pattern) => RegExp(pattern).hasMatch(name);
+    bool sounds(String ids) => RegExp('^(?:$ids)').hasMatch(sound);
     if (has(r'\bsolo\b|soloist')) return _Role.solo;
     if (sound.startsWith('strings.cello') || has(r'cello|\bvc\b|\bvlc\b')) return _Role.cello;
     if (sound.startsWith('strings.viola') || has(r'viola|\bvla\b|\bva\b|bratsche')) return _Role.viola;
-    if (sound.startsWith('strings.contrabass') || has(r'contrabass(?!o)|double bass|kontrabass(?!o)|\bcb\b|\bd\.?b\.?\b|basses')) return _Role.bass;
+    if (sound.startsWith('strings.contrabass')) return _Role.bass;
     if (sound.startsWith('strings.violin') || has(r'violin|\bvln?\b|violine|\bvl\b')) {
       final second = has(r'(violin|vln?|violine|vl)\.?\s*(2|ii)\b') || has(r'\bsecond\b|\b2nd\b');
       final first = has(r'(violin|vln?|violine|vl)\.?\s*(1|i)\b') || has(r'\bfirst\b|\b1st\b');
       return second && !first ? _Role.violin2 : _Role.violin1;
     }
-    if (has(r'harp')) return _Role.harp;
-    if (sound.startsWith('keyboard.') || has(r'piano|celest|organ|harpsichord|cembalo|clavi|keyboard|synth')) return _Role.keyboard;
-    if (has(r'piccolo|flute|\bfl\b|\bpicc?\b|flauto|flöte')) return _Role.flute;
-    if (has(r'oboe|cor anglais|english horn|\bob\b|\bc\.?a\.?\b')) return _Role.oboe;
-    if (has(r'clarinet|\bcl\b|clarinetto|klarinette')) return _Role.clarinet;
+    if (has(r'harp(?!sichord)|\bhp\b|\bhrp\b|\barpa\b|harfe')) return _Role.harp;
+    if (sound.startsWith('keyboard.') || has(r'piano|\bpno\b|\bpf\b|klavier|celest|organ|harpsichord|cembalo|clavi|keyboard|synth')) {
+      return _Role.keyboard;
+    }
+    if (has(r'piccolo(?!\s+(trumpet|trompete|tromba))|flute|\bfl\b|\bpicc?\b|flauto|flöte')) return _Role.flute;
+    if (has(r'oboe|cor anglais|english horn|englisch ?horn|corno inglese|\bob\b|\bc\.?a\.?\b')) return _Role.oboe;
+    if (has(r'clarinet|basset|\bcl\b|klarinette')) return _Role.clarinet;
     if (has(r'bassoon|\bbsn\b|\bfg\b|fagott')) return _Role.bassoon;
-    if (has(r'sax')) return _Role.saxophone;
-    if (has(r'horn|\bhn\b|\bcor\b|corno')) return _Role.horn;
-    if (has(r'trumpet|cornet|\btpt?\b|\btr\b|tromba|trompete|flugel')) return _Role.trumpet;
+    if (has(r'sax(?!horn)')) return _Role.saxophone;
+    if (has(r'(?<!flugel)(?<!flügel)horn|\bhn\b|\bcor\b|corno')) return _Role.horn;
+    if (has(r'trumpet|cornet|\btpt?\b|\btr\b|tromba|trompete|fl[uü]gel')) return _Role.trumpet;
     if (has(r'trombone|\btbn?\b|posaune|euphonium')) return _Role.trombone;
-    if (has(r'tuba|cimbasso')) return _Role.tuba;
+    if (has(r'\btub(a|as|en)\b|\btba\b|cimbasso|sousaphone')) return _Role.tuba;
+    // After the winds and brass: theirs of that name are no string basses ("Piccolo in D♭" neither).
+    if (has(r'contrabass|double bass|kontrabass|\bcb\b|(?<!\bin\s)\bd\.?b\.?\b|basses')) return _Role.bass;
     if (has(r'timpani|\btimp|pauken')) return _Role.timpani;
     if (p.isUnpitchedPercussion ||
         has(r'percussion|drum|cymbal|triangle|glock|xylo|vibra|marimba|bells|tam-?tam|gong|snare|tambourine|perc\b|chimes|wood ?block')) {
@@ -944,13 +1172,25 @@ class _Seating {
       return _Role.voice;
     }
     if (has(r'\bbass\b')) return _Role.bass;
+    if (sounds(r'wind\.flutes')) return _Role.flute;
+    if (sounds(r'wind\.reed\.(oboe|english-horn|heckelphone)')) return _Role.oboe;
+    if (sounds(r'wind\.reed\.(clarinet|basset-horn)')) return _Role.clarinet;
+    if (sounds(r'wind\.reed\.(bassoon|contrabassoon)')) return _Role.bassoon;
+    if (sounds(r'wind\.reed\.saxophone')) return _Role.saxophone;
+    if (sounds(r'brass\.(french-horn|horn|wagner-tuba)')) return _Role.horn;
+    if (sounds(r'brass\.(trumpet|cornet|flugelhorn|bugle)')) return _Role.trumpet;
+    if (sounds(r'brass\.(trombone|euphonium|baritone)')) return _Role.trombone;
+    if (sounds(r'brass\.(tuba|sousaphone|helicon)')) return _Role.tuba;
+    if (sounds(r'drum\.timpani')) return _Role.timpani;
+    if (sounds(r'pluck\.harp')) return _Role.harp;
     return switch (p.family) {
       InstrumentFamily.woodwinds => _Role.flute,
       InstrumentFamily.brass => _Role.horn,
       InstrumentFamily.percussion => _Role.percussion,
       InstrumentFamily.keyboards => _Role.keyboard,
       InstrumentFamily.voices => _Role.voice,
-      InstrumentFamily.strings => _Role.violin1,
+      // A guitar, a mandolin: no section of violins.
+      InstrumentFamily.strings => sound.startsWith('pluck.') ? _Role.other : _Role.violin1,
       InstrumentFamily.other => _Role.other,
     };
   }
@@ -1295,12 +1535,9 @@ Map<String, Object?> _map(Object? json, String where) =>
 double _number(Object? value, String where) =>
     value is num && value.isFinite ? value.toDouble() : throw FormatException('$where is not a number.');
 
-/// A place on the stage: a little past its edges is allowed (a seat dragged off them).
-double _place(Object? value, String where) {
-  final v = _number(value, where);
-  if (v < -1 || v > 2) throw FormatException('$where is off the stage.');
-  return v;
-}
+/// A place on the stage: a little past its edges is allowed (a seat dragged off them); one
+/// further off is brought back to there, not refused (a project must open whatever was dragged).
+double _place(Object? value, String where) => _number(value, where).clamp(-1.0, 2.0);
 
 List<double> _numbers(Object? value, String where, int count) {
   if (value is! List || value.length != count) throw FormatException('$where is not $count numbers.');
