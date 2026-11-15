@@ -112,36 +112,22 @@ abstract final class WebExport {
 
       // What the page shows: the project with every setting its own, and the score engraved.
       var edits = editor.pageState;
-      if (!captions) {
-        // Without the extensions that give captions, or what they keep.
-        final sources = editor.extensions.captionSources.toSet();
-        edits = edits.copyWith(
-          extensions: {...edits.extensions, for (final id in sources) id: false},
+      // Without what the extensions that give [sources] keep, and, with [off], without them.
+      EditState without(Iterable<String> sources, {bool off = true}) {
+        final ids = sources.toSet();
+        return edits.copyWith(
+          extensions: off ? {...edits.extensions, for (final id in ids) id: false} : null,
           extensionData: {
             for (final MapEntry(key: id, :value) in edits.extensionData.entries)
-              if (!sources.contains(id)) id: value,
+              if (!ids.contains(id)) id: value,
           },
         );
       }
-      if (!chapters) {
-        // Without the extensions that give chapters, or what they keep.
-        final sources = editor.extensions.readers().chapterSources.toSet();
-        edits = edits.copyWith(
-          extensions: {...edits.extensions, for (final id in sources) id: false},
-          extensionData: {
-            for (final MapEntry(key: id, :value) in edits.extensionData.entries)
-              if (!sources.contains(id)) id: value,
-          },
-        );
-      }
-      if (!images) {
-        // Without what the extensions that put pictures on the score keep (their switches stay: one may turn the spacers on).
-        final sources = editor.extensions.imageSources.toSet();
-        edits = edits.copyWith(extensionData: {
-          for (final MapEntry(key: id, :value) in edits.extensionData.entries)
-            if (!sources.contains(id)) id: value,
-        });
-      }
+
+      if (!captions) edits = without(editor.extensions.captionSources);
+      if (!chapters) edits = without(editor.extensions.readers().chapterSources);
+      // The picture extensions' switches stay: one may turn the spacers on.
+      if (!images) edits = without(editor.extensions.imageSources, off: false);
       if (WebPage.requestOf(edits) != score.request) {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);
       }
