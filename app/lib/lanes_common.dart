@@ -570,11 +570,15 @@ class DoubleClicks {
 
 /// For each pass (see [ScoreTimeline.passes]), the bars whose barline it plays, in order. A
 /// pass's end is the next one's start, so only the last pass has the final barline. Kept until
-/// the passes or the bars are others (the ruler asks at every paint).
+/// the passes or the bars are others (the ruler asks at every paint); a timeline made again
+/// (another take's, at every change of the performance) has its own lists of the same.
 List<List<int>> _barsByPass(ScoreTimeline tl) {
   final starts = tl.measureStarts;
   final passes = tl.passes;
-  if (_passBars case (final p, final s, final bars) when identical(p, passes) && identical(s, starts)) return bars;
+  if (_passBars case (final p, final s, final bars) when listEquals(p, passes) && listEquals(s, starts)) {
+    _passBars = (passes, starts, bars);
+    return bars;
+  }
   final bars = _barsOf(starts, passes);
   _passBars = (passes, starts, bars);
   return bars;

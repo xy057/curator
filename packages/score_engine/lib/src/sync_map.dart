@@ -124,7 +124,9 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     }
     passes.add(ScorePass(start, totalQuarters));
     _performed = List.unmodifiable(performed);
-    _passes = List.unmodifiable(passes);
+    // The same passes stay the same list: only a warp changes them, and what keeps something
+    // worked out from them (the ruler's bars) knows them again at once.
+    if (!listEquals(passes, _passes)) _passes = List.unmodifiable(passes);
     _passOffsets = List.unmodifiable(offsets);
     _warpTimes = List.unmodifiable(warps);
   }
