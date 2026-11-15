@@ -219,6 +219,9 @@ class ConnectorGraph {
   /// What else the file says, kept for whoever understands it.
   final Map<String, Object?> other;
 
+  /// Whether it has a node of [type] (a socket's: "captions").
+  bool has(String type) => nodes.any((n) => n.type == type);
+
   GraphNode? node(String id) => nodes.where((n) => n.id == id).firstOrNull;
 
   /// The function wired to [port] of node [node]; null: none.

@@ -103,7 +103,7 @@ abstract final class ExtensionActions {
   }
 
   /// Whether [package] has settings of its own (a `settings` socket).
-  static bool hasSettings(ExtensionPackage package) => package.graph.nodes.any((n) => n.type == 'settings');
+  static bool hasSettings(ExtensionPackage package) => package.graph.has('settings');
 
   /// Opens [package]'s own settings, kept for every project: asked of the extension as it
   /// runs in the project, or run for this alone while it is off.
