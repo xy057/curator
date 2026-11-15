@@ -47,12 +47,21 @@ mixin _SpacerHandles on State<ScoreView> {
   /// A blank is taken from a little either side of it too.
   static Rect _gapHit(Rect r) => Rect.fromLTRB(r.left - 2, r.top, r.right + 2, r.bottom);
 
-  /// Where vertical spacer [id] is now, in layout points; null while it isn't shown.
-  Rect? _verticalRect(String id, VideoFrame frame) {
+  /// Where each vertical spacer shown now is, in layout points, by its part id: the scene laid
+  /// out once for them all (a paint asks of the selected one and the hovered one).
+  Map<String, Rect> _verticalRects(VideoFrame frame) {
     final scene = c.scene, curation = c.curation;
-    if (scene == null || curation == null) return null;
-    return scene.spacerRects(c.playback.time.value, curation, frame.layout).where((r) => r.id == id).firstOrNull?.rect;
+    if (scene == null || curation == null) return const {};
+    final rects = <String, Rect>{};
+    for (final r in scene.spacerRects(c.playback.time.value, curation, frame.layout)) {
+      rects.putIfAbsent(r.id, () => r.rect);
+    }
+    return rects;
   }
+
+  /// Where vertical spacer [id] is now, in layout points ([rects]: [_verticalRects], already
+  /// worked out); null while it isn't shown.
+  Rect? _verticalRect(String id, VideoFrame frame, [Map<String, Rect>? rects]) => (rects ?? _verticalRects(frame))[id];
 
   /// Where horizontal spacer [index] is now, in layout points.
   Rect? _gapRect(int index, VideoFrame frame) {
@@ -62,9 +71,9 @@ mixin _SpacerHandles on State<ScoreView> {
   }
 
   /// The selected spacer as drawn (layout points), and whether it is a vertical one.
-  ({Rect rect, bool vertical})? _selectedSpacer(VideoFrame frame) {
+  ({Rect rect, bool vertical})? _selectedSpacer(VideoFrame frame, [Map<String, Rect>? rects]) {
     if (c.spacers.selectedVertical case final id?) {
-      if (_verticalRect(id, frame) case final r?) return (rect: r, vertical: true);
+      if (_verticalRect(id, frame, rects) case final r?) return (rect: r, vertical: true);
     }
     if (c.spacers.selectedHorizontal case final i?) {
       if (_gapRect(i, frame) case final r?) return (rect: r, vertical: false);
@@ -252,9 +261,11 @@ class _SpacerOverlay extends CustomPainter {
     canvas
       ..save()
       ..clipRect(frame.rect);
-    final selected = s._selectedSpacer(frame);
+    // The scene laid out once for the selected spacer and the hovered one.
+    final rects = c.spacers.selectedVertical != null || s._hoveredSpacer is String ? s._verticalRects(frame) : const <String, Rect>{};
+    final selected = s._selectedSpacer(frame, rects);
     final hovered = switch (s._hoveredSpacer) {
-      final String id when id != c.spacers.selectedVertical => s._verticalRect(id, frame),
+      final String id when id != c.spacers.selectedVertical => rects[id],
       final int i when i != c.spacers.selectedHorizontal => s._gapRect(i, frame),
       _ => null,
     };
