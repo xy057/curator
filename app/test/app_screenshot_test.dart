@@ -182,6 +182,16 @@ void main() {
     await tester.dragFrom(area.topLeft + MapStage(area.size, seated.aspect).toView(seat.x, seat.y), const Offset(60, 0));
     await tester.pump();
     expect(find.text('Violin I'), findsWidgets, reason: 'its name in the inspector');
+    // Two presses of an arrow are one Undo step of the editor's, the drag another.
+    PlayerMap edited() => (tester.widget<CustomPaint>(stageArea).painter! as PlayerMapPainter).map;
+    final dragged = edited();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(edited().sections.first.seats.first.x, closeTo(dragged.sections.first.seats.first.x + 0.01, 1e-9));
+    await tester.tap(find.descendant(of: find.byType(PlayerMapEditor), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))));
+    await tester.pump();
+    expect(edited(), dragged);
     await screenshot(tester, 'player-map-editor', inside: find.byType(PlayerMapEditor), outermost: true);
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await tester.pump();

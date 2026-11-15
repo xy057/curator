@@ -539,16 +539,17 @@ class MapSection {
 
   @override
   bool operator ==(Object other) =>
+      identical(this, other) ||
       other is MapSection &&
-      other.name == name &&
-      other.color == color &&
-      other.size == size &&
-      other.labelX == labelX &&
-      other.labelY == labelY &&
-      other.link == link &&
-      other.plan == plan &&
-      other.auto == auto &&
-      listEquals(other.seats, seats);
+          other.name == name &&
+          other.color == color &&
+          other.size == size &&
+          other.labelX == labelX &&
+          other.labelY == labelY &&
+          other.link == link &&
+          other.plan == plan &&
+          other.auto == auto &&
+          listEquals(other.seats, seats);
   @override
   int get hashCode => Object.hash(name, color, size, labelX, labelY, link, seats.length);
 }
@@ -777,7 +778,8 @@ class PlayerMap {
       _Seating(parts, preset, nameOf ?? (p) => p.name).map();
 
   @override
-  bool operator ==(Object other) => other is PlayerMap && other.aspect == aspect && listEquals(other.sections, sections);
+  bool operator ==(Object other) =>
+      identical(this, other) || other is PlayerMap && other.aspect == aspect && listEquals(other.sections, sections);
   @override
   int get hashCode => Object.hash(aspect, sections.length);
 }

@@ -246,19 +246,24 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
 
   // MARK: Changes
 
-  /// Makes [map] the one edited: an Undo step of the editor's ([gesture]: the drag's first move
-  /// takes it, the rest join it).
-  void _change(PlayerMap map, {bool gesture = false}) {
+  /// What the last change was a part of (a drag, a name being typed, an arrow held, the size
+  /// slider's drag): the next of the same run joins its Undo step. Anything else ends it.
+  Object? _run;
+
+  /// Makes [map] the one edited: an Undo step of the editor's, unless it carries on [run].
+  void _change(PlayerMap map, {Object? run}) {
     if (map == _map) return;
-    if (!gesture) {
+    if (run == null || run != _run) {
       _undo.add(_map);
       _redo.clear();
     }
+    _run = run;
     setState(() => _map = map);
   }
 
   void _stepBack() {
     if (_undo.isEmpty) return;
+    _run = null;
     _redo.add(_map);
     setState(() {
       _map = _undo.removeLast();
@@ -268,6 +273,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
 
   void _stepOn() {
     if (_redo.isEmpty) return;
+    _run = null;
     _undo.add(_map);
     setState(() {
       _map = _redo.removeLast();
@@ -282,7 +288,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   }
 
   void _select(int? section, {int? seat}) {
-    _typing = null;
+    _run = null;
     setState(() {
       _section = section;
       _seat = _mode == _Mode.players ? seat : null;
@@ -291,9 +297,9 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     _focus.requestFocus();
   }
 
-  /// Section [k] made what [to] makes it.
-  void _setSection(int k, MapSection Function(MapSection s) to, {bool gesture = false}) =>
-      _change(_map.withSections([for (final (i, s) in _map.sections.indexed) i == k ? to(s) : s]), gesture: gesture);
+  /// Section [k] made what [to] makes it (a part of [run], see [_change]).
+  void _setSection(int k, MapSection Function(MapSection s) to, {Object? run}) =>
+      _change(_map.withSections([for (final (i, s) in _map.sections.indexed) i == k ? to(s) : s]), run: run);
 
   /// Section [k] seated anew as [section], what it would now cover moved out of its way.
   void _reseat(int k, MapSection section) => _change(_map.roomFor(k, section));
@@ -322,11 +328,13 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     _select(null);
   }
 
-  /// The selection moved by [dx], [dy] of the stage.
+  /// The selection moved by [dx], [dy] of the stage; an arrow pressed again (or held) is one
+  /// Undo step with the last.
   void _nudge(double dx, double dy) {
     final k = _section;
     if (k == null) return;
-    _setSection(k, (s) => s.dragged(dx, dy, seat: _mode == _Mode.players ? _seat : null, aspect: _map.aspect));
+    final seat = _mode == _Mode.players ? _seat : null;
+    _setSection(k, (s) => s.dragged(dx, dy, seat: seat, aspect: _map.aspect), run: (#nudge, k, seat));
   }
 
   Future<void> _cancel() async {
@@ -391,12 +399,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     final s = drag.start.sections[drag.section];
     // Never off the stage: a place far off it is one a project couldn't keep.
     final moved = s.dragged(dx, dy, seat: drag.seat, label: drag.label, aspect: _map.aspect);
-    final first = identical(_map, drag.start);
-    if (first) {
-      _undo.add(drag.start);
-      _redo.clear();
-    }
-    setState(() => _map = drag.start.withSections([for (final (j, x) in drag.start.sections.indexed) j == drag.section ? moved : x]));
+    // One Undo step, taken at its first move.
+    _change(drag.start.withSections([for (final (j, x) in drag.start.sections.indexed) j == drag.section ? moved : x]), run: drag);
   }
 
   // MARK: Building
@@ -614,10 +618,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
         controller: _name,
         label: 'Name'.tr,
         // A section's name typed at one go is one Undo step.
-        onChanged: (text) {
-          _setSection(k, (s) => s.copyWith(name: text), gesture: _typing == k);
-          _typing = k;
-        },
+        onChanged: (text) => _setSection(k, (s) => s.copyWith(name: text), run: (#name, k)),
       ),
       SizedBox(height: gap),
       _linkFields(context, link: s.link, onChanged: (link) => _setSection(k, (s) => s.linked(link))),
@@ -669,11 +670,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
         value: s.size.clamp(MapSection.minSize, 0.12),
         min: MapSection.minSize,
         max: 0.12,
-        onChangeStart: (_) {
-          _undo.add(_map);
-          _redo.clear();
-        },
-        onChanged: (v) => _setSection(k, (s) => s.copyWith(size: v), gesture: true),
+        onChangeStart: (_) => _run = null,
+        onChanged: (v) => _setSection(k, (s) => s.copyWith(size: v), run: (#size, k)),
       ),
       if (seat != null && seat < s.seats.length) ...[
         SizedBox(height: gap),
@@ -694,9 +692,6 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       ),
     ];
   }
-
-  /// The section whose name is being typed: its keystrokes are one Undo step.
-  int? _typing;
 }
 
 /// A heading over the inspector's fields.
