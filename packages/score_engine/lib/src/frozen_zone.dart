@@ -377,14 +377,7 @@ class FrozenZone {
   /// [text] in the music font at [scale] × the staff's size.
   ui.Paragraph _paragraph(String text, [double scale = 1]) => _glyphs.putIfAbsent((text, scale), () {
         final size = 4 * style.staffSpace * scale; // SMuFL: one em is four staff spaces
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
-          ..pushStyle(ui.TextStyle(
-              color: style.ink,
-              fontFamily: style.musicFontFamily,
-              fontFamilyFallback: RenderStyle.musicFontFallback,
-              fontSize: size))
-          ..addText(text);
-        return builder.build()..layout(ui.ParagraphConstraints(width: size * 4));
+        return style.musicParagraph(text, size, width: size * 4);
       });
 
   void _drawGlyph(ui.Canvas canvas, int codepoint, double x, double baselineY, [double scale = 1]) {

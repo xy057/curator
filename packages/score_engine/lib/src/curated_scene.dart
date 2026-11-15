@@ -1262,16 +1262,25 @@ class CuratedScene {
   ui.Paragraph _keyName(String text) {
     if (_keyNames[text] case final name?) return name;
     if (_keyNames.length >= 64) _disposeKeyNames(); // markings of the user's, typed one by one
-    final look = _typography[TextKind.tonality], fontSize = _bandFont;
+    final look = _typography[TextKind.tonality];
+    return _keyNames[text] = _line(text, look, _bandFont, color: ui.Color.fromRGBO(255, 255, 255, look.opacity));
+  }
+
+  /// [text] on one line in the text font at [fontSize], as [look] sets it ([face] in place of
+  /// its own); cut short with an ellipsis at [width] when one is given.
+  ui.Paragraph _line(String text, TextLook look, double fontSize,
+      {TextFace? face, ui.Color color = const ui.Color(0xFF000000), double? width}) {
+    face ??= look.face;
     final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
         fontFamily: _style.textFontFamily,
         fontSize: fontSize,
-        fontStyle: look.face.fontStyle,
-        fontWeight: look.face.fontWeight,
-        maxLines: 1))
-      ..pushStyle(ui.TextStyle(color: ui.Color.fromRGBO(255, 255, 255, look.opacity), letterSpacing: look.spacingAt(fontSize)))
+        fontStyle: face.fontStyle,
+        fontWeight: face.fontWeight,
+        maxLines: 1,
+        ellipsis: width == null ? null : '…'))
+      ..pushStyle(ui.TextStyle(color: color, letterSpacing: look.spacingAt(fontSize)))
       ..addText(text);
-    return _keyNames[text] = builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+    return builder.build()..layout(ui.ParagraphConstraints(width: width ?? double.infinity));
   }
 
   void _disposeKeyNames() {
@@ -1403,17 +1412,8 @@ class CuratedScene {
   /// A rehearsal mark laid out as [TextKind.rehearsal] looks: bold unless the user chose a
   /// face, larger than the bar numbers.
   ui.Paragraph _rehearsal(String mark) => _rehearsalText.putIfAbsent(mark, () {
-        final look = _typography[TextKind.rehearsal], fontSize = _style.staffSpace * 1.8 * look.size;
-        final face = look.face == TextFace.asWritten ? TextFace.bold : look.face;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: face.fontStyle,
-            fontWeight: face.fontWeight,
-            maxLines: 1))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(mark);
-        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+        final look = _typography[TextKind.rehearsal];
+        return _line(mark, look, _style.staffSpace * 1.8 * look.size, face: look.face == TextFace.asWritten ? TextFace.bold : null);
       });
 
   /// Where a rehearsal mark's box is drawn with its left at [x], its bottom at the row's.
@@ -1428,16 +1428,8 @@ class CuratedScene {
 
   /// A bar's number ([ScoreMetadata.barNumbers]) laid out, as [TextKind.barNumbers] looks.
   ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
-        final look = _typography[TextKind.barNumbers], fontSize = _style.staffSpace * 1.3 * look.size;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: look.face.fontStyle,
-            fontWeight: look.face.fontWeight,
-            maxLines: 1))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(number);
-        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+        final look = _typography[TextKind.barNumbers];
+        return _line(number, look, _style.staffSpace * 1.3 * look.size);
       });
 
   void _disposeBarNumbers() {
@@ -1651,17 +1643,8 @@ class CuratedScene {
 
   /// [words] laid out as [TextKind.tempoRow] looks.
   ui.Paragraph _tempoText(String words) => _tempoParagraphs.putIfAbsent(words, () {
-        final look = _typography[TextKind.tempoRow], fontSize = _style.labelFontSize * look.size;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: look.face.fontStyle,
-            fontWeight: look.face.fontWeight,
-            maxLines: 1,
-            ellipsis: '…'))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(words);
-        return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
+        final look = _typography[TextKind.tempoRow];
+        return _line(words, look, _style.labelFontSize * look.size, width: _style.headerWidth - 16);
       });
 
   void _disposeTempoTexts() {

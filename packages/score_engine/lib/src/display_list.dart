@@ -192,6 +192,14 @@ class RenderStyle {
   /// What music glyphs a font lacks are drawn with (Verovio placed them with its metrics).
   static const musicFontFallback = ['packages/score_engine/Bravura'];
 
+  /// [text] in the music font at [size] in [ink], laid out [width] wide; the caller keeps it.
+  ui.Paragraph musicParagraph(String text, double size, {required double width}) =>
+      (ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: musicFontFamily, fontSize: size))
+            ..pushStyle(ui.TextStyle(color: ink, fontFamily: musicFontFamily, fontFamilyFallback: musicFontFallback, fontSize: size))
+            ..addText(text))
+          .build()
+        ..layout(ui.ParagraphConstraints(width: width));
+
   RenderStyle copyWith({double? staffSpace, String? musicFontFamily, String? textFontFamily}) => RenderStyle(
         paper: paper,
         ink: ink,
@@ -473,16 +481,8 @@ class _ItemBuilder {
     final floats = d.commandFloats;
     final codepoint = d.commandInts[base + Cmd.codepoint];
     final size = floats[base + Cmd.size].toDouble();
-    final paragraph = _glyphs.putIfAbsent((codepoint, size), () {
-      final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
-        ..pushStyle(ui.TextStyle(
-            color: style.ink,
-            fontFamily: style.musicFontFamily,
-            fontFamilyFallback: RenderStyle.musicFontFallback,
-            fontSize: size))
-        ..addText(String.fromCharCode(codepoint));
-      return builder.build()..layout(ui.ParagraphConstraints(width: size * 8));
-    });
+    final paragraph =
+        _glyphs.putIfAbsent((codepoint, size), () => style.musicParagraph(String.fromCharCode(codepoint), size, width: size * 8));
     final origin = ui.Offset(floats[base + Cmd.x], floats[base + Cmd.y]);
     final b = base + Cmd.bounds;
     final bounds = ui.Rect.fromLTWH(floats[b], floats[b + 1], floats[b + 2], floats[b + 3]);
