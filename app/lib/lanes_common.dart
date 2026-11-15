@@ -492,9 +492,6 @@ bool beatsFit(EditorController c, double quarter, {int pass = 0}) {
       kMinBeatWidth;
 }
 
-/// [quarter] snapped as the lanes snap: to the time signature's nearest beat, or the nearest
-/// barline when beats are too close together on screen (as they sound in [pass]); ⌘: free.
-/// Inside the score.
 /// Score time ↔ lane x, as every lane widget measures it (the score's [ScoreTimeline] on the
 /// controller's viewport).
 extension LaneTime on EditorController {
@@ -525,6 +522,9 @@ extension LaneTime on EditorController {
   }
 }
 
+/// [quarter] snapped as the lanes snap: to the time signature's nearest beat, or the nearest
+/// barline when beats are too close together on screen (as they sound in [pass]); ⌘: free.
+/// Inside the score.
 double snapInLanes(EditorController c, double quarter, {required int pass}) {
   final starts = c.timeline.measureStarts;
   final q = quarter.clamp(0.0, starts.last).toDouble();

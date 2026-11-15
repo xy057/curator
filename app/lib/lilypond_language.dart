@@ -9,11 +9,11 @@ import 'package:re_editor/re_editor.dart';
 /// is left of it at every word it colours, so its time grows as the square of the text (a .ly of a
 /// few hundred KB: seconds behind each keystroke). A line is coloured alone, from where the line
 /// above left off: in a block comment, a string, or Scheme some parentheses deep, the only things
-/// that run over lines ([LilyPondStates] keeps where each line starts, read again from the first
+/// that run over lines ([LineStates] keeps where each line starts, read again from the first
 /// line that changed).
 
 /// The LilyPond editor's text of a file, [text] to begin with: a controller whose lines are
-/// coloured as they are drawn ([lilyPondTokens], each from where [LilyPondStates] says it starts,
+/// coloured as they are drawn ([lilyPondTokens], each from where [LineStates] says it starts,
 /// in [lilyPondTheme]'s colours for the page's brightness).
 CodeLineEditingController lilyPondCode(String text) {
   late final CodeLineEditingController code;

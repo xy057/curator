@@ -9,7 +9,7 @@ import 'lilypond_language.dart' show LineStates, lilyPondTheme;
 /// typed ([LuaPrompts]: Lua's words, and every function of the extension API).
 ///
 /// A line is coloured alone, from where the line above left off: in a long string or a long
-/// comment (`[[ ]]`, `--[==[ ]==]`), the only things that run over lines ([LuaStates] keeps
+/// comment (`[[ ]]`, `--[==[ ]==]`), the only things that run over lines ([LineStates] keeps
 /// where each line starts, read again from the first line that changed).
 
 /// The extension editor's text of a Lua file, [text] to begin with.

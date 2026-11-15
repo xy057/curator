@@ -589,7 +589,7 @@ class NoPrompts implements CodeAutocompletePromptsBuilder {
 }
 
 /// A guide an editor's Help shows: the one at [asset] (to writing an extension,
-/// [extensionGuideAsset], or a plugin).
+/// `extensionGuideAsset`, or a plugin).
 class ScriptGuide extends StatefulWidget {
   const ScriptGuide(this.asset, {super.key});
   final String asset;

@@ -110,6 +110,10 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
+/// Whether a text field has the keyboard, so its keys (a letter, an arrow, Return) are its own
+/// and not a page's.
+bool get textFieldFocused => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+
 /// A dialog's keys while nothing in it has taken them: Return presses its default button, and Esc
 /// closes one whose route doesn't close on it (not dismissed by a click outside).
 ///
@@ -117,10 +121,6 @@ class _DialogRoute<T> extends DialogRoute<T> {
 /// everything it shows, so a handler among its widgets never hears a key. This one is the
 /// scope's own. A field with the keyboard keeps Return (it submits), and so does a button
 /// reached with Tab (it is pressed).
-/// Whether a text field has the keyboard, so its keys (a letter, an arrow, Return) are its own
-/// and not a page's.
-bool get textFieldFocused => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
-
 class DialogKeys extends StatefulWidget {
   const DialogKeys({super.key, this.onReturn, this.onEscape, required this.child});
 

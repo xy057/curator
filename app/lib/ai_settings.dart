@@ -165,7 +165,6 @@ class _HiddenCover extends StatelessWidget {
   }
 }
 
-/// The providers' search, as Settings' own: Esc with something typed clears it.
 /// A provider in the list: its name, and whether it is on.
 class _ProviderTile extends StatefulWidget {
   const _ProviderTile({required this.provider, required this.selected, required this.onTap});
