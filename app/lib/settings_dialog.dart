@@ -16,6 +16,7 @@ import 'app_settings.dart';
 import 'color_dialog.dart';
 import 'audio_panel.dart' show pickAudio;
 import 'condensing_editor.dart';
+import 'daw_link.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart';
@@ -37,6 +38,7 @@ import 'error_text.dart';
 import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'shortcut_settings.dart';
+import 'stems_dialog.dart';
 import 'plugins/bundled.dart';
 import 'plugins/plugin_actions.dart';
 import 'plugins/plugins.dart';
@@ -141,8 +143,15 @@ enum _Window {
 
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown, this.group, this.below});
+  const _Item(this.title, this.help, this.control,
+      {this.note, this.keywords = '', this.shown, this.group, this.below, this.context});
   final String title;
+
+  /// The context [title] is translated in, when the word alone means something else too
+  /// ("Stems": 'audio', not a note's); null: none.
+  final String? context;
+
+  String get translatedTitle => context == null ? title.tr : title.trIn(context!);
 
   /// A strip under the row, across it (Language's invitation to translate).
   final Widget Function(_Context)? below;
@@ -350,6 +359,24 @@ final _categories = <_Category>[
       ),
       group: 'Keyboard',
       keywords: 'anchor nudge step arrow keyboard sync time move precise fine milliseconds',
+    ),
+    _Item(
+      'Listen for Curator Link',
+      (_) => CuratorLinkPlugIns.supported ? null : 'Curator Link is not available for this operating system.',
+      (c) => CuratorLinkPlugIns.supported
+          ? AppSwitch(value: c.settings.dawLink, onChanged: (v) => c.settings.dawLink = v)
+          : const AppSwitch(value: false, onChanged: null),
+      group: 'DAW',
+      keywords: 'daw ara plugin plug-in link cubase logic studio one reaper nuendo tempo map transport playhead recording',
+    ),
+    _Item(
+      'Curator Link plug-in',
+      null,
+      (c) => CuratorLinkPlugIns.supported
+          ? const _CuratorLinkPlugIns()
+          : Builder(builder: (context) => Text('OS not supported'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
+      group: 'DAW',
+      keywords: 'install update daw ara plugin plug-in vst3 audio unit component cubase logic studio one reaper',
     ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
@@ -567,6 +594,21 @@ final _projectCategories = <_Category>[
         ]);
       }),
       keywords: 'add remove delete recording audio file video sound',
+    ),
+    _Item(
+      'Stems',
+      context: 'audio',
+      (c) => switch (c.controller!.stems.list) {
+        [] => 'None.'.tr,
+        final stems => stems.map((s) => s.name).join(', '),
+      },
+      (c) => Builder(
+        builder: (context) => OutlinedButton(
+          onPressed: c.controller!.stems.list.isEmpty ? null : () => showStemsDialog(context, c.controller!),
+          child: Text('Edit…'.tr),
+        ),
+      ),
+      keywords: 'stems stem tracks track daw solo spotlight instrument separate isolate parts curator link capture',
     ),
   ]),
   // How the score shows as it plays; how each of those moves is Animation's.
@@ -1139,7 +1181,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   /// What the search looks in: [item]'s words in English and as shown.
   String _searched(_Category cat, _Item item) {
     final help = item.help?.call(_ctx) ?? '';
-    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.title.tr} ${item.group?.trIn('heading') ?? ''} ${item.keywords} $help ${help.tr}';
+    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.translatedTitle} ${item.group?.trIn('heading') ?? ''} ${item.keywords} $help ${help.tr}';
   }
 
   /// The project closed under it (the menu bar works while it is open): it closes too
@@ -1347,7 +1389,8 @@ Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) =>
 Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false, bool dense = false}) => _SettingRow(
     key: ObjectKey(item),
     dense: dense,
-    title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.trIn('heading')}' : item.title,
+    title: withGroup && item.group != null ? '${item.translatedTitle} · ${item.group!.trIn('heading')}' : item.title,
+    titleContext: item.context,
     note: item.note,
     help: item.help?.call(ctx),
     below: item.below?.call(ctx),
@@ -1831,8 +1874,12 @@ class _SettingRow extends StatelessWidget {
       required this.control,
       this.below,
       this.leading,
-      this.dense = false});
+      this.dense = false,
+      this.titleContext});
   final String title;
+
+  /// The context [title] is translated in ([_Item.context]); null: none.
+  final String? titleContext;
 
   /// Slimmer, as a page of many short rows has them ([_Category.dense]).
   final bool dense;
@@ -1860,7 +1907,7 @@ class _SettingRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text.rich(TextSpan(children: [
-                TextSpan(text: named ? title : title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                TextSpan(text: named ? title : titleContext == null ? title.tr : title.trIn(titleContext!), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
                 if (note != null) TextSpan(text: '  $note', style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
               ])),
               if (help != null) ...[
@@ -1953,6 +2000,93 @@ class _Dropdown<T> extends StatelessWidget {
 
 /// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
 /// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
+/// Curator Link's VST3 and Audio Unit installed for DAWs ([CuratorLinkPlugIns]): the DAWs
+/// connected now, then Install (Update when another version is there, Reinstall when this one).
+class _CuratorLinkPlugIns extends StatefulWidget {
+  const _CuratorLinkPlugIns();
+
+  @override
+  State<_CuratorLinkPlugIns> createState() => _CuratorLinkPlugInsState();
+}
+
+class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
+  String? _installed = CuratorLinkPlugIns.installed();
+  bool _busy = false;
+  String? _problem;
+
+  static String get _version => '$appVersion ($appBuild)';
+
+  Future<void> _install() => _change(() async {
+        final ByteData data;
+        try {
+          data = await rootBundle.load(CuratorLinkPlugIns.asset);
+        } catch (_) {
+          throw StateError('This build of Curator has no Curator Link.'.tr);
+        }
+        await CuratorLinkPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      });
+
+  /// Both bundles removed from where DAWs look (docs/daw-link.md says what a DAW keeps).
+  Future<void> _uninstall() => _change(CuratorLinkPlugIns.uninstall);
+
+  Future<void> _change(Future<void> Function() job) async {
+    setState(() {
+      _busy = true;
+      _problem = null;
+    });
+    try {
+      await job();
+    } catch (e) {
+      _problem = e is StateError ? e.message : describeError(e);
+    }
+    if (mounted) {
+      setState(() {
+        _busy = false;
+        _installed = CuratorLinkPlugIns.installed();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
+    return ListenableBuilder(
+      listenable: DawLink.shared,
+      builder: (context, _) {
+        final hosts = {for (final s in DawLink.shared.sessions) if (s.host.isNotEmpty) s.host};
+        return Row(mainAxisSize: MainAxisSize.min, children: [
+          if (_problem != null)
+            Flexible(child: Text(_problem!, style: muted.copyWith(color: Theme.of(context).colorScheme.error), overflow: TextOverflow.ellipsis, maxLines: 2))
+          else if (hosts.isNotEmpty)
+            Flexible(child: Text('Connected: {daws}'.fill({'daws': hosts.join(', ')}), style: muted, overflow: TextOverflow.ellipsis))
+          else if (_installed != null)
+            Text(_installed!.isEmpty ? 'Installed'.tr : _installed!, style: muted),
+          const SizedBox(width: 10),
+          if (_installed != null) ...[
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+              onPressed: _busy ? null : _uninstall,
+              child: Text('Uninstall'.tr),
+            ),
+            const SizedBox(width: 8),
+          ],
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            onPressed: _busy ? null : _install,
+            child: Text(_installed == null
+                ? 'Install'.tr
+                : _installed == _version
+                    ? 'Reinstall'.tr
+                    : 'Update'.tr),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
 class _PdfAiModel extends StatelessWidget {
   const _PdfAiModel({required this.settings});
   final AppSettings settings;

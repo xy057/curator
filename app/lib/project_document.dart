@@ -84,7 +84,7 @@ class ProjectDocument extends ChangeNotifier {
 
   Future<String?> _open(String path) async {
     final String? recordingProblem;
-    final Map<String, String>? unreadTakes;
+    final Map<String, String>? unreadTakes, unreadStems;
     final previousMedia = _mediaDirectory;
     final mediaDirectory = ScratchSpace.folder('project');
     try {
@@ -95,17 +95,20 @@ class ProjectDocument extends ChangeNotifier {
         state: project.state,
         mediaPath: project.media?.path,
         takePaths: project.takes,
+        stemPaths: project.stems,
       );
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n{file}'.fill({'file': missing}));
       _olderFormat = project.olderFormat;
       unreadTakes = project.state.foreign.containsKey(ProjectModules.takes.id) ? project.takes : null;
+      unreadStems = project.state.foreign.containsKey(ProjectModules.stems.id) ? project.stems : null;
     } catch (_) {
       ScratchSpace.release(mediaDirectory);
       rethrow;
     }
     _mediaDirectory = mediaDirectory;
     _unreadTakes = unreadTakes;
+    _unreadStems = unreadStems;
     ScratchSpace.release(previousMedia);
     _path = path;
     _isSample = false;
@@ -156,6 +159,7 @@ class ProjectDocument extends ChangeNotifier {
     ScratchSpace.release(_mediaDirectory); // the project before had its recording unpacked there
     _mediaDirectory = null;
     _unreadTakes = null;
+    _unreadStems = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -208,6 +212,7 @@ class ProjectDocument extends ChangeNotifier {
     ScratchSpace.release(_mediaDirectory);
     _mediaDirectory = null;
     _unreadTakes = null;
+    _unreadStems = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -260,6 +265,10 @@ class ProjectDocument extends ChangeNotifier {
               for (final t in controller.takes)
                 if (t.id != focus) t.id: ?media(t.id),
             },
+      stems: {
+        for (final MapEntry(key: id, value: path) in (_unreadStems ?? {for (final s in controller.stems.list) s.id: ?controller.stems.fileOf(s.id)}).entries)
+          id: ProjectMedia(name: fileNameOf(path), embedFrom: path),
+      },
     );
   }
 
@@ -319,6 +328,9 @@ class ProjectDocument extends ChangeNotifier {
   /// The recordings besides the focus's when the project's takes module is a newer build's,
   /// kept unread with it ([ProjectState.foreign]) and saved as they came, by take id.
   Map<String, String>? _unreadTakes;
+
+  /// The stems' files when the project's stems module is a newer build's, as [_unreadTakes].
+  Map<String, String>? _unreadStems;
 
 
   @override

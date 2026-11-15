@@ -37,6 +37,7 @@ class EditState {
     this.leadIn = 0,
     this.midi,
     this.takes = const [],
+    this.stems = const [],
     this.focus,
     this.crossfade,
     this.partNames = const {},
@@ -103,6 +104,10 @@ class EditState {
   /// removing recordings, and the focus moving, are no Undo steps: they change every state Undo
   /// keeps alike. Their lanes are edits.
   final List<Take> takes;
+
+  /// One instrument or group alone each, from the tracks of a DAW (Curator Link), kept for
+  /// soloing ([Stem]). Their files are the project's (`media/stems/`).
+  final List<Stem> stems;
 
   /// The [Take.id] whose sync is the state's own (the one picked, or picked last); null when
   /// there is no recording.
@@ -238,6 +243,7 @@ class EditState {
       focus == other.focus &&
       crossfade == other.crossfade &&
       listEquals(takes, other.takes) &&
+      listEquals(stems, other.stems) &&
       switch ((lanes, other.lanes)) {
         (final a?, final b?) => Curation.sameLanes(a, b),
         (final a, final b) => a == b,
@@ -288,6 +294,7 @@ class EditState {
     double? leadIn,
     Object? midi = _kept,
     List<Take>? takes,
+    List<Stem>? stems,
     Object? focus = _kept,
     Object? crossfade = _kept,
     Map<String, PartName>? partNames,
@@ -329,6 +336,7 @@ class EditState {
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
         takes: takes ?? this.takes,
+        stems: stems ?? this.stems,
         focus: identical(focus, _kept) ? this.focus : focus as String?,
         crossfade: identical(crossfade, _kept) ? this.crossfade : crossfade as double?,
         partNames: partNames ?? this.partNames,
@@ -461,6 +469,43 @@ class Take {
 
   @override
   int get hashCode => Object.hash(id, label, leadIn, regions.length, anchors.length);
+}
+
+/// A stem: what one track of a DAW plays (an instrument or a group of them), on its own, in
+/// time with a take's recording ([take]: its first sample at [offset] seconds in it), so it can
+/// be heard alone or brought forward. [part] is the score's part it is, when known.
+@immutable
+class Stem {
+  const Stem(this.id, this.name, {this.color, this.take, this.offset = 0, this.part});
+
+  /// `stem-1`, `stem-2`…, the same as long as the project keeps it.
+  final String id;
+
+  /// The track's name in the DAW ("Violins I").
+  final String name;
+
+  /// The track's colour in the DAW, 0xAARRGGBB; null: none.
+  final int? color;
+
+  /// The take whose recording it lines up with; null: none (it was captured without one).
+  final String? take;
+  final double offset;
+
+  /// The part of the score it plays ([ScorePart.id]); null: not known.
+  final String? part;
+
+  Stem copyWith({String? name, Object? part = _kept}) =>
+      Stem(id, name ?? this.name, color: color, take: take, offset: offset, part: identical(part, _kept) ? this.part : part as String?);
+
+  /// `stem-1`, `stem-2`…: safe in a file's name.
+  static bool isId(String id) => RegExp(r'^stem-[1-9][0-9]{0,5}$').hasMatch(id);
+
+  @override
+  bool operator ==(Object other) =>
+      other is Stem && other.id == id && other.name == name && other.color == color && other.take == take && other.offset == offset && other.part == part;
+
+  @override
+  int get hashCode => Object.hash(id, name, color, take, offset, part);
 }
 
 /// The colour each family's names take (Project Settings ▸ Instruments) until the user gives it

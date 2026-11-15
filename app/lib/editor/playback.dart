@@ -66,6 +66,51 @@ class Playback {
 
   void togglePlay() => _playing ? pause() : play();
 
+  // MARK: The DAW's clock
+
+  /// Whether the DAW followed is playing (Curator Link, [DawEditing]): the clock runs on its
+  /// transport, Curator silent, the DAW heard.
+  bool get followsDaw => _daw;
+  bool _daw = false;
+  double? _dawAt;
+
+  /// Where the DAW is in the recording, as its transport says (some 30 times a second while it
+  /// plays): playing, the clock runs from there and glides towards each word, as it does towards
+  /// the audio engine's; stopped, the playhead is where it stopped, or was put.
+  void _fromDaw({required bool playing, required double seconds}) {
+    final elapsed = _now;
+    if (playing) {
+      if (_playing) pause(); // the DAW is heard, not both
+      if (!_daw) {
+        _daw = true;
+        _timeAnchor = seconds;
+        _playAnchor = elapsed;
+        _ranFrom(seconds);
+        _wake();
+      } else {
+        final error = seconds - (_timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6);
+        if (error.abs() > 0.1) {
+          _timeAnchor = seconds;
+          _playAnchor = elapsed;
+        } else {
+          _timeAnchor += error * 0.2;
+        }
+      }
+    } else if (_daw || seconds != _dawAt) {
+      _daw = false;
+      seek(seconds);
+      _editor.viewport.follow(time.value);
+    }
+    _dawAt = seconds;
+  }
+
+  /// The DAW is no longer followed (or gone): the clock is Curator's again, where it is.
+  void _dawStopped() {
+    if (!_daw) return;
+    _daw = false;
+    _markDirty();
+  }
+
   // MARK: Metronome
 
   /// Clicks every beat while playing (C, or the toolbar), the bar's first louder: an aid for
@@ -230,11 +275,16 @@ class Playback {
       if (_metronome && _playing) _clickAt(time.value);
       _dirty = true;
     }
+    if (_daw) {
+      time.value = (_timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6).clamp(0, math.max(0, duration));
+      _editor.viewport.follow(time.value);
+      _dirty = true;
+    }
     if (_dirty) {
       _dirty = false;
       repaint.ping();
     }
-    if (!_playing) _ticker.stop();
+    if (!_playing && !_daw) _ticker.stop();
   }
 
   void _dispose() {

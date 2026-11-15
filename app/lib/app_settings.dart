@@ -27,6 +27,7 @@ class AppSettings extends ChangeNotifier {
         _density = UiDensity.values.asNameMap()[_prefs?.getString(_densityKey)] ?? UiDensity.standard,
         _reduceMotion = _prefs?.getBool(_reduceMotionKey) ?? false,
         _alignAddedRecordings = _prefs?.getBool(_alignAddedKey) ?? true,
+        _dawLink = _prefs?.getBool(_dawLinkKey) ?? true,
         _autoCurateImported = _prefs?.getBool(_autoCurateKey) ?? true,
         _autoCuratePdf = _prefs?.getBool(_autoCuratePdfKey) ?? false,
         _fineSeek = _readStep(_prefs, _fineSeekKey, fineSeekChoices, defaultFineSeek),
@@ -96,7 +97,7 @@ class AppSettings extends ChangeNotifier {
   static const _densityKey = 'density', _reduceMotionKey = 'reduceMotion', _languageKey = 'language';
   static const _scrollFollowKey = 'scrollFollow', _motionKey = 'scoreMotion', _typographyKey = 'scoreTypography';
   static const _musicFontKey = 'musicFont', _textFontKey = 'textFont', _embedFontKey = 'embedFont';
-  static const _mascotIconKey = 'mascotIcon', _alignAddedKey = 'alignAddedRecordings';
+  static const _mascotIconKey = 'mascotIcon', _alignAddedKey = 'alignAddedRecordings', _dawLinkKey = 'dawLink';
   static const _autoCurateKey = 'autoCurateImported', _autoCuratePdfKey = 'autoCuratePdf', _fineSeekKey = 'fineSeekSeconds';
   static const _anchorNudgeKey = 'anchorNudgeSeconds';
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
@@ -268,6 +269,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _alignAddedRecordings) return;
     _alignAddedRecordings = value;
     _prefs?.setBool(_alignAddedKey, value);
+    notifyListeners();
+  }
+
+  /// Whether Curator listens for Curator Link, the plug-in in a DAW (Settings ▸ General ▸ DAW;
+  /// see `DawLink`). On unless turned off.
+  bool get dawLink => _dawLink;
+  bool _dawLink;
+  set dawLink(bool value) {
+    if (value == _dawLink) return;
+    _dawLink = value;
+    _prefs?.setBool(_dawLinkKey, value);
     notifyListeners();
   }
 

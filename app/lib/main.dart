@@ -22,6 +22,7 @@ import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
 import 'controller_settings.dart';
+import 'daw_link.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
@@ -72,7 +73,7 @@ Future<void> main() async {
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
-  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins));
+  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins, dawLink: CuratorLinkPlugIns.supported ? DawLink.shared : null));
 }
 
 /// The interface's languages: each translations file the bundle has.
@@ -104,13 +105,14 @@ Stream<LicenseEntry> bundledLicenses() async* {
       (font, 'packages/score_engine/assets/fonts/$font-OFL.txt'),
     for (final library in ['Verovio', 'PDFium']) (library, 'packages/score_engine/assets/licenses/$library.txt'),
     ('Basic Pitch', 'assets/basic_pitch/LICENSE.txt'),
+    ('Curator Link', 'assets/daw_link/LICENSES.txt'), // the SDKs the DAW plug-in is built on
   ]) {
     yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }
 }
 
 class CuratedScoreApp extends StatefulWidget {
-  const CuratedScoreApp({super.key, this.settings, this.updater, this.plugins});
+  const CuratedScoreApp({super.key, this.settings, this.updater, this.plugins, this.dawLink});
 
   /// Stored preferences; in-memory defaults when not given (tests).
   final AppSettings? settings;
@@ -120,6 +122,10 @@ class CuratedScoreApp extends StatefulWidget {
 
   /// Settings ▸ About; one that hasn't checked yet when not given (tests).
   final Updater? updater;
+
+  /// Curator Link's end here ([DawLink.shared]), listening while Settings say; none when not
+  /// given (tests: no port opened, no discovery file written).
+  final DawLink? dawLink;
 
   @override
   State<CuratedScoreApp> createState() => _CuratedScoreAppState();
@@ -214,7 +220,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
   }
 
   // The same widget each build: a change of settings rebuilds only what reads them (or the theme).
-  late final _home = AppWindow(settings: settings, updater: widget.updater, plugins: plugins);
+  late final _home = AppWindow(settings: settings, updater: widget.updater, plugins: plugins, dawLink: widget.dawLink);
 
   // Built once per accent, style, density and motion: a new ThemeData never equals the last (its extensions and button
   // styles compare by identity), so one per build would rebuild every widget that reads the
@@ -309,10 +315,11 @@ class _RenderStillBoundary extends RenderRepaintBoundary {
 /// The menus act on the tab showing; a project's tab keeps its editor as it was left while
 /// another shows.
 class AppWindow extends StatefulWidget {
-  const AppWindow({super.key, this.settings, this.updater, this.plugins});
+  const AppWindow({super.key, this.settings, this.updater, this.plugins, this.dawLink});
   final AppSettings? settings;
   final Updater? updater;
   final Plugins? plugins;
+  final DawLink? dawLink;
 
   @override
   State<AppWindow> createState() => _AppWindowState();
@@ -408,6 +415,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     FocusManager.instance.addListener(_focusChanged);
     settings.addListener(_settingsChanged);
     _lifecycle; // start listening for Quit
+    _listenForDaw();
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => paths.forEach(_openFromSystem));
     WindowChrome.showAppIcon(mascot: settings.mascotIcon);
@@ -462,12 +470,21 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   }
 
   void _settingsChanged() {
+    _listenForDaw();
     _recent.value = settings.recentFiles;
     WindowChrome.showAppIcon(mascot: settings.mascotIcon);
     if (settings.tabBar != _tabBar) {
       setState(() => _tabBar = settings.tabBar);
       _menus.value++;
     }
+  }
+
+  /// Curator Link: listening while Settings ▸ General ▸ DAW says so. One that can't (no port) is
+  /// left off: the plug-in waits for a Curator that can.
+  void _listenForDaw() {
+    final link = widget.dawLink;
+    if (link == null || link.listening == settings.dawLink) return;
+    unawaited((settings.dawLink ? link.start() : link.stop()).catchError((_) {}));
   }
 
   /// View ▸ Show / Hide Tab Bar ([AppSettings.tabBar]).
@@ -660,6 +677,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
       await project.page?.controller.audio.unload(); // lets go of its files, so they can be deleted
     }
     ScratchSpace.close();
+    await widget.dawLink?.stop(); // its discovery file goes: no plug-in knocks at a port no longer ours
     final frame = await WindowChrome.currentFrame(previous: settings.windowFrame);
     if (frame != null) await settings.saveWindowFrame(frame);
     return AppExitResponse.exit;

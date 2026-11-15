@@ -535,7 +535,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -714,7 +714,7 @@ msgstr ""
 msgid "Couldn’t Load Recording"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr ""
 
@@ -870,7 +870,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1495,7 +1495,7 @@ msgstr ""
 msgid "none"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr ""
 
@@ -1556,7 +1556,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1723,7 +1723,7 @@ msgstr ""
 msgid "RECENT"
 msgstr ""
 
-#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
 msgstr ""
 
@@ -1756,7 +1756,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -3488,6 +3488,24 @@ msgid "Import"
 msgstr ""
 
 msgid "Keyboard"
+msgstr ""
+
+msgid "DAW"
+msgstr ""
+
+msgid "Listen for Curator Link"
+msgstr ""
+
+msgid "Curator Link plug-in"
+msgstr ""
+
+msgid "Use this recording"
+msgstr ""
+
+msgid "Follow the DAW’s playhead"
+msgstr ""
+
+msgid "DAW bar of the score’s bar 1"
 msgstr ""
 
 #: assets/extensions/chapters/src/lane.lua
@@ -5295,4 +5313,148 @@ msgstr ""
 
 #: lib/main.dart
 msgid "Couldn’t Import MIDI File"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Follow DAW…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Couldn’t get the recording from the DAW. {error}"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW gives no tempo for this recording yet."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It is too long."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW is out of memory."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW doesn’t let it be read yet."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It is no longer in the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW disconnected."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The file couldn’t be written."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow DAW"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "No DAW connected."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Curator isn’t listening for Curator Link."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Curator Link on a track in your DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Turn it on in Settings ▸ General."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Getting the Recording"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "This build of Curator has no Curator Link."
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Connected: {daws}"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Installed"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Install"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Reinstall"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Update"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Capture Stems…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr ""
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr ""
+
+msgid "Curator Link is not available for this operating system."
 msgstr ""

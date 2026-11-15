@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart' show BuildContext;
 import 'package:score_engine/score_engine.dart';
 
 import 'audio_track.dart';
+import 'daw_link.dart';
 import 'edit_history.dart';
 import 'error_text.dart';
 import 'extensions/bundled.dart';
@@ -28,15 +29,19 @@ import 'project_state.dart';
 import 'score_replacement.dart';
 import 'time_viewport.dart';
 import 'l10n/l10n.dart';
+import 'media_converter.dart';
+import 'scratch_space.dart';
 
 part 'editor/caption_look.dart';
 part 'editor/commands.dart';
+part 'editor/daw_editing.dart';
 part 'editor/extension_editing.dart';
 part 'editor/image_editing.dart';
 part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/player_map_editing.dart';
 part 'editor/spacer_editing.dart';
+part 'editor/stem_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -77,6 +82,8 @@ class EditorController extends ChangeNotifier {
   late final playerMap = PlayerMapEditing._(this);
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
+  late final daw = DawEditing._(this);
+  late final stems = StemEditing._(this);
 
   /// What an extension keeps for every project (the app's settings hold it), by its id, and
   /// keeping it; null: nowhere to.
@@ -391,6 +398,7 @@ class EditorController extends ChangeNotifier {
     required ProjectState state,
     String? mediaPath,
     Map<String, String> takePaths = const {},
+    Map<String, String> stemPaths = const {},
   }) async {
     // Each extension checks what it saved: one that can't read its data stops the project here.
     state = checkedExtensionData(state);
@@ -427,6 +435,7 @@ class EditorController extends ChangeNotifier {
     _loadingAudio = mediaPath != null || takePaths.isNotEmpty;
     try {
       await _install(name, scoreBytes, score, state, arts: arts, pages: pages);
+      stems._opened(stemPaths);
       if (_disposed) return null; // nothing to play it in: the window closed
       return await _loadTakes(mediaPath, takePaths);
     } finally {
@@ -586,7 +595,10 @@ class EditorController extends ChangeNotifier {
     }
     playback.pause();
     final tab = _tab;
-    if (!keepRecording) await audio.unload();
+    if (!keepRecording) {
+      await audio.unload();
+      stems._reset(); // the recordings' stems go with them
+    }
     final art = _score?.pdf;
     _closeDocument();
     if (art != score.pdf) art?.dispose();
@@ -676,6 +688,7 @@ class EditorController extends ChangeNotifier {
   Future<void> close() async {
     playback.pause();
     await audio.unload();
+    stems._reset();
     _closeDocument();
     playback.time.value = 0;
     notifyListeners();
@@ -1882,6 +1895,7 @@ class EditorController extends ChangeNotifier {
   /// Makes the sync follow [map] (null: the anchors set by hand again, as they were): one
   /// Undo step. The file's start sounds where bar 1 does now (Starts at).
   void useMidiTempo(MidiTempoMap? map) {
+    daw.stop();
     final sync = _sync;
     if (sync == null || map == _doc.midi) return;
     final start = sync.startSeconds, own = _ownAnchors;
@@ -1907,6 +1921,7 @@ class EditorController extends ChangeNotifier {
   /// Convert to Anchors: the MIDI tempo map followed becomes anchors set by hand (those
   /// kept behind it go), to tap over and nudge. One Undo step.
   void convertToAnchors() {
+    daw.stop();
     final sync = _sync;
     if (sync == null || _doc.midi == null) return;
     final derived = sync.anchors;
@@ -1920,6 +1935,7 @@ class EditorController extends ChangeNotifier {
   /// drawn), from where it starts now. Inside [beginEdit] / [endEdit], one Undo step.
   void editMidiTempo(MidiTempoMap map) {
     if (_doc.midi == null || _sync == null || map == _doc.midi) return;
+    daw.stop(); // edited here, it is no longer the DAW's
     _doc = _doc.copyWith(midi: map);
     _followMidi(_sync!.startSeconds);
   }
@@ -1933,6 +1949,19 @@ class EditorController extends ChangeNotifier {
     if (!map.fits(sync.totalQuarters)) return false;
     editMidiTempo(map);
     return true;
+  }
+
+  /// Makes the sync follow [map] with its start at [start] seconds in the recording, the anchors
+  /// set by hand kept behind it: a DAW's tempo map ([DawEditing]), taken again each time the DAW
+  /// changes it. One Undo step; nothing when it follows that already.
+  void followTempoMap(MidiTempoMap map, {required double start}) {
+    final sync = _sync;
+    if (sync == null || (map == _doc.midi && (sync.startSeconds - math.max(0, start)).abs() < 1e-6)) return;
+    final own = _ownAnchors;
+    _doc = _doc.copyWith(midi: map, anchors: own);
+    anchors._reset();
+    _followMidi(start);
+    notifyListeners();
   }
 
   /// Puts the derived anchors of the MIDI tempo map in the sync, with its start at [start].
@@ -2464,6 +2493,8 @@ class EditorController extends ChangeNotifier {
 
   @override
   void dispose() {
+    daw.stop();
+    stems._reset();
     _disposed = true;
     _loadStage.dispose();
     _engravings.cancel(); // an engraving still running finds nothing to update

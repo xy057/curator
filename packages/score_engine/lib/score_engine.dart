@@ -9,6 +9,7 @@ export 'src/beat_grid.dart';
 export 'src/condensing.dart';
 export 'src/curated_scene.dart';
 export 'src/curation.dart';
+export 'src/daw_document.dart';
 export 'src/display_list.dart' show RenderStyle;
 export 'src/engraving.dart'
     show ClefShape, ClefSignature, EngraveException, EngravingData, KeySignature, MeasureLayout, Signature, StaffInfo, TimeSignature, verovioVersion;

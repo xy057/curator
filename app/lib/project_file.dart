@@ -19,8 +19,9 @@ import 'project_state.dart';
 ///     score/<name>      the source score file, byte for byte
 ///     media/<name>      the focus's recording ([EditState.focus])
 ///     media/takes/<id>/<name>  each other recording ([EditState.takes])
+///     media/stems/<id>/<name>  each stem ([EditState.stems])
 ///
-/// all named in the manifest (`score`, `media`, `takes`: the name and the entry, and a take's id), with
+/// all named in the manifest (`score`, `media`, `takes`, `stems`: the name and the entry, and a take's or stem's id), with
 /// the project's `kind` ([ProjectKind]). Everything the app
 /// changes lives in the modules, so the source score is never rewritten. One saved before
 /// modules ([LegacyProject]) has its edits in project.json instead.
@@ -47,6 +48,7 @@ abstract final class ProjectFile {
     final media = c.media;
     final mediaEntry = media == null ? null : 'media/${safeFileName(media.name)}';
     final takeEntries = {for (final MapEntry(key: id, value: m) in c.takes.entries) id: 'media/takes/$id/${safeFileName(m.name)}'};
+    final stemEntries = {for (final MapEntry(key: id, value: m) in c.stems.entries) id: 'media/stems/$id/${safeFileName(m.name)}'};
     final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
     final temp = '$path.saving';
@@ -64,12 +66,17 @@ abstract final class ProjectFile {
           'takes': [
             for (final MapEntry(key: id, value: m) in c.takes.entries) {'id': id, 'name': m.name, 'entry': takeEntries[id]},
           ],
+        if (c.stems.isNotEmpty)
+          'stems': [
+            for (final MapEntry(key: id, value: m) in c.stems.entries) {'id': id, 'name': m.name, 'entry': stemEntries[id]},
+          ],
       });
       zip.add(ArchiveFile.bytes(scoreEntry, c.scoreBytes));
       // Last: everything before them can be read without passing them.
       for (final (entry, m) in [
         if (mediaEntry != null) (mediaEntry, media!),
         for (final MapEntry(key: id, value: m) in c.takes.entries) (takeEntries[id]!, m),
+        for (final MapEntry(key: id, value: m) in c.stems.entries) (stemEntries[id]!, m),
       ]) {
         if (!File(m.embedFrom).existsSync()) {
           throw FileSystemException('Can’t find the recording to embed', m.embedFrom);
@@ -179,8 +186,20 @@ abstract final class ProjectFile {
         if (unpack(entry, t.string('name', required: true)!, _join(mediaDirectory, id)) case final playable?) takes[id] = playable;
       }
 
+      // The stems: each one the stems module names, as the takes are.
+      final stems = <String, String>{};
+      final unreadStems = state.foreign.containsKey(ProjectModules.stems.id);
+      for (final (i, value) in manifest.list('stems').indexed) {
+        final t = JsonReader(value, 'manifest.stems[$i]');
+        final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
+        if (!ProjectModules.isStemId(id) || stems.containsKey(id)) continue;
+        if (!unreadStems && !state.edits.stems.any((stem) => stem.id == id)) continue;
+        if (unpack(entry, t.string('name', required: true)!, _join(_join(mediaDirectory, 'stems'), id)) case final playable?) stems[id] = playable;
+      }
+
       return OpenedProject(
         takes: takes,
+        stems: stems,
         scoreName: score.string('name', required: true)!,
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
         state: state,
@@ -209,7 +228,8 @@ abstract final class ProjectFile {
 
 /// Everything a save writes.
 class ProjectContents {
-  const ProjectContents({required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}});
+  const ProjectContents(
+      {required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}, this.stems = const {}});
 
   final String scoreName;
   final Uint8List scoreBytes;
@@ -220,6 +240,9 @@ class ProjectContents {
 
   /// The recordings besides the focus's ([media]), by [Take.id].
   final Map<String, ProjectMedia> takes;
+
+  /// The stems' files, by [Stem.id].
+  final Map<String, ProjectMedia> stems;
 }
 
 /// The recording, as a save should store it.
@@ -235,7 +258,13 @@ class ProjectMedia {
 /// What [ProjectFile.read] found.
 class OpenedProject {
   const OpenedProject(
-      {required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}, this.olderFormat = false});
+      {required this.scoreName,
+      required this.scoreBytes,
+      required this.state,
+      this.media,
+      this.takes = const {},
+      this.stems = const {},
+      this.olderFormat = false});
 
   final String scoreName;
   final Uint8List scoreBytes;
@@ -245,6 +274,10 @@ class OpenedProject {
   /// The recordings besides the focus's, unpacked, by [Take.id]: a take not here has none.
   /// With the takes module unread (a newer build's), every one the file lists.
   final Map<String, String> takes;
+
+  /// The stems' files, unpacked, by [Stem.id]: a stem not here has none. With the stems module
+  /// unread (a newer build's), every one the file lists.
+  final Map<String, String> stems;
 
   /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save
   /// writes the new format, which those versions can't open.

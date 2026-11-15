@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AudioComponents</key>
+	<array>
+		<dict>
+			<key>description</key>
+			<string>Curator Link</string>
+			<key>factoryFunction</key>
+			<string>CuratorLinkFactory</string>
+			<key>manufacturer</key>
+			<string>Crtr</string>
+			<key>name</key>
+			<string>Curator: Curator Link</string>
+			<key>sandboxSafe</key>
+			<false/>
+			<key>subtype</key>
+			<string>CrLk</string>
+			<key>tags</key>
+			<array>
+				<string>Effect</string>
+				<string>ARA</string>
+			</array>
+			<key>type</key>
+			<string>aufx</string>
+			<key>version</key>
+			<integer>@LINK_AU_VERSION@</integer>
+		</dict>
+	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>Curator Link</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.curatedscore.link.component</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Curator Link</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@LINK_VERSION@</string>
+	<key>CFBundleVersion</key>
+	<string>@LINK_BUILD@</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Curator Link is part of Curator (GPL-3.0). ARA by Celemony.</string>
+</dict>
+</plist>

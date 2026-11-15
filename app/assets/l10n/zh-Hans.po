@@ -546,7 +546,7 @@ msgstr "填补不超过 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 则为 c，否则为 d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -725,7 +725,7 @@ msgstr "无法导入设置"
 msgid "Couldn’t Load Recording"
 msgstr "无法载入录音"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr "无法载入录音。{error}"
 
@@ -881,7 +881,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1506,7 +1506,7 @@ msgstr "无"
 msgid "none"
 msgstr "无"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr "无。"
 
@@ -1567,7 +1567,7 @@ msgstr "八度记号"
 msgid "Off"
 msgstr "关闭"
 
-#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -1734,7 +1734,7 @@ msgstr "正在读取录音…"
 msgid "RECENT"
 msgstr "最近使用"
 
-#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
 msgstr "录音"
 
@@ -1767,7 +1767,7 @@ msgstr "排练记号"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小节号行中的排练记号"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -3512,6 +3512,24 @@ msgstr "导入"
 
 msgid "Keyboard"
 msgstr "键盘"
+
+msgid "DAW"
+msgstr ""
+
+msgid "Listen for Curator Link"
+msgstr "监听 Curator Link"
+
+msgid "Curator Link plug-in"
+msgstr "Curator Link 插件"
+
+msgid "Use this recording"
+msgstr "使用此录音"
+
+msgid "Follow the DAW’s playhead"
+msgstr "跟随 DAW 的播放头"
+
+msgid "DAW bar of the score’s bar 1"
+msgstr "乐谱第 1 小节对应的 DAW 小节"
 
 #: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
@@ -5319,3 +5337,147 @@ msgstr "MIDI 视图"
 #: lib/main.dart
 msgid "Couldn’t Import MIDI File"
 msgstr "无法导入 MIDI 文件"
+
+#: lib/audio_panel.dart
+msgid "Follow DAW…"
+msgstr "跟随 DAW…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Couldn’t get the recording from the DAW. {error}"
+msgstr "无法从 DAW 获取录音。{error}"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW gives no tempo for this recording yet."
+msgstr "DAW 尚未提供此录音的速度。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It is too long."
+msgstr "它太长了。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW is out of memory."
+msgstr "DAW 内存不足。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW doesn’t let it be read yet."
+msgstr "DAW 暂时还不允许读取它。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It is no longer in the DAW."
+msgstr "它已不在 DAW 中。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW disconnected."
+msgstr "DAW 已断开连接。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The file couldn’t be written."
+msgstr "无法写入文件。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow DAW"
+msgstr "跟随 DAW"
+
+#: lib/daw_follow_dialog.dart
+msgid "No DAW connected."
+msgstr "没有连接的 DAW。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Curator isn’t listening for Curator Link."
+msgstr "Curator 未在监听 Curator Link。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Curator Link on a track in your DAW."
+msgstr "请在 DAW 的轨道上加载 Curator Link。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Turn it on in Settings ▸ General."
+msgstr "请在“设置 ▸ 通用”中打开它。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow"
+msgstr "跟随"
+
+#: lib/daw_follow_dialog.dart
+msgid "Getting the Recording"
+msgstr "正在获取录音"
+
+#: lib/settings_dialog.dart
+msgid "This build of Curator has no Curator Link."
+msgstr "此版本的 Curator 未包含 Curator Link。"
+
+#: lib/settings_dialog.dart
+msgid "Connected: {daws}"
+msgstr "已连接：{daws}"
+
+#: lib/settings_dialog.dart
+msgid "Installed"
+msgstr "已安装"
+
+#: lib/settings_dialog.dart
+msgid "Install"
+msgstr "安装"
+
+#: lib/settings_dialog.dart
+msgid "Reinstall"
+msgstr "重新安装"
+
+#: lib/settings_dialog.dart
+msgid "Update"
+msgstr "更新"
+
+#: lib/audio_panel.dart
+msgid "Capture Stems…"
+msgstr "采集分轨…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr "那里没有声音。"
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr "音轨"
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr "{name}：{error}"
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr "采集分轨"
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr "没有带录音的音轨。"
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr "采集"
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr "无声部"
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr "分轨"
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr "已采集分轨：{count}"
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
+msgstr "正在采集分轨"
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr "卸载"
+
+#: lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr "不支持此系统"
+
+msgid "Curator Link is not available for this operating system."
+msgstr "Curator Link 不适用于此操作系统。"

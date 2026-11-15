@@ -1,8 +1,15 @@
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:curated_score/audio_track.dart';
+import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/file_names.dart';
+import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +34,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Curator Link, its tracks kept as stems', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -167,6 +174,166 @@ void main() {
       await c.removeTake('take-1');
       expect((c.focus, c.editsSync), ('take-2', true));
       expect(c.sync!.anchors, const [SyncAnchor(0, 2), SyncAnchor(8, 6)]);
+    }
+
+    // A DAW followed through Curator Link, the plug-in's end played here over a socket: only one
+    // saying the token back is heard; its tempo where the recording is placed becomes the sync's
+    // (one Undo step), again as the DAW changes it; its transport moves the playhead; a recording
+    // is asked for; a tempo map chosen here ends it, as the DAW going does.
+    {
+      await open();
+      final folder = await Directory.systemTemp.createTemp('daw-link');
+      final link = DawLink(folder);
+      await link.start();
+      final discovery = jsonDecode(File('${folder.path}/daw-link.json').readAsStringSync()) as Map<String, Object?>;
+      Future<void> until(bool Function() done) async {
+        for (var i = 0; i < 200 && !done(); i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        expect(done(), isTrue);
+      }
+
+      final impostor = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      impostor.write('{"t":"hello","token":"guess","protocol":1}\n{"t":"document","id":"x"}\n');
+      await impostor.drain<void>().timeout(const Duration(seconds: 2));
+      expect(link.sessions, isEmpty, reason: 'a wrong token is let go');
+
+      final daw = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      final heard = StreamIterator(daw.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
+      void say(Map<String, Object?> message) => daw.write('${jsonEncode(message)}\n');
+      final part = c.score!.metadata.parts.first, partName = c.partNameOf(part.id);
+      Map<String, Object?> song(List<List<num>> tempo) => {
+            't': 'document', 'id': 'doc', 'name': 'Symphony',
+            'contexts': [{'id': 'c', 'tempo': tempo, 'bars': [[6, 8, 0]]}],
+            'tracks': [
+              {'id': 't', 'name': 'Strings', 'context': 'c', 'color': '#ff8000'},
+              {'id': 'p', 'name': partName.toUpperCase(), 'context': 'c'},
+            ],
+            'sources': [{'id': 'take-1', 'name': 'Take 1', 'rate': 48000, 'frames': 48000 * 60, 'channels': 2}],
+            'regions': [{'id': 'r', 'track': 't', 'source': 'take-1', 'start': 1, 'length': 59, 'from': 0.5, 'span': 59}],
+          };
+      say({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'plugin': '0.9.0'});
+      say(song([[0, 0], [3, 6], [9, 15]]));
+      await until(() => link.find('doc') != null);
+      final (session, document) = link.find('doc')!;
+      expect(session.host, 'Cubase 15');
+
+      final region = document.regions.single, context = document.contexts.single;
+      expect(c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 2, transport: true)), isTrue);
+      final pickup = c.score!.metadata.pickups.contains(0) ? c.score!.timeline.measureStarts[1] : 0.0;
+      final expected = context.tempoFor(region, name: 'Cubase 15 · Strings', bar: 2, pickup: pickup)!;
+      expect(c.midiTempo, expected.map);
+      expect(c.sync!.startSeconds, closeTo(expected.start, 1e-9));
+      c.undo();
+      expect(c.usesMidiTempo, isFalse, reason: 'taking the DAW’s tempo is one Undo step');
+      c.redo();
+
+      say(song([[0, 0], [3, 6], [8, 15]])); // a faster end, as the DAW's tempo track was edited
+      await until(() => c.midiTempo!.tempos.last.quartersPerMinute == 108);
+
+      say({'t': 'transport', 'playing': true, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      say({'t': 'transport', 'playing': false, 'seconds': 4.0, 'quarters': 8, 'tempo': 120});
+      await until(() => !c.playback.followsDaw);
+      expect(c.playback.time.value, closeTo(3.5, 1e-9), reason: 'song 4 s is 3.5 s into the recording');
+
+      final asked = link.recording(session, 'doc', 'take-1');
+      expect(await heard.moveNext(), isTrue);
+      expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
+      say({'t': 'exported', 'document': 'doc', 'source': 'take-1', 'path': '/tmp/Take 1.wav'});
+      expect(await asked, '/tmp/Take 1.wav');
+
+      // Its tracks kept as stems: each asked for from where the recording starts in the song for
+      // as long as it lasts; the file the plug-in writes kept as FLAC, named by the track, in its
+      // colour, its part found by name (a track named after one); saved in the project, each in
+      // a folder of its own, and opened again.
+      Future<void> stem(String track, String name) async {
+        expect(await heard.moveNext(), isTrue);
+        final message = jsonDecode(heard.current) as Map<String, Object?>;
+        expect((message['t'], message['track'], message['from']), ('stem', track, 0.5), reason: 'the recording’s start: song 0.5 s');
+        expect(message['length'] as num, greaterThan(0));
+        // A second of 16-bit mono, as any WAV the plug-in might write.
+        final wav = File('${folder.path}/$name.wav');
+        final data = ByteData(44 + 48000 * 2)
+          ..setUint32(0, 0x52494646)
+          ..setUint32(4, 36 + 48000 * 2, Endian.little)
+          ..setUint32(8, 0x57415645)
+          ..setUint32(12, 0x666d7420)
+          ..setUint32(16, 16, Endian.little)
+          ..setUint16(20, 1, Endian.little)
+          ..setUint16(22, 1, Endian.little)
+          ..setUint32(24, 48000, Endian.little)
+          ..setUint32(28, 96000, Endian.little)
+          ..setUint16(32, 2, Endian.little)
+          ..setUint16(34, 16, Endian.little)
+          ..setUint32(36, 0x64617461)
+          ..setUint32(40, 48000 * 2, Endian.little);
+        wav.writeAsBytesSync(data.buffer.asUint8List());
+        say({'t': 'progress', 'document': 'doc', 'track': track, 'done': 0.5});
+        say({'t': 'stemmed', 'document': 'doc', 'track': track, 'path': wav.path});
+      }
+
+      final progress = <double>[];
+      final capturing = c.stems.capture(link, document.tracks, progress: progress.add);
+      await stem('t', 'Strings');
+      await stem('p', 'Part');
+      expect(await capturing, isEmpty);
+      expect(progress.last, 1);
+      final [strings, played] = c.stems.list;
+      expect((strings.id, strings.name, strings.color, strings.take, strings.part), ('stem-1', 'Strings', 0xffff8000, c.focus, null));
+      expect((played.name, played.part), (partName.toUpperCase(), part.id));
+      expect(c.stems.fileOf('stem-1'), endsWith('.flac'));
+      expect(File('${folder.path}/Strings.wav').existsSync(), isFalse, reason: 'the plug-in’s file is let go');
+      c.undo();
+      expect(c.stems.list, hasLength(2), reason: 'not an Undo step');
+      c.redo();
+      c.stems.setPart('stem-1', part.id);
+      final saved = '${folder.path}/stems.ccs';
+      await ProjectFile.write(saved, ProjectContents(
+        scoreName: c.source!.name,
+        scoreBytes: c.source!.bytes,
+        state: c.projectState,
+        stems: {for (final s in c.stems.list) s.id: ProjectMedia(name: fileNameOf(c.stems.fileOf(s.id)!), embedFrom: c.stems.fileOf(s.id)!)},
+      ));
+      final media = await Directory.systemTemp.createTemp('stems-media');
+      final opened = await ProjectFile.read(saved, mediaDirectory: media.path);
+      expect(opened.state.edits.stems, c.stems.list);
+      expect(opened.stems.keys, ['stem-1', 'stem-2']);
+      expect(opened.stems['stem-1'], '${media.path}/stems/stem-1/Strings.flac');
+      expect(File(opened.stems['stem-1']!).lengthSync(), File(c.stems.fileOf('stem-1')!).lengthSync());
+      await media.delete(recursive: true);
+      c.stems.remove('stem-2');
+      expect(c.stems.list.map((s) => s.id), ['stem-1']);
+
+      c.useMidiTempo(null);
+      expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');
+      c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 1, transport: true));
+      say({'t': 'transport', 'playing': true, 'seconds': 5.0, 'quarters': 10, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      daw.destroy();
+      await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
+      await link.stop();
+      expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
+
+      // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
+      // what was there, its program executable; nothing outside them; uninstalled, both removed.
+      final plugIns = '${folder.path}/Plug-Ins';
+      File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').createSync(recursive: true);
+      final zip = Archive()
+        ..add(ArchiveFile.string('Curator Link.vst3/Contents/Info.plist',
+            '<key>CFBundleShortVersionString</key>\n\t<string>0.9.0</string>\n<key>CFBundleVersion</key><string>468</string>'))
+        ..add(ArchiveFile.string('Curator Link.vst3/Contents/MacOS/Curator Link', 'program'))
+        ..add(ArchiveFile.string('Curator Link.component/Contents/MacOS/Curator Link', 'program'))
+        ..add(ArchiveFile.string('Elsewhere/stray.txt', 'no'));
+      await CuratorLinkPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
+      expect(CuratorLinkPlugIns.installed(folder: plugIns), '0.9.0 (468)');
+      expect(File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').existsSync(), isFalse);
+      expect(File('$plugIns/Components/Curator Link.component/Contents/MacOS/Curator Link').statSync().modeString(), 'rwxr-xr-x');
+      expect(Directory('$plugIns/Elsewhere').existsSync() || File('${folder.path}/Elsewhere/stray.txt').existsSync(), isFalse);
+      await CuratorLinkPlugIns.uninstall(folder: plugIns);
+      expect(CuratorLinkPlugIns.installed(folder: plugIns), isNull);
+      expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'uninstalled, both go');
+      await folder.delete(recursive: true);
     }
   });
 }
