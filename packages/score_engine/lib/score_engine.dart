@@ -58,6 +58,7 @@ export 'src/score_typography.dart';
 export 'src/script.dart';
 export 'src/sounding_notes.dart';
 export 'src/scroll_map.dart';
+export 'src/search.dart';
 export 'src/spacers.dart';
 export 'src/spacing_plan.dart';
 export 'src/staff_stack.dart';

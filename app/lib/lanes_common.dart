@@ -375,9 +375,12 @@ class _RulerPainter extends CustomPainter {
     var lastLabel = double.negativeInfinity;
     // Bar by bar through each pass: after a warp the numbers start again where it jumps to.
     for (final (k, bars) in _barsByPass(tl).indexed) {
-      for (final (j, i) in bars.indexed) {
-        final x = v.x(tl.secondsAtQuarter(starts[i], pass: k));
-        if (x < -40 || x > size.width + 40) continue;
+      double xOf(int j) => v.x(tl.secondsAtQuarter(starts[bars[j]], pass: k));
+      // Along a pass the bars go left to right: from the last left of the ruler, to its right end.
+      for (var j = segmentAt(bars.length + 1, -40, xOf); j < bars.length; j++) {
+        final i = bars[j], x = xOf(j);
+        if (x > size.width + 40) break;
+        if (x < -40) continue;
         final warped = k > 0 && j == 0 && (starts[i] - tl.passes[k].start).abs() < 1e-9;
         final labelled = (warped || x - lastLabel >= 30) && i < starts.length - 1;
         canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), warped ? jump : tick);
@@ -570,10 +573,20 @@ class DoubleClicks {
 }
 
 /// For each pass (see [ScoreTimeline.passes]), the bars whose barline it plays, in order. A
-/// pass's end is the next one's start, so only the last pass has the final barline.
+/// pass's end is the next one's start, so only the last pass has the final barline. Kept until
+/// the passes or the bars are others (the ruler asks at every paint).
 List<List<int>> _barsByPass(ScoreTimeline tl) {
   final starts = tl.measureStarts;
   final passes = tl.passes;
+  if (_passBars case (final p, final s, final bars) when identical(p, passes) && identical(s, starts)) return bars;
+  final bars = _barsOf(starts, passes);
+  _passBars = (passes, starts, bars);
+  return bars;
+}
+
+(List<ScorePass>, List<double>, List<List<int>>)? _passBars;
+
+List<List<int>> _barsOf(List<double> starts, List<ScorePass> passes) {
   return [
     for (final (k, p) in passes.indexed)
       [
@@ -592,11 +605,16 @@ void paintBarGrid(Canvas canvas, Size size, EditorController c, AppColors colors
   final grid = Paint()..color = colors.grid;
   final beat = Paint()..color = colors.grid.withValues(alpha: 0.5);
   final passes = tl.passes;
+  final left = v.seconds(-1); // a line a pixel left of the lanes still shows
   for (final (k, p) in passes.indexed) {
     double x(double q) => v.x(tl.secondsAtQuarter(q, pass: k));
     final last = k == passes.length - 1;
-    // From the bar the pass starts in (a warp may land mid-bar) to the one it ends in.
-    for (var m = c.beats.measureAt(p.start); m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
+    // From the bar the pass starts in (a warp may land mid-bar), or the one at the lanes' left
+    // when the pass started before it, to the one it ends in.
+    final from = left > tl.secondsAtQuarter(p.start, pass: k) && left < tl.secondsAtQuarter(p.end, pass: k)
+        ? math.max(c.beats.measureAt(p.start), c.beats.measureAt(tl.quarterAtSeconds(left)))
+        : c.beats.measureAt(p.start);
+    for (var m = from; m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
       final bx = x(starts[m]);
       if (bx > size.width + 1) break;
       if (starts[m] >= p.start - 1e-9 && bx >= -1) canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), grid);
