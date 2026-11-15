@@ -82,15 +82,8 @@ class PackageExtension extends CuratorExtension {
 
 /// Every extension there is, in the order Project Settings lists them.
 abstract final class Extensions {
-  /// The order Curator's own are listed in; one not named here follows, by id.
-  static const _order = ['attachImage', 'captions', 'chapters', 'tonality'];
-
   /// Curator's own: those bundled with the app as packages, in the order they are listed.
-  static List<CuratorExtension> get all {
-    final all = <CuratorExtension>[for (final p in BundledExtensions.packages) PackageExtension(p, bundled: true)];
-    int place(CuratorExtension e) => switch (_order.indexOf(e.id)) { -1 => _order.length, final i => i };
-    return all..sort((a, b) => switch (place(a).compareTo(place(b))) { 0 => a.id.compareTo(b.id), final by => by });
-  }
+  static List<CuratorExtension> get all => [for (final p in BundledExtensions.packages) PackageExtension(p, bundled: true)];
 
   /// Those [controller]'s project can turn on: Curator's own, then the ones it carries.
   static List<CuratorExtension> of(EditorController controller) => [
