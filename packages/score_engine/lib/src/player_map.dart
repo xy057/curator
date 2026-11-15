@@ -63,6 +63,9 @@ class MapSeat {
   int get hashCode => Object.hash(x, y, link);
 }
 
+/// What a section or a map covers of the stage (0–1 across and down), names and dots alike.
+typedef StageBox = ({double left, double top, double right, double bottom});
+
 /// How [MapSection.arranged] seats a section's players: as Smart Seating seated them
 /// ([MapSection.auto]), or in rows, a bow or a line.
 enum SeatShape { auto, rows, arc, line }
@@ -333,6 +336,51 @@ class MapSection {
       y += s.y;
     }
     return (x: x / seats.length, y: y / seats.length);
+  }
+
+  /// What its name covers of a stage [aspect] wide (its place alone, with no name).
+  StageBox labelBounds([double aspect = PlayerMap.defaultAspect]) {
+    final w = name.isEmpty ? 0.0 : SeatPlan.labelHalfWidth(name, aspect), h = name.isEmpty ? 0.0 : SeatPlan.labelHalfHeight;
+    return (left: labelX - w, top: labelY - h, right: labelX + w, bottom: labelY + h);
+  }
+
+  /// What its dots and name cover of a stage [aspect] wide.
+  StageBox bounds([double aspect = PlayerMap.defaultAspect]) {
+    final rx = size / 2 / aspect, ry = size / 2;
+    var box = name.isEmpty && seats.isNotEmpty
+        ? (left: double.infinity, top: double.infinity, right: double.negativeInfinity, bottom: double.negativeInfinity)
+        : labelBounds(aspect);
+    for (final s in seats) {
+      box = (
+        left: math.min(box.left, s.x - rx),
+        top: math.min(box.top, s.y - ry),
+        right: math.max(box.right, s.x + rx),
+        bottom: math.max(box.bottom, s.y + ry),
+      );
+    }
+    return box;
+  }
+
+  /// Moved by [dx], [dy] as a drag or an arrow moves it (all of it; its name alone for [label];
+  /// player [seat] alone), but never off the stage: only as far as keeps what moves on it. What
+  /// is off it already goes no further off.
+  MapSection dragged(double dx, double dy, {int? seat, bool label = false, double aspect = PlayerMap.defaultAspect}) {
+    final box = label
+        ? labelBounds(aspect)
+        : switch (seat) {
+            final i? => (left: seats[i].x - size / 2 / aspect, top: seats[i].y - size / 2, right: seats[i].x + size / 2 / aspect, bottom: seats[i].y + size / 2),
+            null => bounds(aspect),
+          };
+    double kept(double d, double lo, double hi) {
+      final a = -lo, b = 1 - hi;
+      return d.clamp(math.min(math.min(a, b), 0.0), math.max(math.max(a, b), 0.0));
+    }
+
+    dx = kept(dx, box.left, box.right);
+    dy = kept(dy, box.top, box.bottom);
+    if (label) return copyWith(labelX: labelX + dx, labelY: labelY + dy);
+    if (seat != null) return copyWith(seats: [for (final (j, s) in seats.indexed) j == seat ? s.at(s.x + dx, s.y + dy) : s]);
+    return moved(dx, dy);
   }
 
   /// [count] players seated by [plan], each keeping its own link in order (new ones with none),
@@ -1295,12 +1343,9 @@ Map<String, Object?> _map(Object? json, String where) =>
 double _number(Object? value, String where) =>
     value is num && value.isFinite ? value.toDouble() : throw FormatException('$where is not a number.');
 
-/// A place on the stage: a little past its edges is allowed (a seat dragged off them).
-double _place(Object? value, String where) {
-  final v = _number(value, where);
-  if (v < -1 || v > 2) throw FormatException('$where is off the stage.');
-  return v;
-}
+/// A place on the stage: a little past its edges is allowed (a seat dragged off them); one
+/// further off is brought back to there, not refused (a project must open whatever was dragged).
+double _place(Object? value, String where) => _number(value, where).clamp(-1.0, 2.0);
 
 List<double> _numbers(Object? value, String where, int count) {
   if (value is! List || value.length != count) throw FormatException('$where is not $count numbers.');

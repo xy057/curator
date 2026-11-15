@@ -146,6 +146,12 @@ void main() {
       // A section from before plans: seen as the row it is.
       const old = MapSection(name: 'Old', color: 0xFF000000, labelX: 0.45, labelY: 0.6, seats: [MapSeat(0.4, 0.5), MapSeat(0.5, 0.5)]);
       expect(old.withCount(3).seats.map((s) => s.y).toSet(), hasLength(1));
+      // Dragged, it stops at the stage's edge, a player alone too; a place saved far off the stage
+      // (as a held arrow once left it) is read as one just off it, not refused.
+      expect(old.dragged(-3, 0).bounds().left, closeTo(0, 1e-9));
+      expect(old.dragged(0, 3, seat: 1).seats.map((s) => s.y), [0.5, closeTo(1 - old.size / 2, 1e-9)]);
+      final far = old.toJson()..['seats'] = [[9, 0.5]];
+      expect(MapSection.fromJson(far, 'section').seats.single.x, 2);
       // Counted from names and staves; a contrabassoon is no bass.
       ScorePart part(String id, String name, [int staves = 1]) =>
           ScorePart(id: id, name: name, abbreviation: '', sound: null, staffNumbers: [for (var i = 1; i <= staves; i++) i]);

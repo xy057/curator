@@ -200,8 +200,8 @@ abstract final class PlayerMapFiles {
 /// Edit… of the player map: its sections on the stage at the left, the one selected at the right
 /// (its name, the instrument and staff it plays, its colour, players, how they sit, their size);
 /// in Players mode a player of it, which may play another instrument or staff than its section.
-/// Dragged, a section moves (a player alone in Players mode; a name on its own); arrows nudge
-/// it, Delete removes it. Its own Undo while open; Done makes it the project's, one Undo step.
+/// Dragged, a section moves (a player alone in Players mode; a name on its own), never off the
+/// stage; arrows nudge it, Delete removes it. Its own Undo while open; Done makes it the project's, one Undo step.
 Future<void> showPlayerMapEditor(BuildContext context, EditorController controller) async {
   final map = controller.playerMap.map;
   if (map == null) return;
@@ -326,12 +326,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   void _nudge(double dx, double dy) {
     final k = _section;
     if (k == null) return;
-    _setSection(k, (s) {
-      if (_seat case final i? when _mode == _Mode.players) {
-        return s.copyWith(seats: [for (final (j, seat) in s.seats.indexed) j == i ? seat.at(seat.x + dx, seat.y + dy) : seat]);
-      }
-      return s.moved(dx, dy);
-    });
+    _setSection(k, (s) => s.dragged(dx, dy, seat: _mode == _Mode.players ? _seat : null, aspect: _map.aspect));
   }
 
   Future<void> _cancel() async {
@@ -394,12 +389,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     final stage = _stage(size);
     final dx = (p.dx - drag.from.dx) / stage.rect.width, dy = (p.dy - drag.from.dy) / stage.rect.height;
     final s = drag.start.sections[drag.section];
-    final moved = switch (drag) {
-      (label: true, seat: _, section: _, from: _, start: _) => s.copyWith(labelX: s.labelX + dx, labelY: s.labelY + dy),
-      (seat: final int i, label: _, section: _, from: _, start: _) =>
-        s.copyWith(seats: [for (final (j, seat) in s.seats.indexed) j == i ? seat.at(seat.x + dx, seat.y + dy) : seat]),
-      _ => s.moved(dx, dy),
-    };
+    // Never off the stage: a place far off it is one a project couldn't keep.
+    final moved = s.dragged(dx, dy, seat: drag.seat, label: drag.label, aspect: _map.aspect);
     final first = identical(_map, drag.start);
     if (first) {
       _undo.add(drag.start);
