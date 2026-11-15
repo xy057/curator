@@ -2013,19 +2013,26 @@ class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
 
   static String get _version => '$appVersion ($appBuild)';
 
-  Future<void> _install() async {
+  Future<void> _install() => _change(() async {
+        final ByteData data;
+        try {
+          data = await rootBundle.load(CuratorLinkPlugIns.asset);
+        } catch (_) {
+          throw StateError('This build of Curator has no Curator Link.'.tr);
+        }
+        await CuratorLinkPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      });
+
+  /// Both bundles removed from where DAWs look (docs/daw-link.md says what a DAW keeps).
+  Future<void> _uninstall() => _change(CuratorLinkPlugIns.uninstall);
+
+  Future<void> _change(Future<void> Function() job) async {
     setState(() {
       _busy = true;
       _problem = null;
     });
     try {
-      final ByteData data;
-      try {
-        data = await rootBundle.load(CuratorLinkPlugIns.asset);
-      } catch (_) {
-        throw StateError('This build of Curator has no Curator Link.'.tr);
-      }
-      await CuratorLinkPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      await job();
     } catch (e) {
       _problem = e is StateError ? e.message : describeError(e);
     }
@@ -2052,6 +2059,15 @@ class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
           else if (_installed != null)
             Text(_installed!.isEmpty ? 'Installed'.tr : _installed!, style: muted),
           const SizedBox(width: 10),
+          if (_installed != null) ...[
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+              onPressed: _busy ? null : _uninstall,
+              child: Text('Uninstall'.tr),
+            ),
+            const SizedBox(width: 8),
+          ],
           OutlinedButton(
             style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),

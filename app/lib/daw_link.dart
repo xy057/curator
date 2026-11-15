@@ -286,6 +286,17 @@ abstract final class CuratorLinkPlugIns {
     return version == null ? '' : build == null ? version : '$version ($build)';
   }
 
+  /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there. Throws a
+  /// [FileSystemException] when it can't.
+  static Future<void> uninstall({String? folder}) async {
+    folder ??= plugInsFolder;
+    if (folder == null) return;
+    for (final bundle in ['$folder/VST3/$vst3', '$folder/Components/$component']) {
+      final dir = Directory(bundle);
+      if (dir.existsSync()) await dir.delete(recursive: true);
+    }
+  }
+
   /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle removed whole,
   /// then written anew, its program made executable. Throws a [FileSystemException] when it
   /// can't write there.

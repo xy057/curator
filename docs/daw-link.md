@@ -17,18 +17,89 @@ can then:
   length of the recording followed, and kept apart in the project. Each stem lines up sample for
   sample with the recording, ready for hearing one instrument alone or bringing it forward.
 
-## Setting it up
+## Installing
 
-1. Settings ▸ General ▸ DAW ▸ **Curator Link plug-in ▸ Install** puts `Curator Link.vst3` in
-   `~/Library/Audio/Plug-Ins/VST3` and `Curator Link.component` in `…/Components`. After an
-   update, **Update** appears there.
-2. In the DAW, use it as an ARA plug-in on the track with the recording:
+Curator Link runs on macOS (Apple silicon and Intel). Curator carries it, so there is nothing to
+download.
+
+1. **Quit your DAW.** A DAW reads its plug-ins when it starts.
+2. In Curator, open **Settings ▸ General ▸ DAW** and click **Install** next to
+   **Curator Link plug-in**. Curator puts two files in your own Library. It needs no password,
+   and other accounts on the Mac don't get them:
+
+   | File | Where | Used by |
+   |---|---|---|
+   | `Curator Link.vst3` | `~/Library/Audio/Plug-Ins/VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
+   | `Curator Link.component` | `~/Library/Audio/Plug-Ins/Components` | Logic Pro and other Audio Unit hosts |
+
+   The row then shows the version installed, for example `0.9.0 (471)`.
+3. Leave **Listen for Curator Link** on, in the same group. It is on unless you turned it off.
+4. **Start your DAW.** Most DAWs find a new plug-in on their own. If Curator Link isn't listed:
+   - **Logic Pro** checks every new Audio Unit when it starts. If the check failed, open
+     Logic Pro ▸ Settings ▸ Plug-in Manager, select Curator Link, and click
+     **Reset & Rescan Selection**.
+   - **Cubase / Nuendo**: rescan in Studio ▸ VST Plug-in Manager.
+   - **REAPER**: Settings ▸ Plug-ins ▸ VST ▸ **Re-scan**.
+   - **Studio One** and other DAWs: rescan their plug-ins, or restart them once more.
+5. **Check that it works.** Put Curator Link on a track ([Using it](#using-it)), then open its
+   window in the DAW. It says **Connected to Curator** while Curator is open, and **Waiting for
+   Curator** otherwise. Curator's Settings row then says **Connected:** and the DAW's name.
+
+### Updating
+
+After Curator is updated, the row says **Update** instead of the version: click it, then
+restart the DAW, which keeps the old plug-in loaded until it quits. Until then, a plug-in from
+an older Curator still works. **Reinstall** puts the same version back, for a plug-in that was
+damaged or partly removed.
+
+### Installing by hand
+
+`make daw-link` leaves both plug-ins in `app/assets/daw_link/CuratorLink.zip`. To install them
+without Curator's button (on another Mac, for example), quit the DAW, unzip the file, and copy
+`Curator Link.vst3` into `~/Library/Audio/Plug-Ins/VST3` and `Curator Link.component` into
+`~/Library/Audio/Plug-Ins/Components`. The plug-ins have an ad-hoc signature, not Apple's.
+macOS may then refuse a copy downloaded with a web browser, which marks it as from the
+internet. If it does, clear that mark:
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Curator Link.vst3" ~/Library/Audio/Plug-Ins/Components/"Curator Link.component"
+```
+
+## Uninstalling
+
+1. **Quit your DAW.**
+2. In Curator, open **Settings ▸ General ▸ DAW** and click **Uninstall** next to
+   **Curator Link plug-in**. Both plug-ins are removed, and the button reads **Install** again.
+
+   By hand, delete the two files instead:
+
+   ```bash
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/"Curator Link.vst3" ~/Library/Audio/Plug-Ins/Components/"Curator Link.component"
+   ```
+3. **Start your DAW.** It drops Curator Link from its list when it next starts or rescans.
+   A DAW project that used it says the plug-in is missing when it opens. Its audio and regions
+   are untouched: Curator Link keeps nothing in the DAW's project.
+
+What stays behind, and how to remove it:
+
+- **Curator's projects keep what they took.** That includes a tempo map, a recording and
+  stems. They are part of each project and don't need the plug-in.
+- **Files written for Curator stay in its cache.** Recordings and stems the plug-in wrote are
+  in `~/Library/Caches/Curator/DAW Link`. Curator has copied what it uses into its projects,
+  so the folder can be deleted.
+- **Curator still listens for the plug-in.** Turn off **Listen for Curator Link** to stop it.
+  Curator then also removes `daw-link.json`, the file in
+  `~/Library/Application Support/Curator` that tells the plug-in where to connect.
+
+## Using it
+
+1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Curator Link.
    - **Logic Pro**: insert Curator Link (Audio Units ▸ Curator) on the track. Logic hands ARA
      plug-ins the regions on the track.
-   - **Studio One, REAPER, Cakewalk** and other ARA hosts: as they add ARA plug-ins
+   - **Studio One, REAPER** and other ARA hosts: as they add ARA plug-ins
      (VST3).
-3. In Curator, open the score, then the Audio tab ▸ ⋯ ▸ **Follow DAW…**. Choose the recording,
+2. In Curator, open the score, then the Audio tab ▸ ⋯ ▸ **Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 

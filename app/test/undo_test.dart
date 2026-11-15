@@ -316,7 +316,7 @@ void main() {
       expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
 
       // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
-      // what was there, its program executable; nothing outside them.
+      // what was there, its program executable; nothing outside them; uninstalled, both removed.
       final plugIns = '${folder.path}/Plug-Ins';
       File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').createSync(recursive: true);
       final zip = Archive()
@@ -330,6 +330,9 @@ void main() {
       expect(File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').existsSync(), isFalse);
       expect(File('$plugIns/Components/Curator Link.component/Contents/MacOS/Curator Link').statSync().modeString(), 'rwxr-xr-x');
       expect(Directory('$plugIns/Elsewhere').existsSync() || File('${folder.path}/Elsewhere/stray.txt').existsSync(), isFalse);
+      await CuratorLinkPlugIns.uninstall(folder: plugIns);
+      expect(CuratorLinkPlugIns.installed(folder: plugIns), isNull);
+      expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'uninstalled, both go');
       await folder.delete(recursive: true);
     }
   });

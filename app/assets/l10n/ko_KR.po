@@ -5456,3 +5456,7 @@ msgstr ""
 #: lib/stems_dialog.dart
 msgid "Capturing Stems"
 msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr ""

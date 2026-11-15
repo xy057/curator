@@ -5470,3 +5470,7 @@ msgstr "取り込んだステム：{count}"
 #: lib/stems_dialog.dart
 msgid "Capturing Stems"
 msgstr "ステムを取り込み中"
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr "アンインストール"

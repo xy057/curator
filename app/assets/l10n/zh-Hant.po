@@ -5470,3 +5470,7 @@ msgstr "已擷取分軌：{count}"
 #: lib/stems_dialog.dart
 msgid "Capturing Stems"
 msgstr "正在擷取分軌"
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr "解除安裝"
