@@ -11,6 +11,7 @@ import 'package:score_engine/score_engine.dart' show FontFace, LilyPondScore, Te
 import 'app_folders.dart';
 import 'downloader.dart';
 import 'error_text.dart';
+import 'file_names.dart';
 import 'l10n/l10n.dart';
 import 'project_state.dart';
 import 'scratch_space.dart';
@@ -263,7 +264,7 @@ abstract final class LilyPond {
   /// The file names LilyPond scores have (a score, a file one includes).
   static const extensions = ['ly', 'ily'];
 
-  static bool isLilyPond(String path) => extensions.contains(path.split('.').last.toLowerCase());
+  static bool isLilyPond(String path) => extensions.contains(extensionOf(path));
 
   /// Curator's settings for LilyPond (`assets/lilypond/curator.ly`): the piece on one line, its
   /// drawing tagged, what it is written to a data file.

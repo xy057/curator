@@ -5,6 +5,7 @@ import 'dart:ui' show Color;
 
 import 'package:score_engine/score_engine.dart';
 
+import 'app_colors.dart' show hexOf;
 import 'file_names.dart';
 import 'image_patch.dart';
 import 'project_state.dart';
@@ -171,9 +172,6 @@ final class _ExtensionData extends ProjectModule {
 
 FormatException _damaged(String what) => FormatException('The project is damaged: $what');
 
-/// "#A86B3C".
-String _hex(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-
 /// "#A86B3C"; null for anything else.
 Color? _color(Object? hex) => switch (hex) {
       final String s when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s) => Color(0xFF000000 | int.parse(s.substring(1), radix: 16)),
@@ -289,9 +287,9 @@ final class _Display extends ProjectModule {
       'motion': ?e.motion?.toJson(),
       'barNumbers': e.barNumbers,
       'groupSections': e.groupSections,
-      if (e.playheadColor case final color?) 'playheadColor': _hex(color),
+      if (e.playheadColor case final color?) 'playheadColor': hexOf(color),
       'colorNames': e.colorNames,
-      if (e.nameColors.isNotEmpty) 'familyColors': {for (final MapEntry(key: f, value: c) in e.nameColors.entries) f.name: _hex(c)},
+      if (e.nameColors.isNotEmpty) 'familyColors': {for (final MapEntry(key: f, value: c) in e.nameColors.entries) f.name: hexOf(c)},
     };
   }
 
@@ -358,7 +356,7 @@ final class _Instruments extends ProjectModule {
       'names': {for (final MapEntry(key: id, value: p) in e.partNames.entries) id: [p.name, p.abbreviation]},
       'sections': e.sections,
       'groups': [
-        for (final g in e.nameGroups) {'id': g.id, 'name': g.name, 'color': _hex(g.color)},
+        for (final g in e.nameGroups) {'id': g.id, 'name': g.name, 'color': hexOf(g.color)},
       ],
       'groupOf': e.nameGroupOf,
       'condensed': [...e.condensed],
@@ -642,7 +640,7 @@ final class _Images extends _OwnData {
 
   /// Whether image [id]'s file is compressed already, so deflating it gains nothing (an SVG,
   /// BMP or ICO isn't).
-  static bool _packed(String id) => !const ['svg', 'bmp', 'ico'].contains(id.split('.').last.toLowerCase());
+  static bool _packed(String id) => !const ['svg', 'bmp', 'ico'].contains(extensionOf(id));
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
