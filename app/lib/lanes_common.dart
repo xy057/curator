@@ -605,13 +605,18 @@ void paintBarGrid(Canvas canvas, Size size, EditorController c, AppColors colors
   final grid = Paint()..color = colors.grid;
   final beat = Paint()..color = colors.grid.withValues(alpha: 0.5);
   final passes = tl.passes;
-  final left = v.seconds(-1); // a line a pixel left of the lanes still shows
+  final left = v.seconds(-1), right = v.seconds(size.width + 1); // a line a pixel past the lanes still shows
   for (final (k, p) in passes.indexed) {
     double x(double q) => v.x(tl.secondsAtQuarter(q, pass: k));
     final last = k == passes.length - 1;
+    // The passes go on one after another: one over before the lanes' left draws nothing, nor
+    // does any after one beginning past their right.
+    final startsAt = tl.secondsAtQuarter(p.start, pass: k), endsAt = tl.secondsAtQuarter(p.end, pass: k);
+    if (startsAt > right) break;
+    if (endsAt < left) continue;
     // From the bar the pass starts in (a warp may land mid-bar), or the one at the lanes' left
     // when the pass started before it, to the one it ends in.
-    final from = left > tl.secondsAtQuarter(p.start, pass: k) && left < tl.secondsAtQuarter(p.end, pass: k)
+    final from = left > startsAt && left < endsAt
         ? math.max(c.beats.measureAt(p.start), c.beats.measureAt(tl.quarterAtSeconds(left)))
         : c.beats.measureAt(p.start);
     for (var m = from; m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
