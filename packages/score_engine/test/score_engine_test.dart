@@ -191,7 +191,7 @@ void main() {
           reason: 'by name; P2 is an oboe there, so no flute');
 
       final dynamics = ScoreDynamics.read(score.musicXML, starts);
-      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, seated.links, dynamics: dynamics);
+      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, dynamics: dynamics);
       final violins = seated.sections.first.link!;
       final first = soundingNotes(score.musicXML, starts).firstWhere((n) => n.partId == violins.part);
       final on = score.timeline.secondsAtQuarter(first.start);
@@ -199,6 +199,10 @@ void main() {
       expect(pulses.level(violins, on + PlayerPulses.attack), closeTo(PlayerPulses.strengthOf(dynamics.at(violins.part, first.start)), 1e-9),
           reason: 'as far as it is loud');
       expect(PlayerPulses.strengthOf(ScoreDynamics.levels['pp']!), lessThan(PlayerPulses.strengthOf(ScoreDynamics.levels['ff']!)));
+      // Whatever a map links asks the same pulses: the violins' one staff as all of them, a part
+      // the score hasn't nothing.
+      expect(pulses.level(violins.withStaff(1), on + PlayerPulses.attack), pulses.level(violins, on + PlayerPulses.attack));
+      expect(pulses.level(const PlayerLink('none'), on + PlayerPulses.attack), 0);
 
       // Dynamics: a mark holds, a hairpin ramps to the mark it reaches (a step where none), an
       // accent is its moment's, fp an accent then piano; mf before anything.
