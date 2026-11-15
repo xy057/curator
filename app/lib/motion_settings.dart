@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
@@ -56,8 +57,21 @@ class MotionSetting {
       percent ? '${(value * 100).round()}%' : '${formatOptionValue(value)}${unit == null ? '' : ' $unit'}';
 }
 
+/// A project's settings of one kind over the app's (the default for other projects), as Save as
+/// Default sees them: [isDefault] while the app's match the project's, [saveAsDefault] makes them
+/// so and [resetToDefault] the project's the app's; [isSystem] while the project's are the house
+/// style's, [savedIsSystem] while the app's are, and [resetToSystem] the project's those.
+abstract interface class DefaultsTarget {
+  bool get isDefault;
+  void saveAsDefault();
+  FutureOr<void> resetToDefault();
+  bool get isSystem;
+  bool get savedIsSystem;
+  FutureOr<void> resetToSystem();
+}
+
 /// The project's motion (an edit each change) over the app's default.
-class MotionTarget {
+class MotionTarget implements DefaultsTarget {
   const MotionTarget(this.settings, this.controller);
   final AppSettings settings;
   final EditorController controller;
@@ -69,17 +83,23 @@ class MotionTarget {
   /// Back to the house style's.
   void reset(String key) => set(key, ScoreMotion.standard.valueOf(key));
 
+  @override
   bool get isDefault => settings.motion == controller.motion;
+  @override
   void saveAsDefault() => settings.motion = controller.motion;
 
   /// The project's motion back to the app's default.
+  @override
   void resetToDefault() => controller.setMotion(settings.motion);
 
   /// Whether the project's motion, and the app's default, are the house style's (System Default).
+  @override
   bool get isSystem => controller.motion == ScoreMotion.standard;
+  @override
   bool get savedIsSystem => settings.motion == ScoreMotion.standard;
 
   /// The project's motion back to the house style's, whatever the app's default.
+  @override
   void resetToSystem() => controller.setMotion(ScoreMotion.standard);
 }
 

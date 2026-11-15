@@ -223,6 +223,17 @@ typedef _SaveDefault = ({
   FutureOr<void> Function(_Context) resetToSystem,
 });
 
+/// Save as Default for a page whose settings are [target]'s.
+_SaveDefault _savesTo(DefaultsTarget Function(_Context) target) => (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
+    );
+
 typedef _Context = ({
   AppSettings settings,
   EditorController? controller,
@@ -702,15 +713,7 @@ _Category _animationCategory() {
   return _Category(
     'Animation',
     AppIcon.transition,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in MotionSetting.all)
         _Item(
@@ -737,15 +740,7 @@ _Category _typographyCategory() {
     'Typography',
     AppIcon.fonts,
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in TypographySetting.all)
         _Item(
@@ -774,15 +769,7 @@ _Category _advancedEngravingCategory() {
     AppIcon.general,
     title: 'Advanced Engraving',
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in EngravingSetting.advanced)
         _Item(
@@ -913,15 +900,7 @@ _Category _engravingCategory() {
     'Engraving',
     AppIcon.music,
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
           group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
