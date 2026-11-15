@@ -19,7 +19,7 @@ import '../script.dart';
 /// and changes the app itself, in every project. Everything is read as it is and written back
 /// as it was: a key this build doesn't know stays in the file.
 @immutable
-class PluginPackage implements ScriptPackage {
+class PluginPackage with PackageManifest implements ScriptPackage {
   PluginPackage({
     required Map<String, Object?> manifest,
     Map<String, String> sources = const {},
@@ -54,6 +54,7 @@ class PluginPackage implements ScriptPackage {
       );
 
   /// `plugin.json`, whole.
+  @override
   final Map<String, Object?> manifest;
   @override
   final Map<String, String> sources;
@@ -63,36 +64,9 @@ class PluginPackage implements ScriptPackage {
   final Map<String, Uint8List> assets;
   final String? readme;
 
-  /// Stable for good: the app keeps its switch and its settings under it. Curator's own are
-  /// one word ("navigator"); anyone else's has a dot, a domain backwards ("com.example.hello").
-  @override
-  String get id => _text('id') ?? '';
-  @override
-  String get name => _text('name') ?? id;
-  @override
-  String? get version => _text('version');
-  String get summary => _text('summary') ?? '';
-  String get keywords => _text('keywords') ?? '';
-  String? get author => _text('author');
-  String? get url => _text('url');
-
-  /// The name of one of the app's icons; null or unknown: the plugins' own.
-  String? get icon => _text('icon');
-
-  /// The API level it was written for ([PluginApi.level] is this build's).
-  int get api => switch (manifest['api']) { final num n => n.toInt(), _ => 1 };
-
-  String? _text(String key) => switch (manifest[key]) { final String s when s.trim().isNotEmpty => s.trim(), _ => null };
-
   /// Whether [id] is one a plugin from elsewhere may have, or one of Curator's own may.
   static bool isThirdPartyId(String id) => ExtensionPackage.isThirdPartyId(id);
   static bool isBuiltInId(String id) => ExtensionPackage.isBuiltInId(id);
-
-  @override
-  String? fileOf(String module) {
-    final path = PackageFiles.pathOf(module);
-    return sources.containsKey(path) ? path : null;
-  }
 
   PluginPackage copyWith({Map<String, Object?>? manifest, Map<String, String>? sources, Map<String, Map<String, String>>? locales, Map<String, Uint8List>? assets, String? readme}) =>
       PluginPackage(
