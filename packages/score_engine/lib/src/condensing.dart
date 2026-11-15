@@ -242,7 +242,7 @@ abstract final class Condenser {
             for (final MapEntry(:key, :value) in values.entries) {
               if (current[key] == value) continue;
               current[key] = value;
-              final g = _gcd(at, divisions); // at / divisions quarters, as the lowest fraction
+              final g = at.gcd(divisions); // at / divisions quarters, as the lowest fraction
               changes.add('$bar ${at ~/ g}/${divisions ~/ g} $key $value');
             }
           case 'note' when e.getElement('chord') == null && e.getElement('grace') == null:
@@ -305,14 +305,12 @@ abstract final class Condenser {
     for (final part in parts) {
       for (final d in part.findAllElements('divisions')) {
         final n = _divisionsIn(d) ?? 1;
-        final common = result ~/ _gcd(result, n) * n;
+        final common = result ~/ result.gcd(n) * n;
         if (common <= _maxDivisions) result = common; // else some durations come out fractional
       }
     }
     return result;
   }
-
-  static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
 
   /// A `<divisions>` value, or null when it is none a score can use (0, negative, absurd).
   static int? _divisionsIn(XmlElement? element) => switch (int.tryParse(element?.innerText.trim() ?? '')) {

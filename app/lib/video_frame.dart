@@ -34,13 +34,11 @@ class VideoRatio {
       if ((p.value - w / h).abs() < 1e-9) return p;
     }
     if (w == w.roundToDouble() && h == h.roundToDouble()) {
-      final d = _gcd(w.round(), h.round());
+      final d = w.round().gcd(h.round());
       return VideoRatio(w / d, h / d);
     }
     return VideoRatio(w, h);
   }
-
-  static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
 
   @override
   bool operator ==(Object other) => other is VideoRatio && other.width == width && other.height == height;

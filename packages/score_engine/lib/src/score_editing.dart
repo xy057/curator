@@ -55,12 +55,8 @@ class Frac implements Comparable<Frac> {
   String toString() => d == 1 ? '$n' : '$n/$d';
 }
 
-int _gcd(int a, int b) {
-  while (b != 0) {
-    (a, b) = (b, a % b);
-  }
-  return a == 0 ? 1 : a;
-}
+/// [a] and [b]'s greatest common divisor; 1 for two zeros, so a zero divides by it.
+int _gcd(int a, int b) => switch (a.gcd(b)) { 0 => 1, final g => g };
 
 int _lcm(int a, int b) => a ~/ _gcd(a, b) * b;
 
