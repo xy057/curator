@@ -382,6 +382,20 @@ class EditGalley {
 
   /// The bar and the time in it nearest [x]: a note's start, or a bar's.
   ({int measure, Frac time})? timeAtX(double x) {
+    final at = _barAtX(x);
+    if (at == null) return null;
+    final (:bar, :m, :local) = at;
+    final points = _points(m);
+    var best = points.first;
+    for (final pt in points) {
+      if (pt.time >= m.duration - 1e-9) continue;
+      if ((pt.x - local).abs() < (best.x - local).abs()) best = pt;
+    }
+    return (measure: bar, time: _frac(best.time));
+  }
+
+  /// The bar at [x], its layout and where [x] is in it (in its chunk's drawing); null: none.
+  ({int bar, MeasureLayout m, double local})? _barAtX(double x) {
     final k = _chunkAtX(x);
     final c = chunks[k];
     if (c == null) return null;
@@ -390,13 +404,7 @@ class EditGalley {
       final m = c.measure(bar);
       if (m == null) break;
       if (local >= m.right && bar < c.to - 1 && c.measure(bar + 1) != null) continue;
-      final points = _points(m);
-      var best = points.first;
-      for (final pt in points) {
-        if (pt.time >= m.duration - 1e-9) continue;
-        if ((pt.x - local).abs() < (best.x - local).abs()) best = pt;
-      }
-      return (measure: bar, time: _frac(best.time));
+      return (bar: bar, m: m, local: local);
     }
     return null;
   }
@@ -404,24 +412,17 @@ class EditGalley {
   /// The bar at [x] and how far into it [x] is, in quarters: between the notes either side as
   /// [x] is between where they are drawn (where no note starts, as [timeAtX] can't say).
   ({int measure, double quarters})? timeNearX(double x) {
-    final k = _chunkAtX(x);
-    final c = chunks[k];
-    if (c == null) return null;
-    final local = x - _lefts[k] + c.left;
-    for (var bar = c.from; bar < c.to; bar++) {
-      final m = c.measure(bar);
-      if (m == null) break;
-      if (local >= m.right && bar < c.to - 1 && c.measure(bar + 1) != null) continue;
-      final points = _points(m);
-      if (local <= points.first.x) return (measure: bar, quarters: points.first.time);
-      for (var i = 1; i < points.length; i++) {
-        final a = points[i - 1], b = points[i];
-        if (local > b.x) continue;
-        return (measure: bar, quarters: b.x <= a.x ? a.time : a.time + (b.time - a.time) * (local - a.x) / (b.x - a.x));
-      }
-      return (measure: bar, quarters: m.duration);
+    final at = _barAtX(x);
+    if (at == null) return null;
+    final (:bar, :m, :local) = at;
+    final points = _points(m);
+    if (local <= points.first.x) return (measure: bar, quarters: points.first.time);
+    for (var i = 1; i < points.length; i++) {
+      final a = points[i - 1], b = points[i];
+      if (local > b.x) continue;
+      return (measure: bar, quarters: b.x <= a.x ? a.time : a.time + (b.time - a.time) * (local - a.x) / (b.x - a.x));
     }
-    return null;
+    return (measure: bar, quarters: m.duration);
   }
 
   /// Where in bar [m] time [t] is drawn: at a note starting then, else between its neighbours.
