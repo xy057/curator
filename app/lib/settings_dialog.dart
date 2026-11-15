@@ -1175,53 +1175,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   Widget _sidebar(BuildContext context) {
     final colors = context.colors;
-    final carbon = CarbonColors.maybeOf(context);
     final searching = _search.text.trim().isNotEmpty;
     return Container(
       width: 200,
       color: _sidebarColor(context),
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SizedBox(
-          height: carbon == null ? 30 : 32,
-          // Esc with something typed clears the search (the page shows again); Esc again, or
-          // with nothing typed, is the window's and closes it.
-          child: Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
-            onKeyEvent: (_, event) {
-              if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape || _search.text.isEmpty) {
-                return KeyEventResult.ignored;
-              }
-              _search.clear();
-              return KeyEventResult.handled;
-            },
-            child: TextField(
-            controller: _search,
-            style: TextStyle(fontSize: carbon == null ? 13 : 14),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search'.tr,
-              prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
-              prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
-              filled: true,
-              fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
-              contentPadding: EdgeInsets.symmetric(vertical: carbon == null ? 7 : 8),
-              // Carbon's small search: a line under it, its focus ring.
-              border: carbon != null
-                  ? fieldBorders(context).rest
-                  : OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
-              enabledBorder: carbon != null ? fieldBorders(context).rest : null,
-              focusedBorder: carbon != null
-                  ? fieldBorders(context).focused
-                  : OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7),
-                      borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
-                    ),
-            ),
-            ),
-          ),
-        ),
+        SearchField(controller: _search, hint: 'Search'.tr),
         const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
           SidebarTile(

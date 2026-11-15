@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'ai_providers.dart';
@@ -70,7 +69,7 @@ class _AiSettingsPageState extends State<AiSettingsPage> {
       SizedBox(
         width: 176,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Padding(padding: const EdgeInsets.fromLTRB(12, 14, 10, 10), child: _SearchField(controller: _search)),
+          Padding(padding: const EdgeInsets.fromLTRB(12, 14, 10, 10), child: SearchField(controller: _search, hint: 'Search providers'.tr)),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -167,54 +166,6 @@ class _HiddenCover extends StatelessWidget {
 }
 
 /// The providers' search, as Settings' own: Esc with something typed clears it.
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller});
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final carbon = CarbonColors.maybeOf(context);
-    return SizedBox(
-      height: carbon == null ? 30 : 32,
-      child: Focus(
-        canRequestFocus: false,
-        skipTraversal: true,
-        onKeyEvent: (_, event) {
-          if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape || controller.text.isEmpty) {
-            return KeyEventResult.ignored;
-          }
-          controller.clear();
-          return KeyEventResult.handled;
-        },
-        child: TextField(
-          controller: controller,
-          style: TextStyle(fontSize: carbon == null ? 13 : 14),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: 'Search providers'.tr,
-            prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
-            prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
-            filled: true,
-            fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
-            contentPadding: EdgeInsets.symmetric(vertical: carbon == null ? 7 : 8),
-            border: carbon != null
-                ? fieldBorders(context).rest
-                : OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
-            enabledBorder: carbon != null ? fieldBorders(context).rest : null,
-            focusedBorder: carbon != null
-                ? fieldBorders(context).focused
-                : OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(7),
-                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// A provider in the list: its name, and whether it is on.
 class _ProviderTile extends StatefulWidget {
   const _ProviderTile({required this.provider, required this.selected, required this.onTap});

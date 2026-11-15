@@ -525,3 +525,54 @@ Future<void> showNotice(BuildContext context, String title, String message) => s
         actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
       ),
     );
+
+/// A search field over a list (a settings window's sidebar): Esc with something typed clears it;
+/// Esc again, or with nothing typed, is the window's.
+class SearchField extends StatelessWidget {
+  const SearchField({super.key, required this.controller, required this.hint});
+  final TextEditingController controller;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final carbon = CarbonColors.maybeOf(context);
+    return SizedBox(
+      height: carbon == null ? 30 : 32,
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: (_, event) {
+          if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape || controller.text.isEmpty) {
+            return KeyEventResult.ignored;
+          }
+          controller.clear();
+          return KeyEventResult.handled;
+        },
+        child: TextField(
+          controller: controller,
+          style: TextStyle(fontSize: carbon == null ? 13 : 14),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: hint,
+            prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
+            prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
+            filled: true,
+            fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
+            contentPadding: EdgeInsets.symmetric(vertical: carbon == null ? 7 : 8),
+            border: carbon != null
+                ? fieldBorders(context).rest
+                : OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
+            enabledBorder: carbon != null ? fieldBorders(context).rest : null,
+            focusedBorder: carbon != null
+                ? fieldBorders(context).focused
+                : OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(7),
+                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
