@@ -242,10 +242,14 @@ class ScrollMap {
     final measures = score.measures;
     final starts = timeline.measureStarts;
     // What doesn't change with the tempo, kept for the next map of this score (one is made at
-    // every frame of a drag of an anchor).
+    // every frame of a drag of an anchor). The bar starts come as another list as often as not
+    // (each new sync map keeps a copy), so other starts are compared before the shape is read.
     var shape = _shapes[score];
-    if (shape == null || !identical(shape.starts, starts) || !identical(shape.beats, beats)) {
+    if (shape == null || !identical(shape.beats, beats)) {
       _shapes[score] = shape = _ScoreShape.read(measures, starts, beats);
+    } else if (!identical(shape.starts, starts)) {
+      if (!listEquals(shape.starts, starts)) _shapes[score] = shape = _ScoreShape.read(measures, starts, beats);
+      shape.starts = starts; // the same again, found at once next time
     }
     final (:beatQuarters, :beatXs, :onsetQuarters, :onsetXs, :xAtQuarter) = shape.at;
 
@@ -607,7 +611,9 @@ typedef _ScoreShapeOf = ({
 
 class _ScoreShape {
   _ScoreShape(this.starts, this.beats, this.at);
-  final List<double> starts;
+
+  /// The bar starts it was read with, or a list equal to them.
+  List<double> starts;
   final BeatGrid? beats;
   final _ScoreShapeOf at;
 
