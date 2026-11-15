@@ -1218,6 +1218,9 @@ class _AnchorPainter extends CustomPainter {
               ..strokeWidth = 1.2
               ..color = color);
       }
+      // A label that would land on the last one drawn isn't drawn, nor laid out: a tapped piece
+      // seen whole has hundreds of anchors, more than the labels kept.
+      if (!selected && x <= lastLabelEnd + 3) continue;
       final label = a.isWarp
           ? '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}'
           : sync.beats.format(a.quarter, compact: true);
