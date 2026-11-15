@@ -1322,6 +1322,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
           switchOutCurve: Curves.easeOut,
           transitionBuilder: (child, animation) => FadeTransition(
             opacity: animation,
+            alwaysIncludeSemantics: true, // a page's sliders: see showAppDialog
             child: SlideTransition(
               // A few points' rise as the page arrives; the leaving page only fades.
               position: Tween(begin: const Offset(0, 0.008), end: Offset.zero).animate(animation),

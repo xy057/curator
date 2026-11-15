@@ -1887,8 +1887,16 @@ the update ("Failed to update ui::AXTree" in `make run`), and its tree stays bro
 `OverlaySemantics`; `showAppDialog`, never `showDialog`; a fade over any of them keeps its
 semantics (`alwaysIncludeSemantics: true`); and a list with a slider in it keeps every row in
 the tree (a settings page: `ScrollCacheExtent.pixels(double.maxFinite)`), as a row scrolled past the cache
-is dropped from it but its slider's overlay is not. `test/accessibility_tree_test.dart`
-replays the updates as the engine takes them (`accessibility_mirror.dart`).
+is dropped from it but its slider's overlay is not. A fade is every `FadeTransition` above the
+slider, not the route's alone: an `AnimatedSwitcher`'s child arrives at opacity 0, so the settings
+window's page switch, whose fade had not kept its semantics, broke the tree on the first frame of
+each sidebar click to a page with a slider (Display, Engraving, Animation, a search's results),
+while the same page opened in a fresh window was whole, under the route's fade alone. Both pages
+are in the tree while one fades over the other; leaving one out (`ExcludeSemantics`) would orphan
+its sliders' overlays the same way. `test/accessibility_tree_test.dart`
+replays the updates as the engine takes them (`accessibility_mirror.dart`), and reaches each page
+the ways the user does: opened, scrolled, and by the sidebar from another page, since what a page
+is switched in under is part of what is checked.
 
 **Fonts: engraving and drawing agree.** Verovio lays out with the metrics of the same fonts
 the renderer draws. A project chooses its fonts (Project Settings ▸ Engraving, `ScoreFonts`: an edit,
