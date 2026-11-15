@@ -641,39 +641,70 @@ class PlayerMap {
         for (final s in sections) s.linked(to(s.link)).copyWith(seats: [for (final seat in s.seats) seat.linked(to(seat.link))]),
       ]);
 
+  /// What its sections' dots and names cover of the stage; null with none.
+  StageBox? get bounds {
+    StageBox? all;
+    for (final s in sections) {
+      final box = s.bounds(aspect);
+      all = all == null
+          ? box
+          : (
+              left: math.min(all.left, box.left),
+              top: math.min(all.top, box.top),
+              right: math.max(all.right, box.right),
+              bottom: math.max(all.bottom, box.bottom),
+            );
+    }
+    return all;
+  }
+
   /// This map with section [k] made [section], the sections it would now cover moved out of its
-  /// way (each away from it, and those they would then cover in turn), and the whole made smaller
-  /// where it would leave the stage.
+  /// way (each away from it, and those they would then cover in turn; one it covered already, set
+  /// there by hand, stays), and the whole made smaller where it would leave the stage (or reach
+  /// further off it than it did).
   PlayerMap roomFor(int k, MapSection section) {
     final out = [...sections]..[k] = section;
     final settled = <int>{k}, queue = [k];
-    while (queue.isNotEmpty) {
-      final i = queue.removeAt(0), from = out[i].center;
+    for (var head = 0; head < queue.length; head++) {
+      final i = queue[head];
       for (var j = 0; j < out.length; j++) {
-        if (settled.contains(j) || !_covers(out[i], out[j])) continue;
-        // The shortest way clear of every settled section, of the ways leading away from it.
-        final to = out[j].center;
-        var ax = (to.x - from.x) * aspect, ay = to.y - from.y;
-        final d = math.sqrt(ax * ax + ay * ay);
-        (ax, ay) = d < 1e-6 ? (0.0, -1.0) : (ax / d, ay / d);
-        MapSection? best;
-        var bestStep = 1 << 30;
-        for (var w = 0; w < 24; w++) {
-          final dx = math.cos(w * math.pi / 12), dy = math.sin(w * math.pi / 12);
-          if (dx * ax + dy * ay < 0.2) continue;
-          for (var step = 1; step < bestStep && step <= 120; step++) {
-            final moved = out[j].moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
-            if (settled.any((m) => _covers(out[m], moved))) continue;
-            (best, bestStep) = (moved, step);
-            break;
-          }
-        }
-        out[j] = best ?? out[j];
+        if (settled.contains(j) || !_covers(out[i], out[j]) || _covers(sections[i], sections[j])) continue;
+        out[j] = _cleared(out[j], [for (final m in settled) out[m]], from: out[i].center) ?? out[j];
         settled.add(j);
         queue.add(j);
       }
     }
-    return withSections(out)._onStage();
+    const margin = 0.01;
+    final was = bounds ?? (left: margin, top: margin, right: 1 - margin, bottom: 1 - margin);
+    return withSections(out)._keptIn((
+      left: math.min(margin, was.left),
+      top: math.min(margin, was.top),
+      right: math.max(1 - margin, was.right),
+      bottom: math.max(1 - margin, was.bottom),
+    ));
+  }
+
+  /// [section] moved the shortest way that leaves it clear of every one of [others] (of the ways
+  /// leading away from [from], when given); null when no way a good part of the stage long does.
+  MapSection? _cleared(MapSection section, List<MapSection> others, {({double x, double y})? from}) {
+    var ax = 0.0, ay = -1.0;
+    if (from != null) {
+      final to = section.center, x = (to.x - from.x) * aspect, y = to.y - from.y, d = math.sqrt(x * x + y * y);
+      if (d >= 1e-6) (ax, ay) = (x / d, y / d);
+    }
+    MapSection? best;
+    var bestStep = 121;
+    for (var w = 0; w < 24; w++) {
+      final dx = math.cos(w * math.pi / 12), dy = math.sin(w * math.pi / 12);
+      if (from != null && dx * ax + dy * ay < 0.2) continue;
+      for (var step = 1; step < bestStep; step++) {
+        final moved = section.moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
+        if (others.any((o) => _covers(o, moved))) continue;
+        (best, bestStep) = (moved, step);
+        break;
+      }
+    }
+    return best;
   }
 
   /// Whether [a]'s dots or name and [b]'s meet (a dot's width apart at the least).
@@ -696,36 +727,24 @@ class PlayerMap {
     return p != null && q != null && (p.x - q.x).abs() < p.w + q.w && (p.y - q.y).abs() < p.h + q.h;
   }
 
-  /// The map moved, and made smaller about the stage's middle when that isn't enough, so that
-  /// every dot and name is on the stage.
-  PlayerMap _onStage() {
-    const margin = 0.01;
+  /// The map moved, and made smaller when that isn't enough, so that every dot and name is in
+  /// [room] of the stage.
+  PlayerMap _keptIn(StageBox room) {
     var map = this;
     for (var round = 0; round < 4; round++) {
-      var x0 = double.infinity, x1 = double.negativeInfinity, y0 = double.infinity, y1 = double.negativeInfinity;
-      for (final s in map.sections) {
-        for (final p in s.seats) {
-          x0 = math.min(x0, p.x - s.size / 2 / aspect);
-          x1 = math.max(x1, p.x + s.size / 2 / aspect);
-          y0 = math.min(y0, p.y - s.size / 2);
-          y1 = math.max(y1, p.y + s.size / 2);
-        }
-        if (s.name.isNotEmpty) {
-          final w = SeatPlan.labelHalfWidth(s.name, aspect), h = SeatPlan.labelHalfHeight;
-          x0 = math.min(x0, s.labelX - w);
-          x1 = math.max(x1, s.labelX + w);
-          y0 = math.min(y0, s.labelY - h);
-          y1 = math.max(y1, s.labelY + h);
-        }
+      final box = map.bounds;
+      if (box == null || (box.left >= room.left && box.right <= room.right && box.top >= room.top && box.bottom <= room.bottom)) return map;
+      final f = math.min(1.0, math.min((room.right - room.left) / (box.right - box.left), (room.bottom - room.top) / (box.bottom - box.top)));
+      // Into the room: as little as moves it in.
+      double into(double lo, double hi, double from, double to) => lo < from ? from - lo : (hi > to ? to - hi : 0);
+      if (f >= 1) {
+        final dx = into(box.left, box.right, room.left, room.right), dy = into(box.top, box.bottom, room.top, room.bottom);
+        return map.withSections([for (final s in map.sections) s.moved(dx, dy)]);
       }
-      if (x0 > x1 || (x0 >= margin && x1 <= 1 - margin && y0 >= margin && y1 <= 1 - margin)) return map;
-      final room = 1 - 2 * margin, f = math.min(1.0, math.min(room / (x1 - x0), room / (y1 - y0)));
-      // Into the stage: as little as moves it in.
-      double into(double lo, double hi) => lo < margin ? margin - lo : (hi > 1 - margin ? 1 - margin - hi : 0);
-      if (f >= 1) return map.withSections([for (final s in map.sections) s.moved(into(x0, x1), into(y0, y1))]);
-      // Smaller about the middle of what it covers, then moved in.
-      final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      map = map.withSections([for (final s in map.sections) s.scaled(f * 0.98, cx, cy).moved(0.5 - cx, 0.5 - cy)]);
+      // Smaller about the middle of what it covers, then that put at the room's middle.
+      final cx = (box.left + box.right) / 2, cy = (box.top + box.bottom) / 2;
+      final dx = (room.left + room.right) / 2 - cx, dy = (room.top + room.bottom) / 2 - cy;
+      map = map.withSections([for (final s in map.sections) s.scaled(f * 0.98, cx, cy).moved(dx, dy)]);
     }
     return map;
   }

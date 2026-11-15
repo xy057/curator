@@ -136,6 +136,15 @@ void main() {
         tidy(grown, '$name ×$count');
       }
       expect([for (final s in grown.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      // A section set over another by hand stays there when that one grows, and a map with a
+      // section past the stage's edge isn't pulled in (nor reaches further off).
+      final fl = seated.sections.indexWhere((s) => s.name == 'Flute'), pc = seated.sections.indexWhere((s) => s.name == 'Piccolo');
+      final to = seated.sections[fl].center, from = seated.sections[pc].center;
+      final over = seated.sections[pc].moved(to.x - from.x, to.y - from.y), out = seated.sections.last.moved(0, 1.05 - seated.sections.last.bounds().bottom);
+      final byHand = seated.withSections([for (final (k, s) in seated.sections.indexed) k == pc ? over : (s == seated.sections.last ? out : s)]);
+      final more = byHand.roomFor(fl, byHand.sections[fl].withCount(4));
+      expect(byHand.bounds!.bottom, greaterThan(1));
+      expect((more.sections[pc], more.sections.last, more.bounds), (over, out, byHand.bounds));
       // Seated in rows, then as Smart Seating seated it again: the fan, its players as many.
       final fan = grown.sections.first, rows = fan.arranged(SeatShape.rows, 18);
       expect((fan.shape, rows.shape, rows.plan?.kind), (SeatShape.auto, SeatShape.rows, SeatPlanKind.rows));
