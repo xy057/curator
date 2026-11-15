@@ -62,7 +62,7 @@ class _LanesPainter extends CustomPainter {
     final band = s._band.value;
     if (band != null) {
       final color = band.kind == _DragKind.marquee || band.shown ? colors.accentStrong : colors.erase;
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(band.q0, band.q1)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s.c.laneXs(band.q0, band.q1)) {
         final rect = Rect.fromLTRB(x0, band.lane0 * _laneHeight + 1, x1, (band.lane1 + 1) * _laneHeight - 1);
         canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
         canvas.drawRect(
@@ -85,7 +85,7 @@ class _LanesPainter extends CustomPainter {
     final activity = Paint()..color = colors.activity;
     final y = top + _laneHeight - 5;
     for (final (q0, q1) in s._activity(parts[i].id)) {
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(q0, q1)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s.c.laneXs(q0, q1)) {
         if (x1 < 0 || x0 > size.width) continue;
         canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
       }
@@ -96,7 +96,7 @@ class _LanesPainter extends CustomPainter {
       final edges = selection[(partId: parts[i].id, region: r)];
       final selected = edges == RegionEdges.both;
       // Once in every pass that plays it; square where a warp cuts it.
-      for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
+      for (final (:x0, :x1, :ownStart, :ownEnd) in s.c.laneXs(r.start, r.end)) {
         if (x1 < 0 || x0 > size.width) continue;
         final round = Radius.circular(rounded ? 4 : 0);
         final rect = RRect.fromLTRBAndCorners(x0, top + 4, x1, top + _laneHeight - 7,

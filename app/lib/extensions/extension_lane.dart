@@ -98,22 +98,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   List<MarkerSpan> get _spans => c.extensions.spans(runtime, widget.node, end: math.max(tl.endSeconds, c.playback.duration));
 
   /// The tool a press uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab selects.
-  LaneTool get _tool {
-    final alt = HardwareKeyboard.instance.isAltPressed;
-    final tool = c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select;
-    return switch (tool) {
-      LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
-      LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,
-      LaneTool.erase => alt ? LaneTool.draw : LaneTool.erase,
-    };
-  }
-
-  double _q(double x, {int? pass}) {
-    final seconds = c.viewport.seconds(x);
-    final here = tl.passAt(seconds);
-    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
-    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
-  }
+  LaneTool get _tool => (c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
 
   /// The item sounding under [x] (an index into the items).
   int? _hit(double x) {
@@ -135,7 +120,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
 
   void _onDown(PointerDownEvent e) {
     if (e.buttons != kPrimaryButton) return;
-    final p = e.localPosition, pass = tl.passAt(c.viewport.seconds(p.dx)), q = _q(p.dx);
+    final p = e.localPosition, pass = tl.passAt(c.viewport.seconds(p.dx)), q = c.laneQuarter(p.dx);
     final doubleClick = _clicks.press(e.timeStamp, p);
     final hit = _hit(p.dx);
     c.clearSelection();
@@ -176,7 +161,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
     final lo = i == 0 ? 0.0 : items[i - 1].at + apart;
     final hi = (i + 1 < items.length ? items[i + 1].at : tl.measureStarts.last) - apart;
     if (hi < lo) return;
-    final at = snapInLanes(c, drag.from + _q(p.dx, pass: drag.pass) - drag.downQ, pass: drag.pass).clamp(lo, hi).toDouble();
+    final at = snapInLanes(c, drag.from + c.laneQuarter(p.dx, pass: drag.pass) - drag.downQ, pass: drag.pass).clamp(lo, hi).toDouble();
     if (at != items[i].at) runtime.fire(lane, 'move', args: [i + 1, at]);
   }
 

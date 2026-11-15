@@ -496,6 +496,36 @@ bool beatsFit(EditorController c, double quarter, {int pass = 0}) {
 /// [quarter] snapped as the lanes snap: to the time signature's nearest beat, or the nearest
 /// barline when beats are too close together on screen (as they sound in [pass]); ⌘: free.
 /// Inside the score.
+/// Score time ↔ lane x, as every lane widget measures it (the score's [ScoreTimeline] on the
+/// controller's viewport).
+extension LaneTime on EditorController {
+  /// The score position under [x]; with [pass], kept inside that pass (a drag stays in the
+  /// pass it began in, rather than leaping with a warp).
+  double laneQuarter(double x, {int? pass}) {
+    final tl = timeline;
+    final seconds = viewport.seconds(x);
+    final here = tl.passAt(seconds);
+    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
+    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
+  }
+
+  /// The pass playing at [x].
+  int lanePass(double x) => timeline.passAt(viewport.seconds(x));
+
+  /// Where the stretch [q0]–[q1] of the score is on screen: once in every pass that plays
+  /// it (a repeat shows it again). An end is the stretch's own, or where a warp cuts it.
+  Iterable<({double x0, double x1, bool ownStart, bool ownEnd})> laneXs(double q0, double q1) sync* {
+    for (final s in timeline.spans(q0, q1)) {
+      yield (
+        x0: viewport.x(s.startSeconds),
+        x1: viewport.x(s.endSeconds),
+        ownStart: (s.start - q0).abs() < 1e-9,
+        ownEnd: (s.end - q1).abs() < 1e-9,
+      );
+    }
+  }
+}
+
 double snapInLanes(EditorController c, double quarter, {required int pass}) {
   final starts = c.timeline.measureStarts;
   final q = quarter.clamp(0.0, starts.last).toDouble();

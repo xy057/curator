@@ -240,19 +240,6 @@ mixin _LaneGeometry on State<InstrumentLanes> {
     super.dispose();
   }
 
-  /// Where the stretch [q0]–[q1] of the score is on screen: once in every pass that plays
-  /// it (a repeat shows it again). An end is the stretch's own, or where a warp cuts it.
-  Iterable<({double x0, double x1, bool ownStart, bool ownEnd})> _xs(double q0, double q1) sync* {
-    for (final s in tl.spans(q0, q1)) {
-      yield (
-        x0: c.viewport.x(s.startSeconds),
-        x1: c.viewport.x(s.endSeconds),
-        ownStart: (s.start - q0).abs() < 1e-9,
-        ownEnd: (s.end - q1).abs() < 1e-9,
-      );
-    }
-  }
-
   /// Where the part of lane [partId] plays (either player, for a condensed pair): one stretch
   /// of score quarters for each run of bars it plays in. Worked out once for each score and
   /// pair, not at every paint.
@@ -285,19 +272,7 @@ mixin _LaneGeometry on State<InstrumentLanes> {
   LoadedScore? _activityScore;
   final _activityRuns = <String, List<(double, double)>>{};
 
-  /// The score position under [x]; with [pass], kept inside that pass (a drag stays in the
-  /// pass it began in, rather than leaping with a warp).
-  double _q(double x, {int? pass}) {
-    final seconds = c.viewport.seconds(x);
-    final here = tl.passAt(seconds);
-    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
-    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
-  }
-
-  int _passAt(double x) => tl.passAt(c.viewport.seconds(x));
   double get _totalQuarters => tl.measureStarts.last;
-
-  double _snap(double q, int pass) => snapInLanes(c, q, pass: pass);
 
   int _laneIndex(Offset p) => (p.dy / _laneHeight).floor().clamp(0, parts.length - 1);
 

@@ -42,7 +42,7 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
     if (lane < 0 || lane >= parts.length) return null;
     final id = parts[lane].id;
     for (final r in c.curation!.lane(id)) {
-      for (final (:x0, :x1, :ownStart, :ownEnd) in _xs(r.start, r.end)) {
+      for (final (:x0, :x1, :ownStart, :ownEnd) in c.laneXs(r.start, r.end)) {
         if (p.dx < x0 - _edgeGrab || p.dx > x1 + _edgeGrab) continue;
         final ref = (partId: id, region: r);
         if (ownStart && (p.dx - x0).abs() <= _edgeGrab) return (ref: ref, kind: _DragKind.resizeStart);
@@ -54,14 +54,7 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
   }
 
   /// The tool a plain drag uses now: ⌥ draws with the select tool and swaps draw and erase.
-  LaneTool get _tool {
-    final alt = HardwareKeyboard.instance.isAltPressed;
-    return switch (c.lanes.tool) {
-      LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
-      LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,
-      LaneTool.erase => alt ? LaneTool.draw : LaneTool.erase,
-    };
-  }
+  LaneTool get _tool => c.lanes.tool.withAlt(HardwareKeyboard.instance.isAltPressed);
 
   // MARK: Pointer handling
 
@@ -86,15 +79,15 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
     final keys = HardwareKeyboard.instance;
     final curation = c.curation!;
     final p = e.localPosition;
-    final q = _q(p.dx);
-    final pass = _passAt(p.dx);
+    final q = c.laneQuarter(p.dx);
+    final pass = c.lanePass(p.dx);
     final doubleClick = _clicks.press(e.timeStamp, p);
 
     final tool = _tool;
     if (tool != LaneTool.select) {
       c.beginEdit();
       _drag = _Drag(_DragKind.paint,
-          downAt: p, downQ: _snap(q, pass), pass: pass, lane: _laneIndex(p), shown: tool == LaneTool.draw)
+          downAt: p, downQ: snapInLanes(c, q, pass: pass), pass: pass, lane: _laneIndex(p), shown: tool == LaneTool.draw)
         ..from = {for (final part in parts) part.id: curation.lane(part.id)};
       return;
     }
@@ -144,13 +137,13 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
     final drag = _drag;
     if (drag == null) return;
     final p = e.localPosition;
-    final q = _q(p.dx, pass: drag.pass);
+    final q = c.laneQuarter(p.dx, pass: drag.pass);
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _DragKind.scrub:
         c.playback.scrub(c.viewport.seconds(p.dx));
       case _DragKind.paint:
-        final edge = _snap(q, drag.pass);
+        final edge = snapInLanes(c, q, pass: drag.pass);
         _paint(drag, math.min(drag.downQ, edge), math.max(drag.downQ, edge), _laneIndex(p));
       case _DragKind.marquee:
         final lane = _laneIndex(p);
@@ -198,15 +191,15 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
       case _DragKind.move:
         final first = moving.keys.map((r) => r.region.start).reduce(math.min);
         final last = moving.keys.map((r) => r.region.end).reduce(math.max);
-        final delta = math.max(-first, math.min(_totalQuarters - last, _snap(q - (drag.downQ - grabbed.start), drag.pass) - grabbed.start));
+        final delta = math.max(-first, math.min(_totalQuarters - last, snapInLanes(c, q - (drag.downQ - grabbed.start), pass: drag.pass) - grabbed.start));
         change = (r) => r.withBounds(r.start + delta, r.end + delta);
         final rows = [for (final r in moving.keys) _row(r.partId)];
         lanes = (lane - _row(drag.grabbed!.partId)).clamp(-rows.reduce(math.min), parts.length - 1 - rows.reduce(math.max));
       case _DragKind.resizeStart:
-        final delta = _snap(q, drag.pass) - grabbed.start;
+        final delta = snapInLanes(c, q, pass: drag.pass) - grabbed.start;
         change = (r) => r.withBounds(math.min(math.max(0.0, r.start + delta), r.end - _minLength), r.end);
       case _DragKind.resizeEnd:
-        final delta = _snap(q, drag.pass) - grabbed.end;
+        final delta = snapInLanes(c, q, pass: drag.pass) - grabbed.end;
         change = (r) => r.withBounds(r.start, math.max(math.min(_totalQuarters, r.end + delta), r.start + _minLength));
       default:
         return;
@@ -232,7 +225,7 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
     if (drag == null || drag.kind == _DragKind.scrub || drag.kind == _DragKind.marquee) return;
     if (drag.kind == _DragKind.paint && !drag.moved && !cancelled) {
       // A click draws (or erases) the beat under the pointer, or the bar when zoomed out.
-      final beat = beatInLanes(c, _q(drag.downAt.dx), pass: drag.pass);
+      final beat = beatInLanes(c, c.laneQuarter(drag.downAt.dx), pass: drag.pass);
       _paint(drag, beat.start, beat.end, drag.lane);
       _band.value = null;
     }
