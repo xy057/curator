@@ -386,18 +386,14 @@ class _RulerPainter extends CustomPainter {
         canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), warped ? jump : tick);
         if (labelled) {
           lastLabel = x;
-          final tp = TextPainter(
-            text: TextSpan(
-                text: '${i + 1}', style: TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          tp
-            ..paint(canvas, Offset(x + 4, 3))
-            ..dispose();
+          _numbers.text('${i + 1}', TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)).paint(canvas, Offset(x + 4, 3));
         }
       }
     }
   }
+
+  /// The bar numbers, laid out once.
+  static final _numbers = LabelCache();
 
   @override
   bool shouldRepaint(_RulerPainter old) => true;

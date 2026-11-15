@@ -8,6 +8,7 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'ui_kit.dart' show LabelCache;
 
 /// One stretch of the score in a [SpanLane], in score quarters.
 typedef Span = ({double start, double end});
@@ -121,31 +122,21 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
   @override
   void dispose() {
     _band.dispose();
-    _clearLabels();
+    _labels.clear();
     super.dispose();
   }
 
   /// Labels as laid out in the lane, kept: playback repaints it every frame.
-  final _labels = <(String, double, Color), TextPainter>{};
+  final _labels = LabelCache(limit: 64);
 
-  TextPainter _label(String text, double maxWidth, Color color) {
-    final key = (text, maxWidth, color);
-    if (_labels[key] case final label?) return label;
-    if (_labels.length >= 64) _clearLabels();
-    return _labels[key] = TextPainter(
-      text: model.labelSpan(text, TextStyle(fontSize: 11, color: color)),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: maxWidth);
-  }
-
-  void _clearLabels() {
-    for (final label in _labels.values) {
-      label.dispose();
-    }
-    _labels.clear();
-  }
+  TextPainter _label(String text, double maxWidth, Color color) => _labels.of(
+      (text, maxWidth, color),
+      () => TextPainter(
+            text: model.labelSpan(text, TextStyle(fontSize: 11, color: color)),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            ellipsis: '…',
+          )..layout(maxWidth: maxWidth));
 
   /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; in the Audio tab
   /// it selects, unless it takes the tools there ([SpanLane.tools]).

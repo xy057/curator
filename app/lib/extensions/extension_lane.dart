@@ -67,30 +67,20 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   final _clicks = DoubleClicks();
 
   /// Labels as laid out in the lane, kept: playback repaints it every frame.
-  final _labels = <(String, double, Color), TextPainter>{};
+  final _labels = LabelCache(limit: 64);
 
-  TextPainter _label(String text, double maxWidth, Color color) {
-    final key = (text, maxWidth, color);
-    if (_labels[key] case final label?) return label;
-    if (_labels.length >= 64) _clearLabels();
-    return _labels[key] = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: maxWidth);
-  }
-
-  void _clearLabels() {
-    for (final label in _labels.values) {
-      label.dispose();
-    }
-    _labels.clear();
-  }
+  TextPainter _label(String text, double maxWidth, Color color) => _labels.of(
+      (text, maxWidth, color),
+      () => TextPainter(
+            text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            ellipsis: '…',
+          )..layout(maxWidth: maxWidth));
 
   @override
   void dispose() {
-    _clearLabels();
+    _labels.clear();
     super.dispose();
   }
 

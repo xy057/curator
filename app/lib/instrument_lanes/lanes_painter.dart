@@ -5,6 +5,9 @@ List<BoxShadow> _liftShadow(AppColors colors) =>
     [BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2))];
 
 class _LanesPainter extends CustomPainter {
+  /// Its labels, laid out once.
+  static final _labels = LabelCache();
+
   _LanesPainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
   final _InstrumentLanesState s;
   final AppColors colors;
@@ -118,19 +121,13 @@ class _LanesPainter extends CustomPainter {
           canvas.drawRRect(RRect.fromLTRBR(x, rect.top, x + 3, rect.bottom, const Radius.circular(1.5)), Paint()..color = colors.accentStrong);
         }
         // An edge with a transition of its own says so beside it, where the region has room.
-        TextPainter? label(double? seconds) => seconds == null
-            ? null
-            : (TextPainter(
-                text: TextSpan(text: '$seconds s', style: TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong)),
-                textDirection: TextDirection.ltr,
-              )..layout());
+        TextPainter? label(double? seconds) =>
+            seconds == null ? null : _labels.text('$seconds s', TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong));
         final atStart = ownStart ? label(r.transitionIn) : null, atEnd = ownEnd ? label(r.transitionOut) : null;
         if ((atStart?.width ?? -5) + (atEnd?.width ?? -5) + 20 <= x1 - x0) {
           atStart?.paint(canvas, Offset(x0 + 5, rect.center.dy - atStart.height / 2));
           atEnd?.paint(canvas, Offset(x1 - 5 - atEnd.width, rect.center.dy - atEnd.height / 2));
         }
-        atStart?.dispose();
-        atEnd?.dispose();
         // A region leaving out staves: its instrument's staves stacked in its middle, those it
         // shows filled.
         if (r.hiddenStaves.isNotEmpty && x1 - x0 >= 24) {

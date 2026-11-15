@@ -2134,6 +2134,9 @@ class _SlurPainter extends CustomPainter {
 /// The galley drawn: the paper, the score scrolled, the selection in the accent, the caret, and
 /// the instruments' names in a column of their own at the left.
 class _GalleyPainter extends CustomPainter {
+  /// The instruments' names, laid out once.
+  static final _names = LabelCache();
+
   _GalleyPainter({
     required this.galley,
     required this.zoom,
@@ -2288,14 +2291,8 @@ class _GalleyPainter extends CustomPainter {
       if (top == null || bottom == null) continue;
       final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy + ruler;
       if (middle < ruler + 4 || middle > size.height + 20) continue;
-      final painter = TextPainter(
-        text: TextSpan(text: name, style: TextStyle(fontSize: 12, color: text)),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: gutter - 16);
+      final painter = _names.text(name, TextStyle(fontSize: 12, color: text), maxWidth: gutter - 16);
       painter.paint(canvas, Offset(gutter - 10 - painter.width, middle - painter.height / 2));
-      painter.dispose();
     }
   }
 

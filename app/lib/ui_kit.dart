@@ -1190,3 +1190,36 @@ class _SidebarTileState extends State<SidebarTile> {
     );
   }
 }
+
+/// Text laid out for a painter and kept: a lane or a ruler paints at every frame of playback, a
+/// drag or a zoom, and laying its labels out again each time is most of its work. Up to [limit]
+/// are kept; past it, all are let go.
+class LabelCache {
+  LabelCache({this.limit = 128});
+  final int limit;
+  final _kept = <Object, TextPainter>{};
+
+  /// What [key] names, laid out by [make] the first time it is asked for.
+  TextPainter of(Object key, TextPainter Function() make) {
+    if (_kept[key] case final kept?) return kept;
+    if (_kept.length >= limit) clear();
+    return _kept[key] = make();
+  }
+
+  /// [text] in [style] on one line, laid out up to [maxWidth] (cut with an ellipsis past it).
+  TextPainter text(String text, TextStyle style, {double maxWidth = double.infinity}) => of(
+      (text, style, maxWidth),
+      () => TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: TextDirection.ltr,
+            maxLines: maxWidth.isFinite ? 1 : null,
+            ellipsis: maxWidth.isFinite ? '…' : null,
+          )..layout(maxWidth: maxWidth));
+
+  void clear() {
+    for (final p in _kept.values) {
+      p.dispose();
+    }
+    _kept.clear();
+  }
+}
