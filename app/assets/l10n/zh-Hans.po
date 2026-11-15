@@ -1951,6 +1951,7 @@ msgstr "保存…"
 msgid "Saving…"
 msgstr "正在保存…"
 
+#: lib/editor_toolbar.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "乐谱"
 
@@ -4481,8 +4482,8 @@ msgstr "隐藏 / 显示预览"
 msgid "Hide / Show Timeline"
 msgstr "隐藏 / 显示时间线"
 
-msgid "Hide / Show Player Map"
-msgstr "隐藏 / 显示乐手位置图"
+msgid "Score / Player Map"
+msgstr "乐谱 / 乐手位置图"
 
 msgid "Hide / Show Tab Bar"
 msgstr "隐藏 / 显示标签页栏"
@@ -5150,14 +5151,10 @@ msgid "Rehearsal Marks"
 msgstr "排练记号"
 
 #: lib/app_menus.dart
-msgid "Hide Player Map"
-msgstr "隐藏乐手位置图"
-
-#: lib/app_menus.dart
 msgid "Show Player Map"
 msgstr "显示乐手位置图"
 
-#: lib/player_map_view.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "乐手位置图"
 
@@ -5253,3 +5250,15 @@ msgstr "移除乐手"
 #: lib/player_map_view.dart
 msgid "Remove Section"
 msgstr "移除声部组"
+
+#: lib/app_menus.dart
+msgid "Show Score"
+msgstr "显示乐谱"
+
+#: lib/editor_toolbar.dart
+msgid "Score ({key})"
+msgstr "乐谱（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Player map ({key})"
+msgstr "乐手位置图（{key}）"

@@ -198,7 +198,8 @@ void main() {
       final first = soundingNotes(xml, tl.measureStarts).where((n) => n.partId == link.part).first;
       final on = tl.secondsAtQuarter(first.start);
       expect(pulses.level(link, on - 0.01), lessThan(0.05));
-      expect(pulses.level(link, on + PlayerPulses.attack), closeTo(1, 1e-9));
+      final loud = PlayerPulses.strengthOf(ScoreDynamics.read(xml, tl.measureStarts).at(link.part, first.start));
+      expect(pulses.level(link, on + PlayerPulses.attack), closeTo(loud, 1e-9), reason: 'as far as its dynamic says');
       expect(pulses.level(link, on + 0.1), greaterThan(pulses.level(link, on + 0.2)));
     }
 

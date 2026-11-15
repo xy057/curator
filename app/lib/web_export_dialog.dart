@@ -55,6 +55,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   late final _hasChapters = _c.extensions.exportsChapters;
   late final _hasImages = _c.images.enabled && _c.images.patches.isNotEmpty;
   late final _hasBarNumbers = _c.pageState.barNumbers;
+  late final _hasPlayerMap = _c.playerMap.map != null;
 
   /// Recordings heard whole as well as the performance (with two or more).
   late Set<String> _whole = {if (_takes.length > 1) for (final t in _takes) t.id};
@@ -65,6 +66,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   var _captionsShown = const WebChoice(true, open: true);
   var _barNumbersShown = const WebChoice(true, open: true);
   var _instruments = const WebChoice(<String, PartShown>{}, open: true);
+  var _playerMapShown = const WebChoice(false, open: true);
 
   var _stage = _Stage.setup;
   String? _error, _output;
@@ -117,6 +119,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           captions: _captionsShown,
           barNumbers: _barNumbersShown,
           speed: _speed,
+          playerMap: _hasPlayerMap ? _playerMapShown : const WebChoice(false),
         ),
         takes: [for (final t in _takes) if (_whole.contains(t.id)) t.id],
         captions: _captions,
@@ -282,6 +285,13 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           onOpen: (v) => setState(() => _barNumbersShown = _barNumbersShown.copyWith(open: v)),
           child: AppSwitch(
               value: _barNumbersShown.value, onChanged: (v) => setState(() => _barNumbersShown = _barNumbersShown.copyWith(value: v))),
+        ),
+      if (_hasPlayerMap)
+        _ViewerRow(
+          label: 'Player Map',
+          open: _playerMapShown.open,
+          onOpen: (v) => setState(() => _playerMapShown = _playerMapShown.copyWith(open: v)),
+          child: AppSwitch(value: _playerMapShown.value, onChanged: (v) => setState(() => _playerMapShown = _playerMapShown.copyWith(value: v))),
         ),
       _ViewerRow(
         label: 'Instruments',

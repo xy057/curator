@@ -1951,6 +1951,7 @@ msgstr "保存…"
 msgid "Saving…"
 msgstr "保存中…"
 
+#: lib/editor_toolbar.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "楽譜"
 
@@ -4481,8 +4482,8 @@ msgstr "プレビューを隠す / 表示"
 msgid "Hide / Show Timeline"
 msgstr "タイムラインを隠す / 表示"
 
-msgid "Hide / Show Player Map"
-msgstr "奏者配置図を隠す / 表示"
+msgid "Score / Player Map"
+msgstr "楽譜 / 奏者配置図"
 
 msgid "Hide / Show Tab Bar"
 msgstr "タブバーを隠す / 表示"
@@ -5150,14 +5151,10 @@ msgid "Rehearsal Marks"
 msgstr "リハーサルマーク"
 
 #: lib/app_menus.dart
-msgid "Hide Player Map"
-msgstr "奏者配置図を隠す"
-
-#: lib/app_menus.dart
 msgid "Show Player Map"
 msgstr "奏者配置図を表示"
 
-#: lib/player_map_view.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "奏者配置図"
 
@@ -5253,3 +5250,15 @@ msgstr "奏者を削除"
 #: lib/player_map_view.dart
 msgid "Remove Section"
 msgstr "セクションを削除"
+
+#: lib/app_menus.dart
+msgid "Show Score"
+msgstr "楽譜を表示"
+
+#: lib/editor_toolbar.dart
+msgid "Score ({key})"
+msgstr "楽譜（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "Player map ({key})"
+msgstr "奏者配置図（{key}）"

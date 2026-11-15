@@ -27,6 +27,7 @@ class WebPage {
     this.captions = const WebChoice(true),
     this.barNumbers = const WebChoice(true),
     this.speed = const WebChoice(1.0),
+    this.playerMap = const WebChoice(false),
   });
 
   static const format = 'application/x-curator-web', version = 1;
@@ -75,8 +76,12 @@ class WebPage {
   /// captions and bar numbers on or off (only where the project has them);
   final WebChoice<bool> captions, barNumbers;
 
-  /// and how fast it plays (pitch kept).
+  /// how fast it plays (pitch kept);
   final WebChoice<double> speed;
+
+  /// and whether the player map shows in the score's place (only where the project has one; a
+  /// page written before it had none: the score, no switch).
+  final WebChoice<bool> playerMap;
 
   /// The speeds a viewer may pick.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -104,6 +109,7 @@ class WebPage {
           'captions': captions.toJson(captions.value),
           'barNumbers': barNumbers.toJson(barNumbers.value),
           'speed': speed.toJson(speed.value),
+          'playerMap': playerMap.toJson(playerMap.value),
         },
       };
 
@@ -144,6 +150,7 @@ class WebPage {
         captions: WebChoice.fromJson(viewer['captions'], (v) => v as bool),
         barNumbers: WebChoice.fromJson(viewer['barNumbers'], (v) => v as bool),
         speed: WebChoice.fromJson(viewer['speed'], (v) => (v as num).toDouble()),
+        playerMap: viewer['playerMap'] == null ? const WebChoice(false) : WebChoice.fromJson(viewer['playerMap'], (v) => v as bool),
       );
     } on FormatException {
       rethrow;

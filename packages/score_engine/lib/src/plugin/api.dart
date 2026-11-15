@@ -121,7 +121,7 @@ abstract final class PluginApi {
     ApiCommand('showTimeline', 'Hide / Show Timeline', 'View'),
     ApiCommand('maximizePreview', 'Maximize Preview', 'View'),
     ApiCommand('maximizeTimeline', 'Maximize Timeline', 'View'),
-    ApiCommand('showPlayerMap', 'Hide / Show Player Map', 'View'),
+    ApiCommand('showPlayerMap', 'Score / Player Map', 'View'),
     ApiCommand('showTabBar', 'Hide / Show Tab Bar', 'View'),
     ApiCommand('showAllTabs', 'Show All Tabs', 'View'),
     ApiCommand('previousTab', 'Show Previous Tab', 'Window'),

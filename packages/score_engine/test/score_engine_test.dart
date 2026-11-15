@@ -130,12 +130,39 @@ void main() {
       expect([for (final s in moved.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], [null, 'X9'],
           reason: 'by name; P2 is an oboe there, so no flute');
 
-      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, seated.links);
+      final dynamics = ScoreDynamics.read(score.musicXML, starts);
+      final pulses = PlayerPulses.of(soundingNotes(score.musicXML, starts), score.timeline, seated.links, dynamics: dynamics);
       final violins = seated.sections.first.link!;
       final first = soundingNotes(score.musicXML, starts).firstWhere((n) => n.partId == violins.part);
       final on = score.timeline.secondsAtQuarter(first.start);
       expect(pulses.level(violins, on - 0.001), 0);
-      expect(pulses.level(violins, on + PlayerPulses.attack), closeTo(1, 1e-9));
+      expect(pulses.level(violins, on + PlayerPulses.attack), closeTo(PlayerPulses.strengthOf(dynamics.at(violins.part, first.start)), 1e-9),
+          reason: 'as far as it is loud');
+      expect(PlayerPulses.strengthOf(ScoreDynamics.levels['pp']!), lessThan(PlayerPulses.strengthOf(ScoreDynamics.levels['ff']!)));
+
+      // Dynamics: a mark holds, a hairpin ramps to the mark it reaches (a step where none), an
+      // accent is its moment's, fp an accent then piano; mf before anything.
+      String bar(String body) => '<measure><attributes><divisions>1</divisions></attributes>$body</measure>';
+      String note(int beats) => '<note><pitch><step>C</step><octave>4</octave></pitch><duration>$beats</duration></note>';
+      String dyn(String mark) => '<direction><direction-type><dynamics><$mark/></dynamics></direction-type></direction>';
+      String wedge(String type) => '<direction><direction-type><wedge type="$type"/></direction-type></direction>';
+      final read = ScoreDynamics.read(
+          '<score-partwise><part id="P1">'
+          '${bar('${note(1)}${dyn('p')}${wedge('crescendo')}${note(4)}${wedge('stop')}${dyn('f')}${note(1)}')}'
+          '${bar('${wedge('diminuendo')}${note(2)}${wedge('stop')}${note(1)}${dyn('sfz')}${note(1)}${note(1)}${dyn('fp')}${note(1)}')}'
+          '</part></score-partwise>',
+          [0, 6, 12]);
+      final levels = ScoreDynamics.levels;
+      expect(read.at('P1', 0), ScoreDynamics.standard);
+      expect(read.at('P1', 1), levels['p']);
+      expect(read.at('P1', 3), closeTo((levels['p']! + levels['f']!) / 2, 1e-9));
+      expect(read.at('P1', 5), levels['f']);
+      expect(read.at('P1', 7), closeTo(levels['f']! - ScoreDynamics.step / 2, 1e-9));
+      expect(read.at('P1', 8), closeTo(levels['f']! - ScoreDynamics.step, 1e-9), reason: 'no mark ends it: a step softer, held');
+      expect(read.at('P1', 9), ScoreDynamics.accents['sfz']!.$1);
+      expect(read.at('P1', 10), closeTo(levels['f']! - ScoreDynamics.step, 1e-9));
+      expect((read.at('P1', 11), read.at('P1', 11.5)), (ScoreDynamics.accents['fp']!.$1, levels['p']));
+      expect(read.at('P9', 3), ScoreDynamics.standard);
       expect(PlayerPulses.envelope(0.3, 0.1), lessThan(PlayerPulses.envelope(0.3, 2)), reason: 'a long note fades slower');
       expect(PlayerPulses.envelope(PlayerPulses.attack + PlayerPulses.fadeOf(0.5), 0.5), 0);
       expect(pulses.level(const PlayerLink('nobody'), on), 0);

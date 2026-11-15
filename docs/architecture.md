@@ -52,6 +52,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `sounding_notes.dart` | `soundingNotes`: every pitched note of the MusicXML as it sounds (concert pitch, in score quarters), which Find Phrase and Align read; unpitched percussion too when asked (the player map's) |
+| `score_dynamics.dart` | `ScoreDynamics`: how loud each part plays at a score quarter, 0–1, from its dynamics (marks held, hairpins ramped, accents a moment's), which scales the player map's swells |
 | `player_map.dart` | The player map (see *A player map shows who plays*): `PlayerMap` (sections of seats on a stage, each linked to a part and maybe a staff: `PlayerLink`, `MapSection`, `MapSeat`; its JSON, the `.cpm` file, `relinked` to another score by name), the smart seatings (`PlayerMap.smart`, `SeatingPreset`), and `PlayerPulses`: how swollen each link's players are at a time |
 | `audio_alignment.dart`, `basic_pitch.dart` | Align: a recording heard by Spotify's Basic Pitch (`BasicPitch`, its network run in Dart) as which keys sound and start, a chunk at a time (`AudioNotes`, resampled to its rate), matched to the score's notes by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
 | `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
@@ -64,7 +65,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 |---|---|
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_look.dart`, `editor/extension_editing.dart`, `editor/player_map_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection, the band they give the scene, the score's music read for them); the player map (`PlayerMapEditing`: the project's map, the instruments it may link, its pulses from the notes read on an isolate); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
-| `player_map_view.dart` | View ▸ Show Player Map: the map drawn at a time (`PlayerMapPainter`, `MapStage`), the panel beside the preview (`PlayerMapPanel`, its menu `PlayerMapMenu`), `.cpm` files (`PlayerMapFiles`) and the editor (`showPlayerMapEditor`) |
+| `player_map_paint.dart`, `player_map_view.dart` | The player map: drawn at a time (`PlayerMapPainter`, `MapStage`: no dart:io, so the web player draws it too); shown in the score's place (`PlayerMapPanel`, its menu `PlayerMapMenu`), `.cpm` files (`PlayerMapFiles`) and the editor (`showPlayerMapEditor`) |
 | `controller_settings.dart` | `EditorController.takeSettings`: everything the app's settings set in the editor, in one place |
 | `score_view/attach_image.dart` | Attach Image in the score view (a part of `score_view.dart`): selecting, moving, resizing and cropping an image by its handles; adding one from a file, the clipboard or a drop |
 | `image_patch.dart` | Images on the score: `ImagePatch` (where one sits, as an extension's `images.list` gives it), `PatchImage` (its file), SVG and raster drawing (animated too), the clipboard |
@@ -118,7 +119,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
 | `update_dialog.dart` | The update window (`showUpdateDialog`; About's Update… and the launch notice's): a release's version, its notes, Download, then how far that has got; `updateHelp`, where the updates stand in a line |
 | `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
-| `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show / Hide Player Map); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
+| `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
@@ -1051,18 +1052,24 @@ keeps them all. On macOS the close button quits as Quit does
 (`MainFlutterWindow.windowShouldClose` → `NSApp.terminate`), so the question is asked while the
 window is still there.
 
-**A player map shows who plays** (View ▸ Show Player Map, ⇧⌘M; `AppSettings.playerMap`, its width
-`playerMapWidth`, neither an edit). Beside the preview, the stage the players sit on, as Beethoven 9's
-orchestra view has it: `PlayerMap`, the project's (`EditState.playerMap`, an edit; the optional `playermap`
-module, so an older Curator opens the project without it and keeps it), sections of dots on a stage of
-16:9 (places 0–1 across and down, so a map fits any panel), each section a name, a colour, a size and
-its seats, linked to an instrument and maybe one of its staves (`PlayerLink`); a seat may link its own
-(Flutes 1 and 2 one section, a seat each). A frame of it is a function of time as the score's is:
+**A player map shows who plays** (the toolbar's Score / Player Map switch, View ▸ Show Player Map /
+Show Score, ⇧⌘M; `AppSettings.playerMap`, not an edit). In the score's place (the score kept offstage,
+so it comes back as it was), the stage the players sit on, as Beethoven 9's orchestra view has it:
+`PlayerMap`, the project's (`EditState.playerMap`, an edit; the optional `playermap` module, so an
+older Curator opens the project without it and keeps it), sections of dots on a stage of 16:9 (places
+0–1 across and down, so a map fits any view), each section a name, a colour, a size and its seats,
+linked to an instrument and maybe one of its staves (`PlayerLink`); a seat may link its own (Flutes 1
+and 2 one section, a seat each). A frame of it is a function of time as the score's is:
 `PlayerPulses` holds each link's notes as the performance plays them (`soundingNotes` with unpitched
-percussion, read on an isolate when the map is first drawn; ties joined, a chord one onset; pass by
-pass through the timeline, so a repeat swells again), and each note swells its players at once and
-fades them over about its length (`PlayerPulses.envelope`: 25 ms up, then 0.15–3 s down, quickly at
-first), a held note leaving them a little lit; a PDF's score has no notes, so its map never swells.
+percussion, and `ScoreDynamics`, read on an isolate when the map is first drawn (a static entry: a
+closure made in a method would carry the controller); ties joined, a chord one onset at its loudest;
+pass by pass through the timeline, so a repeat swells again), and each note swells its players as
+far as it is loud (`PlayerPulses.strengthOf` its dynamic: a mark holds until the next, mf before
+any; a hairpin ramps to the mark it reaches, or a step on; sf, sfz, fz a moment's, fp and sfp a
+moment then piano; dynamics are a part's, whatever staff they are written on) and fades them over
+about its length (`PlayerPulses.envelope`: 25 ms up, then 0.15–3 s down, quickly at first), a held
+note leaving them a little lit. The swell is gentle (`_swell` 0.35 of a dot's size, a faint glow, a
+little lighter); a PDF's score has no notes, so its map never swells.
 Smart Seating (`PlayerMap.smart`) seats the score's instruments, found by name and sound
 (`_Seating._role`; "Contrabassoon" is no bass, a choir makes "Bass" a voice), counting players from the
 name ("Horn 1.2" 2, "Trumpets I–III" 3, "2 Flutes" 2), a staff each where they are as many: American
@@ -1071,11 +1078,14 @@ name ("Horn 1.2" 2, "Trumpets I–III" 3, "2 Flutes" 2), a staff each where they
 sectors as wide as their players, winds, brass and percussion rows behind, voices at the back,
 keyboards and harp at the side, soloists in front; fitted to the stage (up to 1.7 times wider than laid
 out, the dots round) and names moved apart where they would overlap. Edit… opens the editor: a
-section dragged moves with its name, a name alone, a player alone in Players mode; arrows nudge, Delete
-removes, its own Undo while open, Done one Undo step. A map travels as a `.cpm` (JSON: format, version,
-map); imported, its links are found again among this score's instruments by name, else by id while the
-name agrees (`PlayerMap.relinked`), and Replace Score carries it as the other part ids (`ScoreSwap`).
-Not in a video or a web page.
+section dragged moves with its name, a name alone, a player alone in Players mode; arrows nudge,
+Delete removes, its own Undo while open, Done one Undo step. A map travels as a `.cpm` (JSON: format,
+version, map); imported, its links are found again among this score's instruments by name, else by id
+while the name agrees (`PlayerMap.relinked`), and Replace Score carries it as the other part ids
+(`ScoreSwap`). A web page has it in its project: `WebPage.playerMap` says whether the viewer sees it
+first and may switch (the export's Player Map row, only with a map; a page without the field shows
+the score), and the player reads the notes and dynamics itself the first time it shows the map,
+again for each recording's timeline. Not in a video.
 
 **Each project is a tab, and Home is one too.** `AppWindow` holds Home and every project open
 (`_OpenProject`, a `ProjectPage` each: its own controller, document, keys, drops and messages,

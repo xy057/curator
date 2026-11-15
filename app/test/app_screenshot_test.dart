@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/phrase_search_window.dart';
 import 'package:curated_score/player_map_view.dart';
@@ -154,11 +155,12 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pump(const Duration(milliseconds: 50));
 
-    // The player map (View ▸ Show Player Map) beside the preview: none yet, then seated smartly,
-    // swelling at bar 37 once the notes are read; in its editor a section dragged sideways, Done
-    // making it the project's in one Undo step.
-    settings.playerMap = true;
+    // The toolbar's switch shows the player map in the score's place: none yet, then seated
+    // smartly, swelling at bar 37 as loud as it is played once the notes are read; in its editor a
+    // section dragged sideways, Done making it the project's in one Undo step; Score switches back.
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Player map'))));
     await tester.pump(const Duration(milliseconds: 50));
+    expect(settings.playerMap, isTrue);
     expect(find.text('No player map'), findsOneWidget);
     controller.playerMap.set(controller.playerMap.smart(SeatingPreset.american));
     controller.playback.seek(70.3);
@@ -189,8 +191,9 @@ void main() {
     expect(controller.playerMap.map, seated);
     controller.undo();
     expect(controller.playerMap.map, isNull);
-    settings.playerMap = false;
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Score'))));
     await tester.pump(const Duration(milliseconds: 50));
+    expect(settings.playerMap, isFalse);
 
     // Find Phrase (⌘F): the cellos' running sixteenths typed two octaves up, found in any key.
     PhraseSearchWindow.show(Overlay.of(tester.element(find.byType(ProjectPage))), controller);

@@ -8,6 +8,7 @@ import 'package:score_engine/score_engine.dart';
 
 import '../app_colors.dart' show ScorePaper;
 import '../l10n/l10n.dart';
+import '../player_map_paint.dart';
 import '../video_frame.dart';
 import '../web_page.dart';
 import 'page_audio.dart';
@@ -35,6 +36,10 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   late double _speed = _page.speed.value;
   late bool _captions = _page.captions.value, _barNumbers = _page.barNumbers.value;
   late Map<String, PartShown> _shown = _page.instruments.value;
+
+  /// The project's player map (null: none); whether it shows in the score's place.
+  late final PlayerMap? _map = _loaded.edits.playerMap;
+  late bool _mapShown = _map != null && _page.playerMap.value;
 
   late final CuratedScene _scene = CuratedScene(_loaded.score, style: RenderStyle(staffSpace: _page.staffSpace));
   late Curation _curation = _loaded.curation(_shown);
@@ -74,7 +79,24 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     _recording = index;
     _audio = widget.audioFor(_heard.audio)..speed = _speed;
     _scene.setTimeline(_loaded.timeline(_heard));
+    _pulses = null; // as this recording plays the notes
     _seek(at);
+  }
+
+  /// The score's notes and dynamics, read the first time the map shows (a browser has no isolate
+  /// to spare).
+  List<SoundingNote>? _notes;
+  ScoreDynamics? _dynamics;
+  PlayerPulses? _pulses;
+
+  PlayerPulses get _mapPulses {
+    final map = _map;
+    if (map == null) return PlayerPulses.none;
+    final score = _loaded.score;
+    final starts = score.timeline.measureStarts, pdf = score.pdf != null;
+    _notes ??= pdf ? const [] : soundingNotes(score.musicXML, starts, unpitched: true).toList();
+    _dynamics ??= pdf ? ScoreDynamics.none : ScoreDynamics.read(score.musicXML, starts);
+    return _pulses ??= PlayerPulses.of(_notes!, _scene.timeline, map.links, dynamics: _dynamics);
   }
 
   void _tick() {
@@ -155,7 +177,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                   _playPause();
                 },
                 child: Stack(children: [
-                  Positioned.fill(child: _score(paper, ink)),
+                  Positioned.fill(child: _mapShown ? _playerMap(context) : _score(paper, ink)),
                   Positioned(left: 0, right: 0, bottom: 0, child: _controls(context, choices.isNotEmpty)),
                 ]),
               ),
@@ -181,6 +203,16 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
           ),
         ]);
       });
+
+  Widget _playerMap(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // over the controls
+        child: RepaintBoundary(
+          child: CustomPaint(
+            size: Size.infinite,
+            painter: PlayerMapPainter(map: _map!, pulses: _mapPulses, time: _time, textDirection: Directionality.of(context)),
+          ),
+        ),
+      );
 
   Widget _controls(BuildContext context, bool hasChoices) {
     final theme = Theme.of(context);
@@ -224,6 +256,20 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                 ]),
               ),
             ),
+            if (_map != null && _page.playerMap.open)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                  segments: [
+                    ButtonSegment(value: false, label: Text('Score'.tr)),
+                    ButtonSegment(value: true, label: Text('Player Map'.tr)),
+                  ],
+                  selected: {_mapShown},
+                  onSelectionChanged: (s) => setState(() => _mapShown = s.single),
+                ),
+              ),
             if (hasChoices)
               Builder(
                 builder: (context) => IconButton(

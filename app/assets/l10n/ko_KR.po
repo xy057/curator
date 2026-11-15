@@ -1949,6 +1949,7 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
+#: lib/editor_toolbar.dart lib/web_player/player.dart
 msgid "Score"
 msgstr ""
 
@@ -4467,7 +4468,7 @@ msgstr ""
 msgid "Hide / Show Timeline"
 msgstr ""
 
-msgid "Hide / Show Player Map"
+msgid "Score / Player Map"
 msgstr ""
 
 msgid "Hide / Show Tab Bar"
@@ -5136,14 +5137,10 @@ msgid "Rehearsal Marks"
 msgstr ""
 
 #: lib/app_menus.dart
-msgid "Hide Player Map"
-msgstr ""
-
-#: lib/app_menus.dart
 msgid "Show Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr ""
 
@@ -5238,4 +5235,16 @@ msgstr ""
 
 #: lib/player_map_view.dart
 msgid "Remove Section"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show Score"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Score ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Player map ({key})"
 msgstr ""

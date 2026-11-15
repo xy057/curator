@@ -43,9 +43,9 @@ class PlayerMapEditing {
 
   // MARK: Pulses
 
-  /// The score's notes (unpitched ones too), read on another isolate for the score they belong
-  /// to; empty while being read, and for a PDF's score, which has none.
-  ({String xml, List<SoundingNote> notes})? _notes;
+  /// The score's notes (unpitched ones too) and dynamics, read on another isolate for the score
+  /// they belong to; null while being read; none for a PDF's score.
+  ({String xml, List<SoundingNote> notes, ScoreDynamics dynamics})? _notes;
   String? _reading;
 
   /// How swollen the map's players are at each time: [PlayerPulses.none] until the notes have
@@ -63,7 +63,7 @@ class PlayerMapEditing {
     if (_pulses case (final n, final t, final l, final p) when identical(n, notes.notes) && identical(t, timeline) && setEquals(l, links)) {
       return p;
     }
-    final pulses = PlayerPulses.of(notes.notes, timeline, links);
+    final pulses = PlayerPulses.of(notes.notes, timeline, links, dynamics: notes.dynamics);
     _pulses = (notes.notes, timeline, links, pulses);
     return pulses;
   }
@@ -71,17 +71,17 @@ class PlayerMapEditing {
   (List<SoundingNote>, ScoreTimeline, Set<PlayerLink>, PlayerPulses)? _pulses;
 
   /// Static, so the isolate is sent the score's text and bars alone, never the controller.
-  static Future<List<SoundingNote>> _notesOff(String xml, List<double> starts) =>
-      Isolate.run(() => soundingNotes(xml, starts, unpitched: true).toList());
+  static Future<(List<SoundingNote>, ScoreDynamics)> _notesOff(String xml, List<double> starts) =>
+      Isolate.run(() => (soundingNotes(xml, starts, unpitched: true).toList(), ScoreDynamics.read(xml, starts)));
 
   void _read(LoadedScore score) {
     final xml = score.musicXML;
     if (_reading == xml) return;
     _reading = xml;
     final starts = score.timeline.measureStarts;
-    unawaited(_notesOff(xml, starts).then((notes) {
+    unawaited(_notesOff(xml, starts).then((read) {
       if (_editor._disposed || _reading != xml) return;
-      _notes = (xml: xml, notes: notes);
+      _notes = (xml: xml, notes: read.$1, dynamics: read.$2);
       _reading = null;
       _editor.playback._markDirty();
       _editor._changed();
@@ -89,7 +89,7 @@ class PlayerMapEditing {
       // A score that can't be read for its notes swells nothing.
       debugPrint('Player map: the notes couldn’t be read: $e');
       if (_editor._disposed || _reading != xml) return;
-      _notes = (xml: xml, notes: const []);
+      _notes = (xml: xml, notes: const [], dynamics: ScoreDynamics.none);
       _reading = null;
     }));
   }

@@ -214,6 +214,7 @@ abstract final class WebExport {
         captions: page.captions,
         barNumbers: page.barNumbers,
         speed: page.speed,
+        playerMap: page.playerMap,
       );
       File('$folder/${WebPage.pageFile}').writeAsStringSync(const JsonEncoder.withIndent(' ').convert(written.toJson()));
       _title(File('${part.path}/index.html'), page.title);

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'score_dynamics.dart';
 import 'score_metadata.dart';
 import 'scroll_map.dart';
 import 'sounding_notes.dart';
@@ -344,9 +345,10 @@ class PlayerMap {
 // MARK: Pulses
 
 /// When each linked instrument's notes sound in a performance, to make its players swell: a note
-/// makes them [level] 1 at once, fading to nothing over a time its length sets ([envelope]), a
-/// short note quickly, a long one slowly; while one still sounds they stay a little lit ([held]).
-/// A function of time alone, as a frame is.
+/// makes them swell at once, as far as how loud it is played ([strengthOf] its [ScoreDynamics]
+/// level: a pp note a little, an ff one nearly to [level] 1), fading to nothing over a time its
+/// length sets ([envelope]), a short note quickly, a long one slowly; while one still sounds they
+/// stay a little lit ([held], as loud). A function of time alone, as a frame is.
 class PlayerPulses {
   PlayerPulses._(this._events);
 
@@ -361,9 +363,12 @@ class PlayerPulses {
 
   final Map<String, _Events> _events;
 
+  /// How far a note played at dynamic [level] (0–1, [ScoreDynamics]) swells its players.
+  static double strengthOf(double level) => 0.15 + 0.85 * level.clamp(0.0, 1.0);
+
   /// [notes] (each as [soundingNotes] reads it, ties carried on) as [timeline] plays them, pass
-  /// by pass, for what [links] play.
-  factory PlayerPulses.of(Iterable<SoundingNote> notes, ScoreTimeline timeline, Iterable<PlayerLink> links) {
+  /// by pass, for what [links] play, each as loud as [dynamics] says (none: all mf).
+  factory PlayerPulses.of(Iterable<SoundingNote> notes, ScoreTimeline timeline, Iterable<PlayerLink> links, {ScoreDynamics? dynamics}) {
     final keys = {for (final l in links) l.key};
     if (keys.isEmpty) return none;
     // Each note once, ties joined to the note they carry on.
@@ -380,12 +385,14 @@ class PlayerPulses {
       open[at] = joined.length;
       joined.add((part: n.partId, staff: n.staff, start: n.start, end: n.end));
     }
-    final passes = timeline.passes, byKey = <String, List<(double, double)>>{};
+    final passes = timeline.passes, byKey = <String, List<(double, double, double)>>{};
+    final loud = dynamics ?? ScoreDynamics.none;
     for (final n in joined) {
+      final strength = strengthOf(loud.at(n.part, n.start));
       for (final (k, p) in passes.indexed) {
         if (n.start < p.start - 1e-9 || n.start >= p.end - 1e-9) continue;
         final on = timeline.secondsAtQuarter(n.start, pass: k), off = timeline.secondsAtQuarter(math.min(n.end, p.end), pass: k);
-        final event = (on, math.max(0.0, off - on));
+        final event = (on, math.max(0.0, off - on), strength);
         if (keys.contains(n.part)) (byKey[n.part] ??= []).add(event);
         final staff = '${n.part}#${n.staff}';
         if (keys.contains(staff)) (byKey[staff] ??= []).add(event);
@@ -414,29 +421,34 @@ class PlayerPulses {
   static double fadeOf(double length) => (length * 0.9 + 0.1).clamp(shortest, longest);
 }
 
-/// One instrument's (or staff's) notes in a performance: onsets in order, their lengths, and the
-/// latest end of any note up to each.
+/// One instrument's (or staff's) notes in a performance: onsets in order, their lengths and
+/// strengths, and the latest end of any note up to each.
 class _Events {
-  _Events(this.onsets, this.lengths, this.ends);
-  final Float64List onsets, lengths, ends;
+  _Events(this.onsets, this.lengths, this.strengths, this.ends);
+  final Float64List onsets, lengths, strengths, ends;
 
-  factory _Events.of(List<(double, double)> events) {
+  factory _Events.of(List<(double, double, double)> events) {
     events.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : b.$2.compareTo(a.$2));
-    // A chord's notes are one onset: its longest.
-    final kept = <(double, double)>[];
+    // A chord's notes are one onset: its longest, as loud as its loudest.
+    final kept = <(double, double, double)>[];
     for (final e in events) {
-      if (kept.isNotEmpty && (kept.last.$1 - e.$1).abs() < 1e-4) continue;
+      if (kept.isNotEmpty && (kept.last.$1 - e.$1).abs() < 1e-4) {
+        kept.last = (kept.last.$1, kept.last.$2, math.max(kept.last.$3, e.$3));
+        continue;
+      }
       kept.add(e);
     }
-    final onsets = Float64List(kept.length), lengths = Float64List(kept.length), ends = Float64List(kept.length);
+    final onsets = Float64List(kept.length), lengths = Float64List(kept.length), strengths = Float64List(kept.length);
+    final ends = Float64List(kept.length);
     var end = double.negativeInfinity;
-    for (final (i, (on, length)) in kept.indexed) {
+    for (final (i, (on, length, strength)) in kept.indexed) {
       onsets[i] = on;
       lengths[i] = length;
+      strengths[i] = strength;
       end = math.max(end, on + length);
       ends[i] = end;
     }
-    return _Events(onsets, lengths, ends);
+    return _Events(onsets, lengths, strengths, ends);
   }
 
   double level(double t) {
@@ -452,12 +464,13 @@ class _Events {
     }
     final last = lo - 1;
     if (last < 0) return 0;
-    var level = ends[last] > t ? PlayerPulses.held : 0.0;
+    var level = 0.0;
     const window = PlayerPulses.attack + PlayerPulses.longest;
     for (var i = last; i >= 0 && t - onsets[i] < window; i--) {
-      level = math.max(level, PlayerPulses.envelope(t - onsets[i], lengths[i]));
-      if (level >= 1) break;
+      level = math.max(level, PlayerPulses.envelope(t - onsets[i], lengths[i]) * strengths[i]);
     }
+    // Held: a little lit while a note sounds, as loud as the last begun.
+    if (ends[last] > t) level = math.max(level, PlayerPulses.held * strengths[last]);
     return level;
   }
 }

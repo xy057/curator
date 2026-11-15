@@ -1765,11 +1765,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         'deselect': _commands.escape,
       };
 
-  static const _minTimeline = 150.0, _minScore = 180.0, _minMap = 200.0;
-
-  /// The player map's width while its divider is dragged (then kept in the settings).
-  double? _mapWidth;
-  final _playerMap = GlobalKey();
+  static const _minTimeline = 150.0, _minScore = 180.0;
 
   Widget _editor(BuildContext context) {
     // Built here, not in the layout builder: resizing the window lays them out again, the
@@ -1790,31 +1786,21 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       // While the tab bar is hidden, its tabs (Home among them) are a click away.
       onShowTabBar: settings.tabBar ? null : () => settings.tabBar = true,
       readout: _readout,
+      playerMap: settings.playerMap,
+      onPlayerMap: (on) => settings.playerMap = on,
     );
     final view = ScoreView(
       key: _scoreView,
       controller: controller,
       aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
     );
-    // View ▸ Show Player Map: the map at the preview's right, its divider dragged to share the width.
+    // The toolbar's switch (View ▸ Show Player Map): the map in the score's place. The score is
+    // kept, offstage, so it comes back as it was.
     final score = Expanded(
-      child: !settings.playerMap
-          ? view
-          : LayoutBuilder(builder: (context, constraints) {
-              final maxMap = math.max(_minMap, constraints.maxWidth - _minScore);
-              final width = (_mapWidth ?? settings.playerMapWidth).clamp(_minMap, maxMap);
-              return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Expanded(child: view),
-                _ResizeHandle(
-                  vertical: true,
-                  onDrag: (dx) => setState(() => _mapWidth = (width - dx).clamp(_minMap, maxMap)),
-                  onEnd: () {
-                    if (_mapWidth case final w?) settings.playerMapWidth = w;
-                  },
-                ),
-                SizedBox(width: width, child: KeyedSubtree(key: _playerMap, child: PlayerMapPanel(controller: controller))),
-              ]);
-            }),
+      child: Stack(fit: StackFit.expand, children: [
+        Offstage(offstage: settings.playerMap, child: view),
+        if (settings.playerMap) PlayerMapPanel(controller: controller),
+      ]),
     );
     // Working in the timeline leaves the image selected in the score.
     // Keyed so it keeps its state when the preview is hidden or shown around it.
@@ -1846,14 +1832,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 }
 
-/// The divider between the score and the timeline (or the player map): drag it to share the height (the width).
+/// The divider between the score and the timeline: drag it to share the height.
 class _ResizeHandle extends StatefulWidget {
-  const _ResizeHandle({required this.onDrag, this.vertical = false, this.onEnd});
+  const _ResizeHandle({required this.onDrag});
   final ValueChanged<double> onDrag;
-
-  /// A divider standing up, between things side by side (dragged sideways).
-  final bool vertical;
-  final VoidCallback? onEnd;
 
   @override
   State<_ResizeHandle> createState() => _ResizeHandleState();
@@ -1866,40 +1848,29 @@ class _ResizeHandleState extends State<_ResizeHandle> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final active = _hover || _dragging;
-    final vertical = widget.vertical;
-    void end() {
-      setState(() => _dragging = false);
-      widget.onEnd?.call();
-    }
-
     return MouseRegion(
-      cursor: vertical ? SystemMouseCursors.resizeLeftRight : SystemMouseCursors.resizeUpDown,
+      cursor: SystemMouseCursors.resizeUpDown,
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         supportedDevices: kDragDevices,
-        onVerticalDragStart: vertical ? null : (_) => setState(() => _dragging = true),
-        onVerticalDragEnd: vertical ? null : (_) => end(),
-        onVerticalDragCancel: vertical ? null : end,
-        onVerticalDragUpdate: vertical ? null : (d) => widget.onDrag(d.delta.dy),
-        onHorizontalDragStart: vertical ? (_) => setState(() => _dragging = true) : null,
-        onHorizontalDragEnd: vertical ? (_) => end() : null,
-        onHorizontalDragCancel: vertical ? end : null,
-        onHorizontalDragUpdate: vertical ? (d) => widget.onDrag(d.delta.dx) : null,
+        onVerticalDragStart: (_) => setState(() => _dragging = true),
+        onVerticalDragEnd: (_) => setState(() => _dragging = false),
+        onVerticalDragCancel: () => setState(() => _dragging = false),
+        onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
         child: AnimatedContainer(
           duration: stateDuration(motion(context, 150)),
-          height: vertical ? null : 7,
-          width: vertical ? 7 : null,
+          height: 7,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.chrome,
-            border: vertical ? Border(left: BorderSide(color: colors.line)) : Border(top: BorderSide(color: colors.line)),
+            border: Border(top: BorderSide(color: colors.line)),
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
             duration: stateDuration(motion(context, 150)),
-            width: vertical ? 3 : (active ? 44 : 32),
-            height: vertical ? (active ? 44 : 32) : 3,
+            width: active ? 44 : 32,
+            height: 3,
             decoration: BoxDecoration(
               color: active ? colors.accent : colors.activity,
               borderRadius: AppStyle.of(context).radius(2),

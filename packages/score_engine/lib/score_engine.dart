@@ -44,6 +44,7 @@ export 'src/score_metadata.dart';
 export 'src/score_motion.dart';
 export 'src/score_edit_view.dart';
 export 'src/score_editing.dart';
+export 'src/score_dynamics.dart';
 export 'src/score_caption.dart'
     show Caption, CaptionAlign, CaptionBar, CaptionCountdown, CaptionRun, CaptionSize, CaptionSpan, CaptionStyle, captionRuns, captionSpans;
 export 'src/score_chapter.dart';

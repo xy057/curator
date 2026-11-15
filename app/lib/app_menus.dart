@@ -114,7 +114,8 @@ class AppMenus extends StatelessWidget {
   final bool previewShown, timelineShown;
   final ValueChanged<bool>? onShowPreview, onShowTimeline;
 
-  /// View ▸ Show / Hide Player Map: the project's map beside the preview; null while nothing is open.
+  /// View ▸ Show Player Map / Show Score: the project's map in the score's place (the toolbar's
+  /// switch); null while nothing is open.
   final bool playerMapShown;
   final ValueChanged<bool>? onShowPlayerMap;
 
@@ -258,7 +259,7 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             ?_own(
               'showPlayerMap',
-              playerMapShown ? 'Hide Player Map'.tr : 'Show Player Map'.tr,
+              playerMapShown ? 'Show Score'.tr : 'Show Player Map'.tr,
               shortcut: _keyOf(KeyCommand.showPlayerMap),
               onSelected: onShowPlayerMap == null ? null : () => onShowPlayerMap!(!playerMapShown),
             ),
