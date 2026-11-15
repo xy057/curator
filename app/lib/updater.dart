@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'file_names.dart';
+import 'latest.dart';
 import 'l10n/l10n.dart';
 
 /// This build's version: `version` in pubspec.yaml without the build number (`make versions`
@@ -12,7 +13,7 @@ import 'l10n/l10n.dart';
 const appVersion = '0.9.0';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 431;
+const appBuild = 432;
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -239,12 +240,12 @@ class Updater extends ChangeNotifier {
   set channel(UpdateChannel value) {
     if (value == _channel) return;
     _channel = value;
-    _asked++;
+    _checks.cancel();
     if (_status is! UpdateDownloading && _status is! UpdateDownloaded) _set = const UpdateIdle();
   }
 
-  /// Counts the checks asked and the channel's changes: an answer to an earlier one is dropped.
-  int _asked = 0;
+  /// The checks asked and the channel's changes: an answer to an earlier one is dropped.
+  final _checks = Latest();
 
   /// Which download is this platform's: `macos`, `windows` or `linux`.
   final String platform;
@@ -268,7 +269,7 @@ class Updater extends ChangeNotifier {
   /// build.
   Future<Release?> check() async {
     if (busy) return null;
-    final asked = ++_asked;
+    final asked = _checks.start();
     final channel = _channel;
     _set = const UpdateChecking();
     final client = _client();
@@ -282,7 +283,7 @@ class Updater extends ChangeNotifier {
       request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final response = await request.close().timeout(_timeout);
       final body = await response.transform(utf8.decoder).join().timeout(_timeout);
-      if (asked != _asked) return null; // the channel changed meanwhile
+      if (!asked.isLatest) return null; // the channel changed meanwhile
       if (response.statusCode == HttpStatus.notFound) {
         _set = const UpToDate(); // nothing released yet
         return null;
@@ -306,7 +307,7 @@ class Updater extends ChangeNotifier {
       }
       _set = const UpToDate();
     } catch (e) {
-      if (asked == _asked) _set = UpdateFailed(_describe(e));
+      if (asked.isLatest) _set = UpdateFailed(_describe(e));
     } finally {
       client.close(force: true);
     }
