@@ -362,7 +362,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     }
     for (var k = _map.sections.length - 1; k >= 0; k--) {
       final s = _map.sections[k];
-      final half = Size(s.name.length * stage.labelSize * 0.3 + 6, stage.labelSize * 0.7);
+      final half = Size(SeatPlan.labelHalfWidth(s.name, _map.aspect) * stage.rect.width + 2, stage.labelSize * 0.7);
       final at = stage.toView(s.labelX, s.labelY);
       if ((p.dx - at.dx).abs() <= half.width && (p.dy - at.dy).abs() <= half.height) return (k, null);
     }

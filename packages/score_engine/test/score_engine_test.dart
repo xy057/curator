@@ -170,6 +170,8 @@ void main() {
       expect(seats['Trumpets I–III'], ['b', 'b', 'b']);
       expect(seats['Contrabassoon'], ['c']);
       expect(PlayerMap.smart([part('h', 'Horns 1.2', 2)]).sections.single.seats.map((s) => s.link?.key), ['h#1', 'h#2']);
+      // A name is as wide as its characters are drawn: a Chinese one about twice a Latin one's.
+      expect([SeatPlan.labelEms('第一小提琴'), SeatPlan.labelEms('Viola')], [5, closeTo(2.9, 1e-9)]);
 
       final text = seated.encode();
       expect(PlayerMap.decode(text).encode(), text);

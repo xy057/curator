@@ -195,8 +195,28 @@ class SeatPlan {
     return (x: x + at.x * unitX, y: y + at.y * unitY);
   }
 
+  /// About how wide [name] is drawn, in ems (its height): a Chinese, Japanese or Korean
+  /// character (or another drawn as wide) one, any other a little over half.
+  static double labelEms(String name) {
+    var ems = 0.0;
+    for (final r in name.runes) {
+      final wide = r >= 0x1100 &&
+          (r <= 0x115F || // Hangul Jamo
+              (r >= 0x2E80 && r <= 0xA4CF) || // CJK radicals … kana … ideographs … Yi
+              (r >= 0xAC00 && r <= 0xD7A3) || // Hangul syllables
+              (r >= 0xF900 && r <= 0xFAFF) || // compatibility ideographs
+              (r >= 0xFE30 && r <= 0xFE4F) || // compatibility forms
+              (r >= 0xFF00 && r <= 0xFF60) || // full-width forms
+              (r >= 0xFFE0 && r <= 0xFFE6) ||
+              (r >= 0x1F300 && r <= 0x1FAFF) || // emoji
+              (r >= 0x20000 && r <= 0x3FFFD)); // ideographs beyond the first plane
+      ems += wide ? 1.0 : 0.58;
+    }
+    return ems;
+  }
+
   /// Half a section's name's width (of the stage's) and height (of its height).
-  static double labelHalfWidth(String name, double aspect) => name.length * PlayerMap.labelSize * 0.29 / aspect + 0.008;
+  static double labelHalfWidth(String name, double aspect) => labelEms(name) * PlayerMap.labelSize * 0.5 / aspect + 0.008;
   static const labelHalfHeight = PlayerMap.labelSize * 0.62;
 
   Map<String, Object?> toJson() => {
@@ -931,11 +951,11 @@ class _Seating {
   /// A dot's width, and the gap between sections side by side, in seats.
   static const _dot = 0.62, _gap = 0.9;
 
-  /// How many seats a name's letter takes across: a guess, then what the first fitting found.
-  double _perLetter = 0.27;
+  /// How many seats an em of a name takes across: a guess, then what the first fitting found.
+  double _perEm = 0.47;
 
-  /// About how many seats a name of [name] takes across.
-  double _nameWidth(String name) => math.min(name.length, 28) * _perLetter + 0.5;
+  /// About how many seats a name of [name] takes across (a very long one counted as 28 letters).
+  double _nameWidth(String name) => math.min(SeatPlan.labelEms(name), 28 * 0.58) * _perEm + 0.5;
 
   PlayerMap map() {
     final groups = _groups();
@@ -943,8 +963,7 @@ class _Seating {
     List<(_Draft, SeatPlan)> placed() => preset == SeatingPreset.ensemble ? _bow(groups) : _orchestra(groups);
     // Seated again with names as wide as the scale it was fitted at makes them.
     final first = _fitted(placed());
-    final k = first.sections.first.size / _dot;
-    _perLetter = (SeatPlan.labelHalfWidth('ab', PlayerMap.defaultAspect) - SeatPlan.labelHalfWidth('a', PlayerMap.defaultAspect)) * 2 * PlayerMap.defaultAspect / k;
+    _perEm = PlayerMap.labelSize / (first.sections.first.size / _dot);
     return _fitted(placed());
   }
 
