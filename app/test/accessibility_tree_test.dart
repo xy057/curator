@@ -1,13 +1,17 @@
 // The desktop engine accepts every semantics update while each settings page is opened in a short
 // window and scrolled to its end, frame by frame: a slider whose row scrolled out of the tree kept
 // its overlay, which the engine then rejected ("Failed to update ui::AXTree" in `make run`; see
-// accessibility_mirror.dart and OverlaySemantics).
+// accessibility_mirror.dart and OverlaySemantics). And while each is reached by the sidebar: a
+// page with a slider, arriving at opacity 0 over the one leaving, was out of the tree for a frame
+// with its sliders' overlays still in it.
 import 'dart:async';
 
 import 'package:curated_score/app_settings.dart';
+import 'package:curated_score/dialog_kit.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/ui_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,7 +22,7 @@ void main() {
   final binding = AccessibilityMirrorBinding();
   final mirror = binding.mirror;
 
-  testWidgets('every settings page, scrolled through in a short window, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out', (tester) async {
+  testWidgets('every settings page, scrolled through in a short window and reached by the sidebar, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out', (tester) async {
     tester.view
       ..physicalSize = const Size(2000, 1240)
       ..devicePixelRatio = 2;
@@ -67,15 +71,57 @@ void main() {
       await frames('closing $name');
     }
 
-    for (final p in ['General', 'Appearance', 'Advanced', 'Plugins', 'Download Hub', 'Remote AI Provider', 'About']) {
+    const appPages = ['General', 'Appearance', 'Shortcuts', 'Plugins', 'Download Hub', 'Remote AI Provider', 'About'];
+    const projectPages = ['Project Info', 'Display', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving', 'Animation'];
+    for (final p in appPages) {
       await page(p, () => showSettingsDialog(context(), settings, controller: c, page: p));
     }
-    for (final p in ['Project Info', 'Display', 'Instruments', 'Sections', 'Condensing', 'Extensions', 'Flags', 'Engraving', 'Animation']) {
+    for (final p in projectPages) {
       await page('Project $p', () => showProjectSettingsDialog(context(), settings, c, page: p));
     }
     for (final t in ['Typography', 'Advanced']) {
       await page('Project Engraving', () => showProjectSettingsDialog(context(), settings, c, page: 'Engraving'), t);
     }
+
+    // By the sidebar a page arrives over the one leaving, both faded: each page from the first
+    // and back, each from the one before it, all of them quicker than any arrives, and a
+    // search's results over a page and away.
+    Future<void> sidebar(String window, List<String> pages, void Function(String page) open) async {
+      Future<void> to(String p, {bool arrive = true}) async {
+        await tester.tap(find.widgetWithText(SidebarTile, p));
+        if (!arrive) {
+          await tester.pump(const Duration(milliseconds: 40));
+          return check('$window: on the way to $p');
+        }
+        await frames('$window: to $p by the sidebar');
+        expect(find.text(p), findsAtLeast(2), reason: '$window: $p in the sidebar and as the title');
+      }
+
+      open(pages.first);
+      await frames('opening $window');
+      for (final p in pages.skip(1)) {
+        await to(p);
+        await to(pages.first);
+      }
+      for (final p in pages.skip(1)) {
+        await to(p);
+      }
+      for (final p in pages.reversed) {
+        await to(p, arrive: false);
+      }
+      await frames('$window: every page passed');
+      for (final p in [pages[1], pages.last]) {
+        await tester.enterText(find.byType(SearchField), 'e');
+        await frames('$window: searching');
+        expect(find.text('Search results'), findsOneWidget);
+        await to(p);
+      }
+      tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+      await frames('closing $window');
+    }
+
+    await sidebar('Settings', appPages, (p) => showSettingsDialog(context(), settings, controller: c, page: p));
+    await sidebar('Project Settings', projectPages, (p) => showProjectSettingsDialog(context(), settings, c, page: p));
 
     // A MIDI project has nothing engraved: the pages of what only an engraving has are greyed
     // out (one asked for shows the first instead), Engraving keeps what is drawn, and the notes
