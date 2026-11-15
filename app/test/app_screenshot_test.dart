@@ -157,7 +157,8 @@ void main() {
 
     // The toolbar's switch shows the player map in the score's place: none yet, then seated
     // smartly, swelling at bar 37 as loud as it is played once the notes are read; in its editor a
-    // section dragged sideways, Done making it the project's in one Undo step; Score switches back.
+    // section dragged sideways, nudged and copied (each a step of its own Undo), Done making it
+    // the project's in one Undo step; Score switches back.
     await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Player map'))));
     await tester.pump(const Duration(milliseconds: 50));
     expect(settings.playerMap, isTrue);
@@ -182,6 +183,7 @@ void main() {
     await tester.dragFrom(area.topLeft + MapStage(area.size, seated.aspect).toView(seat.x, seat.y), const Offset(60, 0));
     await tester.pump();
     expect(find.text('Violin I'), findsWidgets, reason: 'its name in the inspector');
+    await screenshot(tester, 'player-map-editor', inside: find.byType(PlayerMapEditor), outermost: true);
     // Two presses of an arrow are one Undo step of the editor's, the drag another.
     PlayerMap edited() => (tester.widget<CustomPaint>(stageArea).painter! as PlayerMapPainter).map;
     final dragged = edited();
@@ -189,10 +191,21 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pump();
     expect(edited().sections.first.seats.first.x, closeTo(dragged.sections.first.seats.first.x + 0.01, 1e-9));
-    await tester.tap(find.descendant(of: find.byType(PlayerMapEditor), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))));
-    await tester.pump();
+    Future<void> chord(LogicalKeyboardKey key) async {
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(key);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+    }
+
+    await chord(LogicalKeyboardKey.keyZ);
     expect(edited(), dragged);
-    await screenshot(tester, 'player-map-editor', inside: find.byType(PlayerMapEditor), outermost: true);
+    // ⌘D: another of the section selected, where there is room for it.
+    await chord(LogicalKeyboardKey.keyD);
+    expect(edited().sections, hasLength(dragged.sections.length + 1));
+    expect(edited().sections.last.seats, hasLength(dragged.sections.first.seats.length));
+    await chord(LogicalKeyboardKey.keyZ);
+    expect(edited(), dragged);
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

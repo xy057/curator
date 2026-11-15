@@ -312,6 +312,12 @@ class MapSection {
   /// What seat [i] plays: its own link, else the section's.
   PlayerLink? linkOf(int i) => seats[i].link ?? link;
 
+  /// Whether one of its players plays nothing: no link of its own, nor the section's.
+  bool get hasUnlinked => link == null && seats.any((s) => s.link == null);
+
+  /// With player [i] made [seat].
+  MapSection withSeat(int i, MapSeat seat) => copyWith(seats: [for (final (j, s) in seats.indexed) j == i ? seat : s]);
+
   MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats, SeatPlan? plan, SeatPlan? auto}) =>
       MapSection(
         name: name ?? this.name,
@@ -399,7 +405,7 @@ class MapSection {
     dx = kept(dx, box.left, box.right);
     dy = kept(dy, box.top, box.bottom);
     if (label) return copyWith(labelX: labelX + dx, labelY: labelY + dy);
-    if (seat != null) return copyWith(seats: [for (final (j, s) in seats.indexed) j == seat ? s.at(s.x + dx, s.y + dy) : s]);
+    if (seat != null) return withSeat(seat, seats[seat].at(seats[seat].x + dx, seats[seat].y + dy));
     return moved(dx, dy);
   }
 
@@ -457,6 +463,15 @@ class MapSection {
     // A name moved from its plan's place stays as far from it.
     final was = own.label(seats.length, name: name, size: size, aspect: aspect);
     return next.copyWith(labelX: next.labelX + labelX - was.x, labelY: next.labelY + labelY - was.y);
+  }
+
+  /// Without player [i]: the rest seated anew as its plan seats one fewer ([withCount]), each
+  /// keeping what it plays. Its last player stays.
+  MapSection withoutSeat(int i, {double aspect = PlayerMap.defaultAspect}) {
+    if (seats.length < 2) return this;
+    final links = [for (final (j, s) in seats.indexed) if (j != i) s.link];
+    final fewer = withCount(seats.length - 1, aspect: aspect);
+    return fewer.copyWith(seats: [for (final (j, s) in fewer.seats.indexed) s.linked(links[j])]);
   }
 
   /// Its seats seen as rows: as many a row as its widest, its front row's middle the place.
@@ -590,6 +605,19 @@ class PlayerMap {
 
   PlayerMap withSections(List<MapSection> sections) => PlayerMap(sections: List.unmodifiable(sections), aspect: aspect);
 
+  /// With section [k] made [section], nothing else moved ([roomFor] makes room for it).
+  PlayerMap withSection(int k, MapSection section) => withSections([...sections]..[k] = section);
+
+  /// Without section [k].
+  PlayerMap without(int k) => withSections([...sections]..removeAt(k));
+
+  /// With [section] added, last: moved the shortest way that leaves it clear of the others and
+  /// on the stage (where it is, when it is clear there, or when nowhere near is).
+  PlayerMap adding(MapSection section) => withSections([
+        ...sections,
+        sections.any((s) => _covers(s, section)) ? _cleared(section, sections, onStage: true) ?? section : section,
+      ]);
+
   /// Every link a seat plays by, once each.
   Set<PlayerLink> get links => {
         for (final section in sections)
@@ -684,7 +712,7 @@ class PlayerMap {
   /// there by hand, stays), and the whole made smaller where it would leave the stage (or reach
   /// further off it than it did).
   PlayerMap roomFor(int k, MapSection section) {
-    final out = [...sections]..[k] = section;
+    final out = withSection(k, section).sections.toList();
     final settled = <int>{k}, queue = [k];
     for (var head = 0; head < queue.length; head++) {
       final i = queue[head];
@@ -706,8 +734,9 @@ class PlayerMap {
   }
 
   /// [section] moved the shortest way that leaves it clear of every one of [others] (of the ways
-  /// leading away from [from], when given); null when no way a good part of the stage long does.
-  MapSection? _cleared(MapSection section, List<MapSection> others, {({double x, double y})? from}) {
+  /// leading away from [from], when given; only to where all of it is on the stage, for
+  /// [onStage]); null when no way a good part of the stage long does.
+  MapSection? _cleared(MapSection section, List<MapSection> others, {({double x, double y})? from, bool onStage = false}) {
     var ax = 0.0, ay = -1.0;
     if (from != null) {
       final to = section.center, x = (to.x - from.x) * aspect, y = to.y - from.y, d = math.sqrt(x * x + y * y);
@@ -720,6 +749,11 @@ class PlayerMap {
       if (from != null && dx * ax + dy * ay < 0.2) continue;
       for (var step = 1; step < bestStep; step++) {
         final moved = section.moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
+        if (onStage) {
+          // Further this way only leaves it further.
+          final box = moved.bounds(aspect);
+          if (box.left < 0 || box.right > 1 || box.top < 0 || box.bottom > 1) break;
+        }
         if (others.any((o) => _covers(o, moved))) continue;
         (best, bestStep) = (moved, step);
         break;

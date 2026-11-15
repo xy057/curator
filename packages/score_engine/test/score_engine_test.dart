@@ -135,13 +135,20 @@ void main() {
         expect(grown.sections[k].plan?.kind, seated.sections[k].plan?.kind, reason: '$name seated the same way');
         tidy(grown, '$name ×$count');
       }
-      expect([for (final s in grown.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      final flute = grown.sections.firstWhere((s) => s.name == 'Flute');
+      expect([for (final s in flute.seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      expect([for (final s in flute.withoutSeat(0).seats) s.link?.part], ['P3', null, null, null, null], reason: 'the rest keep what they play');
+      expect((flute.hasUnlinked, grown.sections.first.hasUnlinked), (true, false));
+      // A section added where another is (another of it) is put where there is room, on the stage.
+      final timpani = seated.sections.firstWhere((s) => s.name == 'Timpani'), copied = seated.adding(timpani);
+      expect(copied.sections.last, isNot(timpani));
+      tidy(copied, 'another timpani');
       // A section set over another by hand stays there when that one grows, and a map with a
       // section past the stage's edge isn't pulled in (nor reaches further off).
       final fl = seated.sections.indexWhere((s) => s.name == 'Flute'), pc = seated.sections.indexWhere((s) => s.name == 'Piccolo');
       final to = seated.sections[fl].center, from = seated.sections[pc].center;
       final over = seated.sections[pc].moved(to.x - from.x, to.y - from.y), out = seated.sections.last.moved(0, 1.05 - seated.sections.last.bounds().bottom);
-      final byHand = seated.withSections([for (final (k, s) in seated.sections.indexed) k == pc ? over : (s == seated.sections.last ? out : s)]);
+      final byHand = seated.withSection(pc, over).withSection(seated.sections.length - 1, out);
       final more = byHand.roomFor(fl, byHand.sections[fl].withCount(4));
       expect(byHand.bounds!.bottom, greaterThan(1));
       expect((more.sections[pc], more.sections.last, more.bounds), (over, out, byHand.bounds));

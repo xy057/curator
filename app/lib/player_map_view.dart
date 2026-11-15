@@ -81,7 +81,7 @@ class PlayerMapPanel extends StatelessWidget {
           AppPopupMenuButton<SeatingPreset>(
             tooltip: '',
             position: PopupMenuPosition.under,
-            onSelected: (preset) => controller.playerMap.set(controller.playerMap.smart(preset)),
+            onSelected: controller.playerMap.seat,
             itemBuilder: (context) => [for (final p in SeatingPreset.values) menuItem(context, value: p, child: Text(seatingName(p)))],
             child: IgnorePointer(child: FilledButton(onPressed: () {}, child: Text('Smart Seating'.tr))),
           ),
@@ -113,9 +113,9 @@ class PlayerMapMenu extends StatelessWidget {
         icon: Icon(AppIcon.more.of(context), size: 18),
         position: PopupMenuPosition.under,
         onSelected: (choice) => switch (choice) {
-          _MenuChoice.american => controller.playerMap.set(controller.playerMap.smart(SeatingPreset.american)),
-          _MenuChoice.european => controller.playerMap.set(controller.playerMap.smart(SeatingPreset.european)),
-          _MenuChoice.ensemble => controller.playerMap.set(controller.playerMap.smart(SeatingPreset.ensemble)),
+          _MenuChoice.american => controller.playerMap.seat(SeatingPreset.american),
+          _MenuChoice.european => controller.playerMap.seat(SeatingPreset.european),
+          _MenuChoice.ensemble => controller.playerMap.seat(SeatingPreset.ensemble),
           _MenuChoice.import => PlayerMapFiles.import(context, controller),
           _MenuChoice.export => PlayerMapFiles.export(context, controller.playerMap.map!, suggestedName: controller.score?.metadata.title),
           _MenuChoice.remove => controller.playerMap.set(null),
@@ -153,8 +153,8 @@ abstract final class PlayerMapFiles {
         ),
       );
 
-  /// A map the user picks, made the project's: one Undo step. Its players play the score's
-  /// instruments of the same names; null when nothing was picked or it couldn't be read.
+  /// A map the user picks, its players playing the score's instruments of the same names; null
+  /// when nothing was picked or it couldn't be read (which it says).
   static Future<PlayerMap?> pick(BuildContext context, EditorController controller) async {
     final file = await openFile(acceptedTypeGroups: const [_types]);
     if (file == null || !context.mounted) return null;
@@ -199,7 +199,8 @@ abstract final class PlayerMapFiles {
 /// (its name, the instrument and staff it plays, its colour, players, how they sit, their size);
 /// in Players mode a player of it, which may play another instrument or staff than its section.
 /// Dragged, a section moves (a player alone in Players mode; a name on its own), never off the
-/// stage; arrows nudge it, Delete removes it. Its own Undo while open; Done makes it the project's, one Undo step.
+/// stage; arrows nudge it (⇧: further), Delete removes it, ⌘D makes another of it beside it, and a
+/// double click renames it. A player who plays nothing is a ring: one still to link. Its own Undo while open; Done makes it the project's, one Undo step.
 Future<void> showPlayerMapEditor(BuildContext context, EditorController controller) async {
   final map = controller.playerMap.map;
   if (map == null) return;
@@ -230,7 +231,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   int? _section, _seat;
   _Mode _mode = _Mode.sections;
   final _name = TextEditingController();
-  final _focus = FocusNode();
+  final _focus = FocusNode(), _nameFocus = FocusNode();
 
   EditorController get c => widget.controller;
   MapSection? get _selected => _section == null || _section! >= _map.sections.length ? null : _map.sections[_section!];
@@ -239,6 +240,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   void dispose() {
     _name.dispose();
     _focus.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -296,8 +298,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   }
 
   /// Section [k] made what [to] makes it (a part of [run], see [_change]).
-  void _setSection(int k, MapSection Function(MapSection s) to, {Object? run}) =>
-      _change(_map.withSections([for (final (i, s) in _map.sections.indexed) i == k ? to(s) : s]), run: run);
+  void _setSection(int k, MapSection Function(MapSection s) to, {Object? run}) => _change(_map.withSection(k, to(_map.sections[k])), run: run);
 
   /// Section [k] seated anew as [section], what it would now cover moved out of its way.
   void _reseat(int k, MapSection section) => _change(_map.roomFor(k, section));
@@ -307,22 +308,35 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     final color = MapColors.all.firstWhere((c) => !colors.contains(c), orElse: () => MapColors.all.first);
     final section = MapSection(name: 'Section'.tr, color: color, labelX: 0.5, labelY: 0.5, seats: const [MapSeat(0.5, 0.45)])
         .arranged(SeatShape.rows, 4, aspect: _map.aspect);
-    _change(_map.withSections([..._map.sections, section]));
+    // Where there is room for it, as near the middle as there is.
+    _change(_map.adding(section));
     _select(_map.sections.length - 1);
+  }
+
+  /// Another of the section selected, beside it where there is room.
+  void _duplicate() {
+    final s = _selected;
+    if (s == null || _map.sections.length >= PlayerMap.maxSections) return;
+    _change(_map.adding(s));
+    _select(_map.sections.length - 1);
+  }
+
+  /// The section selected, its name ready to be typed over.
+  void _rename() {
+    if (_selected == null) return;
+    _nameFocus.requestFocus();
+    _name.selection = TextSelection(baseOffset: 0, extentOffset: _name.text.length);
   }
 
   void _delete() {
     final k = _section;
     if (k == null) return;
     if (_seat case final i? when _mode == _Mode.players && _map.sections[k].seats.length > 1) {
-      // The rest seated anew as their plan seats one fewer, each keeping what it plays.
-      final s = _map.sections[k], links = [for (final (j, x) in s.seats.indexed) if (j != i) x.link];
-      final fewer = s.withCount(s.seats.length - 1, aspect: _map.aspect);
-      _reseat(k, fewer.copyWith(seats: [for (final (j, x) in fewer.seats.indexed) x.linked(links[j])]));
+      _reseat(k, _map.sections[k].withoutSeat(i, aspect: _map.aspect));
       _select(k);
       return;
     }
-    _change(_map.withSections([..._map.sections]..removeAt(k)));
+    _change(_map.without(k));
     _select(null);
   }
 
@@ -398,7 +412,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     // Never off the stage: a place far off it is one a project couldn't keep.
     final moved = s.dragged(dx, dy, seat: drag.seat, label: drag.label, aspect: _map.aspect);
     // One Undo step, taken at its first move.
-    _change(drag.start.withSections([for (final (j, x) in drag.start.sections.indexed) j == drag.section ? moved : x]), run: drag);
+    _change(drag.start.withSection(drag.section, moved), run: drag);
   }
 
   // MARK: Building
@@ -488,7 +502,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
 
   Widget _canvas(BuildContext context) {
     final mac = defaultTargetPlatform == TargetPlatform.macOS;
-    final step = 0.005;
+    const step = 0.005, far = 0.025;
     return CallbackShortcuts(
       bindings: {
         SingleActivator(LogicalKeyboardKey.keyZ, meta: mac, control: !mac): _stepBack,
@@ -501,6 +515,11 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _nudge(step, 0),
         const SingleActivator(LogicalKeyboardKey.arrowUp): () => _nudge(0, -step),
         const SingleActivator(LogicalKeyboardKey.arrowDown): () => _nudge(0, step),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () => _nudge(-far, 0),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () => _nudge(far, 0),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, shift: true): () => _nudge(0, -far),
+        const SingleActivator(LogicalKeyboardKey.arrowDown, shift: true): () => _nudge(0, far),
+        SingleActivator(LogicalKeyboardKey.keyD, meta: mac, control: !mac): _duplicate,
         const SingleActivator(LogicalKeyboardKey.space): c.playback.togglePlay,
       },
       child: Focus(
@@ -514,6 +533,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
             onPanUpdate: (d) => _move(d.localPosition, size),
             onPanEnd: (_) => setState(() => _drag = null),
             onPanCancel: () => _drag = null,
+            // Its first click selected what is there.
+            onDoubleTap: _rename,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Select<PlayerPulses>(
@@ -528,6 +549,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
                       time: c.playback.time,
                       selected: _section,
                       selectedSeat: _mode == _Mode.players ? _seat : null,
+                      hollow: true,
                       accent: context.colors.accent,
                       textDirection: Directionality.of(context),
                     ),
@@ -559,7 +581,16 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(children: [
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: Color(s.color), shape: BoxShape.circle)),
+              // A ring, as on the stage: a player of it plays nothing yet.
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: s.hasUnlinked ? null : Color(s.color),
+                  border: s.hasUnlinked ? Border.all(color: Color(s.color), width: 1.5) : null,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(child: Text(s.name.isEmpty ? '–' : s.name, overflow: TextOverflow.ellipsis)),
               Text('${s.seats.length}', style: TextStyle(color: colors.textMuted)),
@@ -617,12 +648,20 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     return [
       AppTextField(
         controller: _name,
+        focusNode: _nameFocus,
         label: 'Name'.tr,
+        // Return gives the keys back to the stage (arrows, Delete).
+        onSubmitted: (_) => _focus.requestFocus(),
         // A section's name typed at one go is one Undo step.
         onChanged: (text) => _setSection(k, (s) => s.copyWith(name: text), run: (#name, k)),
       ),
       SizedBox(height: gap),
-      _linkFields(context, link: s.link, onChanged: (link) => _setSection(k, (s) => s.linked(link))),
+      _linkFields(context, link: s.link, onChanged: (link) {
+        // A section not named yet is named after the instrument it is given.
+        final named = link != null && link.name.isNotEmpty && (s.name.trim().isEmpty || s.name == 'Section'.tr);
+        _setSection(k, (s) => named ? s.linked(link).copyWith(name: link.name) : s.linked(link));
+        if (named) _name.text = link.name;
+      }),
       SizedBox(height: gap),
       _Heading('Color'.tr),
       Wrap(spacing: 8, runSpacing: 8, children: [
@@ -683,14 +722,14 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
           context,
           link: s.seats[seat].link,
           none: 'Same as Section'.tr,
-          onChanged: (link) => _setSection(k, (s) => s.copyWith(seats: [for (final (j, x) in s.seats.indexed) j == seat ? x.linked(link) : x])),
+          onChanged: (link) => _setSection(k, (s) => s.withSeat(seat, s.seats[seat].linked(link))),
         ),
       ],
       SizedBox(height: gap * 1.5),
-      Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: OutlinedButton(onPressed: _delete, child: Text(seat != null ? 'Remove Player'.tr : 'Remove Section'.tr)),
-      ),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        if (seat == null) OutlinedButton(onPressed: _duplicate, child: Text('Duplicate'.tr)),
+        OutlinedButton(onPressed: _delete, child: Text(seat != null ? 'Remove Player'.tr : 'Remove Section'.tr)),
+      ]),
     ];
   }
 }

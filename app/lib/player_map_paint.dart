@@ -67,6 +67,7 @@ class PlayerMapPainter extends CustomPainter {
     required this.time,
     this.selected,
     this.selectedSeat,
+    this.hollow = false,
     this.accent = const Color(0xFF4C8DFF),
     this.textDirection = TextDirection.ltr,
   }) : super(repaint: time);
@@ -77,6 +78,9 @@ class PlayerMapPainter extends CustomPainter {
 
   /// The section selected (its index), and one of its seats, outlined (the editor's).
   final int? selected, selectedSeat;
+
+  /// Players who play nothing drawn as rings (the editor's: they are the ones still to link).
+  final bool hollow;
   final Color accent;
   final TextDirection textDirection;
 
@@ -97,6 +101,9 @@ class PlayerMapPainter extends CustomPainter {
       ..color = accent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
+    final outline = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
     for (final (k, section) in map.sections.indexed) {
       final base = Color(section.color), rest = stage.radius(section.size);
       final dim = base.withValues(alpha: 0.55), lit = _bright(base);
@@ -112,7 +119,11 @@ class PlayerMapPainter extends CustomPainter {
         }
         final center = stage.toView(seat.x, seat.y), r = rest * (1 + _swell * level);
         if (level > 0.02) canvas.drawCircle(center, r * 1.35, glow..color = base.withValues(alpha: 0.16 * level));
-        canvas.drawCircle(center, r, dot..color = fill);
+        if (hollow && link == null) {
+          canvas.drawCircle(center, r - 0.75, outline..color = dim);
+        } else {
+          canvas.drawCircle(center, r, dot..color = fill);
+        }
         if (k == selected && (selectedSeat == null || selectedSeat == i)) canvas.drawCircle(center, r + 2.5, ring);
       }
       if (section.name.isNotEmpty && labelSize >= 5) {
@@ -138,6 +149,7 @@ class PlayerMapPainter extends CustomPainter {
       old.time != time ||
       old.selected != selected ||
       old.selectedSeat != selectedSeat ||
+      old.hollow != hollow ||
       old.accent != accent ||
       old.textDirection != textDirection;
 }

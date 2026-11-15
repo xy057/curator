@@ -116,10 +116,8 @@ void main() {
       // A player map: seated smartly, one player of the violins I playing the violas.
       final seated = c.playerMap.smart(SeatingPreset.american);
       final violins = seated.sections.indexWhere((s) => s.link?.part == 'P17');
-      c.playerMap.set(seated.withSections([
-        for (final (k, s) in seated.sections.indexed)
-          k == violins ? s.copyWith(seats: [s.seats.first.linked(const PlayerLink('P19', name: 'Viola')), ...s.seats.skip(1)]) : s,
-      ]));
+      final firsts = seated.sections[violins];
+      c.playerMap.set(seated.withSection(violins, firsts.withSeat(0, firsts.seats.first.linked(const PlayerLink('P19', name: 'Viola')))));
       final saved = c.projectState;
 
       final path = '${dir.path}/round.ccs';

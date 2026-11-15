@@ -37,6 +37,10 @@ class PlayerMapEditing {
   /// The score's instruments seated as [preset] places them.
   PlayerMap smart(SeatingPreset preset) => PlayerMap.smart(parts, preset: preset, nameOf: nameOf);
 
+  /// Seats the score's instruments as [preset] places them, in place of the project's map: one
+  /// Undo step.
+  void seat(SeatingPreset preset) => set(smart(preset));
+
   /// [map] (a file's, from another score perhaps) made this score's: its links found again by
   /// name, else by id.
   PlayerMap fitted(PlayerMap map) => map.relinked(parts, nameOf: nameOf);
