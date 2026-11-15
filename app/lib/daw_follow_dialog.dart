@@ -28,7 +28,7 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
     try {
       path = await link.recording(choice.session, choice.document.id, choice.source.id, progress: (d) => done.value = d);
     } on DawLinkException catch (e) {
-      say('Couldn’t get the recording from the DAW. {error}'.fill({'error': _reason(e.reason)}));
+      say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
     }
     if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
     await dialog;
@@ -45,11 +45,12 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
   if (!taken) say('The DAW gives no tempo for this recording yet.'.tr);
 }
 
-/// What the plug-in said went wrong, in words.
-String _reason(String reason) => switch (reason) {
+/// What the plug-in said went wrong ([DawLinkException.reason]), in words.
+String dawProblem(String reason) => switch (reason) {
       'too long' => 'It is too long.'.tr,
       'out of memory' => 'The DAW is out of memory.'.tr,
       'unreadable' => 'The DAW doesn’t let it be read yet.'.tr,
+      'empty' => 'Nothing plays there.'.tr,
       'gone' => 'It is no longer in the DAW.'.tr,
       'disconnected' => 'The DAW disconnected.'.tr,
       _ => 'The file couldn’t be written.'.tr,

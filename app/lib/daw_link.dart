@@ -123,17 +123,19 @@ class DawLink extends ChangeNotifier {
   /// Asks the DAW of [session] for [source] of [document] as a file, written in Curator's
   /// cache; completes with its path. [progress] hears how far it has got, 0–1. Throws a
   /// [DawLinkException] when the DAW can't (or is gone).
-  Future<String> recording(DawSession session, String document, String source, {void Function(double done)? progress}) {
-    final key = (document, source);
-    final pending = session._recordings[key] ??= (completer: Completer<String>(), progress: <void Function(double)>[]);
-    if (progress != null) pending.progress.add(progress);
-    session._send({'t': 'export', 'document': document, 'source': source});
-    return pending.completer.future;
-  }
+  Future<String> recording(DawSession session, String document, String source, {void Function(double done)? progress}) =>
+      session._ask((document, 'source', source), {'t': 'export', 'document': document, 'source': source}, progress);
+
+  /// Asks the DAW of [session] for [track] of [document] as the song plays it (a stem), from
+  /// song time [from] for [length] seconds, written in Curator's cache; completes with its path.
+  /// As [recording] otherwise.
+  Future<String> stem(DawSession session, String document, String track,
+          {required double from, required double length, void Function(double done)? progress}) =>
+      session._ask((document, 'track', track), {'t': 'stem', 'document': document, 'track': track, 'from': from, 'length': length}, progress);
 }
 
 /// What a DAW said went wrong: [reason] is the plug-in's word for it ("gone", "unreadable",
-/// "too long", "out of memory", "unwritable", "cancelled", "disconnected").
+/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected").
 class DawLinkException implements Exception {
   const DawLinkException(this.reason);
   final String reason;
@@ -162,7 +164,24 @@ class DawSession extends ChangeNotifier {
   /// Where it is playing, as it last said; null until it has.
   final transport = ValueNotifier<DawTransport?>(null);
 
-  final _recordings = <(String, String), ({Completer<String> completer, List<void Function(double)> progress})>{};
+  /// Files asked for and not yet written, by document, kind ("source", "track") and id.
+  final _recordings = <(String, String, String), ({Completer<String> completer, List<void Function(double)> progress})>{};
+
+  /// What the file [key] is, sent as [message] unless it was asked for already.
+  Future<String> _ask((String, String, String) key, Map<String, Object?> message, void Function(double)? progress) {
+    final asked = _recordings.containsKey(key);
+    final pending = _recordings[key] ??= (completer: Completer<String>(), progress: <void Function(double)>[]);
+    if (progress != null) pending.progress.add(progress);
+    if (!asked) _send(message);
+    return pending.completer.future;
+  }
+
+  /// The key of the file a `progress`, `exported` or `stemmed` message is about.
+  static (String, String, String)? _keyOf(Map<String, Object?> message) => switch (message) {
+        {'document': final String d, 'track': final String t} => (d, 'track', t),
+        {'document': final String d, 'source': final String s} => (d, 'source', s),
+        _ => null,
+      };
 
   void _receive(Map<String, Object?> message) {
     final type = message['t'];
@@ -190,7 +209,7 @@ class DawSession extends ChangeNotifier {
         transport.value = dawTransportOf(message);
         return;
       case 'progress':
-        final pending = _recordings[(message['document'], message['source'])];
+        final pending = _recordings[_keyOf(message)];
         final done = message['done'];
         if (pending != null && done is num) {
           for (final f in pending.progress) {
@@ -198,8 +217,8 @@ class DawSession extends ChangeNotifier {
           }
         }
         return;
-      case 'exported':
-        final pending = _recordings.remove((message['document'], message['source']));
+      case 'exported' || 'stemmed':
+        final pending = _recordings.remove(_keyOf(message));
         if (pending == null) return;
         if (message['path'] case final String path) {
           pending.completer.complete(path);

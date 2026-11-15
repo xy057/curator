@@ -12,7 +12,10 @@ can then:
   by hand) lines the barlines up with the recording;
 - **take the recording itself**, written out of the DAW as a file and loaded as the project's;
 - **follow the DAW's playhead**. While the DAW plays, the score moves with it and Curator stays
-  silent.
+  silent;
+- **keep the DAW's tracks as stems**. Each track is written out as the song plays it, over the
+  length of the recording followed, and kept apart in the project. Each stem lines up sample for
+  sample with the recording, ready for hearing one instrument alone or bringing it forward.
 
 ## Setting it up
 
@@ -28,6 +31,13 @@ can then:
 3. In Curator, open the score, then the Audio tab ▸ ⋯ ▸ **Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
+
+While Curator follows a DAW, the Audio tab ▸ ⋯ ▸ **Capture Stems…** lists the DAW's tracks that
+have recordings; every one but the recording's own is picked at first. Each one captured is
+converted to FLAC and saved in the project (`media/stems/<id>/`), with the track's name and
+colour, the take it lines up with, and the part of the score it plays: found by the track's name
+when exactly one part's matches ("Violins 1" is "Violin I"). Capturing a track again replaces its
+stem. Project Settings ▸ Project Info ▸ **Stems ▸ Edit…** sets each stem's part, or removes it.
 
 **Listen for Curator Link** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
 this. The menu item is checked while Curator follows a DAW, and choosing it again stops. So does
@@ -66,8 +76,14 @@ project, because everything it knows the DAW sends again.
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
 | `export` | Curator | `document`, `source`: write this recording as a file |
-| `progress` | plug-in | `document`, `source`, `done` (0–1) |
+| `stem` | Curator | `document`, `track`, `from` and `length` (seconds of the song): write the track as the song plays it there |
+| `progress` | plug-in | `document`, `source` or `track`, `done` (0–1) |
 | `exported` | plug-in | `document`, `source`, then `path` (a 32-bit float WAV in Curator's cache folder, under `DAW Link/`) or `error` |
+| `stemmed` | plug-in | `document`, `track`, then `path` (a 32-bit float WAV under `DAW Link/Stems/`) or `error` (`empty`: nothing plays there) |
+
+A stem has the most channels and the highest sample rate of the recordings on its track. Each
+region plays in it as it plays in the song, unstretched; one of another layout is averaged into
+every channel. The files are written one at a time, after the recordings they need are read.
 
 The plug-in sends a document after every edit the DAW makes, but only when something differs.
 It also sends every document again whenever it connects. Times are in seconds and positions in
@@ -98,6 +114,8 @@ Fields are only added over time. A message type or field that one side doesn't k
      recording placed in the song;
    - checks what Curator is told;
    - asks for the recording, and checks the file sample by sample;
+   - asks for the track as a stem from before its region, and checks the silence, then the
+     region where the song plays it;
    - plays the region through the plug-in, and checks it sample by sample against the song;
    - opens the VST3's window in a view of its own and closes it;
    - then registers the Audio Unit in its own process only, makes its window and checks its

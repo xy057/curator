@@ -59,6 +59,7 @@ abstract final class ProjectModules {
   static const curation = _Curation();
   static const sync = _Sync();
   static const takes = _Takes();
+  static const stems = _Stems();
   static const images = _Images();
   static const captions = _Captions();
   static const chapters = _Chapters();
@@ -74,7 +75,7 @@ abstract final class ProjectModules {
 
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
-    pdf, lilypond, midi, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
+    pdf, lilypond, midi, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, stems, images, captions, chapters, //
     tonality, spacers, packages, extensionData, playerMap, view,
   ];
 
@@ -85,6 +86,9 @@ abstract final class ProjectModules {
   /// The extensions of Curator's own that keep their data in a module of their own, as they did
   /// before they were packages: the extension's id → that module.
   static const Map<String, ProjectModule> ownData = {'attachImage': images, 'captions': captions, 'chapters': chapters, 'tonality': tonality};
+
+  /// Whether [id] can be a stem's ([Stem.id]): `stem-1`, `stem-2`…, safe as a folder's name.
+  static bool isStemId(String id) => Stem.isId(id);
 
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
@@ -627,6 +631,47 @@ final class _Takes extends ProjectModule {
 
   /// `take-1`, `take-2`…: safe in a file's name.
   static bool isTakeId(String id) => RegExp(r'^take-[1-9][0-9]{0,5}$').hasMatch(id);
+}
+
+/// The stems ([EditState.stems]): each one's id, name, colour, the take it lines up with and
+/// where, and the part it plays. The files themselves are the project's (`media/stems/`).
+/// Optional: nothing shown or played depends on them.
+final class _Stems extends ProjectModule {
+  const _Stems() : super('stems', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
+        if (state.edits.stems.isNotEmpty)
+          'stems': [
+            for (final s in state.edits.stems)
+              {
+                'id': s.id,
+                'name': s.name,
+                if (s.color case final color?) 'color': hexOf(Color(color)),
+                'take': ?s.take,
+                if (s.offset != 0) 'offset': s.offset,
+                'part': ?s.part,
+              },
+          ],
+      };
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final stems = <Stem>[];
+    for (final (i, value) in r.list('stems').indexed) {
+      final s = JsonReader(value, '${r.where}.stems[$i]');
+      final id = s.string('id', required: true)!;
+      if (!Stem.isId(id) || stems.any((other) => other.id == id)) throw _damaged('${s.where}.id is not a stem of its own.');
+      final color = switch (s.string('color')) {
+        null => null,
+        final hex => _color(hex) ?? (throw _damaged('${s.where}.color is not a colour.')),
+      };
+      final offset = s.number('offset')?.toDouble() ?? 0;
+      if (!offset.isFinite) throw _damaged('${s.where}.offset is not a time.');
+      stems.add(Stem(id, s.string('name') ?? '', color: color?.toARGB32(), take: s.string('take'), offset: offset, part: s.string('part')));
+    }
+    return state.copyWith(edits: state.edits.copyWith(stems: stems));
+  }
 }
 
 /// Images on the score, and each one's file, byte for byte, as `images/<id>`: only those on

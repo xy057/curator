@@ -131,12 +131,14 @@ void main() {
     expect(c.isMidi, isTrue);
     unawaited(showProjectSettingsDialog(context(), settings, c, page: 'Flags', editScore: () async {}, replaceScore: (_) async {}));
     await frames('a MIDI project’s settings');
-    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Edit…')).onPressed, isNull);
+    // Project Info: the score's Edit… first, then the stems' (none here, so off too).
+    final edits = find.widgetWithText(OutlinedButton, 'Edit…');
+    expect([for (final b in tester.widgetList<OutlinedButton>(edits)) b.onPressed], [isNull, isNull]);
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Replace…').first).onPressed, isNotNull);
     for (final off in ['Flags', 'Sections', 'Condensing']) {
       await tester.tap(find.text(off));
       await frames('a MIDI project’s $off, greyed out');
-      expect(find.widgetWithText(OutlinedButton, 'Edit…'), findsOneWidget, reason: '$off: still Project Info');
+      expect(find.widgetWithText(OutlinedButton, 'Edit…'), findsNWidgets(2), reason: '$off: still Project Info');
     }
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await frames('closing a MIDI project’s settings');

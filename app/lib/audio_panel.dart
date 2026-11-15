@@ -21,6 +21,7 @@ import 'key_bindings.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
+import 'stems_dialog.dart';
 import 'take_lanes.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -786,6 +787,13 @@ class _SyncMenu extends StatelessWidget {
               value: () => c.daw.following != null ? c.daw.stop() : showDawFollowDialog(context, c),
               checked: c.daw.following != null,
               child: Text('Follow DAW…'.tr)),
+          // Its tracks kept apart, each as the song plays it (Project Info ▸ Stems).
+          if (c.daw.following != null)
+            checkedMenuItem(context,
+                value: () => showStemCaptureDialog(context, c),
+                checked: false,
+                enabled: c.daw.document != null,
+                child: Text('Capture Stems…'.tr)),
           if (midi != null)
             checkedMenuItem(context,
                 value: c.useScoreWarps,

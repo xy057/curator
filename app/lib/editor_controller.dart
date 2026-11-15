@@ -29,6 +29,8 @@ import 'project_state.dart';
 import 'score_replacement.dart';
 import 'time_viewport.dart';
 import 'l10n/l10n.dart';
+import 'media_converter.dart';
+import 'scratch_space.dart';
 
 part 'editor/caption_look.dart';
 part 'editor/commands.dart';
@@ -39,6 +41,7 @@ part 'editor/lane_editing.dart';
 part 'editor/playback.dart';
 part 'editor/player_map_editing.dart';
 part 'editor/spacer_editing.dart';
+part 'editor/stem_editing.dart';
 part 'editor/sync_editing.dart';
 
 enum BottomTab { instruments, audio }
@@ -80,6 +83,7 @@ class EditorController extends ChangeNotifier {
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
   late final daw = DawEditing._(this);
+  late final stems = StemEditing._(this);
 
   /// What an extension keeps for every project (the app's settings hold it), by its id, and
   /// keeping it; null: nowhere to.
@@ -394,6 +398,7 @@ class EditorController extends ChangeNotifier {
     required ProjectState state,
     String? mediaPath,
     Map<String, String> takePaths = const {},
+    Map<String, String> stemPaths = const {},
   }) async {
     // Each extension checks what it saved: one that can't read its data stops the project here.
     state = checkedExtensionData(state);
@@ -430,6 +435,7 @@ class EditorController extends ChangeNotifier {
     _loadingAudio = mediaPath != null || takePaths.isNotEmpty;
     try {
       await _install(name, scoreBytes, score, state, arts: arts, pages: pages);
+      stems._opened(stemPaths);
       if (_disposed) return null; // nothing to play it in: the window closed
       return await _loadTakes(mediaPath, takePaths);
     } finally {
@@ -589,7 +595,10 @@ class EditorController extends ChangeNotifier {
     }
     playback.pause();
     final tab = _tab;
-    if (!keepRecording) await audio.unload();
+    if (!keepRecording) {
+      await audio.unload();
+      stems._reset(); // the recordings' stems go with them
+    }
     final art = _score?.pdf;
     _closeDocument();
     if (art != score.pdf) art?.dispose();
@@ -679,6 +688,7 @@ class EditorController extends ChangeNotifier {
   Future<void> close() async {
     playback.pause();
     await audio.unload();
+    stems._reset();
     _closeDocument();
     playback.time.value = 0;
     notifyListeners();
@@ -2484,6 +2494,7 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     daw.stop();
+    stems._reset();
     _disposed = true;
     _loadStage.dispose();
     _engravings.cancel(); // an engraving still running finds nothing to update

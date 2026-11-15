@@ -62,7 +62,8 @@ private:
 // One DAW document as Curator sees it. After every edit the host makes it is read whole (the
 // tempo map, bar and key signatures and chords of each musical context, the tracks, the
 // recordings and the regions placing them in the song) and, when anything differs, published
-// to Curator. Curator may ask for a recording as a file: it is written from the samples read.
+// to Curator. Curator may ask for a recording as a file, or a track as the song plays it (a
+// stem): either is written from the samples read.
 class LinkDocumentController : public ARA::PlugIn::DocumentController {
 public:
     LinkDocumentController (const ARA::PlugIn::PlugInEntry* entry, const ARA::ARADocumentControllerHostInstance* instance) noexcept;
@@ -95,7 +96,16 @@ private:
     std::string snapshot ();
     void publish ();
     void onMessage (const std::map<std::string, std::string>& message);
+    // A file Curator asked for: a recording (by persistent ID), or a track as the song plays
+    // it ([stem]: by its ID, from song time [from] for [length] seconds).
+    struct ExportJob {
+        bool stem { false };
+        std::string id;
+        double from { 0 }, length { 0 };
+    };
     void startPendingExport ();
+    void startRecording (const std::string& sourceID);
+    void startStem (const ExportJob& job);
     void stopExport (const LinkAudioSource* source);
     void lockOutRenderers () noexcept;
     void letRenderersIn () noexcept;
@@ -108,11 +118,13 @@ private:
     std::string published_;
     bool dirty_ { true };
 
-    // Recordings Curator asked for (by persistent ID), and the one being written (one at a time).
+    // Files Curator asked for, and the one being written (one at a time): the recordings it
+    // reads ([using_], set before it starts), and whether it is still at it.
     std::mutex exportMutex_;
-    std::vector<std::string> pending_;
+    std::vector<ExportJob> pending_;
     std::thread exporter_;
-    std::atomic<const LinkAudioSource*> exporting_ { nullptr };
+    std::vector<const LinkAudioSource*> using_;
+    std::atomic<bool> busy_ { false };
     std::atomic<bool> cancelExport_ { false };
 
     std::atomic<bool> renderersMayAccess_ { true };

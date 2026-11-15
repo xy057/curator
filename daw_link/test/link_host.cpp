@@ -504,7 +504,7 @@ int main (int argc, const char* argv[])
     check (hello["protocol"] == "1", "protocol 1");
     auto document = curator.next ("document", 5);
     const std::string id = document["id"];
-    const std::string& line = curator.lines.back ();
+    const std::string line = curator.lines.back ();  // a copy: more lines come
     check (document["name"] == "Symphony", "the document's name");
     check (contains (line, "\"tempo\":[[0,0],[2,4],[6,10]]"), "the tempo map, seconds and quarters");
     check (contains (line, "\"bars\":[[4,4,0],[3,4,8]]"), "the bar signatures");
@@ -538,6 +538,39 @@ int main (int argc, const char* argv[])
             same = same && v == toneAt (i);
         }
         check (same, "the samples the host gave");
+    }
+
+    std::printf ("Curator asks for the track as a stem\n");
+    const std::string tracksKey = "\"tracks\":[{\"id\":\"";
+    const size_t idAt = line.find (tracksKey);
+    check (idAt != std::string::npos, "the track has an ID");
+    const size_t idStart = idAt + tracksKey.size ();
+    const std::string trackID = line.substr (idStart, line.find ('"', idStart) - idStart);
+    // From 0.5 s in the song for 2 s: silence until the region starts at 1 s, then the recording
+    // from 0.5 s, so frame i is the recording's frame i.
+    curator.say ("{\"t\":\"stem\",\"document\":\"" + id + "\",\"track\":\"" + trackID + "\",\"from\":0.5,\"length\":2}");
+    auto stemmed = curator.next ("stemmed", 10, [&] { dc->notifyModelUpdates (controller); });
+    check (stemmed["error"].empty () && stemmed["track"] == trackID, "written without an error " + stemmed["error"]);
+    const std::string stemPath = stemmed["path"];
+    check (contains (stemPath, std::string (home) + "/Library/Caches/Curator/DAW Link/Stems/") && contains (stemPath, "/Strings.wav"), "into Curator's cache, by the track's name");
+    {
+        std::ifstream wav (stemPath, std::ios::binary);
+        std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
+        constexpr int64_t stemFrames = 2 * 44100;
+        check (bytes.size () == 56 + static_cast<size_t> (stemFrames) * 4, "a float WAV as long as asked");
+        bool silent = true;
+        double worst = 0;
+        for (int64_t i = 0; i < stemFrames; ++i)
+        {
+            float v;
+            std::memcpy (&v, bytes.data () + 56 + i * 4, 4);
+            if (i < 22050)
+                silent = silent && v == 0;
+            else
+                worst = std::max<double> (worst, std::fabs (v - toneAt (i)));
+        }
+        check (silent, "silence before the region");
+        check (worst < 1e-5, "the region where the song plays it");
     }
 
     std::printf ("The region plays where the song has it\n");

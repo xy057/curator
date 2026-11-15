@@ -265,7 +265,7 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
     // taken up here, where the model may be read.
     {
         std::lock_guard<std::mutex> lock (exportMutex_);
-        if (exporting_.load () == nullptr && exporter_.joinable ())
+        if (!busy_.load () && exporter_.joinable ())
             exporter_.join ();
     }
     startPendingExport ();
@@ -494,31 +494,129 @@ void LinkDocumentController::publish ()
     client_.publish (id_, std::move (state));
 }
 
-// MARK: Recordings for Curator
+// MARK: Files for Curator
+
+namespace {
+
+// Writes a 32-bit float WAV of [frames] frames of [channels] at [rate] to [path], through a file
+// beside it put in place at the end; [fill] gives [n] frames from frame [at], interleaved, and
+// [progress] hears the share written. False when it can't be written or [cancel] is set.
+bool writeFloatWav (const std::string& path, int channels, double rate, int64_t frames, const std::atomic<bool>& cancel,
+                    const std::function<void (float* block, int64_t at, int64_t n)>& fill, const std::function<void (double done)>& progress)
+{
+    const std::string partial = path + ".part";
+    std::FILE* f = cancel.load () ? nullptr : std::fopen (partial.c_str (), "wb");
+    bool ok = f != nullptr;
+    if (f)
+    {
+        const uint64_t bytes = static_cast<uint64_t> (frames) * static_cast<uint64_t> (channels) * 4;
+        // A RIFF file holds under 4 GB: the length is read as at most that.
+        const uint32_t dataBytes = static_cast<uint32_t> (std::min<uint64_t> (bytes, 0xffffffffu - 64));
+        const int64_t written = static_cast<int64_t> (dataBytes / (static_cast<uint32_t> (channels) * 4));
+        std::fwrite ("RIFF", 1, 4, f);
+        put32 (f, 4 + (8 + 16) + (8 + 4) + 8 + dataBytes);
+        std::fwrite ("WAVE", 1, 4, f);
+        std::fwrite ("fmt ", 1, 4, f);
+        put32 (f, 16);
+        put16 (f, 3);  // IEEE float
+        put16 (f, static_cast<uint16_t> (channels));
+        put32 (f, static_cast<uint32_t> (std::lround (rate)));
+        put32 (f, static_cast<uint32_t> (std::lround (rate)) * static_cast<uint32_t> (channels) * 4);
+        put16 (f, static_cast<uint16_t> (channels * 4));
+        put16 (f, 32);
+        std::fwrite ("fact", 1, 4, f);
+        put32 (f, 4);
+        put32 (f, static_cast<uint32_t> (written));
+        std::fwrite ("data", 1, 4, f);
+        put32 (f, dataBytes);
+
+        std::vector<float> block (static_cast<size_t> (chunkFrames * channels));
+        auto lastSaid = std::chrono::steady_clock::now ();
+        for (int64_t at = 0; at < written && ok; at += chunkFrames)
+        {
+            if (cancel.load ())
+            {
+                ok = false;
+                break;
+            }
+            const int64_t n = std::min (chunkFrames, written - at);
+            fill (block.data (), at, n);
+            ok = std::fwrite (block.data (), sizeof (float), static_cast<size_t> (n * channels), f) == static_cast<size_t> (n * channels);
+            if (std::chrono::steady_clock::now () - lastSaid > std::chrono::milliseconds (100))
+            {
+                lastSaid = std::chrono::steady_clock::now ();
+                progress (static_cast<double> (at + n) / static_cast<double> (written));
+            }
+        }
+        ok = std::fclose (f) == 0 && ok;
+    }
+    if (ok && std::rename (partial.c_str (), path.c_str ()) == 0)
+        return true;
+    std::remove (partial.c_str ());
+    return false;
+}
+
+// 16 hex digits naming [text] in a folder's name.
+std::string hashOf (const std::string& text)
+{
+    char hash[24];
+    std::snprintf (hash, sizeof hash, "%016llx", static_cast<unsigned long long> (std::hash<std::string> {} (text)));
+    return hash;
+}
+
+}  // namespace
 
 void LinkDocumentController::onMessage (const Message& message)
 {
     // On the connection's thread: only noted here, taken up on the host's main thread.
-    auto t = message.find ("t");
-    auto document = message.find ("document");
-    auto source = message.find ("source");
-    if (t == message.end () || t->second != "export" || document == message.end () || document->second != id_ || source == message.end ())
+    auto field = [&] (const char* key) -> const std::string* {
+        auto found = message.find (key);
+        return found == message.end () ? nullptr : &found->second;
+    };
+    const std::string* t = field ("t");
+    const std::string* document = field ("document");
+    if (!t || !document || *document != id_)
         return;
+    ExportJob job;
+    if (*t == "export" && field ("source"))
+    {
+        job.id = *field ("source");
+    }
+    else if (*t == "stem" && field ("track") && field ("from") && field ("length"))
+    {
+        job.stem = true;
+        job.id = *field ("track");
+        job.from = std::strtod (field ("from")->c_str (), nullptr);
+        job.length = std::strtod (field ("length")->c_str (), nullptr);
+        if (!std::isfinite (job.from) || !std::isfinite (job.length))
+            return;
+    }
+    else
+    {
+        return;
+    }
     std::lock_guard<std::mutex> lock (exportMutex_);
-    pending_.push_back (source->second);
+    pending_.push_back (job);
 }
 
 void LinkDocumentController::startPendingExport ()
 {
-    std::string sourceID;
+    ExportJob job;
     {
         std::lock_guard<std::mutex> lock (exportMutex_);
         if (exporter_.joinable () || pending_.empty ())
             return;
-        sourceID = pending_.front ();
+        job = pending_.front ();
         pending_.erase (pending_.begin ());
     }
+    if (job.stem)
+        startStem (job);
+    else
+        startRecording (job.id);
+}
 
+void LinkDocumentController::startRecording (const std::string& sourceID)
+{
     auto reply = [this, sourceID] (const std::string& key, const std::string& value) {
         JsonWriter w;
         w.object ().field ("t", "exported").field ("document", id_).field ("source", sourceID).field (key.c_str (), value).endObject ();
@@ -540,84 +638,164 @@ void LinkDocumentController::startPendingExport ()
 
     // A folder for each recording (by its ID), the file named as the DAW names the recording:
     // Curator calls the take it makes of it by the file's name.
-    char hash[24];
-    std::snprintf (hash, sizeof hash, "%016llx", static_cast<unsigned long long> (std::hash<std::string> {} (sourceID)));
-    const std::string folder = curatorCacheFolder () + "/DAW Link/" + hash;
+    const std::string folder = curatorCacheFolder () + "/DAW Link/" + hashOf (sourceID);
     makeFolders (folder);
     const char* sourceName = found->getName ();
     const std::string path = folder + "/" + safeName (sourceName ? sourceName : "") + ".wav";
-    const double rate = found->getSampleRate ();
 
     std::lock_guard<std::mutex> lock (exportMutex_);
     cancelExport_.store (false);
-    exporting_.store (found);
-    exporter_ = std::thread ([this, found, path, rate, reply, sourceID] {
-        // Written once every sample is read, into a file beside it, then put in place.
+    using_ = { found };
+    busy_.store (true);
+    exporter_ = std::thread ([this, found, path, reply, sourceID] {
+        // Written once every sample is read.
         while (found->framesRead () < found->frames () && !cancelExport_.load ())
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
-        const std::string partial = path + ".part";
-        std::FILE* f = cancelExport_.load () ? nullptr : std::fopen (partial.c_str (), "wb");
-        bool ok = f != nullptr;
-        if (f)
-        {
-            const int channels = found->channels ();
-            const int64_t frames = found->frames ();
-            const uint64_t bytes = static_cast<uint64_t> (frames) * static_cast<uint64_t> (channels) * 4;
-            // A RIFF file holds under 4 GB: the length is read as at most that.
-            const uint32_t dataBytes = static_cast<uint32_t> (std::min<uint64_t> (bytes, 0xffffffffu - 64));
-            const int64_t written = static_cast<int64_t> (dataBytes / (static_cast<uint32_t> (channels) * 4));
-            std::fwrite ("RIFF", 1, 4, f);
-            put32 (f, 4 + (8 + 16) + (8 + 4) + 8 + dataBytes);
-            std::fwrite ("WAVE", 1, 4, f);
-            std::fwrite ("fmt ", 1, 4, f);
-            put32 (f, 16);
-            put16 (f, 3);  // IEEE float
-            put16 (f, static_cast<uint16_t> (channels));
-            put32 (f, static_cast<uint32_t> (std::lround (rate)));
-            put32 (f, static_cast<uint32_t> (std::lround (rate)) * static_cast<uint32_t> (channels) * 4);
-            put16 (f, static_cast<uint16_t> (channels * 4));
-            put16 (f, 32);
-            std::fwrite ("fact", 1, 4, f);
-            put32 (f, 4);
-            put32 (f, static_cast<uint32_t> (written));
-            std::fwrite ("data", 1, 4, f);
-            put32 (f, dataBytes);
-
-            std::vector<float> block (static_cast<size_t> (chunkFrames * channels));
-            auto lastSaid = std::chrono::steady_clock::now ();
-            for (int64_t at = 0; at < written && ok; at += chunkFrames)
-            {
-                if (cancelExport_.load ())
-                {
-                    ok = false;
-                    break;
-                }
-                const int64_t n = std::min (chunkFrames, written - at);
+        const int channels = found->channels ();
+        const bool ok = writeFloatWav (
+            path, channels, found->getSampleRate (), found->frames (), cancelExport_,
+            [found, channels] (float* block, int64_t at, int64_t n) {
                 for (int64_t i = 0; i < n; ++i)
                     for (int c = 0; c < channels; ++c)
                         block[static_cast<size_t> (i * channels + c)] = found->channel (c)[at + i];
-                ok = std::fwrite (block.data (), sizeof (float), static_cast<size_t> (n * channels), f) == static_cast<size_t> (n * channels);
-                if (std::chrono::steady_clock::now () - lastSaid > std::chrono::milliseconds (100))
-                {
-                    lastSaid = std::chrono::steady_clock::now ();
-                    JsonWriter progress;
-                    progress.object ().field ("t", "progress").field ("document", id_).field ("source", sourceID)
-                        .field ("done", static_cast<double> (at + n) / static_cast<double> (written)).endObject ();
-                    client_.send (progress.text ());
-                }
-            }
-            ok = std::fclose (f) == 0 && ok;
-        }
-        if (ok && std::rename (partial.c_str (), path.c_str ()) == 0)
-        {
+            },
+            [this, sourceID] (double done) {
+                JsonWriter progress;
+                progress.object ().field ("t", "progress").field ("document", id_).field ("source", sourceID).field ("done", done).endObject ();
+                client_.send (progress.text ());
+            });
+        if (ok)
             reply ("path", path);
-        }
         else
-        {
-            std::remove (partial.c_str ());
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
+        busy_.store (false);
+    });
+}
+
+void LinkDocumentController::startStem (const ExportJob& job)
+{
+    const std::string trackID = job.id;
+    auto reply = [this, trackID] (const std::string& key, const std::string& value) {
+        JsonWriter w;
+        w.object ().field ("t", "stemmed").field ("document", id_).field ("track", trackID).field (key.c_str (), value).endObject ();
+        client_.send (w.text ());
+    };
+
+    const ARA::PlugIn::RegionSequence* track = nullptr;
+    for (const auto* t : getDocument ()->getRegionSequences ())
+    {
+        if (hexOf (t) == trackID)
+            track = t;
+    }
+    if (!track)
+        return reply ("error", "gone");
+
+    // What the track plays, copied out of the model: the thread writing it reads no more of it.
+    struct Piece {
+        const LinkAudioSource* source;
+        double start, end, offset, sourceStart, sourceEnd;
+    };
+    std::vector<Piece> pieces;
+    std::vector<const LinkAudioSource*> sources;
+    double rate = 0;
+    int channels = 0;
+    for (const auto* region : track->getPlaybackRegions ())
+    {
+        const auto* source = region->getAudioModification ()->getAudioSource<const LinkAudioSource> ();
+        if (!source->problem ().empty ())
+            return reply ("error", source->problem ());
+        if (source->frames () <= 0 || !source->isSampleAccessEnabled ())
+            return reply ("error", "unreadable");
+        pieces.push_back ({ source, region->getStartInPlaybackTime (), region->getEndInPlaybackTime (),
+                            region->getStartInAudioModificationTime () - region->getStartInPlaybackTime (),
+                            std::max (0.0, region->getStartInAudioModificationTime ()), region->getEndInAudioModificationTime () });
+        if (std::find (sources.begin (), sources.end (), source) == sources.end ())
+            sources.push_back (source);
+        rate = std::max (rate, source->getSampleRate ());
+        channels = std::max (channels, source->channels ());
+    }
+    if (pieces.empty ())
+        return reply ("error", "empty");
+    const int64_t frames = static_cast<int64_t> (std::llround (job.length * rate));
+    if (frames <= 0)
+        return reply ("error", "empty");
+    if (frames * channels > maxSamples)
+        return reply ("error", "too long");
+
+    // A folder for each track of each document open, the file named as the DAW names the track.
+    const std::string folder = curatorCacheFolder () + "/DAW Link/Stems/" + hashOf (id_ + "/" + trackID);
+    makeFolders (folder);
+    const char* trackName = track->getName ();
+    const std::string path = folder + "/" + safeName (trackName && *trackName ? trackName : "Track") + ".wav";
+    const double from = job.from;
+
+    std::lock_guard<std::mutex> lock (exportMutex_);
+    cancelExport_.store (false);
+    using_ = sources;
+    busy_.store (true);
+    exporter_ = std::thread ([this, pieces, sources, path, reply, trackID, rate, channels, frames, from] {
+        for (const auto* source : sources)
+        {
+            while (source->framesRead () < source->frames () && !cancelExport_.load ())
+                std::this_thread::sleep_for (std::chrono::milliseconds (50));
         }
-        exporting_.store (nullptr);
+        // As the song plays the track, from [from] on: each region at its source's own speed,
+        // resampled linearly, a source of another layout averaged into every channel.
+        const bool ok = writeFloatWav (
+            path, channels, rate, frames, cancelExport_,
+            [&pieces, rate, channels, from] (float* block, int64_t at, int64_t n) {
+                std::fill (block, block + n * channels, 0.0f);
+                for (const auto& p : pieces)
+                {
+                    const double sourceRate = p.source->getSampleRate ();
+                    const int64_t available = p.source->frames ();
+                    const int sourceChannels = p.source->channels ();
+                    for (int64_t i = 0; i < n; ++i)
+                    {
+                        const double song = from + static_cast<double> (at + i) / rate;
+                        if (song < p.start || song >= p.end)
+                            continue;
+                        const double time = song + p.offset;
+                        if (time < p.sourceStart || time >= p.sourceEnd)
+                            continue;
+                        const double position = time * sourceRate;
+                        const int64_t index = static_cast<int64_t> (position);
+                        if (index < 0 || index >= available)
+                            continue;
+                        const float fraction = static_cast<float> (position - static_cast<double> (index));
+                        const int64_t next = std::min (index + 1, available - 1);
+                        auto sample = [&] (int c) {
+                            const float* data = p.source->channel (c);
+                            return data[index] + (data[next] - data[index]) * fraction;
+                        };
+                        float* frame = block + i * channels;
+                        if (sourceChannels == channels)
+                        {
+                            for (int c = 0; c < channels; ++c)
+                                frame[c] += sample (c);
+                        }
+                        else
+                        {
+                            float mono = 0;
+                            for (int c = 0; c < sourceChannels; ++c)
+                                mono += sample (c);
+                            mono /= static_cast<float> (sourceChannels);
+                            for (int c = 0; c < channels; ++c)
+                                frame[c] += mono;
+                        }
+                    }
+                }
+            },
+            [this, trackID] (double done) {
+                JsonWriter progress;
+                progress.object ().field ("t", "progress").field ("document", id_).field ("track", trackID).field ("done", done).endObject ();
+                client_.send (progress.text ());
+            });
+        if (ok)
+            reply ("path", path);
+        else
+            reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
+        busy_.store (false);
     });
 }
 
@@ -626,10 +804,12 @@ void LinkDocumentController::stopExport (const LinkAudioSource* source)
     std::lock_guard<std::mutex> lock (exportMutex_);
     if (!exporter_.joinable ())
         return;
-    if (source && exporting_.load () != source && exporting_.load () != nullptr)
+    // Only a file made of [source] stops for it (one finished is let go either way).
+    if (source && busy_.load () && std::find (using_.begin (), using_.end (), source) == using_.end ())
         return;
     cancelExport_.store (true);
     exporter_.join ();
+    using_.clear ();
 }
 
 // MARK: Factory

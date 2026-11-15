@@ -546,7 +546,7 @@ msgstr "{bars}までの休符をつなぐ"
 msgid "c if a < b, else d"
 msgstr "a < b なら c、そうでなければ d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -881,7 +881,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -1506,7 +1506,7 @@ msgstr "なし"
 msgid "none"
 msgstr "なし"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr "なし。"
 
@@ -1767,7 +1767,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "削除"
 
@@ -5425,3 +5425,48 @@ msgstr "再インストール"
 #: lib/settings_dialog.dart
 msgid "Update"
 msgstr "アップデート"
+
+#: lib/audio_panel.dart
+msgid "Capture Stems…"
+msgstr "ステムを取り込む…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr "そこでは何も鳴っていません。"
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr "トラック"
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr "{name}：{error}"
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr "ステムを取り込む"
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr "録音のあるトラックがありません。"
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr "取り込む"
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr "パートなし"
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr "ステム"
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr "取り込んだステム：{count}"
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
+msgstr "ステムを取り込み中"

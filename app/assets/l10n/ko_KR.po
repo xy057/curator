@@ -544,7 +544,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -879,7 +879,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1504,7 +1504,7 @@ msgstr ""
 msgid "none"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr ""
 
@@ -1765,7 +1765,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -5410,4 +5410,49 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "Update"
+msgstr ""
+
+#: lib/audio_panel.dart
+msgid "Capture Stems…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr ""
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
 msgstr ""

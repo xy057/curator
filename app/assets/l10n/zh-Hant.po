@@ -546,7 +546,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -881,7 +881,7 @@ msgstr "取消選取（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先儲存對「{name}」的更動嗎？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1506,7 +1506,7 @@ msgstr "無"
 msgid "none"
 msgstr "無"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr "無。"
 
@@ -1767,7 +1767,7 @@ msgstr "排練記號"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節號行中的排練記號"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -5425,3 +5425,48 @@ msgstr "重新安裝"
 #: lib/settings_dialog.dart
 msgid "Update"
 msgstr "更新"
+
+#: lib/audio_panel.dart
+msgid "Capture Stems…"
+msgstr "擷取分軌…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr "那裡沒有聲音。"
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr "音軌"
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr "{name}：{error}"
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr "擷取分軌"
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr "沒有帶錄音的音軌。"
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr "擷取"
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr "無聲部"
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr "分軌"
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr "已擷取分軌：{count}"
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
+msgstr "正在擷取分軌"

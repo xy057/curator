@@ -8,6 +8,8 @@ import 'package:archive/archive.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/file_names.dart';
+import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +34,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Curator Link', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Curator Link, its tracks kept as stems', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -199,10 +201,14 @@ void main() {
       final daw = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
       final heard = StreamIterator(daw.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
       void say(Map<String, Object?> message) => daw.write('${jsonEncode(message)}\n');
+      final part = c.score!.metadata.parts.first, partName = c.partNameOf(part.id);
       Map<String, Object?> song(List<List<num>> tempo) => {
             't': 'document', 'id': 'doc', 'name': 'Symphony',
             'contexts': [{'id': 'c', 'tempo': tempo, 'bars': [[6, 8, 0]]}],
-            'tracks': [{'id': 't', 'name': 'Strings', 'context': 'c'}],
+            'tracks': [
+              {'id': 't', 'name': 'Strings', 'context': 'c', 'color': '#ff8000'},
+              {'id': 'p', 'name': partName.toUpperCase(), 'context': 'c'},
+            ],
             'sources': [{'id': 'take-1', 'name': 'Take 1', 'rate': 48000, 'frames': 48000 * 60, 'channels': 2}],
             'regions': [{'id': 'r', 'track': 't', 'source': 'take-1', 'start': 1, 'length': 59, 'from': 0.5, 'span': 59}],
           };
@@ -236,6 +242,68 @@ void main() {
       expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
       say({'t': 'exported', 'document': 'doc', 'source': 'take-1', 'path': '/tmp/Take 1.wav'});
       expect(await asked, '/tmp/Take 1.wav');
+
+      // Its tracks kept as stems: each asked for from where the recording starts in the song for
+      // as long as it lasts; the file the plug-in writes kept as FLAC, named by the track, in its
+      // colour, its part found by name (a track named after one); saved in the project, each in
+      // a folder of its own, and opened again.
+      Future<void> stem(String track, String name) async {
+        expect(await heard.moveNext(), isTrue);
+        final message = jsonDecode(heard.current) as Map<String, Object?>;
+        expect((message['t'], message['track'], message['from']), ('stem', track, 0.5), reason: 'the recording’s start: song 0.5 s');
+        expect(message['length'] as num, greaterThan(0));
+        // A second of 16-bit mono, as any WAV the plug-in might write.
+        final wav = File('${folder.path}/$name.wav');
+        final data = ByteData(44 + 48000 * 2)
+          ..setUint32(0, 0x52494646)
+          ..setUint32(4, 36 + 48000 * 2, Endian.little)
+          ..setUint32(8, 0x57415645)
+          ..setUint32(12, 0x666d7420)
+          ..setUint32(16, 16, Endian.little)
+          ..setUint16(20, 1, Endian.little)
+          ..setUint16(22, 1, Endian.little)
+          ..setUint32(24, 48000, Endian.little)
+          ..setUint32(28, 96000, Endian.little)
+          ..setUint16(32, 2, Endian.little)
+          ..setUint16(34, 16, Endian.little)
+          ..setUint32(36, 0x64617461)
+          ..setUint32(40, 48000 * 2, Endian.little);
+        wav.writeAsBytesSync(data.buffer.asUint8List());
+        say({'t': 'progress', 'document': 'doc', 'track': track, 'done': 0.5});
+        say({'t': 'stemmed', 'document': 'doc', 'track': track, 'path': wav.path});
+      }
+
+      final progress = <double>[];
+      final capturing = c.stems.capture(link, document.tracks, progress: progress.add);
+      await stem('t', 'Strings');
+      await stem('p', 'Part');
+      expect(await capturing, isEmpty);
+      expect(progress.last, 1);
+      final [strings, played] = c.stems.list;
+      expect((strings.id, strings.name, strings.color, strings.take, strings.part), ('stem-1', 'Strings', 0xffff8000, c.focus, null));
+      expect((played.name, played.part), (partName.toUpperCase(), part.id));
+      expect(c.stems.fileOf('stem-1'), endsWith('.flac'));
+      expect(File('${folder.path}/Strings.wav').existsSync(), isFalse, reason: 'the plug-in’s file is let go');
+      c.undo();
+      expect(c.stems.list, hasLength(2), reason: 'not an Undo step');
+      c.redo();
+      c.stems.setPart('stem-1', part.id);
+      final saved = '${folder.path}/stems.ccs';
+      await ProjectFile.write(saved, ProjectContents(
+        scoreName: c.source!.name,
+        scoreBytes: c.source!.bytes,
+        state: c.projectState,
+        stems: {for (final s in c.stems.list) s.id: ProjectMedia(name: fileNameOf(c.stems.fileOf(s.id)!), embedFrom: c.stems.fileOf(s.id)!)},
+      ));
+      final media = await Directory.systemTemp.createTemp('stems-media');
+      final opened = await ProjectFile.read(saved, mediaDirectory: media.path);
+      expect(opened.state.edits.stems, c.stems.list);
+      expect(opened.stems.keys, ['stem-1', 'stem-2']);
+      expect(opened.stems['stem-1'], '${media.path}/stems/stem-1/Strings.flac');
+      expect(File(opened.stems['stem-1']!).lengthSync(), File(c.stems.fileOf('stem-1')!).lengthSync());
+      await media.delete(recursive: true);
+      c.stems.remove('stem-2');
+      expect(c.stems.list.map((s) => s.id), ['stem-1']);
 
       c.useMidiTempo(null);
       expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');

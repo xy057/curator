@@ -38,6 +38,7 @@ import 'error_text.dart';
 import 'settings_file.dart';
 import 'sections_editor.dart';
 import 'shortcut_settings.dart';
+import 'stems_dialog.dart';
 import 'plugins/bundled.dart';
 import 'plugins/plugin_actions.dart';
 import 'plugins/plugins.dart';
@@ -142,8 +143,15 @@ enum _Window {
 
 /// One setting: a title and help on the left, its control on the right.
 class _Item {
-  const _Item(this.title, this.help, this.control, {this.note, this.keywords = '', this.shown, this.group, this.below});
+  const _Item(this.title, this.help, this.control,
+      {this.note, this.keywords = '', this.shown, this.group, this.below, this.context});
   final String title;
+
+  /// The context [title] is translated in, when the word alone means something else too
+  /// ("Stems": 'audio', not a note's); null: none.
+  final String? context;
+
+  String get translatedTitle => context == null ? title.tr : title.trIn(context!);
 
   /// A strip under the row, across it (Language's invitation to translate).
   final Widget Function(_Context)? below;
@@ -583,6 +591,21 @@ final _projectCategories = <_Category>[
         ]);
       }),
       keywords: 'add remove delete recording audio file video sound',
+    ),
+    _Item(
+      'Stems',
+      context: 'audio',
+      (c) => switch (c.controller!.stems.list) {
+        [] => 'None.'.tr,
+        final stems => stems.map((s) => s.name).join(', '),
+      },
+      (c) => Builder(
+        builder: (context) => OutlinedButton(
+          onPressed: c.controller!.stems.list.isEmpty ? null : () => showStemsDialog(context, c.controller!),
+          child: Text('Edit…'.tr),
+        ),
+      ),
+      keywords: 'stems stem tracks track daw solo spotlight instrument separate isolate parts curator link capture',
     ),
   ]),
   // How the score shows as it plays; how each of those moves is Animation's.
@@ -1155,7 +1178,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   /// What the search looks in: [item]'s words in English and as shown.
   String _searched(_Category cat, _Item item) {
     final help = item.help?.call(_ctx) ?? '';
-    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.title.tr} ${item.group?.trIn('heading') ?? ''} ${item.keywords} $help ${help.tr}';
+    return '${cat.label} ${cat.label.trIn('page')} ${item.title} ${item.translatedTitle} ${item.group?.trIn('heading') ?? ''} ${item.keywords} $help ${help.tr}';
   }
 
   /// The project closed under it (the menu bar works while it is open): it closes too
@@ -1363,7 +1386,8 @@ Iterable<_Item> _shown(_Category cat, _Context ctx) => cat.items.where((item) =>
 Widget _rowOf(_Item item, _Context ctx, {bool withGroup = false, bool dense = false}) => _SettingRow(
     key: ObjectKey(item),
     dense: dense,
-    title: withGroup && item.group != null ? '${item.title.tr} · ${item.group!.trIn('heading')}' : item.title,
+    title: withGroup && item.group != null ? '${item.translatedTitle} · ${item.group!.trIn('heading')}' : item.title,
+    titleContext: item.context,
     note: item.note,
     help: item.help?.call(ctx),
     below: item.below?.call(ctx),
@@ -1847,8 +1871,12 @@ class _SettingRow extends StatelessWidget {
       required this.control,
       this.below,
       this.leading,
-      this.dense = false});
+      this.dense = false,
+      this.titleContext});
   final String title;
+
+  /// The context [title] is translated in ([_Item.context]); null: none.
+  final String? titleContext;
 
   /// Slimmer, as a page of many short rows has them ([_Category.dense]).
   final bool dense;
@@ -1876,7 +1904,7 @@ class _SettingRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text.rich(TextSpan(children: [
-                TextSpan(text: named ? title : title.tr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
+                TextSpan(text: named ? title : titleContext == null ? title.tr : title.trIn(titleContext!), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.text)),
                 if (note != null) TextSpan(text: '  $note', style: TextStyle(fontSize: 11.5, color: colors.textMuted)),
               ])),
               if (help != null) ...[
