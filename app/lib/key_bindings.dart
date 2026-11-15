@@ -153,6 +153,7 @@ enum KeyCommand {
   showTimeline('Hide / Show Timeline', 'View', KeyPlace.menus, [], editable: true),
   maximizePreview('Maximize Preview', 'View', KeyPlace.menus, [], editable: true),
   maximizeTimeline('Maximize Timeline', 'View', KeyPlace.menus, [], editable: true),
+  showPlayerMap('Hide / Show Player Map', 'View', KeyPlace.menus, [_K(_L.keyM, command: true, shift: true)], editable: true),
   showTabBar('Hide / Show Tab Bar', 'View', KeyPlace.menus, [_K(_L.keyT, command: true, shift: true)], editable: true),
   showAllTabs('Show All Tabs', 'View', KeyPlace.menus, [_K(_L.backslash, command: true, shift: true)], editable: true),
   // In Window on macOS, View elsewhere ([group]).

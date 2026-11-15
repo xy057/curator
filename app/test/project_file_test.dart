@@ -113,6 +113,13 @@ void main() {
           'lane.add({from = ${starts[8]}, to = ${starts[12]}, tonic = -1, minor = false, label = "(F major)"})'); // over it: cut in two
       final typography = ScoreTypography.standard.withValue('names.size', 1.2).withValue('lyrics.face', TextFace.bold);
       await c.setTypography(typography);
+      // A player map: seated smartly, one player of the violins I playing the violas.
+      final seated = c.playerMap.smart(SeatingPreset.american);
+      final violins = seated.sections.indexWhere((s) => s.link?.part == 'P17');
+      c.playerMap.set(seated.withSections([
+        for (final (k, s) in seated.sections.indexed)
+          k == violins ? s.copyWith(seats: [s.seats.first.linked(const PlayerLink('P19', name: 'Viola')), ...s.seats.skip(1)]) : s,
+      ]));
       final saved = c.projectState;
 
       final path = '${dir.path}/round.ccs';
@@ -173,6 +180,26 @@ void main() {
       expect(doc2.isDirty, isFalse);
       expect(doc2.title, 'round.ccs');
       expect(c2.canUndo, isFalse, reason: 'a freshly opened project has no history');
+
+      // The player map came back whole, piccolo by its new name; its notes are read on an
+      // isolate, and then the violins swell as their first note starts and calm down after.
+      final map = c2.playerMap.map!;
+      expect(map.encode(), c.playerMap.map!.encode(), reason: "as written: places to 4 decimals");
+      expect(map.sections.expand((s) => [s.link, ...s.seats.map((x) => x.link)]).any((l) => l?.name == 'Solo Piccolo'), isTrue);
+      expect(map.sections[violins].linkOf(0)!.part, 'P19');
+      final pulses = await () async {
+        for (var i = 0; i < 500 && identical(c2.playerMap.pulses, PlayerPulses.none); i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        return c2.playerMap.pulses;
+      }();
+      final link = map.sections[violins].link!, tl = c2.timeline;
+      final xml = c2.score!.musicXML;
+      final first = soundingNotes(xml, tl.measureStarts).where((n) => n.partId == link.part).first;
+      final on = tl.secondsAtQuarter(first.start);
+      expect(pulses.level(link, on - 0.01), lessThan(0.05));
+      expect(pulses.level(link, on + PlayerPulses.attack), closeTo(1, 1e-9));
+      expect(pulses.level(link, on + 0.1), greaterThan(pulses.level(link, on + 0.2)));
     }
 
     // A failed save leaves the previous file untouched.

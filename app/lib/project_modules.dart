@@ -63,6 +63,7 @@ abstract final class ProjectModules {
   static const chapters = _Chapters();
   static const tonality = _Tonality();
   static const spacers = _Spacers();
+  static const playerMap = _PlayerMap();
   static const packages = _Packages();
   static const extensionData = _ExtensionData();
   static const view = _View();
@@ -72,7 +73,7 @@ abstract final class ProjectModules {
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
     pdf, lilypond, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, images, captions, chapters, //
-    tonality, spacers, packages, extensionData, view,
+    tonality, spacers, packages, extensionData, playerMap, view,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -816,6 +817,26 @@ final class _Spacers extends ProjectModule {
     if (length < HorizontalSpacer.minLength - 1e-9) throw _damaged('${r.where}.length is too short.');
     if (width < HorizontalSpacer.minWidth || width > HorizontalSpacer.maxWidth) throw _damaged('${r.where}.width is out of range.');
     return HorizontalSpacer(bar: bar.toInt(), offset: offset, length: length, width: width);
+  }
+}
+
+/// Where the players sit and what each plays (View ▸ Show Player Map, [PlayerMap.toJson]); empty
+/// while the project has none. Optional: a Curator that can't read it opens the project without
+/// it, and the score is shown and played the same.
+final class _PlayerMap extends ProjectModule {
+  const _PlayerMap() : super('playermap', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {'map': ?state.edits.playerMap?.toJson()};
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    if (r.isAbsent('map')) return state;
+    try {
+      return state.copyWith(edits: state.edits.copyWith(playerMap: PlayerMap.fromJson(r.map('map'), '${r.where}.map')));
+    } on FormatException catch (e) {
+      throw _damaged(e.message);
+    }
   }
 }
 

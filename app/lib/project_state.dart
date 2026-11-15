@@ -65,6 +65,7 @@ class EditState {
     this.centeredLyrics,
     this.spacers = const [],
     this.gaps = const [],
+    this.playerMap,
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -181,6 +182,9 @@ class EditState {
   /// Horizontal spacers (Attach Image): blanks between beats, in the score's order.
   final List<HorizontalSpacer> gaps;
 
+  /// Where the players sit, and what each plays (View ▸ Show Player Map); null: none made yet.
+  final PlayerMap? playerMap;
+
   /// The font captions are drawn in (a text font family); null: the app's (Settings).
   final String? captionFont;
 
@@ -258,7 +262,8 @@ class EditState {
       rehearsalInRow == other.rehearsalInRow &&
       centeredLyrics == other.centeredLyrics &&
       listEquals(spacers, other.spacers) &&
-      listEquals(gaps, other.gaps);
+      listEquals(gaps, other.gaps) &&
+      playerMap == other.playerMap;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
@@ -305,6 +310,7 @@ class EditState {
     Object? centeredLyrics = _kept,
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
+    Object? playerMap = _kept,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -344,6 +350,7 @@ class EditState {
         centeredLyrics: identical(centeredLyrics, _kept) ? this.centeredLyrics : centeredLyrics as bool?,
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
+        playerMap: identical(playerMap, _kept) ? this.playerMap : playerMap as PlayerMap?,
       );
 
   /// The take [id]; null when there is none.

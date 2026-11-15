@@ -8,8 +8,9 @@ import 'package:xml/xml.dart';
 typedef SoundingNote = ({String partId, int staff, String voice, double start, double end, int midi, bool chord, bool tied});
 
 /// Every pitched note of [musicXML] (no grace or cue notes, rests or unpitched percussion), part by
-/// part, in the order written; [measureStarts] puts its bars in score quarters.
-Iterable<SoundingNote> soundingNotes(String musicXML, List<double> measureStarts) sync* {
+/// part, in the order written; [measureStarts] puts its bars in score quarters. With [unpitched],
+/// unpitched percussion too, at the pitch of the line or space it is written on.
+Iterable<SoundingNote> soundingNotes(String musicXML, List<double> measureStarts, {bool unpitched = false}) sync* {
   final root = XmlDocument.parse(musicXML).rootElement;
   int? number(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
   for (final part in root.findElements('part')) {
@@ -39,11 +40,13 @@ Iterable<SoundingNote> soundingNotes(String musicXML, List<double> measureStarts
               cursor += duration;
             }
             final pitch = e.getElement('pitch');
-            if (pitch == null) continue; // a rest, or unpitched percussion
-            final step = 'CDEFGAB'.indexOf(pitch.getElement('step')?.innerText.trim() ?? '');
-            final octave = number(pitch.getElement('octave'));
+            final drum = pitch == null && unpitched ? e.getElement('unpitched') : null;
+            if (pitch == null && drum == null) continue; // a rest, or unpitched percussion
+            // An unpitched note may leave out where it is written: the middle line, then.
+            final step = 'CDEFGAB'.indexOf((pitch?.getElement('step') ?? drum?.getElement('display-step'))?.innerText.trim() ?? (drum != null ? 'B' : ''));
+            final octave = number(pitch?.getElement('octave') ?? drum?.getElement('display-octave')) ?? (drum != null ? 4 : null);
             if (step < 0 || octave == null) continue;
-            final alter = (double.tryParse(pitch.getElement('alter')?.innerText.trim() ?? '') ?? 0).round();
+            final alter = (double.tryParse(pitch?.getElement('alter')?.innerText.trim() ?? '') ?? 0).round();
             final from = measureStarts[m] + start / divisions;
             yield (
               partId: id,
@@ -51,7 +54,7 @@ Iterable<SoundingNote> soundingNotes(String musicXML, List<double> measureStarts
               voice: e.getElement('voice')?.innerText.trim() ?? '1',
               start: from,
               end: from + duration / divisions,
-              midi: 12 * (octave + 1) + const [0, 2, 4, 5, 7, 9, 11][step] + alter + transpose,
+              midi: 12 * (octave + 1) + const [0, 2, 4, 5, 7, 9, 11][step] + alter + (drum == null ? transpose : 0),
               chord: chord,
               tied: e.findElements('tie').any((t) => t.getAttribute('type') == 'stop'),
             );

@@ -36,6 +36,7 @@ export 'src/pdf_pages.dart';
 export 'src/pdf_score.dart';
 export 'src/pdf_text.dart';
 export 'src/phrase_search.dart';
+export 'src/player_map.dart';
 export 'src/plugin/api.dart';
 export 'src/plugin/package.dart';
 export 'src/plugin/runtime.dart';

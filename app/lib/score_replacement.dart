@@ -250,6 +250,12 @@ class ScoreSwap {
           nameGroupOf: {for (final MapEntry(key: id, value: group) in edits.nameGroupOf.entries) ?_to(id): group},
           // A blank keeps its bar and beat while they are there, and never runs into the next.
           gaps: Spacers.fitted(edits.gaps, measuresAfter),
+          // Each player plays the same instrument in the new file, or nothing.
+          playerMap: edits.playerMap?.withLinks((link) {
+            final part = link == null ? null : after.parts.where((p) => p.id == _to(link.part)).firstOrNull;
+            if (link == null || part == null) return null;
+            return PlayerLink(part.id, staff: link.staff != null && link.staff! <= part.staffNumbers.length ? link.staff : null, name: link.name);
+          }),
         ),
       ),
       lost: (

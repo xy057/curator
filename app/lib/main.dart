@@ -39,6 +39,7 @@ import 'lilypond_editor.dart';
 import 'media_converter.dart';
 import 'phrase_search_window.dart';
 import 'pdf_ai_model_dialog.dart';
+import 'player_map_view.dart';
 import 'plugins/bundled.dart';
 import 'plugins/plugin_actions.dart';
 import 'plugins/plugins.dart';
@@ -719,6 +720,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,
           'maximizePreview': open ? () => page._maximize(timeline: false) : null,
           'maximizeTimeline': open ? () => page._maximize(timeline: true) : null,
+          'showPlayerMap': open ? () => settings.playerMap = !settings.playerMap : null,
           'showTabBar': () => settings.tabBar = !_tabBar,
           'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
           'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
@@ -759,6 +761,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           onShowTimeline: open ? page._showTimeline : null,
           onMaximizePreview: does['maximizePreview'],
           onMaximizeTimeline: does['maximizeTimeline'],
+          playerMapShown: settings.playerMap,
+          onShowPlayerMap: open ? (on) => settings.playerMap = on : null,
           onNextTab: does['nextTab'],
           onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
@@ -969,10 +973,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({bool videoFrame, VideoRatio videoRatio, bool tabBar}) get _shownSettings => (
+  ({bool videoFrame, VideoRatio videoRatio, bool tabBar, bool playerMap}) get _shownSettings => (
         videoFrame: settings.previewVideoFrame,
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
+        playerMap: settings.playerMap,
       );
 
   late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit]);
@@ -1760,7 +1765,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         'deselect': _commands.escape,
       };
 
-  static const _minTimeline = 150.0, _minScore = 180.0;
+  static const _minTimeline = 150.0, _minScore = 180.0, _minMap = 200.0;
+
+  /// The player map's width while its divider is dragged (then kept in the settings).
+  double? _mapWidth;
+  final _playerMap = GlobalKey();
 
   Widget _editor(BuildContext context) {
     // Built here, not in the layout builder: resizing the window lays them out again, the
@@ -1782,11 +1791,31 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       onShowTabBar: settings.tabBar ? null : () => settings.tabBar = true,
       readout: _readout,
     );
-    final score = Expanded(child: ScoreView(
+    final view = ScoreView(
       key: _scoreView,
       controller: controller,
       aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
-    ));
+    );
+    // View ▸ Show Player Map: the map at the preview's right, its divider dragged to share the width.
+    final score = Expanded(
+      child: !settings.playerMap
+          ? view
+          : LayoutBuilder(builder: (context, constraints) {
+              final maxMap = math.max(_minMap, constraints.maxWidth - _minScore);
+              final width = (_mapWidth ?? settings.playerMapWidth).clamp(_minMap, maxMap);
+              return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Expanded(child: view),
+                _ResizeHandle(
+                  vertical: true,
+                  onDrag: (dx) => setState(() => _mapWidth = (width - dx).clamp(_minMap, maxMap)),
+                  onEnd: () {
+                    if (_mapWidth case final w?) settings.playerMapWidth = w;
+                  },
+                ),
+                SizedBox(width: width, child: KeyedSubtree(key: _playerMap, child: PlayerMapPanel(controller: controller))),
+              ]);
+            }),
+    );
     // Working in the timeline leaves the image selected in the score.
     // Keyed so it keeps its state when the preview is hidden or shown around it.
     final timeline = KeyedSubtree(
@@ -1817,10 +1846,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   }
 }
 
-/// The divider between the score and the timeline: drag it to share the height.
+/// The divider between the score and the timeline (or the player map): drag it to share the height (the width).
 class _ResizeHandle extends StatefulWidget {
-  const _ResizeHandle({required this.onDrag});
+  const _ResizeHandle({required this.onDrag, this.vertical = false, this.onEnd});
   final ValueChanged<double> onDrag;
+
+  /// A divider standing up, between things side by side (dragged sideways).
+  final bool vertical;
+  final VoidCallback? onEnd;
 
   @override
   State<_ResizeHandle> createState() => _ResizeHandleState();
@@ -1833,29 +1866,40 @@ class _ResizeHandleState extends State<_ResizeHandle> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final active = _hover || _dragging;
+    final vertical = widget.vertical;
+    void end() {
+      setState(() => _dragging = false);
+      widget.onEnd?.call();
+    }
+
     return MouseRegion(
-      cursor: SystemMouseCursors.resizeUpDown,
+      cursor: vertical ? SystemMouseCursors.resizeLeftRight : SystemMouseCursors.resizeUpDown,
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         supportedDevices: kDragDevices,
-        onVerticalDragStart: (_) => setState(() => _dragging = true),
-        onVerticalDragEnd: (_) => setState(() => _dragging = false),
-        onVerticalDragCancel: () => setState(() => _dragging = false),
-        onVerticalDragUpdate: (d) => widget.onDrag(d.delta.dy),
+        onVerticalDragStart: vertical ? null : (_) => setState(() => _dragging = true),
+        onVerticalDragEnd: vertical ? null : (_) => end(),
+        onVerticalDragCancel: vertical ? null : end,
+        onVerticalDragUpdate: vertical ? null : (d) => widget.onDrag(d.delta.dy),
+        onHorizontalDragStart: vertical ? (_) => setState(() => _dragging = true) : null,
+        onHorizontalDragEnd: vertical ? (_) => end() : null,
+        onHorizontalDragCancel: vertical ? end : null,
+        onHorizontalDragUpdate: vertical ? (d) => widget.onDrag(d.delta.dx) : null,
         child: AnimatedContainer(
           duration: stateDuration(motion(context, 150)),
-          height: 7,
+          height: vertical ? null : 7,
+          width: vertical ? 7 : null,
           decoration: BoxDecoration(
             color: active ? colors.accentWash : colors.chrome,
-            border: Border(top: BorderSide(color: colors.line)),
+            border: vertical ? Border(left: BorderSide(color: colors.line)) : Border(top: BorderSide(color: colors.line)),
           ),
           alignment: Alignment.center,
           child: AnimatedContainer(
             duration: stateDuration(motion(context, 150)),
-            width: active ? 44 : 32,
-            height: 3,
+            width: vertical ? 3 : (active ? 44 : 32),
+            height: vertical ? (active ? 44 : 32) : 3,
             decoration: BoxDecoration(
               color: active ? colors.accent : colors.activity,
               borderRadius: AppStyle.of(context).radius(2),
