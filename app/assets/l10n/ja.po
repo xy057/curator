@@ -1574,9 +1574,6 @@ msgstr ""
 msgid "Opacity"
 msgstr "不透明度"
 
-msgid "Open a score first, then its MIDI tempo map."
-msgstr "先に楽譜を開いてから、その MIDI テンポマップを追加してください。"
-
 msgid "Open a score first, then its recording."
 msgstr "先に楽譜を開いてから、その録音を追加してください。"
 
@@ -2372,6 +2369,18 @@ msgstr "この MIDI ファイルは SMPTE フレームで時間を数えるた�
 
 msgid "This MIDI file has no tracks."
 msgstr "この MIDI ファイルにはトラックがありません。"
+
+msgid "This MIDI file has no notes."
+msgstr "この MIDI ファイルには音符がありません。"
+
+msgid "This MIDI file has too many notes."
+msgstr "この MIDI ファイルは音符が多すぎます。"
+
+msgid "This MIDI file has too many tracks."
+msgstr "この MIDI ファイルはトラックが多すぎます。"
+
+msgid "This MIDI file is too long."
+msgstr "この MIDI ファイルは長すぎます。"
 
 msgid "This MIDI file is cut short."
 msgstr "この MIDI ファイルは途中で切れています。"
@@ -5262,3 +5271,51 @@ msgstr "楽譜（{key}）"
 #: lib/editor_toolbar.dart
 msgid "Player map ({key})"
 msgstr "奏者配置図（{key}）"
+
+#: lib/app_menus.dart
+msgid "Show MIDI View"
+msgstr "MIDI ビューを表示"
+
+#: lib/app_menus.dart
+msgid "MIDI"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Shade Notes by Velocity"
+msgstr "ベロシティで音符の濃淡をつける"
+
+#: lib/app_menus.dart
+msgid "Shared Pitch Range"
+msgstr "全段で音域を共有"
+
+#: lib/app_menus.dart
+msgid "Taller Rows"
+msgstr "段を高くする"
+
+#: lib/app_menus.dart
+msgid "Shorter Rows"
+msgstr "段を低くする"
+
+#: lib/app_menus.dart
+msgid "Wider Beats"
+msgstr "拍の幅を広げる"
+
+#: lib/app_menus.dart
+msgid "Narrower Beats"
+msgstr "拍の幅を狭める"
+
+#: lib/app_menus.dart
+msgid "Use File’s Tempo"
+msgstr "ファイルのテンポを使う"
+
+#: lib/editor_toolbar.dart
+msgid "MIDI view ({key})"
+msgstr "MIDI ビュー（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "MIDI View"
+msgstr "MIDI ビュー"
+
+#: lib/main.dart
+msgid "Couldn’t Import MIDI File"
+msgstr "MIDI ファイルを読み込めませんでした"

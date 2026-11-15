@@ -136,6 +136,11 @@ abstract final class Cmd {
   /// word 0.
   static const fitWidth = 20;
   static const letterSpacing = 21; // text: added between its characters
+
+  /// Path: how much lighter its ink is drawn, 0 (as it is) to 1 (gone). Only a MIDI score's
+  /// rows have one (a `MidiEngraving`'s commands are written in Dart): the bridge leaves a
+  /// path's [letterSpacing] word 0.
+  static const fade = 21;
 }
 
 /// A music font glyph's ink box and advance, in staff spaces: [x] and [y] its lower left

@@ -156,6 +156,14 @@ enum KeyCommand {
   showPlayerMap('Score / Player Map', 'View', KeyPlace.menus, [_K(_L.keyM, command: true, shift: true)], editable: true),
   showTabBar('Hide / Show Tab Bar', 'View', KeyPlace.menus, [_K(_L.keyT, command: true, shift: true)], editable: true),
   showAllTabs('Show All Tabs', 'View', KeyPlace.menus, [_K(_L.backslash, command: true, shift: true)], editable: true),
+  // A MIDI project's: the MIDI menu, in the menu bar while one shows.
+  midiVelocity('Shade Notes by Velocity', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiSharedRange('Shared Pitch Range', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiTallerRows('Taller Rows', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiShorterRows('Shorter Rows', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiWiderBeats('Wider Beats', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiNarrowerBeats('Narrower Beats', 'MIDI', KeyPlace.menus, [], editable: true),
+  midiFileTempo('Use File’s Tempo', 'MIDI', KeyPlace.menus, [], editable: true),
   // In Window on macOS, View elsewhere ([group]).
   previousTab('Show Previous Tab', 'Window', KeyPlace.menus, [_K(_L.tab, control: true, shift: true)], editable: true),
   nextTab('Show Next Tab', 'Window', KeyPlace.menus, [_K(_L.tab, control: true)], editable: true),

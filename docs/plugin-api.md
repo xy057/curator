@@ -489,6 +489,16 @@ View:
 - `showTabBar`: Hide / Show Tab Bar
 - `showAllTabs`: Show All Tabs
 
+MIDI:
+
+- `midiVelocity`: Shade Notes by Velocity
+- `midiSharedRange`: Shared Pitch Range
+- `midiTallerRows`: Taller Rows
+- `midiShorterRows`: Shorter Rows
+- `midiWiderBeats`: Wider Beats
+- `midiNarrowerBeats`: Narrower Beats
+- `midiFileTempo`: Use File’s Tempo
+
 Window:
 
 - `previousTab`: Show Previous Tab

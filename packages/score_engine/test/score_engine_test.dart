@@ -21,7 +21,7 @@ void main() {
     score = await LoadedScore.load(demoScore());
   });
 
-  test('the demo engraves: its parts, a scroll map under every onset that never runs backwards, a phrase found, a video frame', () async {
+  test('the demo engraves: its parts, a scroll map under every onset that never runs backwards, a phrase found, a video frame; the same as a MIDI file, in rows', () async {
     final parts = score.metadata.parts;
     expect(parts, hasLength(21));
     expect((parts.first.name, parts.first.family), ('Piccolo', InstrumentFamily.woodwinds));
@@ -237,6 +237,79 @@ void main() {
       expect(PlayerPulses.envelope(0.3, 0.1), lessThan(PlayerPulses.envelope(0.3, 2)), reason: 'a long note fades slower');
       expect(PlayerPulses.envelope(PlayerPulses.attack + PlayerPulses.fadeOf(0.5), 0.5), 0);
       expect(pulses.level(const PlayerLink('nobody'), on), 0);
+    }
+
+    // The demo as a MIDI file is the same music drawn in rows: a part for each track, by its
+    // name; the bars its time signature's; every note it plays, written so the score's readers
+    // read it; each a bar in its instrument's row, with no clef or key to keep at the left.
+    {
+      final bytes = demoMidi(), file = MidiFile.read(bytes);
+      expect((file.division, file.title, file.voices.length), (480, 'Intro', 21));
+      expect(file.meters, [(tick: 0, count: 6, unit: 8)]);
+      expect([for (final v in file.voices) if (v.isDrums) v.name], ['Snare Drum'], reason: 'on the drum channel');
+      expect(MidiTempoMap.read(bytes).tempos.single.quartersPerMinute, closeTo(93, 1e-3));
+
+      final midi = MidiScore.read(bytes);
+      List<(int, int, int, int)> played(String xml, {required bool pitches}) => [
+            for (final n in soundingNotes(xml, starts, unpitched: true))
+              (int.parse(n.partId.substring(1)), (n.start * 480).round(), (n.end * 480).round(), pitches ? n.midi : 0),
+          ]..sort((a, b) {
+              for (final d in [a.$1 - b.$1, a.$2 - b.$2, a.$4 - b.$4, a.$3 - b.$3]) {
+                if (d != 0) return d;
+              }
+              return 0;
+            });
+      final unpitched = {for (final (i, p) in parts.indexed) if (p.isUnpitchedPercussion) i + 1};
+      bool pitched((int, int, int, int) n) => !unpitched.contains(n.$1);
+      expect((midi.partCount, midi.noteCount), (21, played(score.musicXML, pitches: false).length));
+      expect(midi.barLengths, List.filled(44, 3.0));
+      expect(played(midi.musicXML, pitches: true).where(pitched), played(score.musicXML, pitches: true).where(pitched));
+      expect(played(midi.musicXML, pitches: false), played(score.musicXML, pitches: false), reason: 'the drums too, when they sound');
+
+      final rows = await LoadedScore.engrave('', const EngraveRequest(), midi: midi, measure: true);
+      expect((rows.isRoll, rows.isDrawn, rows.metadata.tempo), (true, true, 93));
+      expect([for (final p in rows.metadata.parts) p.name], [for (final p in parts) p.name]);
+      expect((rows.metadata.parts.first.family, rows.metadata.parts.last.family), (InstrumentFamily.woodwinds, InstrumentFamily.strings));
+      expect(rows.timeline.measureStarts, starts);
+      expect(rows.scrollMap.duration, closeTo(map.duration, 1e-6));
+      final drawn = rows.engraving;
+      expect((drawn.staves.length, drawn.measures.length), (21, 44));
+      expect(drawn.signatures, isEmpty);
+      expect(drawn.staves.every((s) => s.lines == 0), isTrue);
+      // Its bars end to end, each as wide as it is long: three quarters of four staff spaces.
+      expect(drawn.measures[1].left - drawn.measures[0].left, closeTo(3 * 4 * MidiScore.unit, 1e-3));
+      // A row's notes and its bars' lines, nothing else: one command a note, and a line a bar a row (and its end).
+      expect(drawn.commandCount, midi.noteCount + 21 * 45);
+
+      // A look lays the rows out again: beats a step wider, rows a step taller; kept as JSON.
+      const look = MidiLook(sharedRange: true, velocity: false);
+      final wider = await rows.withRequest(EngraveRequest(midi: look.beats(1).rows(1)));
+      expect(wider.engraving.measures[1].left - wider.engraving.measures[0].left, closeTo(3 * 5 * MidiScore.unit, 1e-3));
+      expect(wider.engraving.staves.first.height, closeTo(2.5 * 1.25 * MidiScore.unit, 1e-3));
+      expect((wider.isRoll, wider.request.midi), (true, look.beats(1).rows(1)));
+      expect(look.beats(1).beats(-1), look);
+      expect(MidiLook.fromJson(look.toJson()), look);
+      expect(MidiLook.fromJson({'rowHeight': 99, 'beatWidth': 'wide'}), const MidiLook(rowHeight: 8));
+
+      // The web page's: the rows read back from an engraving file, drawn in their instruments' colours.
+      final page = LoadedScore.engraved(rows.musicXML, rows.request, EngravingFile.read(EngravingFile.write(drawn)), roll: true);
+      expect((page.isRoll, page.engraving.commandCount), (true, drawn.commandCount));
+      final scene = CuratedScene(page)..nameColors = {parts.first.id: const ui.Color(0xFF4A6FA5)};
+      final curation = Curation(parts.map((p) => p.id))..setLane(parts.first.id, [Region(0, starts.last)]);
+      final frame = scene.renderFrame(400, 120, time: 2, curation: curation, devicePixelRatio: 1, paper: const ui.Color(0xFFFFFFFF), ink: const ui.Color(0xFF000000));
+      final pixels = (await frame.toByteData())!;
+      var blue = 0, black = 0;
+      for (var i = 0; i < pixels.lengthInBytes; i += 4) {
+        final r = pixels.getUint8(i), b = pixels.getUint8(i + 2);
+        if (b > r + 40) blue++;
+        if (r < 40 && b < 40) black++;
+      }
+      expect((blue > 50, black), (true, 0), reason: 'the piccolo’s notes in its colour, on white');
+      scene.dispose();
+
+      // A file that plays nothing is no score.
+      final silent = Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, 4, 0, 0xff, 0x2f, 0]);
+      expect(() => MidiScore.read(silent), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file has no notes.')));
     }
   });
 

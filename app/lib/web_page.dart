@@ -171,6 +171,7 @@ class WebPage {
         centeredLyrics: edits.centeredLyrics ?? false,
         spacers: edits.spacers,
         gaps: edits.gaps,
+        midi: edits.midiLook,
       );
 }
 

@@ -246,7 +246,7 @@ void main() {
     }
   });
 
-  test('older formats and modules: Curator 0.1 to 0.6.1 ask for an update, a project or settings file saved before modules opens, a module unknown here kept or refused, a kind, damage said where', () async {
+  test('older formats and modules: Curator 0.1 to 0.6.1 ask for an update, a project or settings file saved before modules opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
     // Curator 0.1 to 0.6.1 know a project in modules, and ask for an update.
     {
       final path = '${dir.path}/new.ccs';
@@ -372,6 +372,69 @@ void main() {
       }
       await ProjectFile.write(path, contents());
       expect(json(path, 'manifest.json')['kind'], 'score');
+    }
+
+    // A MIDI file is a project of its own kind: its notes in rows, in the MIDI view, playing by
+    // the file's tempo; how the rows look is an edit, saved in a module of its own.
+    {
+      final file = File('${dir.path}/duet.mid')..writeAsBytesSync(duetMidi);
+      final c = EditorController(vsync: const TestVSync());
+      final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
+      addTearDown(() {
+        doc.dispose();
+        c.dispose();
+      });
+      await doc.importMidi(file.path);
+      expect((c.isMidi, c.projectState.kind, c.score!.isRoll, c.fileName), (true, ProjectKind.midi, true, 'duet.mid'));
+      expect([for (final p in c.score!.metadata.parts) (p.name, p.family)],
+          [('Flute', InstrumentFamily.woodwinds), ('Cello', InstrumentFamily.strings)]);
+      expect(c.score!.timeline.measureStarts, [0, 3, 6]);
+      expect((c.colorNames, c.hasNotes, c.followsFileTempo), (true, true, true));
+      expect(c.condensable, isEmpty);
+      // The file's tempo left, and put back (MIDI ▸ Use File’s Tempo): nothing to do once it is.
+      c.useMidiTempo(null);
+      expect((c.followsFileTempo, c.useFileTempo(), c.followsFileTempo, c.useFileTempo()), (false, true, true, false));
+
+      // A look is one Undo step, the rows laid out again each way.
+      Future<void> laidOut() async {
+        for (var i = 0; c.isReengraving && i < 2000; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+      }
+
+      final look = const MidiLook(velocity: false).rows(1);
+      final rowHeight = c.score!.engraving.staves.first.height;
+      await c.setMidiLook(look);
+      expect((c.midiLook, c.score!.request.midi), (look, look));
+      expect(c.score!.engraving.staves.first.height, closeTo(rowHeight * MidiLook.step, 1e-3));
+      c.undo();
+      await laidOut();
+      expect((c.midiLook, c.score!.engraving.staves.first.height), (const MidiLook(), rowHeight));
+      c.redo();
+      await laidOut();
+      expect(c.score!.request.midi, look);
+
+      final path = '${dir.path}/duet.ccs';
+      await doc.save(path);
+      expect(json(path, 'manifest.json')['kind'], 'midi');
+      expect(json(path, 'modules/midi.json'), {'look': look.toJson()});
+      final again = EditorController(vsync: const TestVSync());
+      final opened = ProjectDocument(again, AppSettings.memory()..autosave = Duration.zero);
+      addTearDown(() {
+        opened.dispose();
+        again.dispose();
+      });
+      await opened.open(path);
+      expect((again.isMidi, again.midiLook, again.score!.isRoll, again.followsFileTempo), (true, look, true, true));
+      expect(again.score!.engraving.staves.first.height, c.score!.engraving.staves.first.height);
+
+      // In place of a score (Replace…), the project becomes a MIDI one; a score has no look to keep.
+      final (score, scoreDoc) = await demo();
+      final scorePath = '${dir.path}/score.ccs';
+      await scoreDoc.save(scorePath);
+      expect(json(scorePath, 'modules/midi.json'), isEmpty);
+      await scoreDoc.replaceScore(await scoreDoc.prepareReplacementWith('duet.mid', duetMidi, midi: true));
+      expect((score.isMidi, score.score!.isRoll, score.score!.metadata.parts.length), (true, true, 2));
     }
 
     // A damaged module says where.

@@ -1574,9 +1574,6 @@ msgstr "好"
 msgid "Opacity"
 msgstr "不透明度"
 
-msgid "Open a score first, then its MIDI tempo map."
-msgstr "請先打開樂譜，再加入它的 MIDI 速度圖。"
-
 msgid "Open a score first, then its recording."
 msgstr "請先打開樂譜，再加入它的錄音。"
 
@@ -2372,6 +2369,18 @@ msgstr "這個 MIDI 檔案以 SMPTE 影格計時，因此沒有速度圖。"
 
 msgid "This MIDI file has no tracks."
 msgstr "這個 MIDI 檔案沒有音軌。"
+
+msgid "This MIDI file has no notes."
+msgstr "這個 MIDI 檔案沒有音符。"
+
+msgid "This MIDI file has too many notes."
+msgstr "這個 MIDI 檔案的音符太多。"
+
+msgid "This MIDI file has too many tracks."
+msgstr "這個 MIDI 檔案的音軌太多。"
+
+msgid "This MIDI file is too long."
+msgstr "這個 MIDI 檔案太長。"
 
 msgid "This MIDI file is cut short."
 msgstr "這個 MIDI 檔案不完整。"
@@ -5262,3 +5271,51 @@ msgstr "樂譜（{key}）"
 #: lib/editor_toolbar.dart
 msgid "Player map ({key})"
 msgstr "樂手位置圖（{key}）"
+
+#: lib/app_menus.dart
+msgid "Show MIDI View"
+msgstr "顯示 MIDI 檢視"
+
+#: lib/app_menus.dart
+msgid "MIDI"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Shade Notes by Velocity"
+msgstr "依力度深淺顯示音符"
+
+#: lib/app_menus.dart
+msgid "Shared Pitch Range"
+msgstr "各列共用音域"
+
+#: lib/app_menus.dart
+msgid "Taller Rows"
+msgstr "增加列高"
+
+#: lib/app_menus.dart
+msgid "Shorter Rows"
+msgstr "減少列高"
+
+#: lib/app_menus.dart
+msgid "Wider Beats"
+msgstr "加寬拍距"
+
+#: lib/app_menus.dart
+msgid "Narrower Beats"
+msgstr "縮窄拍距"
+
+#: lib/app_menus.dart
+msgid "Use File’s Tempo"
+msgstr "使用檔案的速度"
+
+#: lib/editor_toolbar.dart
+msgid "MIDI view ({key})"
+msgstr "MIDI 檢視（{key}）"
+
+#: lib/editor_toolbar.dart
+msgid "MIDI View"
+msgstr "MIDI 檢視"
+
+#: lib/main.dart
+msgid "Couldn’t Import MIDI File"
+msgstr "無法匯入 MIDI 檔案"

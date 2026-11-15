@@ -126,8 +126,10 @@ class FrozenZone {
   /// The widest key column in the piece, in staff spaces.
   late final double maxKeyColumn;
 
-  /// Width of the zone in logical pixels with a key column [keyColumn] staff spaces wide.
-  double widthFor(double keyColumn) => (_meterLeft(keyColumn) + _meterWidth + _padRight) * style.staffSpace;
+  /// Width of the zone in logical pixels with a key column [keyColumn] staff spaces wide: none
+  /// where the piece has no clef, key or time signature at all (a MIDI score's rows).
+  double widthFor(double keyColumn) => _empty ? 0 : (_meterLeft(keyColumn) + _meterWidth + _padRight) * style.staffSpace;
+  late final bool _empty = _clefs.isEmpty && _keys.isEmpty && _meters.isEmpty;
 
   /// The widest the zone gets: with the widest key signature in the piece.
   double get maxWidth => widthFor(maxKeyColumn);

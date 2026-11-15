@@ -146,6 +146,7 @@ class ScoreRenderer {
     ui.Color? paper,
     ui.Color? ink,
     ui.Color? pointer,
+    Map<int, ui.Color> inks = const {},
     void Function(ui.Canvas canvas, double musicLeft)? overlay,
   }) {
     _frame++;
@@ -187,6 +188,9 @@ class ScoreRenderer {
     final linePaint = ui.Paint()..color = style.ink;
     final lineLayer = ui.Paint()..colorFilter = inkFilter;
     final lines = <ui.Rect>[];
+    // A staff with an ink of its own ([inks]: staff index → colour, a MIDI score's rows in
+    // their instruments' colours) is recoloured with it instead.
+    final ownPaints = <ui.Color, ui.Paint>{};
     for (final placement in placements) {
       if (placement.opacity <= 0.001) continue;
       final opacity = placement.opacity.clamp(0.0, 1.0);
@@ -209,12 +213,18 @@ class ScoreRenderer {
         canvas.saveLayer(
             ui.Rect.fromLTRB(0, top - 1, size.width, bottom + 1), ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, opacity));
       }
+      final tilePaint = switch (inks[placement.staffIndex]) {
+        null => paint,
+        final own => ownPaints[own] ??= ui.Paint()
+          ..filterQuality = ui.FilterQuality.low
+          ..colorFilter = ui.ColorFilter.mode(own, ui.BlendMode.srcIn),
+      };
       for (final (x, tile) in tiles) {
         canvas.drawImageRect(
           tile.image,
           ui.Rect.fromLTWH(0, 0, tile.image.width.toDouble(), tile.image.height.toDouble()),
           ui.Rect.fromLTWH(x, y + tile.top, tileWidth, tile.image.height / devicePixelRatio),
-          paint,
+          tilePaint,
         );
       }
       final first = lines.length;

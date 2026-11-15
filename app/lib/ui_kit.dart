@@ -1100,7 +1100,9 @@ class SidebarTile extends StatefulWidget {
   final IconData? icon;
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+
+  /// Null: greyed out, and not chosen by a click (a page with nothing for the project open).
+  final VoidCallback? onTap;
 
   /// At the row's end, after the label (a file's edited dot).
   final Widget? trailing;
@@ -1122,21 +1124,25 @@ class _SidebarTileState extends State<SidebarTile> {
     // semibold (the solid accent is left for the default button). Carbon: its side nav's item,
     // $layer-selected with a 3 px bar of the accent at its left, the text semibold.
     final tinted = k == null && selected;
+    // Greyed out: no hover, its label and icon faint.
+    final off = widget.onTap == null, hover = _hover && !off;
     final fill = k != null
-        ? (selected ? k.layerSelected : _hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
+        ? (selected ? k.layerSelected : hover ? k.layerHover : k.layerHover.withValues(alpha: 0))
         : tinted
             ? colors.accentSoft
-            : _hover
+            : hover
                 ? colors.line.withValues(alpha: 0.45)
                 : colors.line.withValues(alpha: 0);
-    final ink = k != null
-        ? (selected || _hover ? k.textPrimary : k.textSecondary)
-        : tinted
-            ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
-            // The rows not chosen a step quieter, so the chosen one stands out without more weight.
-            : _hover
-                ? colors.text
-                : Color.lerp(colors.text, colors.textMuted, 0.4)!;
+    final ink = off
+        ? k?.textDisabled ?? colors.textMuted.withValues(alpha: 0.45)
+        : k != null
+            ? (selected || hover ? k.textPrimary : k.textSecondary)
+            : tinted
+                ? colors.accentOn(fill, dark: Theme.of(context).brightness == Brightness.dark)
+                // The rows not chosen a step quieter, so the chosen one stands out without more weight.
+                : hover
+                    ? colors.text
+                    : Color.lerp(colors.text, colors.textMuted, 0.4)!;
     final label = Text(widget.label,
         overflow: TextOverflow.ellipsis,
         maxLines: 1,
@@ -1150,9 +1156,10 @@ class _SidebarTileState extends State<SidebarTile> {
       padding: EdgeInsets.only(bottom: k != null ? 0 : 1),
       child: Semantics(
         button: true,
+        enabled: !off,
         selected: selected,
         child: MouseRegion(
-          cursor: SystemMouseCursors.click,
+          cursor: off ? SystemMouseCursors.basic : SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hover = true),
           onExit: (_) => setState(() => _hover = false),
           child: GestureDetector(
@@ -1173,7 +1180,7 @@ class _SidebarTileState extends State<SidebarTile> {
               ),
               child: Row(children: [
                 if (widget.icon case final icon?) ...[
-                  Icon(icon, size: 16, color: k != null || tinted ? ink : colors.textMuted),
+                  Icon(icon, size: 16, color: k != null || tinted || off ? ink : colors.textMuted),
                   SizedBox(width: k != null ? 8 : 10),
                 ],
                 if (widget.trailing case final trailing?) ...[

@@ -133,13 +133,16 @@ abstract final class WebExport {
       }
       final project = editor.projectState;
       final shown = imagesShown(ProjectState(edits: edits, packages: editor.extensions.carried, images: project.images));
-      final state = ProjectState(pdf: project.pdf, edits: edits, packages: editor.extensions.carried, dataVersions: project.dataVersions, images: {
+      // A MIDI project stays one on the page: its engraving is rows of notes, drawn as such.
+      final kind = score.isRoll ? ProjectKind.midi : null;
+      final state = ProjectState(pdf: project.pdf, kind: kind, edits: edits, packages: editor.extensions.carried, dataVersions: project.dataVersions, images: {
         for (final MapEntry(key: id, value: image) in shown.entries)
           // Sized here: the page can't measure an SVG with no size of its own.
           id: image.kind == ImageKind.vector ? PatchImage(id, image.kind, await PatchImage.sized(image.bytes)) : image,
       });
       final zip = _StoredZip()..startEncode(OutputFileStream('$folder/${WebPage.projectFile}'));
       ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+        'kind': ?kind?.name,
         'score': {'name': 'score.musicxml', 'entry': WebPage.scoreEntry},
       });
       zip.add(ArchiveFile.string(WebPage.scoreEntry, score.musicXML));

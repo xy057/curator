@@ -448,14 +448,16 @@ class _ItemBuilder {
     final dash = floats[base + Cmd.dash], gap = floats[base + Cmd.gap];
     final stroked = flags & VBFlag.stroke != 0 ? (dash > 0 ? _dashed(path, dash, gap) : path) : null;
     final shapePath = stroked != null && flags & VBFlag.fill == 0 ? stroked : path;
+    final fade = floats[base + Cmd.fade];
+    final ink = fade > 0 ? style.ink.withValues(alpha: style.ink.a * (1 - fade.clamp(0.0, 1.0))) : style.ink;
     return ShapeItem(
       shapePath,
       path.getBounds().inflate(width),
-      fill: flags & VBFlag.fill != 0 ? (ui.Paint()..color = style.ink) : null,
+      fill: flags & VBFlag.fill != 0 ? (ui.Paint()..color = ink) : null,
       stroke: stroked == null
           ? null
           : (ui.Paint()
-            ..color = style.ink
+            ..color = ink
             ..style = ui.PaintingStyle.stroke
             ..strokeWidth = width
             ..strokeCap = flags & VBFlag.roundCap != 0

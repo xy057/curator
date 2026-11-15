@@ -283,6 +283,41 @@ void main() {
       expect(plugins.running, isEmpty);
       final file = labels('File');
       expect(file, containsAll(['Open…', 'Export Video…', 'Export to Web…']));
+      // The MIDI menu is in the bar only while a MIDI project shows: what is on ticked, what
+      // can't be done greyed out, and the score's place named the MIDI view.
+      expect(menus().menus.map((m) => m.label), isNot(contains('MIDI')));
+      final midi = AppMenus(
+        onOpen: () {},
+        onImport: () {},
+        onSave: () {},
+        onSaveAs: () {},
+        onSettings: () {},
+        playerMapShown: true,
+        onShowPlayerMap: (_) {},
+        midi: (
+          velocity: true,
+          sharedRange: false,
+          fileTempo: true,
+          onVelocity: () {},
+          onSharedRange: () {},
+          onTallerRows: null,
+          onShorterRows: () {},
+          onWiderBeats: () {},
+          onNarrowerBeats: () {},
+          onFileTempo: null,
+        ),
+        child: const SizedBox(),
+      ).menus.whereType<PlatformMenu>().toList();
+      expect([for (final i in flat(midi.firstWhere((m) => m.label == 'MIDI').menus)) (i.label, i.onSelected != null)], [
+        ('✓ Shade Notes by Velocity', true),
+        ('Shared Pitch Range', true),
+        ('Taller Rows', false),
+        ('Shorter Rows', true),
+        ('Wider Beats', true),
+        ('Narrower Beats', true),
+        ('✓ Use File’s Tempo', false),
+      ]);
+      expect([for (final i in flat(midi.firstWhere((m) => m.label == 'View').menus)) i.label], contains('Show MIDI View'));
 
       // Navigator, the large one: a menu of its own with menus inside, keys, a toolbar button,
       // grey on Home; with a score, its marks listed, the playhead moved, a loop turned by a

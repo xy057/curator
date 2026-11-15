@@ -134,6 +134,14 @@ class ProjectDocument extends ChangeNotifier {
     _imported(path);
   });
 
+  /// A MIDI file at [path] as a new project, shown as rows of its notes
+  /// ([EditorController.openMidi]). Refused before it is read when it is too big.
+  Future<void> importMidi(String path) => _oneAtATime(() async {
+    if (await File(path).length() > EditorController.maxMidiBytes) throw const FormatException('That MIDI file is too big.');
+    await controller.openMidi(fileNameOf(path), await File(path).readAsBytes());
+    _imported(path);
+  });
+
   /// A new LilyPond score, written in the LilyPond editor: its main file [name] and [bytes],
   /// with LilyPond's engraving of it ([lilypond]). A new project whose score is in no file, so
   /// it has unsaved changes from the start.
@@ -166,8 +174,8 @@ class ProjectDocument extends ChangeNotifier {
   /// this project's edits carried over ([EditorController.prepareReplacementWith]); nothing
   /// changes yet.
   Future<ScoreReplacement> prepareReplacementWith(String name, Uint8List bytes,
-          {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond}) =>
-      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf, pages: pages, lilypond: lilypond));
+          {PdfScoreLayout? pdf, PdfPages? pages, LilyPondProject? lilypond, bool midi = false}) =>
+      _oneAtATime(() => controller.prepareReplacementWith(name, bytes, pdf: pdf, pages: pages, lilypond: lilypond, midi: midi));
 
   /// Puts [replacement] in place of the score: the project, its path and recording stay,
   /// with unsaved changes.

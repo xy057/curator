@@ -2,6 +2,8 @@
 // window and scrolled to its end, frame by frame: a slider whose row scrolled out of the tree kept
 // its overlay, which the engine then rejected ("Failed to update ui::AXTree" in `make run`; see
 // accessibility_mirror.dart and OverlaySemantics).
+import 'dart:async';
+
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/main.dart';
@@ -16,7 +18,7 @@ void main() {
   final binding = AccessibilityMirrorBinding();
   final mirror = binding.mirror;
 
-  testWidgets('every settings page, scrolled through in a short window, keeps the accessibility tree whole', (tester) async {
+  testWidgets('every settings page, scrolled through in a short window, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out', (tester) async {
     tester.view
       ..physicalSize = const Size(2000, 1240)
       ..devicePixelRatio = 2;
@@ -74,6 +76,33 @@ void main() {
     for (final t in ['Typography', 'Advanced']) {
       await page('Project Engraving', () => showProjectSettingsDialog(context(), settings, c, page: 'Engraving'), t);
     }
+
+    // A MIDI project has nothing engraved: the pages of what only an engraving has are greyed
+    // out (one asked for shows the first instead), Engraving keeps what is drawn, and the notes
+    // are the file's, not to edit.
+    await tester.runAsync(() => c.openMidi('duet.mid', duetMidi));
+    await tester.pump();
+    expect(c.isMidi, isTrue);
+    unawaited(showProjectSettingsDialog(context(), settings, c, page: 'Flags', editScore: () async {}, replaceScore: (_) async {}));
+    await frames('a MIDI project’s settings');
+    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Edit…')).onPressed, isNull);
+    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Replace…').first).onPressed, isNotNull);
+    for (final off in ['Flags', 'Sections', 'Condensing']) {
+      await tester.tap(find.text(off));
+      await frames('a MIDI project’s $off, greyed out');
+      expect(find.widgetWithText(OutlinedButton, 'Edit…'), findsOneWidget, reason: '$off: still Project Info');
+    }
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await frames('closing a MIDI project’s settings');
+    unawaited(showProjectSettingsDialog(context(), settings, c, page: 'Engraving'));
+    await frames('a MIDI project’s Engraving');
+    expect((find.text('Text font').evaluate().length, find.text('Music font').evaluate().length), (1, 0));
+    expect((find.text('Typography').evaluate().length, find.text('Advanced').evaluate().length), (1, 0));
+    await tester.tap(find.text('Typography'));
+    await frames('a MIDI project’s Typography');
+    expect((find.text('Names').evaluate().length, find.text('Noteheads').evaluate().length), (1, 0));
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await frames('closing a MIDI project’s Engraving');
     handle.dispose();
   });
 }

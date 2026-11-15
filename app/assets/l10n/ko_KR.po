@@ -1572,9 +1572,6 @@ msgstr ""
 msgid "Opacity"
 msgstr ""
 
-msgid "Open a score first, then its MIDI tempo map."
-msgstr ""
-
 msgid "Open a score first, then its recording."
 msgstr ""
 
@@ -2369,6 +2366,18 @@ msgid "This MIDI file counts time in SMPTE frames, so it has no tempo map."
 msgstr ""
 
 msgid "This MIDI file has no tracks."
+msgstr ""
+
+msgid "This MIDI file has no notes."
+msgstr ""
+
+msgid "This MIDI file has too many notes."
+msgstr ""
+
+msgid "This MIDI file has too many tracks."
+msgstr ""
+
+msgid "This MIDI file is too long."
 msgstr ""
 
 msgid "This MIDI file is cut short."
@@ -5247,4 +5256,52 @@ msgstr ""
 
 #: lib/editor_toolbar.dart
 msgid "Player map ({key})"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Show MIDI View"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "MIDI"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Shade Notes by Velocity"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Shared Pitch Range"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Taller Rows"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Shorter Rows"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Wider Beats"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Narrower Beats"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Use File’s Tempo"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "MIDI view ({key})"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "MIDI View"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Import MIDI File"
 msgstr ""

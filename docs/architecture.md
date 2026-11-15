@@ -22,6 +22,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it; `MidiInScore`, where its quarters fall in the score |
+| `midi_file.dart`, `midi_score.dart` | A Standard MIDI File read whole (`MidiFile`: each channel of each track's notes, the meters, keys and names; its chunks and events are the one reader the tempo map uses too), and a MIDI project's score (see *A MIDI project is its notes*): `MidiScore`, the MusicXML written for the file and the rows of notes it is drawn as, as `MidiLook` says |
+| `engraving_writer.dart` | `CommandWriter`: an engraving written in Dart as recorded commands (a LilyPond score's shapes, a MIDI project's rows), which everything that draws Verovio's draws |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
 | `spacing_plan.dart`, `staff_stack.dart` | The vertical layout and the frozen zone's key column (as wide as the shown staves need), planned per segment |
@@ -120,7 +122,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
 | `update_dialog.dart` | The update window (`showUpdateDialog`; About's Update… and the launch notice's): a release's version, its notes, Download, then how far that has got; `updateHelp`, where the updates stand in a line |
 | `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
-| `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
+| `app_menus.dart` | The menu bar (native on macOS): File (New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score); MIDI, only while a MIDI project shows (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
@@ -1535,6 +1537,35 @@ editor on a few bars (`LilySource.blank`), its Done making them a new project, u
 file is a program: its Scheme can do whatever the user can, and LilyPond has no safe mode any
 more, so engraving a score runs it, as running a script would.
 
+**A MIDI project is its notes, drawn in rows.** A `.mid` (`.midi`, `.smf`, `.rmi`) is imported
+as a PDF is (File ▸ Import… ⌘I, a drop on Home, the Finder, Open Recent; Project Info ▸ Score ▸
+Replace… takes one too; dropped on an open project's Audio tab it is still that score's tempo
+map). It is a kind of its own (`ProjectKind.midi`, `EditorController.isMidi`), shown in the MIDI
+view where a score is engraved: a row for each instrument (a channel of a track, named by the
+track, else by its General MIDI program), every note a bar at its pitch's height as long as it
+sounds, on the paper a score is on, the row in its instrument's colour as its name is (Color names
+is on for a new one; `CuratedScene.nameColors` is the tiles' ink, `ScoreRenderer.paint`'s
+`inks`), with faint barlines and no clef, key or time column (`LoadedScore.isRoll`: every staff
+bare, no brackets, the frozen zone as wide as nothing). `MidiScore` writes two things from the
+file: a MusicXML of what it plays (parts, bars from its time signatures, keys, notes in voices,
+tied over barlines; drums unpitched), which curation, sync, Align, Find Phrase, the player map
+and Find Keys read as any score's, and the rows as recorded commands (`MidiScore.engraving`,
+through `CommandWriter`: filled rectangles, so a row's ink is no taller than the row; `Cmd.fade`
+draws a path's ink lighter, a quiet note's and a barline's), so the scene, a video and the web
+page (`EngravingFile`; its project's manifest says `kind: midi`) draw them with nothing of their
+own. How the rows look is a `MidiLook` (`EngraveRequest.midi`, `EditState.midiLook`, saved in the
+optional `midi` module): a change lays them out again as an engraving option's engraves, one Undo
+step. A new MIDI project plays by its file's own tempo map (`EditState.midi`), which
+`EditorController.useFileTempo` puts back.
+
+While one shows, the menu bar has a MIDI menu (Shade Notes by Velocity, Shared Pitch Range, Taller
+/ Shorter Rows, Wider / Narrower Beats, Use File’s Tempo; each a `KeyCommand` with no key of its
+own, set in Settings ▸ Shortcuts), and what only an engraving has is off (`_engraved` in
+settings_dialog.dart): Project Settings ▸ Sections, Condensing and Flags are greyed out in the
+sidebar (`_Category.enabled`), Engraving keeps only what is drawn (the text font; the names',
+bar numbers' and captions' typography), and Project Info ▸ Score ▸ Edit… is greyed out. The file
+isn't played: a recording is added on the Audio tab, as for any score.
+
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
 `EngravingData.warnings` / `LoadedScore.warnings` carry them, each once, and importing a
@@ -1545,7 +1576,7 @@ re-engraving after an edit, doesn't show them again.
 (stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
 Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf` or `lilypond`;
+`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf`, `lilypond` or `midi`;
 absent or unknown, what its score is), the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
 under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
@@ -1557,7 +1588,7 @@ Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `Proje
 sections, the playback line, family colours), `extensions`, `instruments` (order, names, sections,
 name groups, pairs), `texts`, `curation`, `sync`, `takes` (optional: every recording's lane, and
 each but the focus's sync), `images`, `captions`, `chapters`, `spacers`, `playermap` (optional), `view`, and a PDF
-project's `pdf` and a LilyPond project's `lilypond`. It writes
+project's `pdf`, a LilyPond project's `lilypond` and a MIDI project's `midi` (optional). It writes
 its JSON and files, and reads them back checking every field, naming the damaged one
 (`sync.anchors[3]`). Long lists are tuples (an anchor `[quarter, seconds, jumpTo?]`, a region
 `[start, end, in?, out?]`, a caption `[start, end, text]`); every value is written, defaults too,
@@ -1995,6 +2026,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   app's left as they are, one Undo step), each greyed out while the page is so (`isDefault`,
   `isSystem`). Settings of first-party components that are not part of the main work
   (import, curate, sync, export) and matter less go under **Extensions**.
+- **A menu command**: its item in `app_menus.dart` (`_own`, by its id), a `KeyCommand` whose
+  label is the item's title (its group the menu's name), the same in `PluginApi.commands` (then
+  `make plugin-docs`), and what it does in main.dart's `does` table, null while it can't;
+  in_step_test holds the three together. A menu of a kind of project (MIDI) is in the bar only
+  while such a project shows.
 - **Something downloaded** (a tool such as LilyPond, or a model run on this computer: local AI):
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered
   without it and asks for it there (as `ensureLilyPond` does). Local AI is never hidden by Hide AI

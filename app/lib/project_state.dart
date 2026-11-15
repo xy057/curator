@@ -66,6 +66,7 @@ class EditState {
     this.spacers = const [],
     this.gaps = const [],
     this.playerMap,
+    this.midiLook = const MidiLook(),
   });
 
   /// When each instrument is shown, with each region's own properties; null when the project
@@ -220,9 +221,14 @@ class EditState {
   /// Settings ▸ Flags, [EngraveRequest.centeredLyrics]); null: the app's.
   final bool? centeredLyrics;
 
+  /// How a MIDI project's rows are drawn (the MIDI menu's, [MidiLook]); any other project
+  /// keeps the standard one, unused.
+  final MidiLook midiLook;
+
   @override
   bool operator ==(Object other) =>
       other is EditState &&
+      midiLook == other.midiLook &&
       transition == other.transition &&
       scrollFollow == other.scrollFollow &&
       motion == other.motion &&
@@ -311,6 +317,7 @@ class EditState {
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
     Object? playerMap = _kept,
+    MidiLook? midiLook,
   }) =>
       EditState(
         lanes: identical(lanes, _kept) ? this.lanes : lanes as Map<String, List<Region>>?,
@@ -351,6 +358,7 @@ class EditState {
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
         playerMap: identical(playerMap, _kept) ? this.playerMap : playerMap as PlayerMap?,
+        midiLook: midiLook ?? this.midiLook,
       );
 
   /// The take [id]; null when there is none.
@@ -491,9 +499,10 @@ class NameGroup {
 typedef NameGroupInfo = ({String id, String name, Color color, InstrumentFamily? family});
 
 /// What a project was made from, kept in its manifest (`kind`): a MusicXML score's, a PDF's
-/// ([ProjectState.pdf]: no notes, so Find Phrase and auto-curation are off for it), or a
-/// LilyPond score's ([ProjectState.lilypond]: drawn as LilyPond engraved it).
-enum ProjectKind { score, pdf, lilypond }
+/// ([ProjectState.pdf]: no notes, so Find Phrase and auto-curation are off for it), a
+/// LilyPond score's ([ProjectState.lilypond]: drawn as LilyPond engraved it), or a MIDI file's
+/// (its source score is the file: drawn as rows of its notes, the MIDI view, not as notation).
+enum ProjectKind { score, pdf, lilypond, midi }
 
 /// A LilyPond score's own ([ProjectKind.lilypond]; its main file is the project's score): the
 /// files it includes, and LilyPond's engraving of it ([svg], with the [data] Curator's settings
