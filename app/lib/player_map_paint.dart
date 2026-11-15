@@ -34,9 +34,32 @@ const _floor = Color(0xFF0D0D0F), _floorEdge = Color(0xFF26262B);
 /// How big a player swells at a note's start, over its size at rest: a nudge, not a jump.
 const _swell = 0.35;
 
+/// Sections' names laid out, by name, colour, size and direction: every painter's, since one is
+/// made each time its widget is built (at each move of a drag in the editor), and laying a
+/// map's names out again for each would cost more than drawing it. Emptied when it holds more
+/// than a few maps' worth (a window being resized asks a new size each frame).
+final _labels = <(String, int, double, TextDirection), TextPainter>{};
+
+TextPainter _label(String name, int color, double size, TextDirection direction) {
+  final key = (name, color, size, direction);
+  if (_labels[key] case final kept?) return kept;
+  if (_labels.length >= 512) {
+    for (final label in _labels.values) {
+      label.dispose();
+    }
+    _labels.clear();
+  }
+  return _labels[key] = TextPainter(
+    text: TextSpan(text: name, style: TextStyle(color: Color(color).withValues(alpha: 0.85), fontSize: size, fontWeight: FontWeight.w500)),
+    textDirection: direction,
+    maxLines: 1,
+  )..layout();
+}
+
 /// A [PlayerMap] at a time: each player a dot in its section's colour, dim at rest; each note its
 /// instrument plays makes it swell and light up, fading as [PlayerPulses] says (a short note
-/// quickly, a long one slowly). Repaints as [time] moves.
+/// quickly, a long one slowly). Repaints as [time] moves, every frame of a performance: what
+/// shows it keeps it in a [RepaintBoundary], so nothing round it is painted again with it.
 class PlayerMapPainter extends CustomPainter {
   PlayerMapPainter({
     required this.map,
@@ -57,16 +80,6 @@ class PlayerMapPainter extends CustomPainter {
   final Color accent;
   final TextDirection textDirection;
 
-  final _labels = <(String, int, double), TextPainter>{};
-
-  TextPainter _label(String name, int color, double size) => _labels.putIfAbsent((name, color, size), () {
-        return TextPainter(
-          text: TextSpan(text: name, style: TextStyle(color: Color(color).withValues(alpha: 0.85), fontSize: size, fontWeight: FontWeight.w500)),
-          textDirection: textDirection,
-          maxLines: 1,
-        )..layout();
-      });
-
   @override
   void paint(Canvas canvas, Size size) {
     final stage = MapStage(size, map.aspect);
@@ -80,25 +93,30 @@ class PlayerMapPainter extends CustomPainter {
     final t = time.value, labelSize = stage.labelSize;
     final glow = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     final dot = Paint();
+    final ring = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
     for (final (k, section) in map.sections.indexed) {
       final base = Color(section.color), rest = stage.radius(section.size);
-      // Each link's level once a frame: a section's players mostly share one.
-      final levels = <PlayerLink?, double>{};
+      final dim = base.withValues(alpha: 0.55), lit = _bright(base);
+      // A link's level and colour once for the players in a row who share it: mostly all of them.
+      PlayerLink? of;
+      var asked = false, level = 0.0, fill = dim;
       for (final (i, seat) in section.seats.indexed) {
         final link = section.linkOf(i);
-        final level = levels[link] ??= pulses.level(link, t);
+        if (!asked || link != of) {
+          (of, asked) = (link, true);
+          level = pulses.level(link, t);
+          fill = Color.lerp(dim, lit, level)!;
+        }
         final center = stage.toView(seat.x, seat.y), r = rest * (1 + _swell * level);
         if (level > 0.02) canvas.drawCircle(center, r * 1.35, glow..color = base.withValues(alpha: 0.16 * level));
-        canvas.drawCircle(center, r, dot..color = Color.lerp(base.withValues(alpha: 0.55), _bright(base), level)!);
-        if (k == selected && (selectedSeat == null || selectedSeat == i)) {
-          canvas.drawCircle(center, r + 2.5, Paint()
-            ..color = accent
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5);
-        }
+        canvas.drawCircle(center, r, dot..color = fill);
+        if (k == selected && (selectedSeat == null || selectedSeat == i)) canvas.drawCircle(center, r + 2.5, ring);
       }
       if (section.name.isNotEmpty && labelSize >= 5) {
-        final label = _label(section.name, section.color, labelSize), at = stage.toView(section.labelX, section.labelY);
+        final label = _label(section.name, section.color, labelSize, textDirection), at = stage.toView(section.labelX, section.labelY);
         label.paint(canvas, at - Offset(label.width / 2, label.height / 2));
         if (k == selected && selectedSeat == null) {
           canvas.drawRect(Rect.fromCenter(center: at, width: label.width + 8, height: label.height + 4), Paint()
@@ -115,5 +133,11 @@ class PlayerMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(PlayerMapPainter old) =>
-      !identical(old.map, map) || !identical(old.pulses, pulses) || old.time != time || old.selected != selected || old.selectedSeat != selectedSeat;
+      !identical(old.map, map) ||
+      !identical(old.pulses, pulses) ||
+      old.time != time ||
+      old.selected != selected ||
+      old.selectedSeat != selectedSeat ||
+      old.accent != accent ||
+      old.textDirection != textDirection;
 }

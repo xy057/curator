@@ -56,16 +56,14 @@ class PlayerMapPanel extends StatelessWidget {
         onDoubleTap: () => showPlayerMapEditor(context, controller),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-          // The pulses are asked of again when the notes arrive (the controller notifies).
-          child: ListenableBuilder(
+          // The pulses are other ones once the notes arrive, and when the performance changes.
+          child: Select<PlayerPulses>(
             listenable: controller,
-            builder: (context, _) => CustomPaint(
-              size: Size.infinite,
-              painter: PlayerMapPainter(
-                map: map,
-                pulses: controller.playerMap.pulses,
-                time: controller.playback.time,
-                textDirection: Directionality.of(context),
+            select: () => controller.playerMap.pulses,
+            builder: (context, pulses) => RepaintBoundary(
+              child: CustomPaint(
+                size: Size.infinite,
+                painter: PlayerMapPainter(map: map, pulses: pulses, time: controller.playback.time, textDirection: Directionality.of(context)),
               ),
             ),
           ),
@@ -518,18 +516,21 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
             onPanCancel: () => _drag = null,
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: ListenableBuilder(
+              child: Select<PlayerPulses>(
                 listenable: c,
-                builder: (context, _) => CustomPaint(
-                  size: Size.infinite,
-                  painter: PlayerMapPainter(
-                    map: _map,
-                    pulses: c.playerMap.pulses,
-                    time: c.playback.time,
-                    selected: _section,
-                    selectedSeat: _mode == _Mode.players ? _seat : null,
-                    accent: context.colors.accent,
-                    textDirection: Directionality.of(context),
+                select: () => c.playerMap.pulses,
+                builder: (context, pulses) => RepaintBoundary(
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: PlayerMapPainter(
+                      map: _map,
+                      pulses: pulses,
+                      time: c.playback.time,
+                      selected: _section,
+                      selectedSeat: _mode == _Mode.players ? _seat : null,
+                      accent: context.colors.accent,
+                      textDirection: Directionality.of(context),
+                    ),
                   ),
                 ),
               ),
