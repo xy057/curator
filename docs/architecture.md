@@ -53,7 +53,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
 | `sounding_notes.dart` | `soundingNotes`: every pitched note of the MusicXML as it sounds (concert pitch, in score quarters), which Find Phrase and Align read; unpitched percussion too when asked (the player map's) |
 | `score_dynamics.dart` | `ScoreDynamics`: how loud each part plays at a score quarter, 0–1, from its dynamics (marks held, hairpins ramped, accents a moment's), which scales the player map's swells |
-| `player_map.dart` | The player map (see *A player map shows who plays*): `PlayerMap` (sections of seats on a stage, each linked to a part and maybe a staff: `PlayerLink`, `MapSection`, `MapSeat`; its JSON, the `.cpm` file, `relinked` to another score by name), the smart seatings (`PlayerMap.smart`, `SeatingPreset`), and `PlayerPulses`: how swollen each link's players are at a time |
+| `player_map.dart` | The player map (see *A player map shows who plays*): `PlayerMap` (sections of seats on a stage, each linked to a part and maybe a staff: `PlayerLink`, `MapSection`, `MapSeat`, `SeatPlan`: how a section is seated; its JSON, the `.cpm` file, `relinked` to another score by name), the smart seatings (`PlayerMap.smart`, `SeatingPreset`), and `PlayerPulses`: how swollen each link's players are at a time |
 | `audio_alignment.dart`, `basic_pitch.dart` | Align: a recording heard by Spotify's Basic Pitch (`BasicPitch`, its network run in Dart) as which keys sound and start, a chunk at a time (`AudioNotes`, resampled to its rate), matched to the score's notes by multiscale DTW, the path thinned into anchors (`AudioAlignment.anchors`) |
 | `phrase_search.dart` | Find Phrase: a melody entered (`Phrase`, `PhraseNote`) and its MusicXML for Verovio, drawn as `PhrasePicture`; every voice of the score as it sounds (`ScoreLine`); where a phrase is played (`PhraseSearch`) |
 | `search.dart` | `segmentAt`: the binary search the timelines, grids and plans share |
@@ -1074,12 +1074,23 @@ Smart Seating (`PlayerMap.smart`) seats the score's instruments, found by name a
 (`_Seating._role`; "Contrabassoon" is no bass, a choir makes "Bass" a voice), counting players from the
 name ("Horn 1.2" 2, "Trumpets I–III" 3, "2 Flutes" 2), a staff each where they are as many: American
 (violins I and II at the left, violas and cellos at the right, basses behind the cellos), European
-(violins either side, basses at the left) or an ensemble's bows in score order; the strings a fan of
-sectors as wide as their players, winds, brass and percussion rows behind, voices at the back,
-keyboards and harp at the side, soloists in front; fitted to the stage (up to 1.7 times wider than laid
-out, the dots round) and names moved apart where they would overlap. Edit… opens the editor: a
-section dragged moves with its name, a name alone, a player alone in Players mode; arrows nudge,
-Delete removes, its own Undo while open, Done one Undo step. A map travels as a `.cpm` (JSON: format,
+(violins either side, basses at the left) or an ensemble's bows in score order, as many bows as hold
+them, each about as wide; the strings a fan of sectors as wide as their players, two or three rows
+deep, their names inside it; basses and keyboards and harp on either side just outside it; winds,
+brass, percussion and voices (on risers, names over them) in gently curved rows behind, pushed back
+where their ends would meet the sides; soloists in front. Each section keeps its `SeatPlan` (rows, a
+ring's sector, bows: how it is seated, in the section's JSON as `plan`) and Smart Seating's (`auto`:
+`true` while it is the plan, moved and scaled with the section), and its name goes by the plan,
+clear of its dots. Fitted to the stage names and all (up to 1.6 times wider than planned, the
+dots round and never bigger than 0.07 of the stage's height, so a few players aren't blown up), then
+seated again with names as wide as that scale makes them; names moved apart where they would
+overlap. Edit… opens the editor: a section dragged moves with its name, a name alone, a player alone
+in Players mode; arrows nudge, Delete removes, its own Undo while open, Done one Undo step. More,
+Fewer, Remove Player and Auto / Rows / Arc / Line (Auto, back to Smart Seating's plan, only for a
+section it seated) seat the section anew by its plan (`MapSection.withCount`,
+`arranged`; a fan stays a fan, a moved name keeps its distance; a section from before plans seen as
+its rows), and `PlayerMap.roomFor` moves each section it would now cover the shortest way clear,
+away from it, those in turn, and shrinks the map where it would leave the stage. A map travels as a `.cpm` (JSON: format,
 version, map); imported, its links are found again among this score's instruments by name, else by id
 while the name agrees (`PlayerMap.relinked`), and Replace Score carries it as the other part ids
 (`ScoreSwap`). A web page has it in its project: `WebPage.playerMap` says whether the viewer sees it

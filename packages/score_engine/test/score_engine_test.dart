@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -96,9 +97,25 @@ void main() {
     scene.dispose();
 
     // The player map: the demo seated as an orchestra (its numbered winds one section of a
-    // player each, the strings a fan, everything on the stage), as a file and back, found again
-    // in another score by name; each note swells its players, a long one fading slower.
+    // player each, the strings a fan, everything on the stage, no section on another), as a file
+    // and back, found again in another score by name; more or fewer players seated as their
+    // section's plan seats them, the rest moved out of their way; each note swells its players,
+    // a long one fading slower.
     {
+      void tidy(PlayerMap map, String why) {
+        for (final (i, s) in map.sections.indexed) {
+          for (final seat in [...s.seats.map((x) => (x.x, x.y)), (s.labelX, s.labelY)]) {
+            expect(seat.$1 >= 0 && seat.$1 <= 1 && seat.$2 >= 0 && seat.$2 <= 1, isTrue, reason: '$why: ${s.name} on the stage');
+          }
+          for (final o in map.sections.skip(i + 1)) {
+            for (final (p, q) in [for (final p in s.seats) for (final q in o.seats) (p, q)]) {
+              final d = math.sqrt(math.pow((p.x - q.x) * map.aspect, 2) + math.pow(p.y - q.y, 2));
+              expect(d, greaterThanOrEqualTo((s.size + o.size) / 2), reason: '$why: ${s.name} clear of ${o.name}');
+            }
+          }
+        }
+      }
+
       final seated = PlayerMap.smart(parts);
       final names = [for (final s in seated.sections) s.name];
       expect(names.take(5), ['Violin I', 'Violin II', 'Viola', 'Violoncello', 'Double Bass']);
@@ -106,11 +123,29 @@ void main() {
       final flutes = seated.sections.firstWhere((s) => s.name == 'Flute');
       expect(flutes.link, isNull);
       expect([for (final s in flutes.seats) s.link?.part], ['P2', 'P3']);
-      for (final s in seated.sections) {
-        for (final seat in [...s.seats.map((x) => (x.x, x.y)), (s.labelX, s.labelY)]) {
-          expect(seat.$1 >= 0 && seat.$1 <= 1 && seat.$2 >= 0 && seat.$2 <= 1, isTrue, reason: '${s.name} on the stage');
-        }
+      for (final preset in SeatingPreset.values) {
+        tidy(PlayerMap.smart(parts, preset: preset), preset.name);
       }
+      expect(seated.sections.first.plan?.kind, SeatPlanKind.sector, reason: 'the first violins a fan');
+      var grown = seated;
+      for (final (name, count) in [('Violin I', 18), ('Flute', 6), ('Horn in F', 1)]) {
+        final k = grown.sections.indexWhere((s) => s.name == name);
+        grown = grown.roomFor(k, grown.sections[k].withCount(count));
+        expect(grown.sections[k].seats, hasLength(count));
+        expect(grown.sections[k].plan?.kind, seated.sections[k].plan?.kind, reason: '$name seated the same way');
+        tidy(grown, '$name ×$count');
+      }
+      expect([for (final s in grown.sections.firstWhere((s) => s.name == 'Flute').seats) s.link?.part], ['P2', 'P3', null, null, null, null]);
+      // Seated in rows, then as Smart Seating seated it again: the fan, its players as many.
+      final fan = grown.sections.first, rows = fan.arranged(SeatShape.rows, 18);
+      expect((fan.shape, rows.shape, rows.plan?.kind), (SeatShape.auto, SeatShape.rows, SeatPlanKind.rows));
+      final back = rows.withCount(17).arranged(SeatShape.auto, 17);
+      expect((back.shape, back.plan, back.seats.length), (SeatShape.auto, fan.auto, 17));
+      final kept = grown.withSections([rows, ...grown.sections.skip(1)]).encode();
+      expect(PlayerMap.decode(kept).encode(), kept, reason: 'a plan and Smart Seating’s apart');
+      // A section from before plans: seen as the row it is.
+      const old = MapSection(name: 'Old', color: 0xFF000000, labelX: 0.45, labelY: 0.6, seats: [MapSeat(0.4, 0.5), MapSeat(0.5, 0.5)]);
+      expect(old.withCount(3).seats.map((s) => s.y).toSet(), hasLength(1));
       // Counted from names and staves; a contrabassoon is no bass.
       ScorePart part(String id, String name, [int staves = 1]) =>
           ScorePart(id: id, name: name, abbreviation: '', sound: null, staffNumbers: [for (var i = 1; i <= staves; i++) i]);

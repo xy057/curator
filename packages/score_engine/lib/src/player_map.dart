@@ -63,12 +63,205 @@ class MapSeat {
   int get hashCode => Object.hash(x, y, link);
 }
 
-/// How [MapSection.arranged] seats a section's players.
-enum SeatShape { rows, arc, line }
+/// How [MapSection.arranged] seats a section's players: as Smart Seating seated them
+/// ([MapSection.auto]), or in rows, a bow or a line.
+enum SeatShape { auto, rows, arc, line }
+
+/// The ways a [SeatPlan] seats players.
+enum SeatPlanKind {
+  /// Straight rows, the front one's middle at the plan's place, [SeatPlan.across] a row (null:
+  /// one row), the rest behind it.
+  rows,
+
+  /// A sector of rings about the plan's place (where the conductor stands), from angle
+  /// [SeatPlan.from] to [SeatPlan.to], rows from [SeatPlan.radius] out, each as full as its
+  /// width holds: a string section's fan.
+  sector,
+
+  /// Bows about the plan's place, centred at angle [SeatPlan.mid], from [SeatPlan.radius] out,
+  /// [SeatPlan.across] a bow (null: as many as fit).
+  bow,
+}
+
+/// How a section's players are seated, so that more or fewer are seated the same way
+/// ([MapSection.withCount]): about a place [x], [y] of the stage, in units [unitX] of its width
+/// across and [unitY] of its height down (a seat is [pitch] units from the next). Angles are 0 at
+/// the left, π/2 straight back, π at the right; rows go back from the front.
+@immutable
+class SeatPlan {
+  const SeatPlan(
+    this.kind, {
+    required this.x,
+    required this.y,
+    required this.unitX,
+    required this.unitY,
+    this.radius = 0,
+    this.from = 0,
+    this.to = math.pi,
+    this.mid = math.pi / 2,
+    this.across,
+    this.behind = false,
+  });
+
+  /// From a seat to the next along a row or bow, and along a sector's ring; from a ring to the next.
+  static const pitch = 1.1, ringPitch = 1.08, ringGap = 1.0;
+
+  final SeatPlanKind kind;
+  final double x, y, unitX, unitY;
+  final double radius, from, to, mid;
+  final int? across;
+
+  /// The section's name behind its back row, not in front of its front one.
+  final bool behind;
+
+  SeatPlan _with({double? x, double? y, double? unitX, double? unitY}) => SeatPlan(
+        kind,
+        x: x ?? this.x,
+        y: y ?? this.y,
+        unitX: unitX ?? this.unitX,
+        unitY: unitY ?? this.unitY,
+        radius: radius,
+        from: from,
+        to: to,
+        mid: mid,
+        across: across,
+        behind: behind,
+      );
+
+  SeatPlan moved(double dx, double dy) => _with(x: x + dx, y: y + dy);
+
+  /// Scaled by [f] about [cx], [cy] of the stage.
+  SeatPlan scaled(double f, double cx, double cy) => _with(x: cx + (x - cx) * f, y: cy + (y - cy) * f, unitX: unitX * f, unitY: unitY * f);
+
+  /// [count] seats in units about the place, each with its row (0 the front).
+  List<({double x, double y, int row})> places(int count) {
+    final out = <({double x, double y, int row})>[];
+    for (var row = 0; out.length < count; row++) {
+      final left = count - out.length;
+      switch (kind) {
+        case SeatPlanKind.rows:
+          final n = math.min(across ?? left, left);
+          for (var k = 0; k < n; k++) {
+            out.add((x: (k - (n - 1) / 2) * pitch, y: -row * pitch, row: row));
+          }
+        case SeatPlanKind.sector:
+          final r = radius + row * ringGap, fits = math.max(1, ((to - from) * r / ringPitch).floor()), n = math.min(fits, left);
+          final step = (to - from) / fits, start = from + (to - from - step * (n - 1)) / 2;
+          for (var k = 0; k < n; k++) {
+            final t = n == 1 ? (from + to) / 2 : start + step * k;
+            out.add((x: -r * math.cos(t), y: -r * math.sin(t), row: row));
+          }
+        case SeatPlanKind.bow:
+          final r = math.max(0.5, radius + row * ringGap);
+          final fits = across ?? math.max(1, (0.96 * math.pi * r / pitch).floor()), n = math.min(fits, left), step = pitch / r;
+          for (var k = 0; k < n; k++) {
+            final t = mid + (k - (n - 1) / 2) * step;
+            out.add((x: -r * math.cos(t), y: -r * math.sin(t), row: row));
+          }
+      }
+    }
+    return out;
+  }
+
+  /// [count] seats' places on the stage.
+  List<MapSeat> seats(int count) => [for (final p in places(count)) MapSeat(x + p.x * unitX, y + p.y * unitY)];
+
+  /// Where the name [name] of [count] players of dots [size] across goes on a stage [aspect]
+  /// wide: by the middle of the front row (the back's when [behind]), clear of its dots.
+  ({double x, double y}) label(int count, {required String name, required double size, required double aspect}) {
+    final rows = count < 1 ? 1 : places(count).last.row + 1, row = behind ? rows - 1 : 0;
+    // The name's half width and height, a dot's radius and a gap, in units.
+    final hw = labelHalfWidth(name, aspect) / unitX, hh = labelHalfHeight / unitY;
+    final clear = (size / 2 + 0.006) / unitY;
+    final ({double x, double y}) at;
+    if (kind == SeatPlanKind.sector) {
+      // Towards the place (in front) or away from it (behind), as far as the name's box reaches that way.
+      final r = radius + row * ringGap, t = (from + to) / 2, c = math.cos(t), s = math.sin(t), out = behind ? -1.0 : 1.0;
+      final d = clear + c.abs() * hw + s.abs() * hh;
+      at = (x: -r * c + out * c * d, y: -r * s + out * s * d);
+    } else {
+      // Under the row's middle (over it, behind), clear of its seats under (over) the name.
+      final all = places(count), these = [for (final p in all) if (p.row == row) p];
+      final mx = (these.first.x + these.last.x) / 2, rx = clear * unitY / unitX;
+      var edge = behind ? double.infinity : double.negativeInfinity;
+      for (final p in all) {
+        if ((p.x - mx).abs() < hw + rx) edge = behind ? math.min(edge, p.y) : math.max(edge, p.y);
+      }
+      at = (x: mx, y: behind ? edge - clear - hh : edge + clear + hh);
+    }
+    return (x: x + at.x * unitX, y: y + at.y * unitY);
+  }
+
+  /// Half a section's name's width (of the stage's) and height (of its height).
+  static double labelHalfWidth(String name, double aspect) => name.length * PlayerMap.labelSize * 0.29 / aspect + 0.008;
+  static const labelHalfHeight = PlayerMap.labelSize * 0.62;
+
+  Map<String, Object?> toJson() => {
+        'kind': kind.name,
+        'at': [_round(x), _round(y)],
+        'unit': [_round(unitX), _round(unitY)],
+        if (kind != SeatPlanKind.rows) 'radius': _round(radius),
+        if (kind == SeatPlanKind.sector) 'angles': [_round(from), _round(to)],
+        if (kind == SeatPlanKind.bow) 'mid': _round(mid),
+        'across': ?across,
+        if (behind) 'behind': true,
+      };
+
+  static SeatPlan fromJson(Object? json, String where) {
+    final m = _map(json, where);
+    final kind = SeatPlanKind.values.where((k) => k.name == m['kind']).firstOrNull ?? (throw FormatException('$where.kind is not a plan.'));
+    double number(Object? v, String field, double lo, double hi) {
+      final n = _number(v, '$where.$field');
+      if (n < lo || n > hi) throw FormatException('$where.$field is out of range.');
+      return n;
+    }
+
+    final at = m['at'], unit = m['unit'], angles = m['angles'] ?? const [0, math.pi];
+    if (at is! List || at.length != 2 || unit is! List || unit.length != 2 || angles is! List || angles.length != 2) {
+      throw FormatException('$where is not a plan.');
+    }
+    final across = m['across'];
+    if (across != null && (across is! num || across != across.roundToDouble() || across < 1 || across > PlayerMap.maxSeats)) {
+      throw FormatException('$where.across is not a count.');
+    }
+    return SeatPlan(
+      kind,
+      x: number(at[0], 'at', -20, 20),
+      y: number(at[1], 'at', -20, 20),
+      unitX: number(unit[0], 'unit', 1e-4, 1),
+      unitY: number(unit[1], 'unit', 1e-4, 1),
+      radius: number(m['radius'] ?? 0, 'radius', 0, 400),
+      from: number(angles[0], 'angles', -7, 7),
+      to: number(angles[1], 'angles', -7, 7),
+      mid: number(m['mid'] ?? math.pi / 2, 'mid', -7, 7),
+      across: (across as num?)?.toInt(),
+      behind: m['behind'] == true,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is SeatPlan &&
+      other.kind == kind &&
+      other.x == x &&
+      other.y == y &&
+      other.unitX == unitX &&
+      other.unitY == unitY &&
+      other.radius == radius &&
+      other.from == from &&
+      other.to == to &&
+      other.mid == mid &&
+      other.across == across &&
+      other.behind == behind;
+  @override
+  int get hashCode => Object.hash(kind, x, y, unitX, unitY, radius, from, to, mid, across, behind);
+}
 
 /// A group of players seen as one: a name drawn at [labelX], [labelY], a colour (0xAARRGGBB), the
 /// size of its dots (across, as a part of the stage's height) and its [seats]. [link] is what
-/// they play unless a seat says otherwise.
+/// they play unless a seat says otherwise; [plan] how they are seated, so that more or fewer
+/// are seated the same way (null: a map made before plans, seen from its seats when asked), and
+/// [auto] how Smart Seating seated them, to go back to (null: none did).
 @immutable
 class MapSection {
   const MapSection({
@@ -79,6 +272,8 @@ class MapSection {
     required this.labelY,
     this.link,
     this.seats = const [],
+    this.plan,
+    this.auto,
   });
 
   static const defaultSize = 0.055, minSize = 0.015, maxSize = 0.2;
@@ -89,11 +284,13 @@ class MapSection {
   final double labelX, labelY;
   final PlayerLink? link;
   final List<MapSeat> seats;
+  final SeatPlan? plan, auto;
 
   /// What seat [i] plays: its own link, else the section's.
   PlayerLink? linkOf(int i) => seats[i].link ?? link;
 
-  MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats}) => MapSection(
+  MapSection copyWith({String? name, int? color, double? size, double? labelX, double? labelY, List<MapSeat>? seats, SeatPlan? plan, SeatPlan? auto}) =>
+      MapSection(
         name: name ?? this.name,
         color: color ?? this.color,
         size: size ?? this.size,
@@ -101,16 +298,30 @@ class MapSection {
         labelY: labelY ?? this.labelY,
         link: link,
         seats: seats ?? this.seats,
+        plan: plan ?? this.plan,
+        auto: auto ?? this.auto,
       );
 
   MapSection linked(PlayerLink? link) =>
-      MapSection(name: name, color: color, size: size, labelX: labelX, labelY: labelY, link: link, seats: seats);
+      MapSection(name: name, color: color, size: size, labelX: labelX, labelY: labelY, link: link, seats: seats, plan: plan, auto: auto);
 
-  /// Moved by [dx], [dy], its name with it.
+  /// Moved by [dx], [dy], its name and plan with it.
   MapSection moved(double dx, double dy) => copyWith(
         labelX: labelX + dx,
         labelY: labelY + dy,
         seats: [for (final s in seats) s.at(s.x + dx, s.y + dy)],
+        plan: plan?.moved(dx, dy),
+        auto: auto?.moved(dx, dy),
+      );
+
+  /// Scaled by [f] about [cx], [cy] of the stage, its dots too.
+  MapSection scaled(double f, double cx, double cy) => copyWith(
+        size: (size * f).clamp(minSize, maxSize),
+        labelX: cx + (labelX - cx) * f,
+        labelY: cy + (labelY - cy) * f,
+        seats: [for (final s in seats) s.at(cx + (s.x - cx) * f, cy + (s.y - cy) * f)],
+        plan: plan?.scaled(f, cx, cy),
+        auto: auto?.scaled(f, cx, cy),
       );
 
   /// The middle of its seats (its name's place when it has none).
@@ -124,42 +335,83 @@ class MapSection {
     return (x: x / seats.length, y: y / seats.length);
   }
 
-  /// [count] players seated as [shape] about where its seats are now, on a stage [aspect] wide
-  /// to its height, each keeping its own link in order (new ones with none); its name just
-  /// under them.
+  /// [count] players seated by [plan], each keeping its own link in order (new ones with none),
+  /// its name where the plan puts it.
+  MapSection planned(SeatPlan plan, int count, {double aspect = PlayerMap.defaultAspect}) {
+    count = count.clamp(1, PlayerMap.maxSeats);
+    final label = plan.label(count, name: name, size: size, aspect: aspect);
+    return copyWith(
+      seats: [for (final (i, s) in plan.seats(count).indexed) i < seats.length ? s.linked(seats[i].link) : s],
+      labelX: label.x,
+      labelY: label.y,
+      plan: plan,
+    );
+  }
+
+  /// [count] players seated as [shape] about where its seats are now (as Smart Seating seated
+  /// them, moved as the section was, for [SeatShape.auto]), on a stage [aspect] wide to its
+  /// height, each keeping its own link in order (new ones with none); its name by them.
   MapSection arranged(SeatShape shape, int count, {double aspect = PlayerMap.defaultAspect}) {
     count = count.clamp(1, PlayerMap.maxSeats);
-    final c = center, pitch = size * 1.45; // in stage heights
-    final points = <({double x, double y})>[];
+    final c = center, unit = size * 1.45 / SeatPlan.pitch; // a seat's pitch, in stage heights
+    final SeatPlan plan;
     switch (shape) {
+      case SeatShape.auto:
+        plan = auto ?? _seen(aspect);
       case SeatShape.line:
-        for (var i = 0; i < count; i++) {
-          points.add((x: (i - (count - 1) / 2) * pitch, y: 0));
-        }
+        plan = SeatPlan(SeatPlanKind.rows, x: c.x, y: c.y, unitX: unit / aspect, unitY: unit);
       case SeatShape.rows:
-        final columns = math.max(1, (math.sqrt(count * 2)).ceil()), rows = (count / columns).ceil();
-        for (var i = 0; i < count; i++) {
-          final row = i ~/ columns, inRow = row == rows - 1 ? count - row * columns : columns;
-          points.add((x: (i % columns - (inRow - 1) / 2) * pitch, y: (row - (rows - 1) / 2) * pitch));
-        }
+        final across = math.max(1, (math.sqrt(count * 2)).ceil()), rows = (count / across).ceil();
+        plan = SeatPlan(SeatPlanKind.rows, x: c.x, y: c.y + (rows - 1) / 2 * SeatPlan.pitch * unit, unitX: unit / aspect, unitY: unit, across: across);
       case SeatShape.arc:
-        // Facing the front: a bow whose middle is furthest back.
-        final radius = math.max(pitch * count / math.pi, pitch * 1.5), step = count == 1 ? 0.0 : math.min(pitch / radius, math.pi / (count - 1));
-        for (var i = 0; i < count; i++) {
-          final a = (i - (count - 1) / 2) * step;
-          points.add((x: radius * math.sin(a), y: radius * (1 - math.cos(a)) - radius * 0.3));
-        }
+        // Facing the front: a bow whose middle is furthest back, the bow's middle where they were.
+        final radius = math.max(count * SeatPlan.pitch / (0.7 * math.pi), 1.6);
+        plan = SeatPlan(SeatPlanKind.bow, x: c.x, y: c.y + radius * 0.75 * unit, unitX: unit / aspect, unitY: unit, radius: radius);
     }
-    var bottom = 0.0;
-    for (final p in points) {
-      bottom = math.max(bottom, p.y);
+    return planned(plan, count, aspect: aspect);
+  }
+
+  /// The shape [arranged] would give its seats as they are.
+  SeatShape get shape => switch (plan) {
+        final p? when p == auto => SeatShape.auto,
+        SeatPlan(kind: SeatPlanKind.rows, across: null) => SeatShape.line,
+        SeatPlan(kind: SeatPlanKind.rows) => SeatShape.rows,
+        null => _seen().across == null ? SeatShape.line : SeatShape.rows,
+        _ => SeatShape.arc,
+      };
+
+  /// [count] players seated as its [plan] seats them (or as its seats are, in rows, when it has
+  /// none), each keeping its own link in order; its name where it was beside them.
+  MapSection withCount(int count, {double aspect = PlayerMap.defaultAspect}) {
+    final own = plan;
+    final next = planned(own ?? _seen(aspect), count, aspect: aspect);
+    if (own == null) return next;
+    // A name moved from its plan's place stays as far from it.
+    final was = own.label(seats.length, name: name, size: size, aspect: aspect);
+    return next.copyWith(labelX: next.labelX + labelX - was.x, labelY: next.labelY + labelY - was.y);
+  }
+
+  /// Its seats seen as rows: as many a row as its widest, its front row's middle the place.
+  SeatPlan _seen([double aspect = PlayerMap.defaultAspect]) {
+    final unit = size * 1.45 / SeatPlan.pitch;
+    if (seats.isEmpty) return SeatPlan(SeatPlanKind.rows, x: labelX, y: labelY, unitX: unit / aspect, unitY: unit);
+    final byY = [...seats]..sort((a, b) => b.y.compareTo(a.y));
+    final rows = <List<MapSeat>>[[byY.first]];
+    for (final s in byY.skip(1)) {
+      if (rows.last.last.y - s.y < unit * SeatPlan.pitch * 0.5) {
+        rows.last.add(s);
+      } else {
+        rows.add([s]);
+      }
     }
-    return copyWith(
-      seats: [
-        for (final (i, p) in points.indexed) MapSeat(c.x + p.x / aspect, c.y + p.y, link: i < seats.length ? seats[i].link : null),
-      ],
-      labelX: c.x,
-      labelY: c.y + bottom + size * 1.3,
+    final front = rows.first, across = rows.fold(0, (n, r) => math.max(n, r.length));
+    return SeatPlan(
+      SeatPlanKind.rows,
+      x: center.x,
+      y: front.fold(0.0, (y, s) => y + s.y) / front.length,
+      unitX: unit / aspect,
+      unitY: unit,
+      across: rows.length == 1 ? null : across,
     );
   }
 
@@ -172,6 +424,9 @@ class MapSection {
         'seats': [
           for (final s in seats) [_round(s.x), _round(s.y), ?s.link?.toJson()],
         ],
+        'plan': ?plan?.toJson(),
+        // Smart Seating's: the plan's own while the section is seated by it.
+        if (auto != null) 'auto': auto == plan ? true : auto!.toJson(),
       };
 
   static MapSection fromJson(Object? json, String where) {
@@ -187,6 +442,7 @@ class MapSection {
     final label = _numbers(m['label'], '$where.label', 2);
     final seats = m['seats'] ?? const [];
     if (seats is! List || seats.length > PlayerMap.maxSeats) throw FormatException('$where.seats is not a list of seats.');
+    final plan = m['plan'] == null ? null : SeatPlan.fromJson(m['plan'], '$where.plan');
     return MapSection(
       name: name,
       color: color,
@@ -204,6 +460,12 @@ class MapSection {
             _ => throw FormatException('$where.seats[$i] is not a seat.'),
           },
       ],
+      plan: plan,
+      auto: switch (m['auto']) {
+        null => null,
+        true => plan ?? (throw FormatException('$where.auto has no plan.')),
+        final auto => SeatPlan.fromJson(auto, '$where.auto'),
+      },
     );
   }
 
@@ -216,6 +478,8 @@ class MapSection {
       other.labelX == labelX &&
       other.labelY == labelY &&
       other.link == link &&
+      other.plan == plan &&
+      other.auto == auto &&
       listEquals(other.seats, seats);
   @override
   int get hashCode => Object.hash(name, color, size, labelX, labelY, link, seats.length);
@@ -328,6 +592,95 @@ class PlayerMap {
   PlayerMap withLinks(PlayerLink? Function(PlayerLink? link) to) => withSections([
         for (final s in sections) s.linked(to(s.link)).copyWith(seats: [for (final seat in s.seats) seat.linked(to(seat.link))]),
       ]);
+
+  /// This map with section [k] made [section], the sections it would now cover moved out of its
+  /// way (each away from it, and those they would then cover in turn), and the whole made smaller
+  /// where it would leave the stage.
+  PlayerMap roomFor(int k, MapSection section) {
+    final out = [...sections]..[k] = section;
+    final settled = <int>{k}, queue = [k];
+    while (queue.isNotEmpty) {
+      final i = queue.removeAt(0), from = out[i].center;
+      for (var j = 0; j < out.length; j++) {
+        if (settled.contains(j) || !_covers(out[i], out[j])) continue;
+        // The shortest way clear of every settled section, of the ways leading away from it.
+        final to = out[j].center;
+        var ax = (to.x - from.x) * aspect, ay = to.y - from.y;
+        final d = math.sqrt(ax * ax + ay * ay);
+        (ax, ay) = d < 1e-6 ? (0.0, -1.0) : (ax / d, ay / d);
+        MapSection? best;
+        var bestStep = 1 << 30;
+        for (var w = 0; w < 24; w++) {
+          final dx = math.cos(w * math.pi / 12), dy = math.sin(w * math.pi / 12);
+          if (dx * ax + dy * ay < 0.2) continue;
+          for (var step = 1; step < bestStep && step <= 120; step++) {
+            final moved = out[j].moved(dx * 0.006 * step / aspect, dy * 0.006 * step);
+            if (settled.any((m) => _covers(out[m], moved))) continue;
+            (best, bestStep) = (moved, step);
+            break;
+          }
+        }
+        out[j] = best ?? out[j];
+        settled.add(j);
+        queue.add(j);
+      }
+    }
+    return withSections(out)._onStage();
+  }
+
+  /// Whether [a]'s dots or name and [b]'s meet (a dot's width apart at the least).
+  bool _covers(MapSection a, MapSection b) {
+    final gap = math.max(a.size, b.size) * 0.15;
+    final boxes = [for (final s in [a, b]) s.name.isEmpty ? null : (x: s.labelX * aspect, y: s.labelY, w: SeatPlan.labelHalfWidth(s.name, aspect) * aspect, h: SeatPlan.labelHalfHeight)];
+    bool dotInBox(MapSeat p, double r, ({double x, double y, double w, double h})? box) =>
+        box != null && (p.x * aspect - box.x).abs() < box.w + r + gap && (p.y - box.y).abs() < box.h + r + gap;
+    for (final p in a.seats) {
+      for (final q in b.seats) {
+        final dx = (p.x - q.x) * aspect, dy = p.y - q.y, r = (a.size + b.size) / 2 + gap;
+        if (dx * dx + dy * dy < r * r) return true;
+      }
+      if (dotInBox(p, a.size / 2, boxes[1])) return true;
+    }
+    for (final q in b.seats) {
+      if (dotInBox(q, b.size / 2, boxes[0])) return true;
+    }
+    final (p, q) = (boxes[0], boxes[1]);
+    return p != null && q != null && (p.x - q.x).abs() < p.w + q.w && (p.y - q.y).abs() < p.h + q.h;
+  }
+
+  /// The map moved, and made smaller about the stage's middle when that isn't enough, so that
+  /// every dot and name is on the stage.
+  PlayerMap _onStage() {
+    const margin = 0.01;
+    var map = this;
+    for (var round = 0; round < 4; round++) {
+      var x0 = double.infinity, x1 = double.negativeInfinity, y0 = double.infinity, y1 = double.negativeInfinity;
+      for (final s in map.sections) {
+        for (final p in s.seats) {
+          x0 = math.min(x0, p.x - s.size / 2 / aspect);
+          x1 = math.max(x1, p.x + s.size / 2 / aspect);
+          y0 = math.min(y0, p.y - s.size / 2);
+          y1 = math.max(y1, p.y + s.size / 2);
+        }
+        if (s.name.isNotEmpty) {
+          final w = SeatPlan.labelHalfWidth(s.name, aspect), h = SeatPlan.labelHalfHeight;
+          x0 = math.min(x0, s.labelX - w);
+          x1 = math.max(x1, s.labelX + w);
+          y0 = math.min(y0, s.labelY - h);
+          y1 = math.max(y1, s.labelY + h);
+        }
+      }
+      if (x0 > x1 || (x0 >= margin && x1 <= 1 - margin && y0 >= margin && y1 <= 1 - margin)) return map;
+      final room = 1 - 2 * margin, f = math.min(1.0, math.min(room / (x1 - x0), room / (y1 - y0)));
+      // Into the stage: as little as moves it in.
+      double into(double lo, double hi) => lo < margin ? margin - lo : (hi > 1 - margin ? 1 - margin - hi : 0);
+      if (f >= 1) return map.withSections([for (final s in map.sections) s.moved(into(x0, x1), into(y0, y1))]);
+      // Smaller about the middle of what it covers, then moved in.
+      final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      map = map.withSections([for (final s in map.sections) s.scaled(f * 0.98, cx, cy).moved(0.5 - cx, 0.5 - cy)]);
+    }
+    return map;
+  }
 
   /// A seating of [parts] (in the score's order, named by [nameOf]) as [preset] places them:
   /// each instrument found by its name and sound, its players counted from its name ("Horn
@@ -502,23 +855,30 @@ abstract final class MapColors {
 /// A section as seating finds it: its role, name, seats' links and its own.
 typedef _Group = ({_Role role, String name, List<PlayerLink?> seats, PlayerLink? link});
 
-/// Where a section is seated: its points, its name's place.
-typedef _At = ({List<({double x, double y})> points, double lx, double ly});
-
 class _Seating {
   _Seating(this.parts, this.preset, this.nameOf);
   final List<ScorePart> parts;
   final SeatingPreset preset;
   final String Function(ScorePart) nameOf;
 
-  /// Gaps in seats: between rows and between sections side by side.
-  static const _row = 1.0, _gap = 0.7, _dot = 0.62;
+  /// A dot's width, and the gap between sections side by side, in seats.
+  static const _dot = 0.62, _gap = 0.9;
+
+  /// How many seats a name's letter takes across: a guess, then what the first fitting found.
+  double _perLetter = 0.27;
+
+  /// About how many seats a name of [name] takes across.
+  double _nameWidth(String name) => math.min(name.length, 28) * _perLetter + 0.5;
 
   PlayerMap map() {
     final groups = _groups();
     if (groups.isEmpty) return const PlayerMap();
-    final placed = preset == SeatingPreset.ensemble ? _bow(groups) : _orchestra(groups);
-    return _fitted(placed);
+    List<(_Draft, SeatPlan)> placed() => preset == SeatingPreset.ensemble ? _bow(groups) : _orchestra(groups);
+    // Seated again with names as wide as the scale it was fitted at makes them.
+    final first = _fitted(placed());
+    final k = first.sections.first.size / _dot;
+    _perLetter = (SeatPlan.labelHalfWidth('ab', PlayerMap.defaultAspect) - SeatPlan.labelHalfWidth('a', PlayerMap.defaultAspect)) * 2 * PlayerMap.defaultAspect / k;
+    return _fitted(placed());
   }
 
   // MARK: Who plays
@@ -691,203 +1051,214 @@ class _Seating {
 
   // MARK: Where they sit
   //
-  // Laid out in seats (a seat's pitch is 1), the conductor at (0, 0), the players above (y < 0),
-  // then fitted to the stage.
+  // Planned in seats (a seat's pitch about 1), the conductor at (0, 0), the players behind
+  // (y < 0), then fitted to the stage.
 
-  /// A seated section: its points, its name's place.
-  static _At _placed(List<({double x, double y})> points, double lx, double ly) =>
-      (points: points, lx: lx, ly: ly);
+  static SeatPlan _plan(SeatPlanKind kind, {double x = 0, double y = 0, double radius = 0, double from = 0, double to = math.pi, double mid = math.pi / 2, int? across, bool behind = false}) =>
+      SeatPlan(kind, x: x, y: y, unitX: 1, unitY: 1, radius: radius, from: from, to: to, mid: mid, across: across, behind: behind);
 
-  /// Points of a ring's sector from angle [a] to [b] (0 the left, π the right, over the back),
-  /// rows from radius [r0] out, filled front first; its rows' count.
-  static (List<({double x, double y})>, int) _sector(int count, double a, double b, double r0) {
-    final points = <({double x, double y})>[];
-    var row = 0;
-    while (points.length < count) {
-      final r = r0 + row * _row, fits = math.max(1, ((b - a) * r / 1.08).floor()), n = math.min(fits, count - points.length);
-      final step = (b - a) / fits, start = a + (b - a - step * (n - 1)) / 2;
-      for (var k = 0; k < n; k++) {
-        final t = n == 1 ? (a + b) / 2 : start + step * k;
-        points.add((x: -r * math.cos(t), y: -r * math.sin(t)));
-      }
-      row++;
-    }
-    return (points, row);
-  }
+  /// How far from the conductor [plan]'s [count] seats reach.
+  static double _reach(SeatPlan plan, int count) =>
+      plan.places(count).fold(0.0, (r, p) => math.max(r, math.sqrt(math.pow(plan.x + p.x, 2) + math.pow(plan.y + p.y, 2))));
 
-  /// Points of a straight row of [count] centred at [x], [y].
-  static List<({double x, double y})> _line(int count, double x, double y) =>
-      [for (var k = 0; k < count; k++) (x: x + (k - (count - 1) / 2), y: y)];
-
-  List<(_Draft, _At)> _orchestra(List<_Group> groups) {
-    final out = <(_Draft, _At)>[];
-    void add(_Group g, _At at) => out.add((_Draft(g.name, _colorOf(g.role), g.link, g.seats), at));
+  List<(_Draft, SeatPlan)> _orchestra(List<_Group> groups) {
+    final out = <(_Draft, SeatPlan)>[];
+    void add(_Group g, SeatPlan plan) => out.add((_Draft(g.name, _colorOf(g.role), g.link, g.seats), plan));
     List<_Group> of(Set<_Role> roles) => [for (final g in groups) if (roles.contains(g.role)) g];
+    final european = preset == SeatingPreset.european;
+    const edge = 0.03 * math.pi;
 
-    // The strings: a fan around the conductor, in sectors as wide as their players.
-    const r0 = 3.4;
+    // The strings: a fan around the conductor two or three rows deep, in sectors as wide as their
+    // players, each name just inside its front row.
     final front = of({_Role.violin1, _Role.violin2, _Role.viola, _Role.cello});
-    final order = preset == SeatingPreset.european
+    final order = european
         ? const [_Role.violin1, _Role.cello, _Role.viola, _Role.violin2]
         : const [_Role.violin1, _Role.violin2, _Role.viola, _Role.cello];
     front.sort((a, b) => order.indexOf(a.role).compareTo(order.indexOf(b.role)));
     final total = front.fold(0, (n, g) => n + g.seats.length);
-    var angle = 0.04 * math.pi, rows = 0;
-    final spread = 0.92 * math.pi, fans = <(_Group, List<({double x, double y})>)>[];
+    const spread = math.pi - 2 * edge;
+    final r0 = math.max(3.6, total * SeatPlan.ringPitch / (2.6 * spread) - 0.8);
+    var angle = edge, back = front.isEmpty ? 1.5 : r0;
     for (final g in front) {
-      final width = spread * g.seats.length / total;
-      final (points, n) = _sector(g.seats.length, angle, angle + width, r0);
-      rows = math.max(rows, n);
-      fans.add((g, points));
+      final width = spread * g.seats.length / total, plan = _plan(SeatPlanKind.sector, radius: r0, from: angle, to: angle + width);
+      add(g, plan);
+      back = math.max(back, _reach(plan, g.seats.length));
       angle += width;
     }
-    // Their names along the front, each under its middle (moved apart once fitted).
-    var front0 = 0.0;
-    for (final (_, points) in fans) {
-      for (final p in points) {
-        front0 = math.max(front0, p.y);
+
+    // At the sides, just outside the fan: the basses behind the cellos (the right; the left in a
+    // European seating), the harp and keyboards on the other side; their names beyond them.
+    final sideR = back + 1.1;
+    var sides = 0.0;
+    for (final (k, list) in [of({_Role.bass}), of({_Role.harp, _Role.keyboard})].indexed) {
+      final right = (k == 0) != european;
+      var a = edge;
+      for (final g in list) {
+        final width = math.max(1.6, (g.seats.length / 2 + 0.5) * SeatPlan.ringPitch) / sideR;
+        final (from, to) = right ? (math.pi - a - width, math.pi - a) : (a, a + width);
+        add(g, _plan(SeatPlanKind.sector, radius: sideR, from: from, to: to, behind: true));
+        a += width + 0.25 / sideR;
       }
+      sides = math.max(sides, a - edge);
     }
-    for (final (g, points) in fans) {
-      add(g, _placed(points, points.fold(0.0, (x, p) => x + p.x) / points.length, front0 + 0.9));
-    }
-    var back = r0 + math.max(rows, front.isEmpty ? 0 : 2) * _row; // just behind the strings
 
-    // The basses: an arc at the outer side behind the cellos (the right; at the left in a European
-    // seating), their name beyond it.
-    for (final g in of({_Role.bass})) {
-      final r = back + 0.3, width = math.max(0.16 * math.pi, (g.seats.length / 2 + 0.5) / r);
-      final (a, b) = preset == SeatingPreset.european ? (0.04 * math.pi, 0.04 * math.pi + width) : (0.96 * math.pi - width, 0.96 * math.pi);
-      final (points, _) = _sector(g.seats.length, a, b, r);
-      final top = points.reduce((p, q) => q.y < p.y ? q : p);
-      add(g, _placed(points, top.x, top.y - 0.85));
-    }
-    back += 0.6;
-
-    // Rows behind: each a few sections side by side, centred; names under the first row's,
-    // over the others'.
-    var y = -back;
-    void row(List<_Group> sections, {required bool namesUnder}) {
+    // Rows behind, gently curved (about a point in front of the conductor), each a few sections
+    // side by side, centred, pushed back where their ends would meet what is at the sides; each
+    // name in front of its section.
+    var r = back + 1.8;
+    final flat = back * 0.9, sideAngle = edge + sides + 0.04 * math.pi;
+    final sideX = sides == 0 ? double.infinity : sideR * math.cos(sideAngle) - 0.6, sideTop = -(sideR + 2.4) * math.sin(sideAngle);
+    void row(List<_Group> sections, {int Function(int count)? across, bool behind = false}) {
       if (sections.isEmpty) return;
-      final width = sections.fold(0.0, (w, g) => w + g.seats.length - 1) + _gap * 2 * (sections.length - 1);
-      var left = -width / 2;
-      for (final g in sections) {
-        final n = g.seats.length, mid = left + (n - 1) / 2;
-        add(g, _placed(_line(n, mid, y), mid, y + (namesUnder ? 0.85 : -0.85)));
-        left += n - 1 + _gap * 2;
+      final widths = [
+        for (final g in sections) math.max((across?.call(g.seats.length) ?? g.seats.length) * SeatPlan.pitch, _nameWidth(g.name)),
+      ];
+      final width = widths.fold(0.0, (a, b) => a + b) + _gap * (sections.length - 1);
+      for (var k = 0; k < 60; k++) {
+        final radius = r + flat, half = math.min(0.48 * math.pi, width / radius / 2);
+        if (radius * math.sin(half) <= sideX || flat - radius * math.cos(half) < sideTop) break;
+        r += 0.5;
       }
+      final radius = r + flat;
+      var t = math.pi / 2 - width / radius / 2, deepest = 0;
+      for (final (k, g) in sections.indexed) {
+        final n = across?.call(g.seats.length);
+        final plan = _plan(SeatPlanKind.bow, y: flat, radius: radius, mid: t + widths[k] / radius / 2, across: n, behind: behind);
+        add(g, plan);
+        deepest = math.max(deepest, plan.places(g.seats.length).last.row);
+        t += (widths[k] + _gap) / radius;
+      }
+      r += deepest * SeatPlan.ringGap + 2.4;
     }
 
-    // The woodwinds in two rows: flutes and oboes, clarinets and bassoons (saxophones after them).
-    final flutes = of({_Role.flute, _Role.oboe}), reeds = of({_Role.clarinet, _Role.bassoon, _Role.saxophone});
-    if (flutes.isNotEmpty) {
-      row(flutes, namesUnder: true);
-      y -= _row * 2;
-    }
-    if (reeds.isNotEmpty) {
-      row(reeds, namesUnder: false);
-      y -= _row * 2;
-    }
-    // The brass: horns at the left, trumpets, trombones and tuba to the right.
-    final brass = of({_Role.horn, _Role.trumpet, _Role.trombone, _Role.tuba});
-    if (brass.isNotEmpty) {
-      row(brass, namesUnder: false);
-      y -= _row * 2;
-    }
-    // Timpani and percussion at the back, what else there is beside them.
-    final drums = [...of({_Role.timpani, _Role.percussion}), ...of({_Role.other})];
-    if (drums.isNotEmpty) {
-      row(drums, namesUnder: false);
-      y -= _row * 2;
-    }
-    // Voices on risers at the very back.
-    final voices = of({_Role.voice});
-    if (voices.isNotEmpty) {
-      row(voices, namesUnder: false);
-      y -= _row * 2;
-    }
+    // The woodwinds in two rows: flutes and oboes, clarinets and bassoons (saxophones after them);
+    // the brass behind (horns at the left), timpani and percussion behind them, what else there
+    // is beside them; the choir on risers at the back, its names over it.
+    row(of({_Role.flute, _Role.oboe}));
+    row(of({_Role.clarinet, _Role.bassoon, _Role.saxophone}));
+    row(of({_Role.horn, _Role.trumpet, _Role.trombone, _Role.tuba}));
+    row([...of({_Role.timpani, _Role.percussion}), ...of({_Role.other})]);
+    row(of({_Role.voice}), across: (n) => n >= 6 ? (n / 2).ceil() : n, behind: true);
 
-    // The harp and keyboards at the left, beside the first violins.
-    var ky = -1.2;
-    for (final g in of({_Role.harp, _Role.keyboard})) {
-      final x = (preset == SeatingPreset.european ? 1 : -1) * (back + 1.2);
-      add(g, _placed(_line(g.seats.length, x, ky), x, ky + 0.85));
-      ky -= 2.2;
-    }
-    // Soloists at the front, by the conductor.
+    // Soloists at the front, by the conductor, side by side.
     final solos = of({_Role.solo});
     if (solos.isNotEmpty) {
-      final saved = y;
-      y = 0.6;
-      row(solos, namesUnder: true);
-      y = saved;
+      final widths = [for (final g in solos) math.max(g.seats.length * SeatPlan.pitch, _nameWidth(g.name))];
+      var x = -(widths.fold(0.0, (a, b) => a + b) + _gap * (solos.length - 1)) / 2;
+      for (final (k, g) in solos.indexed) {
+        add(g, _plan(SeatPlanKind.rows, x: x + widths[k] / 2, y: 1.0));
+        x += widths[k] + _gap;
+      }
     }
     return out;
   }
 
   /// Every section on bows facing the front, in the score's order, the front bow first; each
-  /// takes as much of its bow as its players or its name needs, its name on the bow's inner side.
-  List<(_Draft, _At)> _bow(List<_Group> groups) {
-    const pitch = 1.1, between = 2.6, spread = 0.84 * math.pi;
-    double widthOf(_Group g) => math.max(g.seats.length * pitch, math.min(g.name.length, 24) * 0.32 + 0.7);
-    final widths = [for (final g in groups) widthOf(g)];
-    final total = widths.fold(0.0, (a, b) => a + b);
-    final bows = total <= 16 ? 1 : (total <= 44 ? 2 : 3);
-    final r0 = math.max(2.6, (total * 1.08 / spread - between * bows * (bows - 1) / 2) / bows);
-    final out = <(_Draft, _At)>[];
+  /// takes as much of its bow as its players or its name needs, its name in front of it.
+  List<(_Draft, SeatPlan)> _bow(List<_Group> groups) {
+    const between = 2.4, spread = 0.84 * math.pi;
+    final widths = [for (final g in groups) math.max(g.seats.length * SeatPlan.pitch, _nameWidth(g.name))];
+    final total = widths.fold(0.0, (a, b) => a + b) + _gap * (groups.length - 1);
+    // As many bows as hold them, each from a quarter of the stage's height back.
+    final bows = (total / 17).ceil().clamp(1, 6);
+    final r0 = math.max(2.6, (total / spread - between * bows * (bows - 1) / 2) / bows);
+    final out = <(_Draft, SeatPlan)>[];
     var next = 0;
+    // Each bow as much of the whole as its length is of theirs, so each spans about as wide.
+    final lengths = [for (var b = 0; b < bows; b++) r0 + b * between], all = lengths.fold(0.0, (a, b) => a + b);
     for (var b = 0; b < bows && next < groups.length; b++) {
-      final r = r0 + b * between, room = spread * r;
+      final r = lengths[b], share = total * r / all;
       final these = <int>[];
       var used = 0.0;
-      while (next < groups.length && (b == bows - 1 || these.isEmpty || used + widths[next] <= room * 1.02)) {
+      while (next < groups.length && (b == bows - 1 || these.isEmpty || used + _gap + widths[next] / 2 <= share)) {
+        if (these.isNotEmpty) used += _gap;
         these.add(next);
         used += widths[next++];
       }
       // Centred about the middle of the back, as many radians as its sections take.
       var t = math.pi / 2 - used / r / 2;
       for (final k in these) {
-        final g = groups[k], width = widths[k] / r, mid = t + width / 2, step = pitch / r;
-        final points = [
-          for (var s = 0; s < g.seats.length; s++)
-            () {
-              final a = mid + (s - (g.seats.length - 1) / 2) * step;
-              return (x: -r * math.cos(a), y: -r * math.sin(a));
-            }(),
-        ];
-        final low = points.fold(-double.infinity, (y, p) => math.max(y, p.y));
-        out.add((_Draft(g.name, _colorOf(g.role), g.link, g.seats), _placed(points, -r * math.cos(mid), low + 0.85)));
-        t += width;
+        final g = groups[k];
+        out.add((_Draft(g.name, _colorOf(g.role), g.link, g.seats), _plan(SeatPlanKind.bow, radius: r, mid: t + widths[k] / r / 2)));
+        t += (widths[k] + _gap) / r;
       }
     }
     return out;
   }
 
-  /// The seating scaled to fill the stage, a margin round it: wider than it is laid out, up to
-  /// [stretch] times, where the stage is (the dots stay round); then names that would overlap
-  /// moved apart.
-  PlayerMap _fitted(List<(_Draft, _At)> placed) {
-    const aspect = PlayerMap.defaultAspect, margin = 0.07, stretch = 1.7;
-    // A name's half width and height in seats, at a scale: [PlayerMap.labelSize] of the stage's
-    // height a letter, about half as wide.
+  /// The seating scaled to fill the stage, names and all, a margin round it: wider than it is
+  /// planned, up to [stretch] times, where the stage is (the dots stay round), its dots never
+  /// bigger than a few players' worth; then names that would overlap moved apart.
+  PlayerMap _fitted(List<(_Draft, SeatPlan)> placed) {
+    const aspect = PlayerMap.defaultAspect, margin = 0.06, stretch = 1.6, biggest = 0.07;
     var x0 = double.infinity, x1 = double.negativeInfinity, y0 = double.infinity, y1 = double.negativeInfinity;
-    for (final (_, at) in placed) {
-      for (final p in [...at.points, (x: at.lx, y: at.ly)]) {
-        x0 = math.min(x0, p.x - 0.5);
-        x1 = math.max(x1, p.x + 0.5);
-        y0 = math.min(y0, p.y - 0.5);
-        y1 = math.max(y1, p.y + 0.5);
+    for (final (d, plan) in placed) {
+      for (final p in plan.places(d.seats.length)) {
+        x0 = math.min(x0, plan.x + p.x - 0.5);
+        x1 = math.max(x1, plan.x + p.x + 0.5);
+        y0 = math.min(y0, plan.y + p.y - 0.5);
+        y1 = math.max(y1, plan.y + p.y + 0.5);
       }
     }
+    final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     var kx = (1 - 2 * margin) * aspect / math.max(1e-6, x1 - x0), ky = (1 - 2 * margin) / math.max(1e-6, y1 - y0);
     kx = math.min(kx, ky * stretch);
     ky = math.min(ky, kx * stretch);
-    final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    double sx(double x) => 0.5 + (x - cx) * kx / aspect;
-    double sy(double y) => 0.5 + (y - cy) * ky;
-    final size = (_dot * math.min(kx, ky)).clamp(MapSection.minSize, 0.085);
-    final labels = [for (final (_, at) in placed) (x: sx(at.lx), y: sy(at.ly))];
-    final halves = [for (final (d, _) in placed) (w: d.name.length * PlayerMap.labelSize * 0.29 / aspect + 0.008, h: PlayerMap.labelSize * 0.62)];
+    List<MapSection> at(double kx, double ky) {
+      final k = math.min(kx, ky), size = (_dot * k).clamp(MapSection.minSize, biggest);
+      return [
+        for (final (d, plan) in placed)
+          () {
+            final stage = SeatPlan(plan.kind,
+                x: 0.5 + (plan.x - cx) * kx / aspect,
+                y: 0.5 + (plan.y - cy) * ky,
+                unitX: kx / aspect,
+                unitY: ky,
+                radius: plan.radius,
+                from: plan.from,
+                to: plan.to,
+                mid: plan.mid,
+                across: plan.across,
+                behind: plan.behind);
+            final seats = [for (final l in d.seats) MapSeat(0, 0, link: l)];
+            return MapSection(name: d.name, color: d.color, size: size, labelX: 0, labelY: 0, link: d.link, seats: seats, auto: stage)
+                .planned(stage, d.seats.length, aspect: aspect);
+          }(),
+      ];
+    }
+
+    // Its names are as big at any scale: smaller until they too are on the stage.
+    var sections = at(kx, ky);
+    for (var round = 0; round < 6; round++) {
+      var a0 = double.infinity, a1 = double.negativeInfinity, b0 = double.infinity, b1 = double.negativeInfinity;
+      for (final s in sections) {
+        final w = SeatPlan.labelHalfWidth(s.name, aspect), h = SeatPlan.labelHalfHeight;
+        for (final (x, y, hw, hh) in [for (final p in s.seats) (p.x, p.y, s.size / 2 / aspect, s.size / 2), (s.labelX, s.labelY, w, h)]) {
+          a0 = math.min(a0, x - hw);
+          a1 = math.max(a1, x + hw);
+          b0 = math.min(b0, y - hh);
+          b1 = math.max(b1, y + hh);
+        }
+      }
+      final f = math.min((1 - 2 * margin) / (a1 - a0), (1 - 2 * margin) / (b1 - b0));
+      // A few players aren't blown up to fill the stage.
+      final most = biggest / _dot / math.min(kx, ky);
+      final g = math.min(f, most);
+      if ((g - 1).abs() < 0.01) {
+        sections = [for (final s in sections) s.moved(0.5 - (a0 + a1) / 2, 0.5 - (b0 + b1) / 2)];
+        break;
+      }
+      kx *= g;
+      ky *= g;
+      sections = at(kx, ky);
+      if (round == 5) {
+        sections = [for (final s in sections) s.moved(0.5 - (a0 + a1) / 2, 0.5 - (b0 + b1) / 2)];
+      }
+    }
+
+    // Names that would overlap moved apart sideways, the shorter way.
+    final labels = [for (final s in sections) (x: s.labelX, y: s.labelY)];
+    final halves = [for (final s in sections) (w: SeatPlan.labelHalfWidth(s.name, aspect), h: SeatPlan.labelHalfHeight)];
     for (var round = 0; round < 60; round++) {
       var moved = false;
       for (var a = 0; a < labels.length; a++) {
@@ -896,7 +1267,6 @@ class _Seating {
           final ox = halves[a].w + halves[b].w - dx.abs(), oy = halves[a].h + halves[b].h - dy.abs();
           if (ox <= 0 || oy <= 0) continue;
           moved = true;
-          // Apart sideways, the shorter way.
           final push = ox / 2 + 0.002, sign = dx < 0 ? -1.0 : 1.0;
           labels[a] = (x: labels[a].x - sign * push, y: labels[a].y);
           labels[b] = (x: labels[b].x + sign * push, y: labels[b].y);
@@ -904,20 +1274,7 @@ class _Seating {
       }
       if (!moved) break;
     }
-    return PlayerMap(
-      sections: List.unmodifiable([
-        for (final (i, (draft, at)) in placed.indexed)
-          MapSection(
-            name: draft.name,
-            color: draft.color,
-            size: size,
-            labelX: labels[i].x,
-            labelY: labels[i].y,
-            link: draft.link,
-            seats: [for (final (k, p) in at.points.indexed) MapSeat(sx(p.x), sy(p.y), link: draft.seats[k])],
-          ),
-      ]),
-    );
+    return PlayerMap(sections: List.unmodifiable([for (final (i, s) in sections.indexed) s.copyWith(labelX: labels[i].x, labelY: labels[i].y)]));
   }
 }
 
