@@ -714,7 +714,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'paste': edit != null && edit.paste ? page!._paste : null,
           'delete': edit != null && edit.delete ? commands!.delete : null,
           'selectAll': edit != null && commands!.canSelectAll ? commands.selectAll : null,
-          'findPhrase': open && !_typing.value && free && !page.controller.isPdf ? page._findPhrase : null,
+          'findPhrase': open && !_typing.value && free && page.controller.hasNotes ? page._findPhrase : null,
           'projectSettings': open ? page._projectSettings : null,
           'showPreview': open ? () => page._showPreview(!page._previewShown) : null,
           'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,

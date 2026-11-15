@@ -118,7 +118,7 @@ class EditorToolbar extends StatelessWidget {
             icon: AppIcon.search.of(context),
             tooltip: keyed(context, KeyCommand.findPhrase, (key) => 'Find phrase ({key})'.fill({'key': key}), 'Find phrase'.tr),
             selected: shown,
-            onPressed: c.isPdf ? null : () => Plugins.doOwn(context, 'findPhrase', () => PhraseSearchWindow.toggle(Overlay.of(context), c)),
+            onPressed: !c.hasNotes ? null : () => Plugins.doOwn(context, 'findPhrase', () => PhraseSearchWindow.toggle(Overlay.of(context), c)),
           ),
         ),
         if (onPlayerMap case final onPlayerMap?) ...[

@@ -249,9 +249,7 @@ class EditorController extends ChangeNotifier {
 
   /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
   /// is its, auto-curation leaves it be.
-  bool isBlankLane(String partId) => _score != null && _isBlank(_score!, partId);
-
-  static bool _isBlank(LoadedScore score, String partId) => score.pdf?.layout.playerOf(partId)?.$1.blank ?? false;
+  bool isBlankLane(String partId) => _score?.isBlankPart(partId) ?? false;
 
   /// The PDF the open score is drawn from, read by PDFium; null for an engraved score.
   PdfPages? get pdfPages => _pdfPages;
@@ -260,6 +258,10 @@ class EditorController extends ChangeNotifier {
   /// Whether the open project is a PDF's ([openPdf], [ProjectKind.pdf]): no notes, nothing
   /// engraved; no Find Phrase, and no auto-curation unless [autoCuratePdf].
   bool get isPdf => _score != null && _kind == ProjectKind.pdf;
+
+  /// Whether the score has notes to read (Find Phrase, Align, the player map's pulses): any but
+  /// a PDF's ([LoadedScore.hasNotes]).
+  bool get hasNotes => !isPdf;
   ProjectKind _kind = ProjectKind.score;
 
   /// Whether the open project's lanes can be auto-curated: a score's, or a PDF's while
@@ -558,7 +560,7 @@ class EditorController extends ChangeNotifier {
                       ? {
                           ...Curation.autoCuratedLanes(parts, score.metadata.activeMeasures, score.timeline.measureStarts),
                           // A blank lane plays nothing, and is there to be shown.
-                          for (final id in parts) if (_isBlank(score, id)) id: throughout,
+                          for (final id in parts) if (score.isBlankPart(id)) id: throughout,
                         }
                       : {for (final id in parts) id: throughout}),
           transition: edits.transition ?? defaultTransition);
@@ -1461,7 +1463,7 @@ class EditorController extends ChangeNotifier {
   List<PlayerPair> get condensable {
     final score = _score;
     // A PDF's staves are printed ones, a LilyPond score's engraved by LilyPond: none to share.
-    if (score == null || score.pdf != null || score.lilypond != null) return const [];
+    if (score == null || score.isDrawn) return const [];
     if (_condensable case (final s, final p, final pairs) when identical(s, score) && identical(p, _doc.pairs)) return pairs;
     final pairs = List<PlayerPair>.unmodifiable(score.condensing.pairs(_doc.pairs));
     _condensable = (score, _doc.pairs, pairs);

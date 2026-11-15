@@ -58,7 +58,7 @@ class PlayerMapEditing {
   /// change, which costs nothing ([PlayerPulses]).
   PlayerPulses get pulses {
     final score = _editor._score;
-    if (score == null || map == null || _editor.isPdf) return PlayerPulses.none;
+    if (score == null || map == null || !_editor.hasNotes) return PlayerPulses.none;
     final notes = _notes;
     if (notes == null || !identical(notes.xml, score.musicXML) && notes.xml != score.musicXML) {
       _read(score);
