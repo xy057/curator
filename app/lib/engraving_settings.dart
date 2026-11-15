@@ -10,7 +10,7 @@ import 'app_settings.dart';
 import 'controller_settings.dart';
 import 'editor_controller.dart';
 import 'menu_kit.dart';
-import 'motion_settings.dart' show ResetSlot, SettingSlider;
+import 'motion_settings.dart' show DefaultsTarget, ResetSlot, SettingSlider;
 import 'project_document.dart' show sampleProjectAsset;
 import 'project_file.dart';
 import 'scratch_space.dart';
@@ -155,7 +155,7 @@ class EngravingSetting {
 /// The engraving options a control changes: the open project's, over the app's defaults
 /// ([AppSettings.engravingOptions], set only by [saveAsDefault]). Each change is an edit; a
 /// reset goes back to the house style, even over a default.
-class EngravingTarget {
+class EngravingTarget implements DefaultsTarget {
   EngravingTarget(this.settings, this.controller);
   final AppSettings settings;
   final EditorController controller;
@@ -202,6 +202,7 @@ class EngravingTarget {
   }
 
   /// Whether this project's fonts and engraving are already the app's defaults.
+  @override
   bool get isDefault =>
       settings.engravingOptions == _asDefault &&
       settings.musicFont == controller.fonts.music.name &&
@@ -210,6 +211,7 @@ class EngravingTarget {
 
   /// This project's fonts (for new projects) and engraving (for every project not setting
   /// its own) made the app's.
+  @override
   void saveAsDefault() {
     settings.engravingOptions = _asDefault;
     settings.musicFont = controller.fonts.music.name;
@@ -220,6 +222,7 @@ class EngravingTarget {
   /// This project's fonts and engraving back to the app's defaults (fonts not installed here
   /// as for a new project: a music font kept by name, Bravura standing in; Academico). Call
   /// inside one edit.
+  @override
   Future<void> resetToDefault() async {
     final (:fonts, :embed) = await controller.defaultFonts();
     await controller.setFonts(fonts, embed: embed);
@@ -228,6 +231,7 @@ class EngravingTarget {
 
   /// Whether this project's fonts and engraving are the house style's (System Default): Bravura,
   /// Academico, embedded, and no option engraved other than the house style.
+  @override
   bool get isSystem =>
       controller.fonts.music.name == ScoreFonts.standard.music.name &&
       controller.fonts.text == ScoreFonts.standard.text &&
@@ -235,6 +239,7 @@ class EngravingTarget {
       !EngraveOption.all.any(isChanged);
 
   /// Whether the app's defaults are the house style's: nothing saved over it.
+  @override
   bool get savedIsSystem =>
       settings.engravingOptions.isEmpty &&
       settings.musicFont == ScoreFonts.standard.music.name &&
@@ -244,6 +249,7 @@ class EngravingTarget {
   /// This project's fonts and engraving back to the house style's, whatever the app's defaults:
   /// each option those change set here to the house style's (in Bravura, so after the fonts),
   /// kept over them. Call inside one edit.
+  @override
   Future<void> resetToSystem() async {
     await controller.setFonts(ScoreFonts.standard, embed: AppSettings.defaultEmbedFont);
     var options = const EngravingOptions();

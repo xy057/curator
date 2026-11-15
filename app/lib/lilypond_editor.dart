@@ -270,19 +270,8 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
       _engraving?.cancel();
       return Navigator.of(context).pop();
     }
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        content: Text('The score stays as it was.'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) {
+    final discard = await confirmDiscard(context, content: 'The score stays as it was.'.tr);
+    if (discard && mounted) {
       _engraving?.cancel();
       Navigator.of(context).pop();
     } else if (mounted) {
@@ -358,12 +347,7 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
             if (_engraving != null) PulsingDot(color: colors.accent, size: 8),
           ]),
         ),
-        ToolbarButton(
-            icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: c.canUndo ? c.undo : null),
-        ToolbarButton(
-            icon: AppIcon.redo.of(context),
-            tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}),
-            onPressed: c.canRedo ? c.redo : null),
+        ...undoRedoButtons(context, undo: c.canUndo ? c.undo : null, redo: c.canRedo ? c.redo : null),
         ToolbarButton(icon: AppIcon.search.of(context), tooltip: 'Find ({key})'.fill({'key': shortcut('⌘F')}), onPressed: _find),
         const ToolbarDivider(),
         Tip(

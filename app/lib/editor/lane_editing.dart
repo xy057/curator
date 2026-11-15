@@ -11,7 +11,10 @@ enum LaneTool {
 
   /// Drag across lanes and bars to hide those instruments there; a click hides one beat
   /// (one bar when zoomed out).
-  erase,
+  erase;
+
+  /// The tool a drag uses with ⌥ held ([alt]): select draws, and draw and erase swap.
+  LaneTool withAlt(bool alt) => !alt ? this : (this == draw ? erase : draw);
 }
 
 /// A region together with the lane it is in.

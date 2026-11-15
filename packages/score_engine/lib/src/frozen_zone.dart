@@ -5,6 +5,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'native/constants.dart' show VBKind;
 import 'score_typography.dart';
+import 'search.dart';
 
 /// The frozen zone at the left of every staff, like Dorico's galley view: the clef, key and
 /// time signature currently in force stay visible while the music scrolls. A change takes over
@@ -170,12 +171,8 @@ class FrozenZone {
       if (list == null || list.isEmpty) return null;
       // Before anything has passed the edge, only an opening signature applies; a staff
       // with no opening key (e.g. horns in C) shows none until its first key change.
-      T? result = list.first.x < _firstOnset ? list.first : null;
-      for (final s in list) {
-        if (s.x > x) break;
-        result = s;
-      }
-      return result;
+      final last = lastAtOrBefore(list.length, x, (i) => list[i].x); // they are in order
+      return last >= 0 ? list[last] : (list.first.x < _firstOnset ? list.first : null);
     }
 
     return (clef: current(_clefs[staff]), key: current(_keys[staff]), time: current(_meters[staff]));
@@ -292,17 +289,24 @@ class FrozenZone {
   /// a staff space above and below the middle line, or meeting on it when they are taller
   /// than two (a handwritten font's, as Verovio stacks Petaluma's).
   void _paintTime(ui.Canvas canvas, TimeSignature time, double centerX, double middleY) {
-    final sp = style.staffSpace * _timeScale;
-    double offset(String digits) =>
-        math.max(1.0, digits.runes.map((c) => (_boxes[c]?.height ?? 2) / 2).fold(0.0, math.max)) * sp;
     if (time.symbol != null) {
       _drawCentered(canvas, String.fromCharCode(time.symbol!), centerX, middleY);
     } else if (time.count > 0 && time.unit > 0) {
-      final numerator = _numerator(time), denominator = _digits(time.unit);
-      _drawCentered(canvas, numerator, centerX, middleY - offset(numerator));
-      _drawCentered(canvas, denominator, centerX, middleY + offset(denominator));
+      final (:numerator, :denominator, :above, :below) = _timeTexts[time] ??= () {
+        final sp = style.staffSpace * _timeScale;
+        double offset(String digits) =>
+            math.max(1.0, digits.runes.map((c) => (_boxes[c]?.height ?? 2) / 2).fold(0.0, math.max)) * sp;
+        final numerator = _numerator(time), denominator = _digits(time.unit);
+        return (numerator: numerator, denominator: denominator, above: offset(numerator), below: offset(denominator));
+      }();
+      _drawCentered(canvas, numerator, centerX, middleY - above);
+      _drawCentered(canvas, denominator, centerX, middleY + below);
     }
   }
+
+  /// Each time signature's two numbers in SMuFL digits, and how far above and below the middle
+  /// line they sit: worked out once, not at every frame.
+  final _timeTexts = Map<TimeSignature, ({String numerator, String denominator, double above, double below})>.identity();
 
   /// SMuFL time signature digits for [n].
   static String _digits(int n) => String.fromCharCodes('$n'.codeUnits.map((c) => 0xE080 + c - 0x30));
@@ -373,14 +377,7 @@ class FrozenZone {
   /// [text] in the music font at [scale] × the staff's size.
   ui.Paragraph _paragraph(String text, [double scale = 1]) => _glyphs.putIfAbsent((text, scale), () {
         final size = 4 * style.staffSpace * scale; // SMuFL: one em is four staff spaces
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(fontFamily: style.musicFontFamily, fontSize: size))
-          ..pushStyle(ui.TextStyle(
-              color: style.ink,
-              fontFamily: style.musicFontFamily,
-              fontFamilyFallback: RenderStyle.musicFontFallback,
-              fontSize: size))
-          ..addText(text);
-        return builder.build()..layout(ui.ParagraphConstraints(width: size * 4));
+        return style.musicParagraph(text, size, width: size * 4);
       });
 
   void _drawGlyph(ui.Canvas canvas, int codepoint, double x, double baselineY, [double scale = 1]) {

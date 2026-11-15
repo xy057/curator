@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeybo
 import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'l10n/l10n.dart';
 
 /// Keys as the platform writes them: [mac] on macOS ("⇧⌘Z", "⌥-drag"), [other] elsewhere, or
@@ -109,6 +110,10 @@ class _DialogRoute<T> extends DialogRoute<T> {
   }
 }
 
+/// Whether a text field has the keyboard, so its keys (a letter, an arrow, Return) are its own
+/// and not a page's.
+bool get textFieldFocused => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+
 /// A dialog's keys while nothing in it has taken them: Return presses its default button, and Esc
 /// closes one whose route doesn't close on it (not dismissed by a click outside).
 ///
@@ -207,6 +212,13 @@ class FieldLabel extends StatelessWidget {
 /// before the label. A ghost (text) button needs none: its icon follows the label.
 ButtonStyle? withIconStyle(BuildContext context) =>
     AppStyle.of(context).isCarbon ? const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 8, 0))) : null;
+
+/// A toolbar's Undo and Redo buttons, [undo] or [redo] null when there is nothing to take back
+/// or do again.
+List<Widget> undoRedoButtons(BuildContext context, {required VoidCallback? undo, required VoidCallback? redo}) => [
+      ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: undo),
+      ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: redo),
+    ];
 
 /// The compact icon button used in every toolbar: [AppStyle.control] square, its label in the
 /// tooltip; when selected a neutral fill (Carbon's $background-selected) under an accent icon
@@ -1176,5 +1188,39 @@ class _SidebarTileState extends State<SidebarTile> {
         ),
       ),
     );
+  }
+}
+
+/// Text laid out for a painter and kept: a lane or a ruler paints at every frame of playback, a
+/// drag or a zoom, and laying its labels out again each time is most of its work. Up to [limit]
+/// are kept; past it, the one asked for least lately is let go, so one asked for during a paint
+/// stays until [limit] others have been asked for since.
+class LabelCache {
+  LabelCache({this.limit = 128});
+  final int limit;
+  final _kept = <Object, TextPainter>{};
+
+  /// What [key] names, laid out by [make] the first time it is asked for.
+  TextPainter of(Object key, TextPainter Function() make) {
+    if (_kept.remove(key) case final kept?) return _kept[key] = kept; // the latest asked for goes last
+    if (_kept.length >= limit) _kept.remove(_kept.keys.first)!.dispose();
+    return _kept[key] = make();
+  }
+
+  /// [text] in [style] on one line, laid out up to [maxWidth] (cut with an ellipsis past it).
+  TextPainter text(String text, TextStyle style, {double maxWidth = double.infinity}) => of(
+      (text, style, maxWidth),
+      () => TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: TextDirection.ltr,
+            maxLines: maxWidth.isFinite ? 1 : null,
+            ellipsis: maxWidth.isFinite ? '…' : null,
+          )..layout(maxWidth: maxWidth));
+
+  void clear() {
+    for (final p in _kept.values) {
+      p.dispose();
+    }
+    _kept.clear();
   }
 }

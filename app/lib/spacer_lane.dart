@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:score_engine/score_engine.dart' show ScoreTimeline;
+import 'package:score_engine/score_engine.dart' show ScoreTimeline, plainNumber;
 
 import 'app_colors.dart';
 import 'app_icons.dart';
@@ -114,7 +114,7 @@ class _HorizontalSpacers extends SpanLaneModel {
   void open(int index) => showHorizontalSpacerDialog(context, c, index);
 
   @override
-  String? label(int index) => '+${spacerNumber(c.spacers.horizontal[index].width)} sp';
+  String? label(int index) => '+${plainNumber(c.spacers.horizontal[index].width)} sp';
 
   @override
   InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);

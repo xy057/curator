@@ -18,7 +18,7 @@ import '../script.dart';
 /// know stays in the file, so an extension made for a later Curator survives being opened and
 /// saved by this one (see [ConnectorGraph]).
 @immutable
-class ExtensionPackage implements ScriptPackage {
+class ExtensionPackage with PackageManifest implements ScriptPackage {
   ExtensionPackage({
     required Map<String, Object?> manifest,
     ConnectorGraph? graph,
@@ -51,6 +51,7 @@ class ExtensionPackage implements ScriptPackage {
       );
 
   /// `extension.json`, whole.
+  @override
   final Map<String, Object?> manifest;
   final ConnectorGraph graph;
 
@@ -65,34 +66,14 @@ class ExtensionPackage implements ScriptPackage {
   /// Each file under `assets/` by its path there.
   @override
   final Map<String, Uint8List> assets;
+  @override
   final String? readme;
-
-  /// Stable for good: a project keeps its switch and its data under it. Curator's own are one
-  /// word ("captions"); anyone else's has a dot, a domain backwards ("com.example.lyrics").
-  @override
-  String get id => _text('id') ?? '';
-  @override
-  String get name => _text('name') ?? id;
-  @override
-  String? get version => _text('version');
-  String get summary => _text('summary') ?? '';
-  String get keywords => _text('keywords') ?? '';
-  String? get author => _text('author');
-  String? get url => _text('url');
-
-  /// The name of one of the app's icons; null or unknown: the extensions' own.
-  String? get icon => _text('icon');
-
-  /// The API level it was written for ([ExtensionApi.level] is this build's).
-  int get api => switch (manifest['api']) { final num n => n.toInt(), _ => 1 };
 
   /// What it says of the data it saves: `version` (raised when the data's shape changes; its
   /// `project.load` is given the version a project was saved with), and for Curator's own the
   /// project `module` it is kept in.
   Map<String, Object?> get data => switch (manifest['data']) { final Map<String, Object?> m => m, _ => const {} };
   int get dataVersion => switch (data['version']) { final num n => n.toInt(), _ => 1 };
-
-  String? _text(String key) => switch (manifest[key]) { final String s when s.trim().isNotEmpty => s.trim(), _ => null };
 
   /// Whether [id] is one an extension from elsewhere may have.
   static bool isThirdPartyId(String id) => RegExp(r'^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$').hasMatch(id) && id.length <= 80;
@@ -102,13 +83,6 @@ class ExtensionPackage implements ScriptPackage {
 
   /// A module's name ("util.text") for a file's path ("util/text.lua").
   static String moduleOf(String path) => PackageFiles.moduleOf(path);
-
-  /// The file a `require` of [module] reads; null: there is none.
-  @override
-  String? fileOf(String module) {
-    final path = PackageFiles.pathOf(module);
-    return sources.containsKey(path) ? path : null;
-  }
 
   ExtensionPackage copyWith({
     Map<String, Object?>? manifest,
@@ -132,6 +106,7 @@ class ExtensionPackage implements ScriptPackage {
   static const _encoder = JsonEncoder.withIndent('  ');
 
   /// Every file of it by its path in the archive, in the order written (the mimetype aside).
+  @override
   late final Map<String, Uint8List> files = Map.unmodifiable({
     'extension.json': _bytes('${_encoder.convert(manifest)}\n'),
     'connect.json': _bytes('${graph.toText()}\n'),
@@ -243,6 +218,9 @@ class ConnectorGraph {
 
   /// What else the file says, kept for whoever understands it.
   final Map<String, Object?> other;
+
+  /// Whether it has a node of [type] (a socket's: "captions").
+  bool has(String type) => nodes.any((n) => n.type == type);
 
   GraphNode? node(String id) => nodes.where((n) => n.id == id).firstOrNull;
 

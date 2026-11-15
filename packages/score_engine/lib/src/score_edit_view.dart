@@ -10,6 +10,7 @@ import 'curated_scene.dart' show engineResourceDirectory;
 import 'display_list.dart';
 import 'engraving.dart';
 import 'score_editing.dart';
+import 'search.dart';
 
 /// Bars [from] to [to] (exclusive) engraved with the bars around them ([lead] before, [trail]
 /// after: [EditableScore.chunk]), of which it draws its own: what starts in them, whole (a tie
@@ -24,6 +25,11 @@ class EditChunk {
   final int lead, trail;
   final EngravingData data;
   final ScoreDisplayList list;
+
+  /// Each staff's top in the engraving, by its number: looked up at every paint.
+  late final Map<int, double> staffTops = {
+    for (final s in data.staves.reversed) s.n: s.top, // the first of a number wins
+  };
 
   /// How many bars a chunk holds in a score of [staves] staves: fewer the more there are, as a
   /// key typed engraves its chunk again and Verovio takes as long as the notes are many (two
@@ -187,31 +193,28 @@ class EditGalley {
   /// Chunk [k]'s left edge in the galley.
   double chunkLeft(int k) => _lefts[k];
 
-  int _chunkAtX(double x) {
-    for (var k = _lefts.length - 1; k >= 0; k--) {
-      if (x >= _lefts[k]) return k;
-    }
-    return 0;
-  }
+  int _chunkAtX(double x) => math.max(0, lastAtOrBefore(_lefts.length, x, (k) => _lefts[k])); // they go left to right
 
   /// How far chunk [k]'s staff [n] moves to its place.
   ui.Offset _shift(int k, int n) {
     final c = chunks[k]!;
-    final info = c.data.staves.where((s) => s.n == n).firstOrNull;
-    return ui.Offset(_lefts[k] - c.left, (_tops[n] ?? 0) - (info?.top ?? 0));
+    return ui.Offset(_lefts[k] - c.left, (_tops[n] ?? 0) - (c.staffTops[n] ?? 0));
   }
 
   /// The chunk bar [m] is in, if it is engraved.
-  EditChunk? _chunkOf(int m) {
+  EditChunk? _chunkOf(int m) => switch (_chunkIndexOf(m)) { final k? => chunks[k], null => null };
+
+  /// Which of [chunks] bar [m] is in, if it is engraved.
+  int? _chunkIndexOf(int m) {
     if (m < 0) return null;
     // Where it is when every chunk holds as many bars as the first.
     final first = chunks.isEmpty ? null : chunks.first;
     if (first != null && first.from == 0 && first.to > 0 && m ~/ first.to < chunks.length) {
-      final c = chunks[m ~/ first.to];
-      if (c != null && m >= c.from && m < c.to) return c;
+      final k = m ~/ first.to, c = chunks[k];
+      if (c != null && m >= c.from && m < c.to) return k;
     }
-    for (final c in chunks) {
-      if (c != null && m >= c.from && m < c.to) return c;
+    for (final (k, c) in chunks.indexed) {
+      if (c != null && m >= c.from && m < c.to) return k;
     }
     return null;
   }
@@ -382,6 +385,20 @@ class EditGalley {
 
   /// The bar and the time in it nearest [x]: a note's start, or a bar's.
   ({int measure, Frac time})? timeAtX(double x) {
+    final at = _barAtX(x);
+    if (at == null) return null;
+    final (:bar, :m, :local) = at;
+    final points = _points(m);
+    var best = points.first;
+    for (final pt in points) {
+      if (pt.time >= m.duration - 1e-9) continue;
+      if ((pt.x - local).abs() < (best.x - local).abs()) best = pt;
+    }
+    return (measure: bar, time: _frac(best.time));
+  }
+
+  /// The bar at [x], its layout and where [x] is in it (in its chunk's drawing); null: none.
+  ({int bar, MeasureLayout m, double local})? _barAtX(double x) {
     final k = _chunkAtX(x);
     final c = chunks[k];
     if (c == null) return null;
@@ -390,13 +407,7 @@ class EditGalley {
       final m = c.measure(bar);
       if (m == null) break;
       if (local >= m.right && bar < c.to - 1 && c.measure(bar + 1) != null) continue;
-      final points = _points(m);
-      var best = points.first;
-      for (final pt in points) {
-        if (pt.time >= m.duration - 1e-9) continue;
-        if ((pt.x - local).abs() < (best.x - local).abs()) best = pt;
-      }
-      return (measure: bar, time: _frac(best.time));
+      return (bar: bar, m: m, local: local);
     }
     return null;
   }
@@ -404,24 +415,17 @@ class EditGalley {
   /// The bar at [x] and how far into it [x] is, in quarters: between the notes either side as
   /// [x] is between where they are drawn (where no note starts, as [timeAtX] can't say).
   ({int measure, double quarters})? timeNearX(double x) {
-    final k = _chunkAtX(x);
-    final c = chunks[k];
-    if (c == null) return null;
-    final local = x - _lefts[k] + c.left;
-    for (var bar = c.from; bar < c.to; bar++) {
-      final m = c.measure(bar);
-      if (m == null) break;
-      if (local >= m.right && bar < c.to - 1 && c.measure(bar + 1) != null) continue;
-      final points = _points(m);
-      if (local <= points.first.x) return (measure: bar, quarters: points.first.time);
-      for (var i = 1; i < points.length; i++) {
-        final a = points[i - 1], b = points[i];
-        if (local > b.x) continue;
-        return (measure: bar, quarters: b.x <= a.x ? a.time : a.time + (b.time - a.time) * (local - a.x) / (b.x - a.x));
-      }
-      return (measure: bar, quarters: m.duration);
+    final at = _barAtX(x);
+    if (at == null) return null;
+    final (:bar, :m, :local) = at;
+    final points = _points(m);
+    if (local <= points.first.x) return (measure: bar, quarters: points.first.time);
+    for (var i = 1; i < points.length; i++) {
+      final a = points[i - 1], b = points[i];
+      if (local > b.x) continue;
+      return (measure: bar, quarters: b.x <= a.x ? a.time : a.time + (b.time - a.time) * (local - a.x) / (b.x - a.x));
     }
-    return null;
+    return (measure: bar, quarters: m.duration);
   }
 
   /// Where in bar [m] time [t] is drawn: at a note starting then, else between its neighbours.
@@ -447,9 +451,9 @@ class EditGalley {
 
   /// A bar's left and right barlines, galley units.
   ({double left, double right})? barOf(int m) {
-    final c = _chunkOf(m), layout = c?.measure(m);
+    final k = _chunkIndexOf(m), c = k == null ? null : chunks[k], layout = c?.measure(m);
     if (c == null || layout == null) return null;
-    final shift = _lefts[chunks.indexOf(c)] - c.left;
+    final shift = _lefts[k!] - c.left;
     return (left: layout.left + shift, right: layout.right + shift);
   }
 

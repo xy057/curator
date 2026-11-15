@@ -1,6 +1,7 @@
-import 'dart:math' as math;
-
 import 'package:xml/xml.dart';
+
+import 'musicxml_kit.dart';
+import 'score_editing.dart' show Pitch;
 
 /// A note of the score as it sounds: [midi] (transposing parts at concert pitch) from score quarter
 /// [start] to [end], in [voice] of [partId]'s [staff] (1 its first). A note of a chord after its first
@@ -12,49 +13,37 @@ typedef SoundingNote = ({String partId, int staff, String voice, double start, d
 /// unpitched percussion too, at the pitch of the line or space it is written on.
 Iterable<SoundingNote> soundingNotes(String musicXML, List<double> measureStarts, {bool unpitched = false}) sync* {
   final root = XmlDocument.parse(musicXML).rootElement;
-  int? number(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
   for (final part in root.findElements('part')) {
     final id = part.getAttribute('id') ?? '';
-    var divisions = 1, transpose = 0;
+    final bars = MeasureCursor();
+    var transpose = 0;
     for (final (m, measure) in part.findElements('measure').indexed) {
       if (m + 1 >= measureStarts.length) break;
-      var cursor = 0, lastStart = 0;
-      for (final e in measure.childElements) {
+      for (final (e, start) in bars.walk(measure)) {
         switch (e.name.local) {
           case 'attributes':
-            divisions = math.max(1, number(e.getElement('divisions')) ?? divisions);
             if (e.getElement('transpose') case final t?) {
-              transpose = (number(t.getElement('chromatic')) ?? 0) + 12 * (number(t.getElement('octave-change')) ?? 0);
+              transpose = (xmlInt(t.getElement('chromatic')) ?? 0) + 12 * (xmlInt(t.getElement('octave-change')) ?? 0);
             }
-          case 'backup':
-            cursor = math.max(0, cursor - (number(e.getElement('duration')) ?? 0));
-          case 'forward':
-            cursor += number(e.getElement('duration')) ?? 0;
           case 'note':
-            if (e.getElement('grace') != null || e.getElement('cue') != null) continue;
-            final duration = number(e.getElement('duration')) ?? 0;
+            final duration = durationOf(e), divisions = bars.divisions;
             final chord = e.getElement('chord') != null;
-            final start = chord ? lastStart : cursor;
-            if (!chord) {
-              lastStart = cursor;
-              cursor += duration;
-            }
             final pitch = e.getElement('pitch');
             final drum = pitch == null && unpitched ? e.getElement('unpitched') : null;
             if (pitch == null && drum == null) continue; // a rest, or unpitched percussion
             // An unpitched note may leave out where it is written: the middle line, then.
             final step = 'CDEFGAB'.indexOf((pitch?.getElement('step') ?? drum?.getElement('display-step'))?.innerText.trim() ?? (drum != null ? 'B' : ''));
-            final octave = number(pitch?.getElement('octave') ?? drum?.getElement('display-octave')) ?? (drum != null ? 4 : null);
+            final octave = xmlInt(pitch?.getElement('octave') ?? drum?.getElement('display-octave')) ?? (drum != null ? 4 : null);
             if (step < 0 || octave == null) continue;
             final alter = (double.tryParse(pitch?.getElement('alter')?.innerText.trim() ?? '') ?? 0).round();
             final from = measureStarts[m] + start / divisions;
             yield (
               partId: id,
-              staff: number(e.getElement('staff')) ?? 1,
+              staff: xmlInt(e.getElement('staff')) ?? 1,
               voice: e.getElement('voice')?.innerText.trim() ?? '1',
               start: from,
               end: from + duration / divisions,
-              midi: 12 * (octave + 1) + const [0, 2, 4, 5, 7, 9, 11][step] + alter + (drum == null ? transpose : 0),
+              midi: Pitch(step, octave, alter).midi + (drum == null ? transpose : 0),
               chord: chord,
               tied: e.findElements('tie').any((t) => t.getAttribute('type') == 'stop'),
             );

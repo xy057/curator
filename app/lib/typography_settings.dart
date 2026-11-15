@@ -8,7 +8,7 @@ import 'app_settings.dart';
 import 'editor_controller.dart';
 import 'engraving_settings.dart' show formatOptionValue;
 import 'menu_kit.dart';
-import 'motion_settings.dart' show ResetSlot, SettingSlider;
+import 'motion_settings.dart' show DefaultsTarget, ResetSlot, SettingSlider;
 import 'l10n/l10n.dart';
 
 /// One of Project Settings ▸ Typography's rows: a property of one kind of text, by its
@@ -59,7 +59,7 @@ class TypographySetting {
 }
 
 /// The project's typography (an edit each change) over the app's default.
-class TypographyTarget {
+class TypographyTarget implements DefaultsTarget {
   const TypographyTarget(this.settings, this.controller);
   final AppSettings settings;
   final EditorController controller;
@@ -71,18 +71,24 @@ class TypographyTarget {
   /// Back to the house style's.
   void reset(String key) => set(key, ScoreTypography.standard.valueOf(key));
 
+  @override
   bool get isDefault => settings.typography == controller.typography;
+  @override
   void saveAsDefault() => settings.typography = controller.typography;
 
   /// The project's typography back to the app's default.
+  @override
   Future<void> resetToDefault() => controller.setTypography(settings.typography);
 
   /// Whether the project's typography, and the app's default, are the house style's (System
   /// Default).
+  @override
   bool get isSystem => controller.typography == ScoreTypography.standard;
+  @override
   bool get savedIsSystem => settings.typography == ScoreTypography.standard;
 
   /// The project's typography back to the house style's, whatever the app's default.
+  @override
   Future<void> resetToSystem() => controller.setTypography(ScoreTypography.standard);
 }
 

@@ -9,15 +9,15 @@ import 'package:re_editor/re_editor.dart';
 /// is left of it at every word it colours, so its time grows as the square of the text (a .ly of a
 /// few hundred KB: seconds behind each keystroke). A line is coloured alone, from where the line
 /// above left off: in a block comment, a string, or Scheme some parentheses deep, the only things
-/// that run over lines ([LilyPondStates] keeps where each line starts, read again from the first
+/// that run over lines ([LineStates] keeps where each line starts, read again from the first
 /// line that changed).
 
 /// The LilyPond editor's text of a file, [text] to begin with: a controller whose lines are
-/// coloured as they are drawn ([lilyPondTokens], each from where [LilyPondStates] says it starts,
+/// coloured as they are drawn ([lilyPondTokens], each from where [LineStates] says it starts,
 /// in [lilyPondTheme]'s colours for the page's brightness).
 CodeLineEditingController lilyPondCode(String text) {
   late final CodeLineEditingController code;
-  final states = LilyPondStates(() => code.codeLines);
+  final states = LineStates(() => code.codeLines, (line, state) => (_LilyPondLine(line, state)..read()).state);
   return code = CodeLineEditingController(
     codeLines: CodeLines.fromText(text),
     spanBuilder: ({required context, required index, required codeLine, required textSpan, required style}) {
@@ -47,14 +47,15 @@ final _themes = <Brightness, Map<String, TextStyle>>{};
   return (runs: scan.runs, state: scan.state);
 }
 
-/// Where each line of a LilyPond text starts (the state [lilyPondTokens] reads it from), [lines]
-/// the text as it is now: read down as far as a line is asked for and kept, and read again from
-/// the first line that changed since (one edited, put in, taken out, folded or unfolded). A folded
-/// line is read with what is folded under it (re_editor keeps those as its chunks), so folding
-/// changes no colour.
-class LilyPondStates {
-  LilyPondStates(this.lines);
+/// Where each line of a text starts (the state its tokenizer reads it from, [step] one line on
+/// from another), [lines] the text as it is now: read down as far as a line is asked for and
+/// kept, and read again from the first line that changed since (one edited, put in, taken out,
+/// folded or unfolded). A folded line is read with what is folded under it (re_editor keeps
+/// those as its chunks), so folding changes no colour. The LilyPond and Lua editors' colours.
+class LineStates {
+  LineStates(this.lines, this.step);
   final CodeLines Function() lines;
+  final int Function(String line, int state) step;
 
   /// The text the lines read were in; each line read, as it was; where each starts, and the
   /// line after the last.
@@ -102,8 +103,8 @@ class LilyPondStates {
 
   /// Where the line after [line] starts, [line] starting at [state]: past it and what is folded
   /// under it.
-  static int _past(CodeLine line, int state) {
-    state = (_LilyPondLine(line.text, state)..read()).state;
+  int _past(CodeLine line, int state) {
+    state = step(line.text, state);
     for (final chunk in line.chunks) {
       state = _past(chunk, state);
     }

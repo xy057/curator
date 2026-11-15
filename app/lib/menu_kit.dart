@@ -54,6 +54,14 @@ PopupMenuItem<T> checkedMenuItem<T>(BuildContext context,
   );
 }
 
+/// A toolbar's menu button ([AppPopupMenuButton.style]): 32 px tall, room at the left of its
+/// label ([left]) and little at the right, by its arrow.
+ButtonStyle toolbarMenuStyle(BuildContext context, {double left = 8}) => TextButton.styleFrom(
+      minimumSize: const Size(0, 32),
+      padding: EdgeInsets.only(left: left, right: 2),
+      shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
+    );
+
 /// A [PopupMenuButton] that opens and shuts in the style's time ([AppStyle.menuOpen]; the material
 /// menu takes 300 ms), its rows set close. Fill it with [menuItem] and [checkedMenuItem].
 class AppPopupMenuButton<T> extends StatelessWidget {

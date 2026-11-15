@@ -375,26 +375,25 @@ class _RulerPainter extends CustomPainter {
     var lastLabel = double.negativeInfinity;
     // Bar by bar through each pass: after a warp the numbers start again where it jumps to.
     for (final (k, bars) in _barsByPass(tl).indexed) {
-      for (final (j, i) in bars.indexed) {
-        final x = v.x(tl.secondsAtQuarter(starts[i], pass: k));
-        if (x < -40 || x > size.width + 40) continue;
+      double xOf(int j) => v.x(tl.secondsAtQuarter(starts[bars[j]], pass: k));
+      // Along a pass the bars go left to right: from the last left of the ruler, to its right end.
+      for (var j = math.max(0, lastAtOrBefore(bars.length, -40, xOf)); j < bars.length; j++) {
+        final i = bars[j], x = xOf(j);
+        if (x > size.width + 40) break;
+        if (x < -40) continue;
         final warped = k > 0 && j == 0 && (starts[i] - tl.passes[k].start).abs() < 1e-9;
         final labelled = (warped || x - lastLabel >= 30) && i < starts.length - 1;
         canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), warped ? jump : tick);
         if (labelled) {
           lastLabel = x;
-          final tp = TextPainter(
-            text: TextSpan(
-                text: '${i + 1}', style: TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          tp
-            ..paint(canvas, Offset(x + 4, 3))
-            ..dispose();
+          _numbers.text('${i + 1}', TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)).paint(canvas, Offset(x + 4, 3));
         }
       }
     }
   }
+
+  /// The bar numbers, laid out once.
+  static final _numbers = LabelCache();
 
   @override
   bool shouldRepaint(_RulerPainter old) => true;
@@ -493,6 +492,36 @@ bool beatsFit(EditorController c, double quarter, {int pass = 0}) {
       kMinBeatWidth;
 }
 
+/// Score time ↔ lane x, as every lane widget measures it (the score's [ScoreTimeline] on the
+/// controller's viewport).
+extension LaneTime on EditorController {
+  /// The score position under [x]; with [pass], kept inside that pass (a drag stays in the
+  /// pass it began in, rather than leaping with a warp).
+  double laneQuarter(double x, {int? pass}) {
+    final tl = timeline;
+    final seconds = viewport.seconds(x);
+    final here = tl.passAt(seconds);
+    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
+    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
+  }
+
+  /// The pass playing at [x].
+  int lanePass(double x) => timeline.passAt(viewport.seconds(x));
+
+  /// Where the stretch [q0]–[q1] of the score is on screen: once in every pass that plays
+  /// it (a repeat shows it again). An end is the stretch's own, or where a warp cuts it.
+  Iterable<({double x0, double x1, bool ownStart, bool ownEnd})> laneXs(double q0, double q1) sync* {
+    for (final s in timeline.spans(q0, q1)) {
+      yield (
+        x0: viewport.x(s.startSeconds),
+        x1: viewport.x(s.endSeconds),
+        ownStart: (s.start - q0).abs() < 1e-9,
+        ownEnd: (s.end - q1).abs() < 1e-9,
+      );
+    }
+  }
+}
+
 /// [quarter] snapped as the lanes snap: to the time signature's nearest beat, or the nearest
 /// barline when beats are too close together on screen (as they sound in [pass]); ⌘: free.
 /// Inside the score.
@@ -540,10 +569,24 @@ class DoubleClicks {
 }
 
 /// For each pass (see [ScoreTimeline.passes]), the bars whose barline it plays, in order. A
-/// pass's end is the next one's start, so only the last pass has the final barline.
+/// pass's end is the next one's start, so only the last pass has the final barline. Kept until
+/// the passes or the bars are others (the ruler asks at every paint); a timeline made again
+/// (another take's, at every change of the performance) has its own lists of the same.
 List<List<int>> _barsByPass(ScoreTimeline tl) {
   final starts = tl.measureStarts;
   final passes = tl.passes;
+  if (_passBars case (final p, final s, final bars) when listEquals(p, passes) && listEquals(s, starts)) {
+    _passBars = (passes, starts, bars);
+    return bars;
+  }
+  final bars = _barsOf(starts, passes);
+  _passBars = (passes, starts, bars);
+  return bars;
+}
+
+(List<ScorePass>, List<double>, List<List<int>>)? _passBars;
+
+List<List<int>> _barsOf(List<double> starts, List<ScorePass> passes) {
   return [
     for (final (k, p) in passes.indexed)
       [
@@ -562,11 +605,21 @@ void paintBarGrid(Canvas canvas, Size size, EditorController c, AppColors colors
   final grid = Paint()..color = colors.grid;
   final beat = Paint()..color = colors.grid.withValues(alpha: 0.5);
   final passes = tl.passes;
+  final left = v.seconds(-1), right = v.seconds(size.width + 1); // a line a pixel past the lanes still shows
   for (final (k, p) in passes.indexed) {
     double x(double q) => v.x(tl.secondsAtQuarter(q, pass: k));
     final last = k == passes.length - 1;
-    // From the bar the pass starts in (a warp may land mid-bar) to the one it ends in.
-    for (var m = c.beats.measureAt(p.start); m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
+    // The passes go on one after another: one over before the lanes' left draws nothing, nor
+    // does any after one beginning past their right.
+    final startsAt = tl.secondsAtQuarter(p.start, pass: k), endsAt = tl.secondsAtQuarter(p.end, pass: k);
+    if (startsAt > right) break;
+    if (endsAt < left) continue;
+    // From the bar the pass starts in (a warp may land mid-bar), or the one at the lanes' left
+    // when the pass started before it, to the one it ends in.
+    final from = left > startsAt && left < endsAt
+        ? math.max(c.beats.measureAt(p.start), c.beats.measureAt(tl.quarterAtSeconds(left)))
+        : c.beats.measureAt(p.start);
+    for (var m = from; m < starts.length && (starts[m] < p.end - 1e-9 || last); m++) {
       final bx = x(starts[m]);
       if (bx > size.width + 1) break;
       if (starts[m] >= p.start - 1e-9 && bx >= -1) canvas.drawLine(Offset(bx, 0), Offset(bx, size.height), grid);

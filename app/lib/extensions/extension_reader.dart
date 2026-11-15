@@ -102,7 +102,7 @@ class ExtensionReaders {
   /// The pictures on the score ([picturesOf]): the first extension's that has the socket.
   List<ImagePatch> get pictures {
     for (final r in _runtimes) {
-      if (r.nodes('images').isNotEmpty) return picturesOf(r);
+      if (r.graph.has('images')) return picturesOf(r);
     }
     return const [];
   }
@@ -187,12 +187,10 @@ LuaTable pictureTable(ImagePatch patch) => LuaTable.map({
       'ink': patch.ink,
     });
 
-bool _has(ExtensionPackage package, String socket) => package.graph.nodes.any((n) => n.type == socket);
-
 /// Whether an extension that is on in [edits] (one of Curator's own, or of [carried]) has a
 /// [socket]: what its being on turns on in the app (`spacers`).
 bool socketOn(EditState edits, Map<String, ExtensionPackage> carried, String socket) => [...BundledExtensions.packages, ...carried.values]
-    .any((p) => (edits.extensions[p.id] ?? false) && p.api <= ExtensionApi.level && _has(p, socket));
+    .any((p) => (edits.extensions[p.id] ?? false) && p.api <= ExtensionApi.level && p.graph.has(socket));
 
 /// The image files the pictures of [state]'s extensions show (those with an `images` socket,
 /// on or off), by name, in the order first shown: the ones a project keeps.
@@ -200,7 +198,7 @@ Map<String, PatchImage> imagesShown(ProjectState state) {
   final shown = <String, PatchImage>{};
   for (final p in [...BundledExtensions.packages, ...state.packages.values]) {
     final value = state.edits.extensionData[p.id];
-    if (value == null || !_has(p, 'images') || p.api > ExtensionApi.level) continue;
+    if (value == null || !p.graph.has('images') || p.api > ExtensionApi.level) continue;
     for (final picture in picturesOf(ExtensionRuntime(p, ReadingHost(p, value)))) {
       if (state.images[picture.image] case final image?) shown[picture.image] = image;
     }
@@ -320,7 +318,7 @@ ProjectState checkedExtensionData(ProjectState state) {
       continue;
     }
     if (!LuaJson.same(moved, value)) data = {...data, p.id: moved};
-    if (result.length > 1 && result[1] is String) (_has(p, 'images') ? lostPictures : lost).add(result[1]! as String);
+    if (result.length > 1 && result[1] is String) (p.graph.has('images') ? lostPictures : lost).add(result[1]! as String);
   }
   final carried = identical(data, state.edits.extensionData) ? state : state.copyWith(edits: state.edits.copyWith(extensionData: Map.unmodifiable(data)));
   return (

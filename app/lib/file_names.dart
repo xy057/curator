@@ -12,6 +12,10 @@ String stemOf(String name) {
   return dot > 0 ? name.substring(0, dot) : name;
 }
 
+/// [path]'s extension, lower-case, without its dot ("Score.MXL" → "mxl"; the whole name when it
+/// has no dot).
+String extensionOf(String path) => path.split('.').last.toLowerCase();
+
 /// [name] as a file name that is safe as a zip entry and on every file system.
 String safeFileName(String name) {
   final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();

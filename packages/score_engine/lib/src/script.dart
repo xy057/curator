@@ -36,6 +36,46 @@ abstract interface class ScriptPackage {
   String? fileOf(String module);
 }
 
+/// What an extension's and a plugin's manifest (`extension.json`, `plugin.json`) say alike.
+mixin PackageManifest implements ScriptPackage {
+  /// The manifest, whole.
+  Map<String, Object?> get manifest;
+
+  /// Every file of it by its path in the archive, the mimetype aside.
+  Map<String, Uint8List> get files;
+
+  /// Its README; null: it has none.
+  String? get readme;
+
+  /// Stable for good: what is kept for it (its switch, its data or settings) is kept under it.
+  /// Curator's own are one word ("captions"); anyone else's has a dot, a domain backwards
+  /// ("com.example.lyrics").
+  @override
+  String get id => _text('id') ?? '';
+  @override
+  String get name => _text('name') ?? id;
+  @override
+  String? get version => _text('version');
+  String get summary => _text('summary') ?? '';
+  String get keywords => _text('keywords') ?? '';
+  String? get author => _text('author');
+  String? get url => _text('url');
+
+  /// The name of one of the app's icons; null or unknown: the kind's own.
+  String? get icon => _text('icon');
+
+  /// The API level it was written for (its API's `level` is this build's).
+  int get api => switch (manifest['api']) { final num n => n.toInt(), _ => 1 };
+
+  String? _text(String key) => switch (manifest[key]) { final String s when s.trim().isNotEmpty => s.trim(), _ => null };
+
+  @override
+  String? fileOf(String module) {
+    final path = PackageFiles.pathOf(module);
+    return sources.containsKey(path) ? path : null;
+  }
+}
+
 /// A package's files, zipped and read: what an extension's and a plugin's file have in common.
 abstract final class PackageFiles {
   /// The most a package unpacks to, a file of it, and how many it holds.
@@ -48,6 +88,20 @@ abstract final class PackageFiles {
   static String pathOf(String module) => '${module.replaceAll('.', '/')}.lua';
 
   static Uint8List bytes(String text) => Uint8List.fromList(utf8.encode(text));
+
+  /// A name as an id's word: "Count Bars…" is "count-bars".
+  static String slug(String name) => name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+
+  /// An id for a package the user makes, named [name], that isn't [taken] yet: "user.my-notes",
+  /// then "user.my-notes-2"; [kind] ("plugin") when the name has no letters or digits.
+  static String userId(String name, String kind, bool Function(String id) taken) {
+    final slug = PackageFiles.slug(name);
+    final base = 'user.${slug.isEmpty ? kind : slug}';
+    for (var n = 1;; n++) {
+      final id = n == 1 ? base : '$base-$n';
+      if (!taken(id)) return id;
+    }
+  }
 
   /// What [files] (each by its path, in order) hold, as one number: the same for the same.
   static String digest(Map<String, Uint8List> files) {

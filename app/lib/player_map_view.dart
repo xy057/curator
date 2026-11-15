@@ -10,7 +10,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'color_dialog.dart';
 import 'dialog_kit.dart';
-import 'edit_dialogs.dart' show confirmSavePath;
+import 'edit_dialogs.dart' show saveFileAs;
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'menu_kit.dart';
@@ -144,15 +144,6 @@ class PlayerMapMenu extends StatelessWidget {
 abstract final class PlayerMapFiles {
   static const _types = XTypeGroup(label: 'Player Map', extensions: [PlayerMap.fileExtension]);
 
-  static Future<void> _say(BuildContext context, String title, String message) => showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text(title),
-          content: SizedBox(width: dialogWidth(context, 380), child: Text(message)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
-
   /// A map the user picks, its players playing the score's instruments of the same names; null
   /// when nothing was picked or it couldn't be read (which it says).
   static Future<PlayerMap?> pick(BuildContext context, EditorController controller) async {
@@ -163,11 +154,11 @@ abstract final class PlayerMapFiles {
       return controller.playerMap.fitted(PlayerMap.decode(await file.readAsString()));
     } on FormatException catch (e) {
       if (context.mounted) {
-        await _say(context, 'Couldn’t Import the Player Map'.tr,
+        await showNotice(context, 'Couldn’t Import the Player Map'.tr,
             e.message.contains('newer') ? 'It needs a newer version of Curator.'.tr : 'It isn’t a player map.'.tr);
       }
     } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Import the Player Map'.tr, describeError(e));
+      if (context.mounted) await showNotice(context, 'Couldn’t Import the Player Map'.tr, describeError(e));
     }
     return null;
   }
@@ -181,15 +172,12 @@ abstract final class PlayerMapFiles {
   /// Saves [map] as a .cpm file where the user says.
   static Future<void> export(BuildContext context, PlayerMap map, {String? suggestedName}) async {
     final name = (suggestedName == null || suggestedName.trim().isEmpty) ? 'Player Map'.tr : suggestedName.trim();
-    final location = await getSaveLocation(acceptedTypeGroups: const [_types], suggestedName: '$name.${PlayerMap.fileExtension}');
-    if (location == null || !context.mounted) return;
-    final path = await confirmSavePath(context, location.path, PlayerMap.fileExtension);
-    if (path == null) return;
-    try {
-      await File(path).writeAsString(map.encode());
-    } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Export the Player Map'.tr, describeError(e));
-    }
+    await saveFileAs(context,
+        types: const [_types],
+        suggestedName: '$name.${PlayerMap.fileExtension}',
+        extension: PlayerMap.fileExtension,
+        failTitle: 'Couldn’t Export the Player Map'.tr,
+        write: (file) => file.writeAsString(map.encode()));
   }
 }
 
@@ -351,18 +339,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
 
   Future<void> _cancel() async {
     if (_map == widget.map) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context);
+    if (discard && mounted) Navigator.of(context).pop();
   }
 
   void _done() => Navigator.of(context).pop(_map == widget.map ? null : _map);
@@ -451,9 +429,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       child: Row(children: [
         Text('Edit Player Map'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
         const SizedBox(width: 16),
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: _undo.isEmpty ? null : _stepBack),
-        ToolbarButton(
-            icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: _redo.isEmpty ? null : _stepOn),
+        ...undoRedoButtons(context, undo: _undo.isEmpty ? null : _stepBack, redo: _redo.isEmpty ? null : _stepOn),
         const ToolbarDivider(),
         Select<bool>(
           listenable: c,

@@ -67,30 +67,11 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   final _clicks = DoubleClicks();
 
   /// Labels as laid out in the lane, kept: playback repaints it every frame.
-  final _labels = <(String, double, Color), TextPainter>{};
-
-  TextPainter _label(String text, double maxWidth, Color color) {
-    final key = (text, maxWidth, color);
-    if (_labels[key] case final label?) return label;
-    if (_labels.length >= 64) _clearLabels();
-    return _labels[key] = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: 11, color: color)),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: maxWidth);
-  }
-
-  void _clearLabels() {
-    for (final label in _labels.values) {
-      label.dispose();
-    }
-    _labels.clear();
-  }
+  final _labels = LabelCache(limit: 64);
 
   @override
   void dispose() {
-    _clearLabels();
+    _labels.clear();
     super.dispose();
   }
 
@@ -98,22 +79,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   List<MarkerSpan> get _spans => c.extensions.spans(runtime, widget.node, end: math.max(tl.endSeconds, c.playback.duration));
 
   /// The tool a press uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab selects.
-  LaneTool get _tool {
-    final alt = HardwareKeyboard.instance.isAltPressed;
-    final tool = c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select;
-    return switch (tool) {
-      LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
-      LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,
-      LaneTool.erase => alt ? LaneTool.draw : LaneTool.erase,
-    };
-  }
-
-  double _q(double x, {int? pass}) {
-    final seconds = c.viewport.seconds(x);
-    final here = tl.passAt(seconds);
-    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
-    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
-  }
+  LaneTool get _tool => (c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
 
   /// The item sounding under [x] (an index into the items).
   int? _hit(double x) {
@@ -135,7 +101,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
 
   void _onDown(PointerDownEvent e) {
     if (e.buttons != kPrimaryButton) return;
-    final p = e.localPosition, pass = tl.passAt(c.viewport.seconds(p.dx)), q = _q(p.dx);
+    final p = e.localPosition, pass = c.lanePass(p.dx), q = c.laneQuarter(p.dx);
     final doubleClick = _clicks.press(e.timeStamp, p);
     final hit = _hit(p.dx);
     c.clearSelection();
@@ -176,7 +142,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
     final lo = i == 0 ? 0.0 : items[i - 1].at + apart;
     final hi = (i + 1 < items.length ? items[i + 1].at : tl.measureStarts.last) - apart;
     if (hi < lo) return;
-    final at = snapInLanes(c, drag.from + _q(p.dx, pass: drag.pass) - drag.downQ, pass: drag.pass).clamp(lo, hi).toDouble();
+    final at = snapInLanes(c, drag.from + c.laneQuarter(p.dx, pass: drag.pass) - drag.downQ, pass: drag.pass).clamp(lo, hi).toDouble();
     if (at != items[i].at) runtime.fire(lane, 'move', args: [i + 1, at]);
   }
 
@@ -429,7 +395,7 @@ class _MarkersPainter extends CustomPainter {
       final left = math.max(x0, 0.0), room = x1 - left - 12;
       final width = (x0 < 0 ? (room / 16).floorToDouble() * 16 : room.floorToDouble()).clamp(0.0, 400.0).toDouble();
       if (width < 8) continue;
-      final text = s._label(items[span.marker].label, width, on ? colors.surface : colors.text);
+      final text = s._labels.text(items[span.marker].label, TextStyle(fontSize: 11, color: on ? colors.surface : colors.text), maxWidth: width);
       text.paint(canvas, Offset(left + 6, rect.center.dy - text.height / 2));
     }
   }

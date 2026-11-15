@@ -10,6 +10,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pasteboard/pasteboard.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vgc;
+import 'file_names.dart';
 import 'l10n/l10n.dart';
 
 /// Vector images are SVG; raster images PNG (APNG too), JPEG, GIF, WebP, BMP or ICO, which
@@ -32,7 +33,7 @@ enum ImageKind {
 
   /// The kind of a file taken, by its type.
   static ImageKind? ofPath(String path) {
-    final ext = path.split('.').last.toLowerCase();
+    final ext = extensionOf(path);
     return converted.contains(ext) ? raster : ofKept(ext);
   }
 
@@ -66,7 +67,7 @@ class PatchImage {
   }
 
   /// The kind of a saved image, from its id's file type; null when it is neither.
-  static ImageKind? kindOfId(String id) => ImageKind.ofKept(id.split('.').last.toLowerCase());
+  static ImageKind? kindOfId(String id) => ImageKind.ofKept(extensionOf(id));
 
   /// [bytes] of a file of type [extension] as a project keeps them: a [ImageKind.converted]
   /// one as PNG (its first frame), any other as it came. Throws a [FormatException] when it

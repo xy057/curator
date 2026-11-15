@@ -470,7 +470,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   late bool _tabBar = settings.tabBar;
 
   void _focusChanged() =>
-      _typing.value = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+      _typing.value = textFieldFocused;
 
   /// The check made at launch (Settings ▸ About ▸ Check at launch) says so when there is a
   /// newer version for this system, once (its Update… opens the update window); failures, and
@@ -714,7 +714,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'paste': edit != null && edit.paste ? page!._paste : null,
           'delete': edit != null && edit.delete ? commands!.delete : null,
           'selectAll': edit != null && commands!.canSelectAll ? commands.selectAll : null,
-          'findPhrase': open && !_typing.value && free && !page.controller.isPdf ? page._findPhrase : null,
+          'findPhrase': open && !_typing.value && free && page.controller.hasNotes ? page._findPhrase : null,
           'projectSettings': open ? page._projectSettings : null,
           'showPreview': open ? () => page._showPreview(!page._previewShown) : null,
           'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,
@@ -1101,8 +1101,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   final _keys = FocusNode(debugLabel: 'Window shortcuts');
 
   void _focusChanged() {
-    final typing =
-        FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    final typing = textFieldFocused;
     if (typing != _typing && mounted) setState(() => _typing = typing);
   }
 

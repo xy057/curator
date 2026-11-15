@@ -1,6 +1,6 @@
-import 'dart:math' as math;
-
 import 'package:xml/xml.dart';
+
+import 'musicxml_kit.dart';
 
 /// How loud each part plays through a score, 0 (silent) to 1 (ffff), as its dynamics say: a mark
 /// holds until the next (mf before the first); a hairpin goes from where it starts to the mark it
@@ -40,49 +40,37 @@ class ScoreDynamics {
   /// The dynamics of [musicXML], whose bars [measureStarts] puts in score quarters.
   static ScoreDynamics read(String musicXML, List<double> measureStarts) {
     final root = XmlDocument.parse(musicXML).rootElement;
-    int? number(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
     final parts = <String, _PartDynamics>{};
     for (final part in root.findElements('part')) {
       final marks = <(double, double)>[], moments = <(double, double)>[];
       final wedges = <(double, double, bool)>[];
       final open = <String, (double, bool)>{};
-      var divisions = 1;
+      final bars = MeasureCursor();
       for (final (m, measure) in part.findElements('measure').indexed) {
         if (m + 1 >= measureStarts.length) break;
-        var cursor = 0, lastStart = 0;
-        for (final e in measure.childElements) {
+        for (final (e, at) in bars.walk(measure)) {
+          final divisions = bars.divisions;
           switch (e.name.local) {
-            case 'attributes':
-              divisions = math.max(1, number(e.getElement('divisions')) ?? divisions);
-            case 'backup':
-              cursor = math.max(0, cursor - (number(e.getElement('duration')) ?? 0));
-            case 'forward':
-              cursor += number(e.getElement('duration')) ?? 0;
             case 'note':
-              if (e.getElement('grace') != null || e.getElement('cue') != null) continue;
-              if (e.getElement('chord') == null) {
-                lastStart = cursor;
-                cursor += number(e.getElement('duration')) ?? 0;
-              }
               // A dynamic written on the note itself (<notations><dynamics>): its moment.
               for (final d in e.findAllElements('dynamics')) {
-                _mark(d, measureStarts[m] + lastStart / divisions, marks, moments);
+                _mark(d, measureStarts[m] + at / divisions, marks, moments);
               }
             case 'direction':
-              final at = measureStarts[m] + (cursor + (number(e.getElement('offset')) ?? 0)) / divisions;
+              final time = measureStarts[m] + (at + (xmlInt(e.getElement('offset')) ?? 0)) / divisions;
               for (final type in e.findElements('direction-type')) {
                 for (final d in type.findElements('dynamics')) {
-                  _mark(d, at, marks, moments);
+                  _mark(d, time, marks, moments);
                 }
                 for (final w in type.findElements('wedge')) {
                   final id = w.getAttribute('number') ?? '1';
                   switch (w.getAttribute('type')) {
                     case 'crescendo':
-                      open[id] = (at, true);
+                      open[id] = (time, true);
                     case 'diminuendo':
-                      open[id] = (at, false);
+                      open[id] = (time, false);
                     case 'stop':
-                      if (open.remove(id) case (final start, final louder)) wedges.add((start, at, louder));
+                      if (open.remove(id) case (final start, final louder)) wedges.add((start, time, louder));
                   }
                 }
               }

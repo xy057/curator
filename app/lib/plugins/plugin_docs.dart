@@ -1,9 +1,7 @@
-import 'dart:convert';
-
-import 'package:archive/archive.dart';
 import 'package:flutter/services.dart';
 import 'package:score_engine/score_engine.dart';
 
+import '../extensions/extension_docs.dart' show docsPack;
 import 'bundled.dart';
 
 /// The guide the plugin editor's Help shows.
@@ -52,18 +50,8 @@ the keys, the toolbar and Home, changes the app's own commands, and listens to w
 /// The plugin docs as a zip to hand to a person or a model: a README saying what is in it, the
 /// guide and reference as one Markdown file, the API as JSON, and each of [examples] (Curator's
 /// own plugins) as a folder. The same bytes for the same docs.
-Uint8List pluginDocsPack(String guide, {required List<PluginPackage> examples}) {
-  final at = DateTime.utc(2000).millisecondsSinceEpoch ~/ 1000;
-  final archive = Archive();
-  void add(String path, List<int> bytes) => archive.add(ArchiveFile.bytes('curator-plugin-docs/$path', bytes)..lastModTime = at);
-  add('README.md', utf8.encode(_packReadme.trimLeft()));
-  add('plugin-api.md', utf8.encode(PluginApi.docs(guide)));
-  add('api.json', utf8.encode(const JsonEncoder.withIndent('  ').convert(PluginApi.toJson())));
-  for (final p in examples) {
-    p.files.forEach((path, bytes) => add('examples/${p.id}/$path', bytes));
-  }
-  return ZipEncoder().encodeBytes(archive);
-}
+Uint8List pluginDocsPack(String guide, {required List<PluginPackage> examples}) => docsPack('curator-plugin-docs',
+    readme: _packReadme, docsName: 'plugin-api.md', docs: PluginApi.docs(guide), api: PluginApi.toJson(), examples: examples);
 
 /// The plugin docs whole, as Markdown, and their pack, as the plugin editor hands them out.
 Future<String> pluginDocs() async => PluginApi.docs(await rootBundle.loadString(pluginGuideAsset));

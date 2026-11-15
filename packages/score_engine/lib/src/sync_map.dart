@@ -124,7 +124,9 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
     }
     passes.add(ScorePass(start, totalQuarters));
     _performed = List.unmodifiable(performed);
-    _passes = List.unmodifiable(passes);
+    // The same passes stay the same list: only a warp changes them, and what keeps something
+    // worked out from them (the ruler's bars) knows them again at once.
+    if (!listEquals(passes, _passes)) _passes = List.unmodifiable(passes);
     _passOffsets = List.unmodifiable(offsets);
     _warpTimes = List.unmodifiable(warps);
   }
@@ -319,11 +321,6 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
   static double? _within(double seconds, double lo, double hi) =>
       !seconds.isFinite || lo > hi ? null : seconds.clamp(lo, hi).toDouble();
 
-  /// Points anchor [index] at another place in the score (e.g. "this is bar 12, not 11").
-  /// A warp still goes on from where it jumps to. Returns false if that would cross a
-  /// neighbouring anchor.
-  bool setAnchorQuarter(int index, double quarter) => setAnchor(index, quarter, jumpTo: _anchors[index].jumpTo);
-
   /// Makes anchor [index] a warp that goes on from [jumpTo] (null: a plain anchor again).
   ///
   /// The anchors after it, up to and including the next warp's arrival, move with the jump:
@@ -334,7 +331,7 @@ class SyncMap extends ChangeNotifier implements ScoreTimeline {
   bool setJump(int index, double? jumpTo) => setAnchor(index, _anchors[index].quarter, jumpTo: jumpTo);
 
   /// Points anchor [index] at [quarter] and makes it go on from [jumpTo] (a warp; null: a
-  /// plain anchor) in one step: [setAnchorQuarter] and [setJump] together. Returns false
+  /// plain anchor) in one step: a new place and [setJump] together. Returns false
   /// (changing nothing) if the anchors would be out of order or outside the score.
   bool setAnchor(int index, double quarter, {double? jumpTo}) {
     final a = _anchors[index];

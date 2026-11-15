@@ -661,7 +661,7 @@ class AudioToolbar extends StatelessWidget {
           const ToolbarDivider(),
           if (!c.usesMidiTempo) ...[
             // A PDF score has no notes to align to: its anchors are tapped.
-            if (!c.isPdf) ...[
+            if (c.hasNotes) ...[
               _AlignButton(controller: c),
               const SizedBox(width: 2),
             ],
@@ -1172,6 +1172,9 @@ void _paintMarquee(Canvas canvas, Size size, EditorController c, AppColors color
 }
 
 class _AnchorPainter extends CustomPainter {
+  /// Its labels, laid out once.
+  static final _labels = LabelCache();
+
   _AnchorPainter(this.c, this.colors, this.marquee, Listenable repaint) : super(repaint: repaint);
   final EditorController c;
   final AppColors colors;
@@ -1215,25 +1218,23 @@ class _AnchorPainter extends CustomPainter {
               ..strokeWidth = 1.2
               ..color = color);
       }
+      // A label that would land on the last one drawn isn't drawn, nor laid out: a tapped piece
+      // seen whole has hundreds of anchors, more than the labels kept.
+      if (!selected && x <= lastLabelEnd + 3) continue;
       final label = a.isWarp
           ? '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}'
           : sync.beats.format(a.quarter, compact: true);
-      final tp = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: TextStyle(
+      final tp = _labels.text(
+          label,
+          TextStyle(
             fontSize: 10.5,
             color: selected ? colors.accentStrong : a.isWarp ? colors.text : colors.textMuted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+          ));
       if (selected || x - tp.width / 2 > lastLabelEnd + 3) {
         tp.paint(canvas, Offset(x - tp.width / 2, 1));
         lastLabelEnd = x + tp.width / 2;
       }
-      tp.dispose();
     }
   }
 
@@ -1346,8 +1347,8 @@ class _TempoScale {
   const _TempoScale(this.lo, this.hi, {required this.large});
 
   /// Fits the steps in view, at least 20 beats a minute apart.
-  factory _TempoScale.fit(EditorController c, double width, {required bool large}) {
-    final bpms = [for (final s in _tempoSteps(c, width)) s.$3];
+  factory _TempoScale.fit(EditorController c, double width, {required bool large, List<(double, double, double, bool)>? steps}) {
+    final bpms = [for (final s in steps ?? _tempoSteps(c, width)) s.$3];
     var lo = bpms.reduce(math.min), hi = bpms.reduce(math.max);
     if (hi - lo < 20) {
       final m = (hi + lo) / 2;
@@ -1373,6 +1374,9 @@ class _TempoScale {
 /// [large]: a MIDI tempo map, filling the lanes: over the bars, each change marked with a dot
 /// (larger when selected), on [scale] while it is held.
 class _TempoPainter extends CustomPainter {
+  /// Its labels, laid out once.
+  static final _labels = LabelCache();
+
   _TempoPainter(this.c, this.colors, Listenable repaint, {this.large = false, this.scale})
       : super(repaint: repaint);
   final EditorController c;
@@ -1398,7 +1402,7 @@ class _TempoPainter extends CustomPainter {
     }
 
     final segments = _tempoSteps(c, size.width);
-    final fit = scale?.value ?? _TempoScale.fit(c, size.width, large: large);
+    final fit = scale?.value ?? _TempoScale.fit(c, size.width, large: large, steps: segments);
     double y(double bpm) => fit.y(bpm, size);
 
     final line = Paint()
@@ -1424,16 +1428,8 @@ class _TempoPainter extends CustomPainter {
         canvas.drawLine(Offset(x0, yy), Offset(x1, yy), line);
       }
       if (x1 - x0 > 34) {
-        final tp = TextPainter(
-          text: TextSpan(
-            text: '${bpm.round()}',
-            style: TextStyle(fontSize: large ? 11.5 : 10, color: extrapolated ? colors.textMuted : colors.text),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        tp
-          ..paint(canvas, Offset(math.max(x0, 0) + 4, yy - tp.height - 1))
-          ..dispose();
+        final tp = _labels.text('${bpm.round()}', TextStyle(fontSize: large ? 11.5 : 10, color: extrapolated ? colors.textMuted : colors.text));
+        tp.paint(canvas, Offset(math.max(x0, 0) + 4, yy - tp.height - 1));
       }
       previous = Offset(x1, yy);
     }
@@ -1449,18 +1445,12 @@ class _TempoPainter extends CustomPainter {
       final x = v.x(a.seconds);
       if (!a.isWarp || x < -40 || x > size.width + 40) continue;
       canvas.drawRect(Rect.fromLTWH(x - 1, 0, 2, size.height), Paint()..color = colors.accent.withValues(alpha: 0.7));
-      final tp = TextPainter(
-        text: TextSpan(
-          text: '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}',
-          style: TextStyle(fontSize: 10.5, color: colors.text),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+      final tp = _labels.text(
+          '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}', TextStyle(fontSize: 10.5, color: colors.text));
       if (x + 4 > lastLabelEnd + 3) {
         tp.paint(canvas, Offset(x + 4, 3));
         lastLabelEnd = x + 4 + tp.width;
       }
-      tp.dispose();
     }
     final end = sync.anchors.last.seconds, placed = MidiInScore(midi, sync);
     for (final (i, t) in midi.tempos.indexed) {

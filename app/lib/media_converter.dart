@@ -17,7 +17,6 @@ abstract final class MediaFormats {
   /// Everything that can be loaded as the recording.
   static const all = {...playable, ...convertedAudio, ...video};
 
-  static String extensionOf(String path) => path.split('.').last.toLowerCase();
   static bool isPlayable(String path) => playable.contains(extensionOf(path));
   static bool isVideo(String path) => video.contains(extensionOf(path));
   static bool isRecording(String path) => all.contains(extensionOf(path));

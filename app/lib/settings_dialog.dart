@@ -223,6 +223,17 @@ typedef _SaveDefault = ({
   FutureOr<void> Function(_Context) resetToSystem,
 });
 
+/// Save as Default for a page whose settings are [target]'s.
+_SaveDefault _savesTo(DefaultsTarget Function(_Context) target) => (
+      shown: null,
+      isDefault: (c) => target(c).isDefault,
+      save: (c) => target(c).saveAsDefault(),
+      reset: (c) => target(c).resetToDefault(),
+      isSystem: (c) => target(c).isSystem,
+      savedIsSystem: (c) => target(c).savedIsSystem,
+      resetToSystem: (c) => target(c).resetToSystem(),
+    );
+
 typedef _Context = ({
   AppSettings settings,
   EditorController? controller,
@@ -702,15 +713,7 @@ _Category _animationCategory() {
   return _Category(
     'Animation',
     AppIcon.transition,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in MotionSetting.all)
         _Item(
@@ -737,15 +740,7 @@ _Category _typographyCategory() {
     'Typography',
     AppIcon.fonts,
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in TypographySetting.all)
         _Item(
@@ -774,15 +769,7 @@ _Category _advancedEngravingCategory() {
     AppIcon.general,
     title: 'Advanced Engraving',
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       for (final s in EngravingSetting.advanced)
         _Item(
@@ -913,15 +900,7 @@ _Category _engravingCategory() {
     'Engraving',
     AppIcon.music,
     preview: true,
-    saveDefault: (
-      shown: null,
-      isDefault: (c) => target(c).isDefault,
-      save: (c) => target(c).saveAsDefault(),
-      reset: (c) => target(c).resetToDefault(),
-      isSystem: (c) => target(c).isSystem,
-      savedIsSystem: (c) => target(c).savedIsSystem,
-      resetToSystem: (c) => target(c).resetToSystem(),
-    ),
+    saveDefault: _savesTo(target),
     [
       _Item('Music font', null, (c) => MusicFontPicker(controller: c.controller!),
           group: 'Fonts', keywords: 'font smufl bravura leland petaluma notation'),
@@ -1196,53 +1175,13 @@ class _SettingsWindowState extends State<_SettingsWindow> {
 
   Widget _sidebar(BuildContext context) {
     final colors = context.colors;
-    final carbon = CarbonColors.maybeOf(context);
     final searching = _search.text.trim().isNotEmpty;
     return Container(
       width: 200,
       color: _sidebarColor(context),
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        SizedBox(
-          height: carbon == null ? 30 : 32,
-          // Esc with something typed clears the search (the page shows again); Esc again, or
-          // with nothing typed, is the window's and closes it.
-          child: Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
-            onKeyEvent: (_, event) {
-              if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape || _search.text.isEmpty) {
-                return KeyEventResult.ignored;
-              }
-              _search.clear();
-              return KeyEventResult.handled;
-            },
-            child: TextField(
-            controller: _search,
-            style: TextStyle(fontSize: carbon == null ? 13 : 14),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search'.tr,
-              prefixIcon: Icon(AppIcon.search.of(context), size: 16, color: carbon?.textSecondary ?? colors.textMuted),
-              prefixIconConstraints: BoxConstraints(minWidth: carbon == null ? 30 : 40),
-              filled: true,
-              fillColor: carbon?.field ?? colors.line.withValues(alpha: 0.6),
-              contentPadding: EdgeInsets.symmetric(vertical: carbon == null ? 7 : 8),
-              // Carbon's small search: a line under it, its focus ring.
-              border: carbon != null
-                  ? fieldBorders(context).rest
-                  : OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide.none),
-              enabledBorder: carbon != null ? fieldBorders(context).rest : null,
-              focusedBorder: carbon != null
-                  ? fieldBorders(context).focused
-                  : OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(7),
-                      borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.6)),
-                    ),
-            ),
-            ),
-          ),
-        ),
+        SearchField(controller: _search, hint: 'Search'.tr),
         const SizedBox(height: 14),
         for (final (i, cat) in _categories.indexed)
           SidebarTile(

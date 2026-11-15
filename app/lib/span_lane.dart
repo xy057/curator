@@ -8,6 +8,7 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'ui_kit.dart' show LabelCache;
 
 /// One stretch of the score in a [SpanLane], in score quarters.
 typedef Span = ({double start, double end});
@@ -121,74 +122,34 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
   @override
   void dispose() {
     _band.dispose();
-    _clearLabels();
+    _labels.clear();
     super.dispose();
   }
 
   /// Labels as laid out in the lane, kept: playback repaints it every frame.
-  final _labels = <(String, double, Color), TextPainter>{};
+  final _labels = LabelCache(limit: 64);
 
-  TextPainter _label(String text, double maxWidth, Color color) {
-    final key = (text, maxWidth, color);
-    if (_labels[key] case final label?) return label;
-    if (_labels.length >= 64) _clearLabels();
-    return _labels[key] = TextPainter(
-      text: model.labelSpan(text, TextStyle(fontSize: 11, color: color)),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: maxWidth);
-  }
-
-  void _clearLabels() {
-    for (final label in _labels.values) {
-      label.dispose();
-    }
-    _labels.clear();
-  }
+  TextPainter _label(String text, double maxWidth, Color color) => _labels.of(
+      (text, maxWidth, color),
+      () => TextPainter(
+            text: model.labelSpan(text, TextStyle(fontSize: 11, color: color)),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+            ellipsis: '…',
+          )..layout(maxWidth: maxWidth));
 
   /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; in the Audio tab
   /// it selects, unless it takes the tools there ([SpanLane.tools]).
-  LaneTool get _tool {
-    final alt = HardwareKeyboard.instance.isAltPressed;
-    final tool = c.tab == BottomTab.instruments || widget.tools ? c.lanes.tool : LaneTool.select;
-    return switch (tool) {
-      LaneTool.select => alt ? LaneTool.draw : LaneTool.select,
-      LaneTool.draw => alt ? LaneTool.erase : LaneTool.draw,
-      LaneTool.erase => alt ? LaneTool.draw : LaneTool.erase,
-    };
-  }
+  LaneTool get _tool => (c.tab == BottomTab.instruments || widget.tools ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
 
-  /// Where [q0]–[q1] is drawn: once in every pass that plays it, an end its own or a warp's.
-  Iterable<({double x0, double x1, bool ownStart, bool ownEnd})> _xs(double q0, double q1) sync* {
-    for (final s in tl.spans(q0, q1)) {
-      yield (
-        x0: c.viewport.x(s.startSeconds),
-        x1: c.viewport.x(s.endSeconds),
-        ownStart: (s.start - q0).abs() < 1e-9,
-        ownEnd: (s.end - q1).abs() < 1e-9,
-      );
-    }
-  }
-
-  double _q(double x, {int? pass}) {
-    final seconds = c.viewport.seconds(x);
-    final here = tl.passAt(seconds);
-    if (pass == null || here == pass) return tl.quarterAtSeconds(seconds);
-    return here < pass ? tl.passes[pass].start : tl.passes[pass].end;
-  }
-
-  int _passAt(double x) => tl.passAt(c.viewport.seconds(x));
   double get _total => tl.measureStarts.last;
-
-  double _snap(double q, int pass) => snapInLanes(c, q, pass: pass);
 
   /// The stretch under [x] and which part of it: an edge or its middle. The one drawn on top
   /// (the later) wins.
   ({int index, _Kind kind})? _hit(double x) {
     for (var i = spans.length - 1; i >= 0; i--) {
       final s = spans[i];
-      for (final (:x0, :x1, :ownStart, :ownEnd) in _xs(s.start, s.end)) {
+      for (final (:x0, :x1, :ownStart, :ownEnd) in c.laneXs(s.start, s.end)) {
         if (x < x0 - _edgeGrab || x > x1 + _edgeGrab) continue;
         if (ownStart && (x - x0).abs() <= _edgeGrab) return (index: i, kind: _Kind.start);
         if (ownEnd && (x - x1).abs() <= _edgeGrab) return (index: i, kind: _Kind.end);
@@ -214,7 +175,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
 
   void _onDown(PointerDownEvent e) {
     if (e.buttons != kPrimaryButton) return;
-    final p = e.localPosition, q = _q(p.dx), pass = _passAt(p.dx);
+    final p = e.localPosition, q = c.laneQuarter(p.dx), pass = c.lanePass(p.dx);
     final doubleClick = _clicks.press(e.timeStamp, p);
 
     final tool = _tool;
@@ -223,7 +184,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
       final draw = tool == LaneTool.draw;
       if (!draw && model.live) c.beginEdit();
       model.begin();
-      _drag = _Drag(draw ? _Kind.draw : _Kind.erase, downAt: p, downQ: _snap(q, pass), pass: pass, from: model.spans);
+      _drag = _Drag(draw ? _Kind.draw : _Kind.erase, downAt: p, downQ: snapInLanes(c, q, pass: pass), pass: pass, from: model.spans);
       return;
     }
 
@@ -249,20 +210,20 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
   void _onMove(PointerMoveEvent e) {
     final drag = _drag;
     if (drag == null) return;
-    final p = e.localPosition, q = _q(p.dx, pass: drag.pass);
+    final p = e.localPosition, q = c.laneQuarter(p.dx, pass: drag.pass);
     drag.moved |= (p - drag.downAt).distance >= 3;
     switch (drag.kind) {
       case _Kind.scrub:
         c.playback.scrub(c.viewport.seconds(p.dx));
       case _Kind.draw:
         // Up to the stretches either side, which it never overlaps, or over them when it paints.
-        final edge = _snap(q, drag.pass);
+        final edge = snapInLanes(c, q, pass: drag.pass);
         final room = model.paints ? (from: 0.0, to: _total) : _room(drag.from, drag.downQ + (edge < drag.downQ ? -1e-6 : 1e-6));
         _band.value = room == null
             ? null
             : (q0: math.max(math.min(drag.downQ, edge), room.from), q1: math.min(math.max(drag.downQ, edge), room.to), draw: true);
       case _Kind.erase:
-        final edge = _snap(q, drag.pass);
+        final edge = snapInLanes(c, q, pass: drag.pass);
         final band = (q0: math.min(drag.downQ, edge), q1: math.max(drag.downQ, edge), draw: false);
         _band.value = band;
         _erase(drag.from, band.q0, band.q1);
@@ -273,17 +234,17 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
         final room = model.paints ? (from: 0.0, to: _total) : _room(drag.from, was.start, except: drag.index)!;
         final Span next = switch (drag.kind) {
           _Kind.start => (
-              start: _snap(was.start + q - drag.downQ, drag.pass).clamp(room.from, math.max(room.from, was.end - _minLength)).toDouble(),
+              start: snapInLanes(c, was.start + q - drag.downQ, pass: drag.pass).clamp(room.from, math.max(room.from, was.end - _minLength)).toDouble(),
               end: was.end,
             ),
           _Kind.end => (
               start: was.start,
-              end: _snap(was.end + q - drag.downQ, drag.pass).clamp(math.min(room.to, was.start + _minLength), room.to).toDouble(),
+              end: snapInLanes(c, was.end + q - drag.downQ, pass: drag.pass).clamp(math.min(room.to, was.start + _minLength), room.to).toDouble(),
             ),
           _ => () {
               final length = was.end - was.start;
               final start =
-                  _snap(was.start + q - drag.downQ, drag.pass).clamp(room.from, math.max(room.from, room.to - length)).toDouble();
+                  snapInLanes(c, was.start + q - drag.downQ, pass: drag.pass).clamp(room.from, math.max(room.from, room.to - length)).toDouble();
               return (start: start, end: start + length);
             }(),
         };
@@ -306,7 +267,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
         // A click draws one beat (one bar zoomed out), from the beat clicked, as far as there's room.
         var (q0, q1) = band != null && band.q1 - band.q0 > 1e-9 ? (band.q0, band.q1) : _beatAt(drag.downQ, drag.pass);
         if ((band == null || band.q1 - band.q0 <= 1e-9) && !model.paints) {
-          final room = _room(drag.from, _q(drag.downAt.dx, pass: drag.pass));
+          final room = _room(drag.from, c.laneQuarter(drag.downAt.dx, pass: drag.pass));
           if (room == null) return;
           (q0, q1) = (math.max(q0, room.from), math.min(q1, room.to));
         }
@@ -314,7 +275,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
       case _Kind.erase:
         if (band == null || band.q1 - band.q0 <= 1e-9) {
           // A click erases the beat (bar) under it.
-          final (q0, q1) = _beatAt(_q(drag.downAt.dx), drag.pass);
+          final (q0, q1) = _beatAt(c.laneQuarter(drag.downAt.dx), drag.pass);
           _erase(drag.from, q0, q1);
         }
         _end(pieces: _pieces);
@@ -451,7 +412,7 @@ class _SpanLanePainter extends CustomPainter {
     final working = s._working != null;
     for (final (i, span) in s.spans.indexed) {
       final on = i == selected, own = working ? null : s.model.color(i);
-      for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(span.start, span.end)) {
+      for (final (:x0, :x1, :ownStart, :ownEnd) in s.c.laneXs(span.start, span.end)) {
         if (x1 < 0 || x0 > size.width) continue;
         final round = Radius.circular(rounded ? 4 : 0);
         final rect = RRect.fromLTRBAndCorners(x0, 4, x1, size.height - 5,
@@ -481,7 +442,7 @@ class _SpanLanePainter extends CustomPainter {
     final band = s._band.value;
     if (band != null) {
       final color = band.draw ? colors.accentStrong : colors.erase;
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(band.q0, band.q1)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s.c.laneXs(band.q0, band.q1)) {
         final rect = Rect.fromLTRB(x0, 1, x1, size.height - 2);
         canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
         canvas.drawRect(

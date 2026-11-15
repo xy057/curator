@@ -1343,7 +1343,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A tempo mark as its tag says it: its words and its speed.
   static String _tempoText(PdfTempo mark, double? speed) =>
-      [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${_ScoreFieldsState._number(speed)}'].join(' ');
+      [if (mark.words.isNotEmpty) mark.words, if (speed != null) '♩ = ${plainNumber(speed)}'].join(' ');
 
   MouseCursor _cursorAt(Offset local) {
     if (_tool != _Tool.select) return SystemMouseCursors.precise;
@@ -1378,7 +1378,7 @@ class _PdfImportState extends State<PdfImport> {
     // A field being typed in keeps its keys (its arrows move the caret, not the page): this is
     // asked before the field is, and a key taken here never reaches it. Undo stays the import's,
     // its steps the fields' edits.
-    final typing = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    final typing = textFieldFocused;
     if (typing && !(meta && key == LogicalKeyboardKey.keyZ) && key != LogicalKeyboardKey.pageDown && key != LogicalKeyboardKey.pageUp) {
       return KeyEventResult.ignored;
     }
@@ -1444,18 +1444,8 @@ class _PdfImportState extends State<PdfImport> {
 
   Future<void> _cancel() async {
     if (!_edited || widget.layout == null && _layout == null) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context);
+    if (discard && mounted) Navigator.of(context).pop();
     if (mounted) _focus.requestFocus();
   }
 
@@ -1548,8 +1538,7 @@ class _PdfImportState extends State<PdfImport> {
       color: colors.chrome,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(children: [
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
-        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
+        ...undoRedoButtons(context, undo: ready && _undo.isNotEmpty ? _undoStep : null, redo: ready && _redo.isNotEmpty ? _redoStep : null),
         if (_layout != null) ...[
           const ToolbarDivider(),
           if (_ai case final reader?)
@@ -2553,11 +2542,10 @@ class _ScoreFields extends StatefulWidget {
 class _ScoreFieldsState extends State<_ScoreFields> {
   late final _title = TextEditingController(text: widget.layout.title);
   late final _meter = TextEditingController(text: widget.layout.meter.toString());
-  late final _pickup = TextEditingController(text: _number(widget.layout.pickup));
-  late final _tempo = TextEditingController(text: _number(widget.layout.tempo));
+  late final _pickup = TextEditingController(text: plainNumber(widget.layout.pickup));
+  late final _tempo = TextEditingController(text: plainNumber(widget.layout.tempo));
   bool _badMeter = false;
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
 
   @override
   void dispose() {

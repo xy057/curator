@@ -16,8 +16,9 @@ import 'l10n/l10n.dart';
 
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
 /// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
-/// Both share one time axis, so zoom and scroll carry over. With Captions on, its lane is
-/// pinned under the ruler in both; an extension's lanes (Chapters') under it; with Tonality on, its lane above them; with Attach Image on, the Spacers lane too. Project Settings… sits at its right end.
+/// Both share one time axis, so zoom and scroll carry over. Extensions' lanes (Tonality's,
+/// Captions', Chapters') are pinned under the ruler in both, by their order; with Attach Image
+/// on, the Spacers lane among them. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
   const BottomPanel({super.key, required this.controller, this.onProjectSettings});
   final EditorController controller;
@@ -28,7 +29,7 @@ class BottomPanel extends StatelessWidget {
   static const _switch = Duration(milliseconds: 220);
 
   /// Where the Spacers lane sits among the pinned lanes (a lane's `order` in a connector).
-  static const _captionsOrder = 20, _spacersOrder = 40;
+  static const _spacersOrder = 40;
 
   /// An extension's lane, as its kind says: markers, or spans.
   Widget _lane(ExtensionRuntime runtime, GraphNode node) => node.props['kind'] == 'spans'
@@ -105,12 +106,10 @@ class BottomPanel extends StatelessWidget {
               child: Column(children: [
                 BarRuler(controller: c),
                 // Pinned: under the ruler in both tabs, never scrolled away. Extensions' lanes go
-                // by their order, around the app's own: Tonality's first (its band tops the
-                // score), above Captions'; Chapters' above the spacers; any other under them.
+                // by their order (Tonality's first: its band tops the score), the app's Spacers
+                // lane among them; any other under them.
                 for (final lane in c.extensions.lanes)
-                  if (lane.order < _captionsOrder) _lane(lane.runtime, lane.node),
-                for (final lane in c.extensions.lanes)
-                  if (lane.order >= _captionsOrder && lane.order < _spacersOrder) _lane(lane.runtime, lane.node),
+                  if (lane.order < _spacersOrder) _lane(lane.runtime, lane.node),
                 if (c.spacers.enabled) SpacerLane(controller: c),
                 for (final lane in c.extensions.lanes)
                   if (lane.order >= _spacersOrder) _lane(lane.runtime, lane.node),

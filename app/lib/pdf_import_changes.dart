@@ -61,7 +61,7 @@ class _TempoDialogState extends State<_TempoDialog> {
   late final _words = TextEditingController(text: widget.mark?.words ?? '');
   late final _bpm = TextEditingController(text: switch (widget.bar == 0 ? widget.tempo : widget.mark?.bpm) {
     null => '',
-    final v => v == v.roundToDouble() ? '${v.round()}' : '$v',
+    final v => plainNumber(v),
   });
 
   bool get _start => widget.bar == 0;

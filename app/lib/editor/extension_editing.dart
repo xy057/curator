@@ -171,7 +171,7 @@ class ExtensionEditing {
     _bands = null; // its band goes with it
     _captions = null;
     _sockets();
-    if (runtime.nodes('images').isNotEmpty && _imager == null) _editor.images._deselect(); // nothing to select now
+    if (runtime.graph.has('images') && _imager == null) _editor.images._deselect(); // nothing to select now
     _items.removeWhere((key, _) => key.$1 == id);
     _stretches.removeWhere((key, _) => key.$1 == id);
     _spans.removeWhere((key, _) => key.$1 == id);
@@ -191,9 +191,9 @@ class ExtensionEditing {
     final p = package(id);
     if (p == null) return false;
     // A font chosen for its captions is a use of them.
-    if (_editor.captions._font != null && p.graph.nodes.any((n) => n.type == 'captions')) return true;
+    if (_editor.captions._font != null && p.graph.has('captions')) return true;
     // So are the spacers there are, of one that turns them on.
-    if ((_editor._doc.spacers.isNotEmpty || _editor._doc.gaps.isNotEmpty) && p.graph.nodes.any((n) => n.type == 'spacers')) return true;
+    if ((_editor._doc.spacers.isNotEmpty || _editor._doc.gaps.isNotEmpty) && p.graph.has('spacers')) return true;
     final value = data(id);
     final saved = switch (value) { null => false, final Map<Object?, Object?> m => m.isNotEmpty, final List<Object?> l => l.isNotEmpty, _ => true };
     if (p.graph.wire('project', 'used') == null || _editor._score == null) return saved;
@@ -421,7 +421,7 @@ class ExtensionEditing {
   /// The extensions (on or off) that give captions: those with a `captions` socket.
   List<String> get captionSources => [
         for (final p in packages)
-          if (p.graph.nodes.any((n) => n.type == 'captions')) p.id,
+          if (p.graph.has('captions')) p.id,
       ];
 
   /// Whether a video can have subtitles written beside it: captions, and an extension that
@@ -440,8 +440,8 @@ class ExtensionEditing {
   bool _spacers = false;
 
   void _sockets() {
-    _imager = _runtimes.values.where((r) => r.nodes('images').isNotEmpty).firstOrNull;
-    _spacers = _runtimes.values.any((r) => r.nodes('spacers').isNotEmpty);
+    _imager = _runtimes.values.where((r) => r.graph.has('images')).firstOrNull;
+    _spacers = _runtimes.values.any((r) => r.graph.has('spacers'));
   }
 
   /// Whether an extension that is on puts pictures on the score, and whether one turns the
@@ -452,7 +452,7 @@ class ExtensionEditing {
   /// The extensions (on or off) that put pictures on the score: those with an `images` socket.
   List<ExtensionPackage> get _imagePackages => [
         for (final p in packages)
-          if (p.graph.nodes.any((n) => n.type == 'images')) p,
+          if (p.graph.has('images')) p,
       ];
 
   List<String> get imageSources => [for (final p in _imagePackages) p.id];

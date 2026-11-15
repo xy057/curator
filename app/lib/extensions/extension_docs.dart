@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:file_selector/file_selector.dart';
@@ -9,9 +8,7 @@ import 'package:score_engine/score_engine.dart';
 
 import '../app_colors.dart';
 import '../app_icons.dart';
-import '../dialog_kit.dart';
-import '../edit_dialogs.dart' show confirmSavePath;
-import '../error_text.dart';
+import '../edit_dialogs.dart' show saveFileAs;
 import '../l10n/l10n.dart';
 import '../ui_kit.dart';
 import 'bundled.dart';
@@ -54,13 +51,24 @@ assistant.
 /// The docs as a zip to hand to a person or a model: a README saying what is in it, the guide
 /// and reference as one Markdown file, the API as JSON, and each of [examples] (Curator's own
 /// extensions) as a folder. The same bytes for the same docs.
-Uint8List extensionDocsPack(String guide, {required List<ExtensionPackage> examples}) {
+Uint8List extensionDocsPack(String guide, {required List<ExtensionPackage> examples}) => docsPack('curator-extension-docs',
+    readme: _packReadme, docsName: 'extension-api.md', docs: ExtensionApi.docs(guide), api: ExtensionApi.toJson(), examples: examples);
+
+/// A docs pack (an extension's or a plugin's) as a zip in [folder]: [readme], the [docs] as
+/// [docsName], the [api] as `api.json`, and each of [examples] as a folder. The same bytes for
+/// the same docs.
+Uint8List docsPack(String folder,
+    {required String readme,
+    required String docsName,
+    required String docs,
+    required Object? api,
+    required List<PackageManifest> examples}) {
   final at = DateTime.utc(2000).millisecondsSinceEpoch ~/ 1000;
   final archive = Archive();
-  void add(String path, List<int> bytes) => archive.add(ArchiveFile.bytes('curator-extension-docs/$path', bytes)..lastModTime = at);
-  add('README.md', utf8.encode(_packReadme.trimLeft()));
-  add('extension-api.md', utf8.encode(ExtensionApi.docs(guide)));
-  add('api.json', utf8.encode(const JsonEncoder.withIndent('  ').convert(ExtensionApi.toJson())));
+  void add(String path, List<int> bytes) => archive.add(ArchiveFile.bytes('$folder/$path', bytes)..lastModTime = at);
+  add('README.md', utf8.encode(readme.trimLeft()));
+  add(docsName, utf8.encode(docs));
+  add('api.json', utf8.encode(const JsonEncoder.withIndent('  ').convert(api)));
   for (final p in examples) {
     p.files.forEach((path, bytes) => add('examples/${p.id}/$path', bytes));
   }
@@ -97,24 +105,12 @@ class _ExtensionDocsBarState extends State<ExtensionDocsBar> {
   }
 
   Future<void> _download() async {
-    final location = await getSaveLocation(
-        acceptedTypeGroups: const [XTypeGroup(label: 'Zip', extensions: ['zip'])], suggestedName: widget.packName);
-    if (location == null || !mounted) return;
-    final path = await confirmSavePath(context, location.path, 'zip');
-    if (path == null) return;
-    try {
-      await File(path).writeAsBytes(await widget.pack());
-    } on FileSystemException catch (e) {
-      if (!mounted) return;
-      await showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text('Couldn’t Save the Docs'.tr),
-          content: Text(describeError(e)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
-    }
+    await saveFileAs(context,
+        types: const [XTypeGroup(label: 'Zip', extensions: ['zip'])],
+        suggestedName: widget.packName,
+        extension: 'zip',
+        failTitle: 'Couldn’t Save the Docs'.tr,
+        write: (file) async => file.writeAsBytes(await widget.pack()));
   }
 
   @override

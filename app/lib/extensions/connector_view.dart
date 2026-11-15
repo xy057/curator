@@ -593,7 +593,7 @@ class _ConnectorViewState extends State<ConnectorView> {
                         menuItem(
                           context,
                           value: socket,
-                          enabled: !socket.single || !graph.nodes.any((n) => n.type == socket.type),
+                          enabled: !socket.single || !graph.has(socket.type),
                           child: Text(socket.title),
                         ),
                     ],

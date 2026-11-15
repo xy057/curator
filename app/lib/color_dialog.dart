@@ -24,10 +24,8 @@ class _ColorDialog extends StatefulWidget {
 class _ColorDialogState extends State<_ColorDialog> {
   // Kept as HSL, so a grey keeps the hue it had while its saturation is dragged back up.
   late HSLColor _hsl = HSLColor.fromColor(widget.initial.withValues(alpha: 1));
-  late final _hex = TextEditingController(text: _hexOf(_hsl.toColor()));
+  late final _hex = TextEditingController(text: hexOf(_hsl.toColor()));
   bool _bad = false;
-
-  static String _hexOf(Color c) => '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
   /// "#4DA8F0", "4da8f0" or "#4AF"; null for anything else.
   static Color? _parse(String text) {
@@ -41,7 +39,7 @@ class _ColorDialogState extends State<_ColorDialog> {
   void _set(HSLColor hsl) => setState(() {
         _hsl = hsl;
         _bad = false;
-        _hex.text = _hexOf(hsl.toColor());
+        _hex.text = hexOf(hsl.toColor());
       });
 
   void _typed(String text) {

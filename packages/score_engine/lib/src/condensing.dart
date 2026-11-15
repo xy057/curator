@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart';
 
+import 'musicxml_kit.dart';
+import 'number_text.dart';
 import 'score_metadata.dart';
 import 'spacers.dart';
 
@@ -201,11 +203,11 @@ abstract final class Condenser {
       final numbered = CondensedGroup.arePlayers(a.name, b.name);
       String short(ScorePart p) => p.abbreviation.trim().isNotEmpty ? p.abbreviation.trim() : p.name.trim();
       final labels = numbered ? (first: '1.', second: '2.') : (first: short(a), second: short(b));
-      partList.children.add(_element('score-part', attributes: {
+      partList.children.add(xmlElement('score-part', attributes: {
         'id': id
       }, children: [
-        _element('part-name', text: CondensedGroup.nameFor(a.name, b.name)),
-        _element('part-abbreviation', text: CondensedGroup.nameFor(a.abbreviation, b.abbreviation)),
+        xmlElement('part-name', text: CondensedGroup.nameFor(a.name, b.name)),
+        xmlElement('part-abbreviation', text: CondensedGroup.nameFor(a.abbreviation, b.abbreviation)),
       ]));
       root.children.add(_merge(id, elements[a.id]!, elements[b.id]!, divisions, labels: labels));
       groups.add(CondensedGroup(id: id, partIds: [a.id, b.id], staffNumber: ++staff));
@@ -242,15 +244,15 @@ abstract final class Condenser {
             for (final MapEntry(:key, :value) in values.entries) {
               if (current[key] == value) continue;
               current[key] = value;
-              final g = _gcd(at, divisions); // at / divisions quarters, as the lowest fraction
+              final g = at.gcd(divisions); // at / divisions quarters, as the lowest fraction
               changes.add('$bar ${at ~/ g}/${divisions ~/ g} $key $value');
             }
           case 'note' when e.getElement('chord') == null && e.getElement('grace') == null:
-            at += _BarReading._duration(e);
+            at += durationOf(e);
           case 'forward':
-            at += _BarReading._duration(e);
+            at += durationOf(e);
           case 'backup':
-            at -= _BarReading._duration(e);
+            at -= durationOf(e);
         }
       }
     }
@@ -262,8 +264,8 @@ abstract final class Condenser {
   /// draws one.
   static String _clef(XmlElement? clef) {
     final sign = clef?.getElement('sign')?.innerText.trim() ?? 'G';
-    final line = int.tryParse(clef?.getElement('line')?.innerText.trim() ?? '') ?? const {'G': 2, 'F': 4, 'C': 3}[sign] ?? 0;
-    final octaves = int.tryParse(clef?.getElement('clef-octave-change')?.innerText.trim() ?? '') ?? 0;
+    final line = xmlInt(clef?.getElement('line')) ?? const {'G': 2, 'F': 4, 'C': 3}[sign] ?? 0;
+    final octaves = xmlInt(clef?.getElement('clef-octave-change')) ?? 0;
     return '$sign$line$octaves';
   }
 
@@ -271,7 +273,7 @@ abstract final class Condenser {
   /// (octave-change folded in, so "octave-change -1" and "diatonic -7, chromatic -12" are
   /// the same), and whether it is doubled an octave. None is 0 0.
   static String _transposition(XmlElement? transpose) {
-    int n(String name) => int.tryParse(transpose?.getElement(name)?.innerText.trim() ?? '') ?? 0;
+    int n(String name) => xmlInt(transpose?.getElement(name)) ?? 0;
     final octaves = n('octave-change');
     final doubled = transpose?.getElement('double');
     return '${n('diatonic') + 7 * octaves} ${n('chromatic') + 12 * octaves}'
@@ -305,17 +307,15 @@ abstract final class Condenser {
     for (final part in parts) {
       for (final d in part.findAllElements('divisions')) {
         final n = _divisionsIn(d) ?? 1;
-        final common = result ~/ _gcd(result, n) * n;
+        final common = result ~/ result.gcd(n) * n;
         if (common <= _maxDivisions) result = common; // else some durations come out fractional
       }
     }
     return result;
   }
 
-  static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
-
   /// A `<divisions>` value, or null when it is none a score can use (0, negative, absurd).
-  static int? _divisionsIn(XmlElement? element) => switch (int.tryParse(element?.innerText.trim() ?? '')) {
+  static int? _divisionsIn(XmlElement? element) => switch (xmlInt(element)) {
         final n? when n > 0 && n <= _maxDivisions => n,
         _ => null,
       };
@@ -328,7 +328,7 @@ abstract final class Condenser {
       {required ({String first, String second}) labels}) {
     final first = _PartReader(a, divisions, remapNumbers: false);
     final second = _PartReader(b, divisions, remapNumbers: true);
-    final part = _element('part', attributes: {'id': id});
+    final part = xmlElement('part', attributes: {'id': id});
     _Bar? labelled; // what the last label said; reset by a bar where both rest
     for (final ma in a.findElements('measure')) {
       final x = first.next(ma), y = second.next(second.measures[x.index]);
@@ -406,7 +406,7 @@ abstract final class Condenser {
   /// One bar of the shared staff. With [respellIn] (the key's fifths), the second player was
   /// written in another key: the accidentals are spelled again for both, as one staff.
   static XmlElement _writeBar(XmlElement source, _BarReading x, _BarReading y, _Bar bar, String? label, {int? respellIn}) {
-    final measure = _element('measure', attributes: {
+    final measure = xmlElement('measure', attributes: {
       for (final attribute in source.attributes)
         if (attribute.name.local != 'width') attribute.name.qualified: attribute.value,
     });
@@ -482,11 +482,11 @@ abstract final class Condenser {
             body.insert(i, direction);
             return;
           }
-          if (node.getElement('grace') == null) at += _BarReading._duration(node);
+          if (node.getElement('grace') == null) at += durationOf(node);
         case 'backup':
-          at -= _BarReading._duration(node);
+          at -= durationOf(node);
         case 'forward':
-          at += _BarReading._duration(node);
+          at += durationOf(node);
       }
     }
     body.add(direction);
@@ -515,7 +515,7 @@ abstract final class Condenser {
           if (notations.childElements.isEmpty) notations.remove();
         }
         final at = chord.children.indexWhere((c) => c is XmlElement && !const {'grace', 'cue'}.contains(c.name.local));
-        chord.children.insert(at < 0 ? 0 : at, _element('chord'));
+        chord.children.insert(at < 0 ? 0 : at, xmlElement('chord'));
         added.add(chord);
       }
       final last = gx.notes.last;
@@ -530,7 +530,7 @@ abstract final class Condenser {
     if (reading.voices.length > 1) {
       for (final node in reading.body.whereType<XmlElement>()) {
         final v = node.getElement('voice');
-        if (v != null) v.innerText = '${(int.tryParse(v.innerText.trim()) ?? 1) + offset}';
+        if (v != null) v.innerText = '${(xmlInt(v) ?? 1) + offset}';
       }
       return;
     }
@@ -562,7 +562,7 @@ abstract final class Condenser {
     for (final (i, child) in parent.children.indexed) {
       if (child is XmlElement && after.contains(child.name.local)) at = i + 1;
     }
-    parent.children.insert(at, _element(name, text: text));
+    parent.children.insert(at, xmlElement(name, text: text));
   }
 
   /// Spells the accidentals of a bar's notes against the key of [fifths], in the order they
@@ -580,12 +580,12 @@ abstract final class Condenser {
           if (node.getElement('pitch') != null) notes.add((at, notes.length, node));
           if (!chord) {
             last = position;
-            if (node.getElement('grace') == null) position += _BarReading._duration(node);
+            if (node.getElement('grace') == null) position += durationOf(node);
           }
         case 'backup':
-          position -= _BarReading._duration(node);
+          position -= durationOf(node);
         case 'forward':
-          position += _BarReading._duration(node);
+          position += durationOf(node);
       }
     }
     notes.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2));
@@ -621,21 +621,15 @@ abstract final class Condenser {
     if (at < 0) return;
     body.insert(
         at,
-        _element('direction', attributes: {
+        xmlElement('direction', attributes: {
           'placement': 'above'
         }, children: [
-          _element('direction-type', children: [_element('words', text: label)]),
+          xmlElement('direction-type', children: [xmlElement('words', text: label)]),
         ]));
   }
 
   static XmlElement _durationElement(String name, int duration) =>
-      _element(name, children: [_element('duration', text: '$duration')]);
-
-  static XmlElement _element(String name,
-          {Map<String, String> attributes = const {}, List<XmlNode> children = const [], String? text}) =>
-      XmlElement.tag(name,
-          attributes: [for (final MapEntry(:key, :value) in attributes.entries) XmlAttribute(XmlName.qualified(key), value)],
-          children: [...children, if (text != null) XmlText(text)]);
+      xmlElement(name, children: [xmlElement('duration', text: '$duration')]);
 
   static String _pitchKey(XmlElement note) {
     final pitch = note.getElement('pitch');
@@ -689,7 +683,7 @@ class _PartReader {
   /// Follows the key an attributes element sets.
   void _follow(XmlElement attributes) {
     final fifths = attributes.getElement('key')?.getElement('fifths');
-    if (fifths != null) _fifths = int.tryParse(fifths.innerText.trim()) ?? _fifths;
+    if (fifths != null) _fifths = xmlInt(fifths) ?? _fifths;
   }
 
   _BarReading next(XmlElement measure) {
@@ -743,7 +737,7 @@ class _PartReader {
       final value = double.tryParse(e.innerText.trim());
       if (value == null) continue;
       final scaled = value * divisions / _current;
-      e.innerText = scaled == scaled.roundToDouble() ? '${scaled.round()}' : '$scaled';
+      e.innerText = plainNumber(scaled);
     }
   }
 }
@@ -761,13 +755,13 @@ class _BarReading {
             groups.last.notes.add(node);
             continue;
           }
-          final duration = node.getElement('grace') != null ? 0 : _duration(node);
+          final duration = node.getElement('grace') != null ? 0 : durationOf(node);
           groups.add(_Group(node));
           position += duration;
         case 'backup':
-          position -= _duration(node);
+          position -= durationOf(node);
         case 'forward':
-          position += _duration(node);
+          position += durationOf(node);
         case 'direction':
           final key = '$position ${[for (final t in node.findElements('direction-type')) Condenser._plain(t)].join()}';
           directionKeys[node] = key;
@@ -825,7 +819,6 @@ class _BarReading {
   List<String> get rhythm => [for (final g in groups) g.rhythm];
   List<String> get pitches => [for (final g in groups) g.pitches];
 
-  static int _duration(XmlElement e) => int.tryParse(e.getElement('duration')?.innerText.trim() ?? '') ?? 0;
 }
 
 /// A note, or a chord of notes sounding together.
@@ -863,7 +856,7 @@ class _Group {
     if (pitch == null) return 0;
     const steps = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11};
     final step = steps[pitch.getElement('step')?.innerText.trim()] ?? 0;
-    final octave = int.tryParse(pitch.getElement('octave')?.innerText.trim() ?? '') ?? 4;
+    final octave = xmlInt(pitch.getElement('octave')) ?? 4;
     final alter = double.tryParse(pitch.getElement('alter')?.innerText.trim() ?? '')?.round() ?? 0;
     return octave * 12 + step + alter;
   }

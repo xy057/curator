@@ -329,15 +329,19 @@ class KeyColumnPlan {
   }) {
     final half = transition / 2;
     const margin = 1e-3; // seconds, so a segment reaching up to a key change leaves it out
+    // The staves' keys change at the same places: each x's times found once (a search of the
+    // whole performance).
+    final times = <double, List<double>>{};
+    List<double> timesAt(double x) => times[x] ??= scrollMap.timesAt(x);
     final keyBounds = <double>[
       // Widening ends as the widest zone's edge reaches the key; narrowing starts once the
       // narrowest zone's has passed it.
       for (final staff in {for (final s in order) staves[s.staffIndex].info.n})
         for (final (:x, :before, :after) in zone.keyColumnChanges(staff))
           if (after > before)
-            for (final t in scrollMap.timesAt(x + maxReach)) t - half - margin
+            for (final t in timesAt(x + maxReach)) t - half - margin
           else
-            for (final t in scrollMap.timesAt(x + minReach)) t + half + margin,
+            for (final t in timesAt(x + minReach)) t + half + margin,
       // A warp jumps between keys: wider before it, narrower after.
       for (final w in scrollMap.warpTimes) ...[w - half - margin, w + half + margin],
     ];

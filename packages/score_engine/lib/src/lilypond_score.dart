@@ -6,7 +6,10 @@ import 'dart:ui' as ui;
 import 'display_list.dart';
 import 'engraving.dart';
 import 'lilypond_svg.dart';
+import 'musicxml_kit.dart' show writtenFifthsOf;
 import 'native/constants.dart';
+import 'number_text.dart';
+import 'score_editing.dart' show Frac;
 import 'score_metadata.dart';
 import 'spacers.dart';
 
@@ -164,43 +167,15 @@ class LilyPondScore {
   }
 }
 
-/// An exact time or length in whole notes, as LilyPond writes them ("3/8", "-1/4", "5").
-class _Q implements Comparable<_Q> {
-  factory _Q(int n, int d) {
-    if (d < 0) (n, d) = (-n, -d);
-    final g = n.gcd(d);
-    return g <= 1 ? _Q._(n, d) : _Q._(n ~/ g, d ~/ g);
-  }
-  const _Q._(this.n, this.d);
-  static const zero = _Q._(0, 1);
-  final int n, d;
-
-  static _Q? parse(Object? text) {
-    if (text is int) return _Q._(text, 1);
-    if (text is! String) return null;
-    final s = text.trim(), slash = s.indexOf('/');
-    if (slash < 0) return int.tryParse(s) == null ? null : _Q._(int.parse(s), 1);
-    final n = int.tryParse(s.substring(0, slash)), d = int.tryParse(s.substring(slash + 1));
-    return n == null || d == null || d == 0 ? null : _Q(n, d);
-  }
-
-  _Q operator +(_Q o) => _Q(n * o.d + o.n * d, d * o.d);
-  _Q operator -(_Q o) => _Q(n * o.d - o.n * d, d * o.d);
-  _Q operator *(_Q o) => _Q(n * o.n, d * o.d);
-  bool operator <(_Q o) => n * o.d < o.n * d;
-  bool operator <=(_Q o) => n * o.d <= o.n * d;
-  bool operator >(_Q o) => n * o.d > o.n * d;
-  bool operator >=(_Q o) => n * o.d >= o.n * d;
-  double get value => n / d;
-
-  @override
-  int compareTo(_Q o) => (n * o.d).compareTo(o.n * d);
-  @override
-  bool operator ==(Object o) => o is _Q && o.n == n && o.d == d;
-  @override
-  int get hashCode => Object.hash(n, d);
-  @override
-  String toString() => d == 1 ? '$n' : '$n/$d';
+/// An exact time or length in whole notes as LilyPond writes one ("3/8", "-1/4", "5"); null:
+/// it isn't one.
+Frac? _whole(Object? text) {
+  if (text is int) return Frac(text);
+  if (text is! String) return null;
+  final s = text.trim(), slash = s.indexOf('/');
+  if (slash < 0) return int.tryParse(s) == null ? null : Frac(int.parse(s));
+  final n = int.tryParse(s.substring(0, slash)), d = int.tryParse(s.substring(slash + 1));
+  return n == null || d == null || d == 0 ? null : Frac(n, d);
 }
 
 typedef _Rec = Map<String, Object?>;
@@ -215,7 +190,7 @@ class _Ctx {
 class _Sig {
   _Sig(this.record, this.moment, this.signature);
   final _Rec record;
-  final _Q moment;
+  final Frac moment;
   final Signature signature;
 }
 
@@ -423,9 +398,9 @@ class _Reader {
         case 'measure':
           measureRecords.add(decoded);
         case 'end':
-          end = _Q.parse(decoded['m']);
+          end = _whole(decoded['m']);
         case 'span':
-          voltaEnds[_int(decoded['c'])] = _Q.parse(decoded['end']);
+          voltaEnds[_int(decoded['c'])] = _whole(decoded['end']);
         case 'tie':
           tieStarts.add(_int(decoded['from']));
           tieStops.add(_int(decoded['to']));
@@ -454,16 +429,16 @@ class _Reader {
   final records = <_Rec>[];
   final byGrob = <int, _Rec>{};
   final measureRecords = <_Rec>[];
-  final voltaEnds = <int, _Q?>{};
+  final voltaEnds = <int, Frac?>{};
 
   /// The notes ties start at and end at (their grob numbers).
   final tieStarts = <int>{}, tieStops = <int>{};
-  _Q? end;
+  Frac? end;
   var scores = 1;
 
   static int _int(Object? v) => v is int ? v : (v is num ? v.toInt() : int.tryParse('$v') ?? -1);
-  static _Q _moment(_Rec r) => _Q.parse(r['m']) ?? _Q.zero;
-  static bool _grace(_Rec r) => (_Q.parse(r['g']) ?? _Q.zero) != _Q.zero;
+  static Frac _moment(_Rec r) => _whole(r['m']) ?? Frac.zero;
+  static bool _grace(_Rec r) => (_whole(r['g']) ?? Frac.zero) != Frac.zero;
 
   // Staves: line key → where its lines are; then numbered, part by part.
   final staffAt = <int, ({double top, double bottom, int lines, double left, double right, double thickness})>{};
@@ -542,14 +517,14 @@ class _Reader {
           final times = <double>[], at = <double>[];
           for (final (moment, x) in onsets) {
             if (moment >= start && moment < next) {
-              times.add((moment - start).value * 4);
+              times.add((moment - start).toDouble() * 4);
               at.add(x);
             }
           }
           return MeasureLayout(
               left: xs[i],
               right: xs[i + 1],
-              duration: (next - start).value * 4,
+              duration: (next - start).toDouble() * 4,
               onsetTimes: Float64List.fromList(times),
               onsetXs: Float64List.fromList(at));
         }(),
@@ -586,7 +561,7 @@ class _Reader {
         (line) => sigs.any((s) => s.signature is KeySignature && s.record['l'] == line),
         orElse: () => reference);
     // (Written less concert: a B♭ clarinet's D major is C, two sharps more.)
-    final keyShift = -_fifthsOf(_transposition(keyStaff)?.semitones ?? 0);
+    final keyShift = -writtenFifthsOf(-(_transposition(keyStaff)?.semitones ?? 0));
     return LilyPondScore._(
       engraving: engraving,
       musicXML: _MusicXmlWriter(this, starts, finish, sigs).write(),
@@ -758,29 +733,29 @@ class _Reader {
     ];
   }
 
-  List<_Q> _measureStarts() {
-    final starts = <_Q>{for (final r in measureRecords) _moment(r)}.toList()..sort();
-    if (starts.isEmpty || starts.first > _Q.zero) starts.insert(0, _Q.zero);
+  List<Frac> _measureStarts() {
+    final starts = <Frac>{for (final r in measureRecords) _moment(r)}.toList()..sort();
+    if (starts.isEmpty || starts.first > Frac.zero) starts.insert(0, Frac.zero);
     final last = end, first = starts.first;
     if (last != null) starts.removeWhere((s) => s >= last && s != first);
     return starts;
   }
 
   /// Where the piece ends: the end the data file gives, else after its last note.
-  _Q _finish(List<_Q> starts) {
+  Frac _finish(List<Frac> starts) {
     var finish = end ?? starts.last;
     for (final r in records) {
       if (r['t'] != 'NoteHead' && r['t'] != 'Rest') continue;
-      final m = _moment(r) + (_Q.parse(r['d']) ?? _Q.zero);
+      final m = _moment(r) + (_whole(r['d']) ?? Frac.zero);
       if (end == null && m > finish) finish = m;
     }
-    return finish > starts.last ? finish : starts.last + const _Q._(1, 4);
+    return finish > starts.last ? finish : starts.last + Frac(1, 4);
   }
 
   /// Each moment a note (else a rest) starts, with the x its notes are drawn at (the middle of
   /// their left edges: a chord's second set off the stem doesn't move it), in time order.
-  List<(_Q, double)> _onsets() {
-    final notes = <_Q, List<double>>{}, rests = <_Q, List<double>>{};
+  List<(Frac, double)> _onsets() {
+    final notes = <Frac, List<double>>{}, rests = <Frac, List<double>>{};
     for (final r in records) {
       final into = switch (r['t']) { 'NoteHead' || 'TabNoteHead' => notes, 'Rest' => rests, _ => null };
       if (into == null || _grace(r)) continue;
@@ -789,7 +764,7 @@ class _Reader {
       into.putIfAbsent(_moment(r), () => []).add(g.bounds.left);
     }
     double median(List<double> v) => (v..sort())[v.length ~/ 2];
-    final out = <(_Q, double)>[
+    final out = <(Frac, double)>[
       for (final MapEntry(key: m, value: xs) in notes.entries) (m, median(xs)),
       for (final MapEntry(key: m, value: xs) in rests.entries)
         if (!notes.containsKey(m)) (m, median(xs)),
@@ -799,8 +774,8 @@ class _Reader {
 
   /// The x of each bar's start and of the end: where the barline is drawn; where none is, before
   /// the bar's first note. The first bar starts after the opening clefs, keys and times.
-  List<double> _boundaries(List<_Q> starts, _Q finish, List<(_Q, double)> onsets) {
-    final barlines = <_Q, ui.Rect>{};
+  List<double> _boundaries(List<Frac> starts, Frac finish, List<(Frac, double)> onsets) {
+    final barlines = <Frac, ui.Rect>{};
     for (final r in records) {
       if (r['t'] != 'BarLine') continue;
       final g = drawn[_int(r['c'])];
@@ -810,8 +785,8 @@ class _Reader {
     }
     final staffLeft = staffAt.values.fold(double.infinity, (l, s) => math.min(l, s.left));
     final staffRight = staffAt.values.fold(-double.infinity, (r, s) => math.max(r, s.right));
-    double? firstOnsetFrom(_Q m) => onsets.where((o) => o.$1 >= m).firstOrNull?.$2;
-    double? lastOnsetBefore(_Q m) => onsets.where((o) => o.$1 < m).lastOrNull?.$2;
+    double? firstOnsetFrom(Frac m) => onsets.where((o) => o.$1 >= m).firstOrNull?.$2;
+    double? lastOnsetBefore(Frac m) => onsets.where((o) => o.$1 < m).lastOrNull?.$2;
 
     final xs = <double>[];
     // The first bar: after what is drawn before its first note at its start.
@@ -847,10 +822,10 @@ class _Reader {
 
   /// Every clef, key and time signature: the first of each on a staff, then each change (LilyPond
   /// makes a clef and key at every barline, drawn only where a line would break: not changes).
-  List<_Sig> _signatures(Map<int, ({int start, int count})> ranges, List<_Q> starts, List<double> xs) {
+  List<_Sig> _signatures(Map<int, ({int start, int count})> ranges, List<Frac> starts, List<double> xs) {
     final out = <_Sig>[];
     final lastClef = <int, String>{}, lastKey = <int, String>{}, lastTime = <int, String>{};
-    double xAt(_Q m) {
+    double xAt(Frac m) {
       for (final (i, s) in starts.indexed) {
         if (s == m) return xs[i];
         if (s > m) return xs[math.max(0, i - 1)];
@@ -927,7 +902,7 @@ class _Reader {
   static int _fifths(String alterations) {
     var sharps = 0, flats = 0;
     for (final m in RegExp(r'\((-?\d+) \. (-?[\d/.]+)\)').allMatches(alterations)) {
-      final alter = _Q.parse(m.group(2)!)?.value ?? double.tryParse(m.group(2)!) ?? 0;
+      final alter = _whole(m.group(2)!)?.toDouble() ?? double.tryParse(m.group(2)!) ?? 0;
       if (alter > 0) sharps++;
       if (alter < 0) flats++;
     }
@@ -968,18 +943,11 @@ class _Reader {
       if (r['t'] != 'NoteHead' || _int(r['l']) != line) continue;
       final t = r['tr'];
       if (t is! List || t.length < 3) return null;
-      final octave = _int(t[0]), step = _int(t[1]), alter = _Q.parse(t[2])?.value ?? 0;
+      final octave = _int(t[0]), step = _int(t[1]), alter = _whole(t[2])?.toDouble() ?? 0;
       final semitones = octave * 12 + const [0, 2, 4, 5, 7, 9, 11][step.clamp(0, 6)] + (alter * 2).round();
       return semitones == 0 ? null : (semitones: semitones, steps: octave * 7 + step);
     }
     return null;
-  }
-
-  /// How many fifths an interval of [semitones] moves a key (a whole tone down: two flats).
-  static int _fifthsOf(int semitones) {
-    var f = (semitones * 7) % 12;
-    if (f > 6) f -= 12;
-    return f;
   }
 }
 
@@ -989,13 +957,13 @@ class _Reader {
 class _MusicXmlWriter {
   _MusicXmlWriter(this.r, this.starts, this.finish, this.sigs);
   final _Reader r;
-  final List<_Q> starts;
-  final _Q finish;
+  final List<Frac> starts;
+  final Frac finish;
   final List<_Sig> sigs;
   final out = StringBuffer();
   late final int divisions = _divisions();
 
-  int _bar(_Q m) {
+  int _bar(Frac m) {
     var lo = 0, hi = starts.length - 1;
     while (lo < hi) {
       final mid = (lo + hi + 1) >> 1;
@@ -1008,24 +976,24 @@ class _MusicXmlWriter {
     return lo;
   }
 
-  _Q _next(int bar) => bar + 1 < starts.length ? starts[bar + 1] : finish;
+  Frac _next(int bar) => bar + 1 < starts.length ? starts[bar + 1] : finish;
 
   /// What the data file says of the bar that starts at a moment (the first, of several): looked
   /// up for every bar of every part.
   late final _measureAt = {for (final m in r.measureRecords.reversed) _Reader._moment(m): m};
 
-  int _ticks(_Q q) => (q.value * 4 * divisions).round();
+  int _ticks(Frac q) => (q.toDouble() * 4 * divisions).round();
 
   int _divisions() {
     var lcm = 1;
-    void take(_Q q) {
-      final d = (q * const _Q._(4, 1)).d;
+    void take(Frac q) {
+      final d = (q * Frac(4)).d;
       lcm = lcm ~/ lcm.gcd(d) * d;
     }
 
     for (final rec in r.records) {
       if (const {'NoteHead', 'TabNoteHead', 'Rest'}.contains(rec['t'])) {
-        if (_Q.parse(rec['d']) case final d?) take(d);
+        if (_whole(rec['d']) case final d?) take(d);
         take(_Reader._moment(rec));
       }
       if (lcm > 1 << 20) return 10080;
@@ -1153,7 +1121,7 @@ class _MusicXmlWriter {
         final start = _bar(_Reader._moment(rec));
         volta.putIfAbsent(start, () => []).add(rec);
         final end = r.voltaEnds[_Reader._int(rec['c'])];
-        final stop = end == null ? starts.length - 1 : math.max(start, _bar(end - const _Q._(1, 1 << 20)));
+        final stop = end == null ? starts.length - 1 : math.max(start, _bar(end - Frac(1, 1 << 20)));
         voltaStops.putIfAbsent(stop, () => []).add(rec);
       }
       if (rec['t'] == 'BarLine') {
@@ -1184,7 +1152,7 @@ class _MusicXmlWriter {
     for (var bar = 0; bar < starts.length; bar++) {
       final start = starts[bar], length = _next(bar) - start;
       final record = _measureAt[start];
-      final pickup = bar == 0 && (_Q.parse(record?['pos']) ?? _Q.zero) < _Q.zero;
+      final pickup = bar == 0 && (_whole(record?['pos']) ?? Frac.zero) < Frac.zero;
       final number = pickup ? '0' : '${record?['bar'] ?? bar + 1}';
       out.write('<measure number="${_x(number)}"${pickup ? ' implicit="yes"' : ''}>\n');
       if (forward.contains(bar) || volta.containsKey(bar)) {
@@ -1261,7 +1229,7 @@ class _MusicXmlWriter {
     out.write('</part>\n');
   }
 
-  void _direction(_Rec d, _Q start, Map<int, int> staffIndex, bool many) {
+  void _direction(_Rec d, Frac start, Map<int, int> staffIndex, bool many) {
     final c = _Reader._int(d['c']);
     final offset = _ticks(_Reader._moment(d) - start);
     final at = offset > 0 ? '<offset>$offset</offset>' : '';
@@ -1269,7 +1237,7 @@ class _MusicXmlWriter {
     final text = '${d['text'] ?? ''}'.trim();
     switch (d['t']) {
       case 'MetronomeMark':
-        final unit = _Q.parse(d['unit']);
+        final unit = _whole(d['unit']);
         final count = double.tryParse(RegExp(r'[\d.]+').firstMatch('${d['count'] ?? ''}')?.group(0) ?? '');
         if (text.isEmpty && (unit == null || count == null)) return;
         out.write('<direction placement="above" id="ly-tempo-$c">');
@@ -1280,7 +1248,7 @@ class _MusicXmlWriter {
               '<per-minute>${_number(count)}</per-minute></metronome></direction-type>');
         }
         out.write(at);
-        if (unit != null && count != null) out.write('<sound tempo="${_number(count * unit.value * 4)}"/>');
+        if (unit != null && count != null) out.write('<sound tempo="${_number(count * unit.toDouble() * 4)}"/>');
         out.write('</direction>\n');
       case 'RehearsalMark':
         if (text.isEmpty) return;
@@ -1302,13 +1270,13 @@ class _MusicXmlWriter {
     'fp', 'rf', 'rfz', 'sfz', 'sffz', 'fz', 'n', 'pf', 'sfzp',
   };
 
-  static String _number(double v) => v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(2);
+  static String _number(double v) => plainNumber(v, digits: 2);
 
   /// The note value of a beat [unit] (whole notes) and its dots: 3/8 a dotted crotchet.
-  static (String, int)? _beatUnit(_Q unit) {
+  static (String, int)? _beatUnit(Frac unit) {
     for (var dots = 0; dots <= 2; dots++) {
       // A value with dots is the plain one times (2 - 1/2^dots).
-      final plain = unit.value / (2 - 1 / (1 << dots));
+      final plain = unit.toDouble() / (2 - 1 / (1 << dots));
       final log = -(math.log(plain) / math.ln2);
       if ((log - log.round()).abs() < 1e-9 && _types.containsKey(log.round())) return (_types[log.round()]!, dots);
     }
@@ -1322,29 +1290,29 @@ class _MusicXmlWriter {
 
   /// One voice's events in a bar from [start], set where they fall ([length] long); returns how
   /// far in the bar it has written.
-  int _voice(List<_Rec> events, _Q start, _Q length, int voice, Map<int, int> staffIndex, bool many) {
+  int _voice(List<_Rec> events, Frac start, Frac length, int voice, Map<int, int> staffIndex, bool many) {
     final sorted = [...events]..sort((a, b) {
         final m = _Reader._moment(a).compareTo(_Reader._moment(b));
         if (m != 0) return m;
-        return (_Q.parse(a['g']) ?? _Q.zero).compareTo(_Q.parse(b['g']) ?? _Q.zero);
+        return (_whole(a['g']) ?? Frac.zero).compareTo(_whole(b['g']) ?? Frac.zero);
       });
     var cursor = 0;
     for (var i = 0; i < sorted.length;) {
       final head = sorted[i];
-      final m = _Reader._moment(head), g = _Q.parse(head['g']) ?? _Q.zero;
+      final m = _Reader._moment(head), g = _whole(head['g']) ?? Frac.zero;
       var j = i + 1;
       final isRest = head['t'] == 'Rest' || head['t'] == 'MultiMeasureRest';
       while (!isRest &&
           j < sorted.length &&
           _Reader._moment(sorted[j]) == m &&
-          (_Q.parse(sorted[j]['g']) ?? _Q.zero) == g &&
+          (_whole(sorted[j]['g']) ?? Frac.zero) == g &&
           sorted[j]['t'] != 'Rest' &&
           sorted[j]['t'] != 'MultiMeasureRest') {
         j++;
       }
       final chord = sorted.sublist(i, j);
       i = j;
-      final grace = g != _Q.zero;
+      final grace = g != Frac.zero;
       final at = _ticks(m - start);
       if (!grace && at > cursor) {
         final staff = many ? '<staff>${staffIndex[_Reader._int(head['l'])] ?? 1}</staff>' : '';
@@ -1357,7 +1325,7 @@ class _MusicXmlWriter {
       var advance = 0;
       for (final (k, e) in chord.indexed) {
         final full = e['t'] == 'MultiMeasureRest';
-        var duration = _Q.parse(e['d']) ?? length;
+        var duration = _whole(e['d']) ?? length;
         if (full || duration > length) duration = length;
         final ticks = math.max(1, _ticks(duration));
         if (k == 0) advance = grace ? 0 : ticks;
@@ -1368,7 +1336,7 @@ class _MusicXmlWriter {
           out.write(full ? '<rest measure="yes"/>' : '<rest/>');
         } else if (e['p'] case [final octave, final step, final alter]) {
           final o = _Reader._int(octave), s = _Reader._int(step).clamp(0, 6);
-          final semis = (_Q.parse(alter)?.value ?? 0) * 2;
+          final semis = (_whole(alter)?.toDouble() ?? 0) * 2;
           out.write('<pitch><step>${'CDEFGAB'[s]}</step>${semis == 0 ? '' : '<alter>${_number(semis)}</alter>'}'
               '<octave>${o + 4}</octave></pitch>');
         } else {
@@ -1386,7 +1354,7 @@ class _MusicXmlWriter {
         if (_types[_Reader._int(e['dl'])] case final type? when !full) {
           out.write('<type>$type</type>${'<dot/>' * math.max(0, _Reader._int(e['dd']))}');
         }
-        if (_Q.parse(e['ds']) case final scale? when scale != const _Q._(1, 1) && scale.n > 0) {
+        if (_whole(e['ds']) case final scale? when scale != Frac.one && scale.n > 0) {
           out.write('<time-modification><actual-notes>${scale.d}</actual-notes><normal-notes>${scale.n}</normal-notes>'
               '</time-modification>');
         }

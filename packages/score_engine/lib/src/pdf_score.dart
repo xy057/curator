@@ -9,6 +9,7 @@ import 'engraving.dart';
 import 'pdf_layout.dart';
 import 'pdf_pages.dart';
 import 'score_metadata.dart';
+import 'search.dart';
 
 /// Where a PDF score's systems are drawn from: its PDF read here ([PdfPagesSource]), or pictures
 /// of them written beforehand (a web page's).
@@ -97,6 +98,8 @@ class PdfScoreArt extends ChangeNotifier {
   /// another gone.
   Future<void> load(Iterable<int> systems, {Object? holder}) {
     final wanted = systems.toSet();
+    // Asked again for what it holds, all read: nothing to do (a scene reads ahead at every frame).
+    if (setEquals(_held[holder ?? this], wanted) && wanted.every((s) => _systems.containsKey(s) || _failed.contains(s))) return Future.value();
     _held[holder ?? this] = wanted;
     return Future.wait([for (final s in wanted) _request(s)]);
   }
@@ -375,11 +378,19 @@ abstract final class PdfEngraving {
   /// engraving): what a frame showing them needs read ([PdfScoreArt.load]).
   static Set<int> systemsIn(PdfScoreLayout layout, EngravingData data, double left, double right) {
     final out = <int>{};
-    for (final (bar, pieces) in layout.bars.indexed) {
-      if (bar >= data.measures.length) break;
+    final bars = math.min(layout.bars.length, data.measures.length);
+    if (bars == 0) return out;
+    // The bars are in order along the line, end to end: from the last starting at or before
+    // [left], and any before it ending there.
+    var first = math.max(0, lastAtOrBefore(bars, left, (i) => data.measures[i].left));
+    while (first > 0 && data.measures[first - 1].right >= left) {
+      first--;
+    }
+    for (var bar = first; bar < bars; bar++) {
       final m = data.measures[bar];
-      if (m.right < left || m.left > right) continue;
-      for (final p in pieces) {
+      if (m.left > right) break;
+      if (m.right < left) continue;
+      for (final p in layout.bars[bar]) {
         out.add(p.system);
       }
     }

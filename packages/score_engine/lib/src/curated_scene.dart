@@ -11,6 +11,7 @@ import 'engraving.dart';
 import 'engraving_options.dart';
 import 'frozen_zone.dart';
 import 'lilypond_score.dart';
+import 'pdf_layout.dart' show PdfScoreLayout;
 import 'pdf_score.dart';
 import 'auto_curate.dart';
 import 'beat_grid.dart';
@@ -72,6 +73,18 @@ class EngraveRequest {
   /// Horizontal spacers: blanks opened between beats.
   final List<HorizontalSpacer> gaps;
 
+  /// This request as it is sent to another isolate to read the score: all but the fonts, whose
+  /// files (an added music font's can be megabytes) would be copied there and nothing read.
+  EngraveRequest get apart => EngraveRequest(
+      textEdits: textEdits,
+      pairs: pairs,
+      options: options,
+      textDynamics: textDynamics,
+      typography: typography,
+      centeredLyrics: centeredLyrics,
+      spacers: spacers,
+      gaps: gaps);
+
   @override
   bool operator ==(Object other) =>
       other is EngraveRequest &&
@@ -99,18 +112,10 @@ class LoadedScore {
   LoadedScore._(this.metadata, this.engraving, this.timeline, this.beats, this.scrollMap,
       {required this.musicXML,
       required this.texts,
-      required this.textEdits,
-      required this.fonts,
+      required this.request,
       required this.textFontFound,
-      required this.options,
-      required this.textDynamics,
-      required this.typography,
-      required this.centeredLyrics,
       required this.condensed,
       required this.condensing,
-      required this.pairs,
-      required this.spacers,
-      required this.gaps,
       this.pdf,
       this.lilypond,
       this._salience});
@@ -143,11 +148,14 @@ class LoadedScore {
   /// [salience] worked out while it was engraved (off the main isolate), if it was.
   final BarSalience? _salience;
 
+  /// What it was engraved with (a drawn score's without text edits or pairs, which it can't show).
+  final EngraveRequest request;
+
   /// Text edits in effect: text id → new text ('' removes it).
-  final Map<String, String> textEdits;
+  Map<String, String> get textEdits => request.textEdits;
 
   /// The fonts it was engraved with.
-  final ScoreFonts fonts;
+  ScoreFonts get fonts => request.fonts;
 
   /// False when [fonts]' text font isn't installed here: Academico stands in for it.
   final bool textFontFound;
@@ -157,16 +165,16 @@ class LoadedScore {
   String get textFontFamily => TextFonts.familyOf(textFontFound ? fonts.text : TextFonts.academico);
 
   /// The engraving options it was engraved with.
-  final EngravingOptions options;
+  EngravingOptions get options => request.options;
 
   /// Whether dynamics written as text were engraved as dynamics ([TextDynamics]).
-  final bool textDynamics;
+  bool get textDynamics => request.textDynamics;
 
   /// How its engraved texts look (its drawn ones are the scene's, [CuratedScene.typography]).
-  final ScoreTypography typography;
+  ScoreTypography get typography => request.typography;
 
   /// Whether its syllables were centred under their notes ([EngraveRequest.centeredLyrics]).
-  final bool centeredLyrics;
+  bool get centeredLyrics => request.centeredLyrics;
 
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
@@ -176,12 +184,12 @@ class LoadedScore {
   final CondensingOptions condensing;
 
   /// The user's own pairs this was engraved with (see [CondensingOptions.pairs]).
-  final List<PlayerPair> pairs;
+  List<PlayerPair> get pairs => request.pairs;
 
   /// The vertical spacers engraved as parts (their looks, but for [VerticalSpacer.key], are
   /// the scene's: [CuratedScene.spacers]) and the horizontal ones opened in the engraving.
-  final List<VerticalSpacer> spacers;
-  final List<HorizontalSpacer> gaps;
+  List<VerticalSpacer> get spacers => request.spacers;
+  List<HorizontalSpacer> get gaps => request.gaps;
 
   double get duration => scrollMap.duration;
 
@@ -191,18 +199,18 @@ class LoadedScore {
   /// The text as currently shown (after edits).
   String currentText(ScoreText text) => textEdits[text.id] ?? text.text;
 
-  /// What it was engraved with.
-  EngraveRequest get request =>
-      EngraveRequest(
-          textEdits: textEdits,
-          pairs: pairs,
-          fonts: fonts,
-          options: options,
-          textDynamics: textDynamics,
-          typography: typography,
-          centeredLyrics: centeredLyrics,
-          spacers: spacers,
-          gaps: gaps);
+  /// Whether it is drawn as something else drew it (a PDF's pages, LilyPond), not engraved by
+  /// Verovio: no staff in it two players could share.
+  bool get isDrawn => pdf != null || lilypond != null;
+
+  /// Whether its [musicXML] has its notes (a PDF's has none: only its bars and staves), so
+  /// what reads notes (Find Phrase, Align, the player map's pulses) has something to read.
+  bool get hasNotes => pdf == null;
+
+  /// Whether [partId] is a PDF score's blank lane ([PdfInstrument.blank]): no staff of the PDF
+  /// is its. Asked at every frame, so each answer is kept.
+  bool isBlankPart(String partId) => _blank[partId] ??= pdf?.layout.playerOf(partId)?.$1.blank ?? false;
+  final _blank = <String, bool>{};
 
   /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
   /// ([fromPdf]); with [lilypond], takes the score LilyPond engraved ([fromLilyPond]).
@@ -212,52 +220,36 @@ class LoadedScore {
   /// out there too, after (beside the engraving, its garbage would stop this isolate). [onStage]
   /// hears each step as it starts.
   static Future<LoadedScore> engrave(String musicXML, EngraveRequest request,
-          {String? resourceDirectory,
-          double? tempo,
-          PdfScoreArt? pdf,
-          LilyPondScore? lilypond,
-          bool measure = false,
-          void Function(LoadStage stage)? onStage}) async =>
-      pdf != null
-          ? await prepareFonts(request.fonts)
-              .then((_) => _fromPdfApart(pdf, request, tempo: tempo, measure: measure, onStage: onStage))
-          : lilypond != null
-          ? await prepareFonts(request.fonts).then((fonts) => _fromLilyPondApart(lilypond, request,
-              tempo: tempo, measure: measure, onStage: onStage, textFontFound: fonts.textFound))
-          : await load(musicXML,
-          measure: measure,
-          onStage: onStage,
-          resourceDirectory: resourceDirectory,
-          tempo: tempo,
-          fonts: request.fonts,
-          textEdits: request.textEdits,
-          pairs: request.pairs,
-          options: request.options,
-          textDynamics: request.textDynamics,
-          typography: request.typography,
-          centeredLyrics: request.centeredLyrics,
-          spacers: request.spacers,
-          gaps: request.gaps);
+      {String? resourceDirectory,
+      double? tempo,
+      PdfScoreArt? pdf,
+      LilyPondScore? lilypond,
+      bool measure = false,
+      void Function(LoadStage stage)? onStage}) async {
+    if (pdf == null && lilypond == null) {
+      return load(musicXML, request: request, resourceDirectory: resourceDirectory, tempo: tempo, measure: measure, onStage: onStage);
+    }
+    final fonts = await prepareFonts(request.fonts);
+    return _fromDrawnApart(pdf != null ? _DrawnPdf(pdf.layout) : _DrawnLilyPond(lilypond!), request,
+        pdf: pdf,
+        lilypond: lilypond,
+        tempo: tempo,
+        measure: measure,
+        onStage: onStage,
+        // A PDF's text is its own; LilyPond set its text in Academico when the font isn't here.
+        textFontFound: pdf != null || fonts.textFound);
+  }
 
-  static Future<LoadedScore> load(
-    String musicXML, {
-    String? resourceDirectory,
-    ScoreFonts fonts = ScoreFonts.standard,
-    double? tempo,
-    Map<String, String> textEdits = const {},
-    List<PlayerPair> pairs = const [],
-    EngravingOptions options = const EngravingOptions(),
-    bool textDynamics = true,
-    ScoreTypography typography = ScoreTypography.standard,
-    bool centeredLyrics = false,
-    List<VerticalSpacer> spacers = const [],
-    List<HorizontalSpacer> gaps = const [],
-    bool measure = false,
-    void Function(LoadStage stage)? onStage,
-  }) async {
+  /// Engraves [musicXML] as [request] asks with Verovio ([engrave] for one that isn't drawn).
+  static Future<LoadedScore> load(String musicXML,
+      {EngraveRequest request = const EngraveRequest(),
+      String? resourceDirectory,
+      double? tempo,
+      bool measure = false,
+      void Function(LoadStage stage)? onStage}) async {
+    final r = request, apart = request.apart;
     onStage?.call(LoadStage.reading);
-    final (:metadata, :prepared, :barLengths) =
-        await Isolate.run(() => _prepare(musicXML, textEdits, pairs, textDynamics, typography, options, spacers));
+    final (:metadata, :prepared, :barLengths) = await Isolate.run(() => _prepare(musicXML, apart));
     // What each bar plays, from the file's bar lengths (kept only where they are the
     // engraving's).
     Future<({List<double> starts, BarSalience salience})> measured() => Isolate.run(() {
@@ -267,17 +259,17 @@ class LoadedScore {
       }
       return (starts: starts, salience: BarSalience.of(musicXML, metadata, starts));
     });
-    final resources = await prepareFonts(fonts, resourceDirectory: resourceDirectory);
+    final resources = await prepareFonts(r.fonts, resourceDirectory: resourceDirectory);
     onStage?.call(LoadStage.engraving);
     final engraving = await Engraver.engrave(
       prepared.musicXML,
       resourceDirectory: resources.directory,
-      font: fonts.music.isMissing ? MusicFont.bravura : fonts.music,
-      options: options,
+      font: r.fonts.music.isMissing ? MusicFont.bravura : r.fonts.music,
+      options: r.options,
       verovioOptions: {
-        ...typography.verovioOptions,
-        if (centeredLyrics) 'curatedLyricCentre': true,
-        if (gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(gaps, barLengths),
+        ...r.typography.verovioOptions,
+        if (r.centeredLyrics) 'curatedLyricCentre': true,
+        if (r.gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(r.gaps, barLengths),
       },
     );
     ({List<double> starts, BarSalience salience})? salience;
@@ -285,190 +277,83 @@ class LoadedScore {
       onStage?.call(LoadStage.measuring);
       salience = await measured().then<({List<double> starts, BarSalience salience})?>((s) => s, onError: (_) => null);
     }
-    return _of(musicXML, metadata, prepared, engraving,
-        salience: salience,
-        tempo: tempo,
-        textEdits: textEdits,
-        fonts: fonts,
-        textFontFound: resources.textFound,
-        options: options,
-        textDynamics: textDynamics,
-        typography: typography,
-        centeredLyrics: centeredLyrics,
-        pairs: pairs,
-        spacers: spacers,
-        gaps: gaps);
+    return _of(musicXML, metadata, prepared, engraving, r, salience: salience, tempo: tempo, textFontFound: resources.textFound);
   }
 
   /// The score [pdf] is: the score written for it ([PdfScoreLayout.musicXML]), laid out as its
   /// pages are printed ([PdfEngraving]). Of [request] only what a PDF can show counts: the
   /// spacers (a vertical one is an empty staff; horizontal ones open nothing).
-  static LoadedScore fromPdf(PdfScoreArt pdf, EngraveRequest request, {double? tempo}) {
-    final musicXML = pdf.layout.musicXML();
-    final r = request;
-    final (:metadata, :prepared, barLengths: _) =
-        _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
-    return _of(musicXML, metadata, prepared, PdfEngraving.of(pdf.layout, metadata),
-        tempo: tempo,
-        textEdits: const {},
-        fonts: r.fonts,
-        textFontFound: true,
-        options: r.options,
-        textDynamics: r.textDynamics,
-        typography: r.typography,
-        centeredLyrics: r.centeredLyrics,
-        pairs: const [],
-        spacers: r.spacers,
-        gaps: r.gaps,
-        pdf: pdf);
-  }
-
-  /// [fromPdf], read and laid out on another isolate (the main one only waits).
-  static Future<LoadedScore> _fromPdfApart(PdfScoreArt pdf, EngraveRequest request,
-      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage}) async {
-    final layout = pdf.layout, r = request;
-    onStage?.call(LoadStage.reading);
-    final read = await Isolate.run(() {
-      final musicXML = layout.musicXML();
-      final (:metadata, :prepared, barLengths: _) =
-          _prepare(musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
-      return (musicXML: musicXML, metadata: metadata, prepared: prepared, engraving: PdfEngraving.of(layout, metadata));
-    });
-    final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
-    BarSalience? salience;
-    if (measure) {
-      onStage?.call(LoadStage.measuring);
-      salience = await Isolate.run(() => BarSalience.of(read.musicXML, read.metadata, starts))
-          .then<BarSalience?>((s) => s, onError: (_) => null);
-    }
-    return _of(read.musicXML, read.metadata, read.prepared, read.engraving,
-        tempo: tempo,
-        textEdits: const {},
-        fonts: r.fonts,
-        textFontFound: true,
-        options: r.options,
-        textDynamics: r.textDynamics,
-        typography: r.typography,
-        centeredLyrics: r.centeredLyrics,
-        pairs: const [],
-        spacers: r.spacers,
-        gaps: r.gaps,
-        pdf: pdf,
-        salience: salience == null ? null : (starts: starts, salience: salience));
-  }
+  static LoadedScore fromPdf(PdfScoreArt pdf, EngraveRequest request, {double? tempo}) =>
+      _fromDrawn(_DrawnPdf(pdf.layout).read(request), request, tempo: tempo, pdf: pdf);
 
   /// The score LilyPond engraved ([LilyPondScore]): the score written for it, drawn as LilyPond
   /// drew it, with a staff for each vertical spacer. Of [request] only what doesn't engrave
   /// counts, and the spacers; text edits and shared staves don't (the source says what is drawn).
   /// Its fonts must be loaded already ([prepareFonts]).
-  static LoadedScore fromLilyPond(LilyPondScore lilypond, EngraveRequest request, {double? tempo}) {
-    final r = request;
-    final (:metadata, :prepared, barLengths: _) =
-        _prepare(lilypond.musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
-    return _of(lilypond.musicXML, metadata, prepared, lilypond.engravingWith(metadata, r.spacers),
-        tempo: tempo,
-        textEdits: const {},
-        fonts: r.fonts,
-        textFontFound: true,
-        options: r.options,
-        textDynamics: r.textDynamics,
-        typography: r.typography,
-        centeredLyrics: r.centeredLyrics,
-        pairs: const [],
-        spacers: r.spacers,
-        gaps: r.gaps,
-        lilypond: lilypond);
-  }
+  static LoadedScore fromLilyPond(LilyPondScore lilypond, EngraveRequest request, {double? tempo}) =>
+      _fromDrawn(_DrawnLilyPond(lilypond).read(request), request, tempo: tempo, lilypond: lilypond);
 
-  /// [fromLilyPond], read on another isolate (the main one only waits); with [measure], what
-  /// each bar plays measured there too. [textFontFound] false: the text font isn't installed
-  /// here, and Academico draws the text (as LilyPond then sets it).
-  static Future<LoadedScore> _fromLilyPondApart(LilyPondScore lilypond, EngraveRequest request,
-      {double? tempo, bool measure = false, void Function(LoadStage stage)? onStage, bool textFontFound = true}) async {
-    final r = request;
+  /// A drawn score ([fromPdf], [fromLilyPond]) read on another isolate (the main one only
+  /// waits); with [measure], what each bar plays measured there too. [textFontFound] false:
+  /// the text font isn't installed here, and Academico draws the text.
+  static Future<LoadedScore> _fromDrawnApart(_Drawn drawn, EngraveRequest request,
+      {PdfScoreArt? pdf,
+      LilyPondScore? lilypond,
+      double? tempo,
+      bool measure = false,
+      void Function(LoadStage stage)? onStage,
+      bool textFontFound = true}) async {
     onStage?.call(LoadStage.reading);
-    final read = await Isolate.run(() {
-      final (:metadata, :prepared, barLengths: _) =
-          _prepare(lilypond.musicXML, const {}, const [], false, r.typography, r.options, r.spacers);
-      return (metadata: metadata, prepared: prepared, engraving: lilypond.engravingWith(metadata, r.spacers));
-    });
-    final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
-    BarSalience? salience;
+    final apart = request.apart;
+    final read = await Isolate.run(() => drawn.read(apart));
+    ({List<double> starts, BarSalience salience})? salience;
     if (measure) {
       onStage?.call(LoadStage.measuring);
-      final musicXML = lilypond.musicXML, metadata = read.metadata;
-      salience = await Isolate.run(() => BarSalience.of(musicXML, metadata, starts)).then<BarSalience?>((s) => s, onError: (_) => null);
+      final starts = ConstantTempoTimeline(read.engraving.measures, quarterNotesPerMinute: 100).measureStarts;
+      salience = switch (await _salienceApart(read.musicXML, read.metadata, starts)) { final s? => (starts: starts, salience: s), null => null };
     }
-    return _of(lilypond.musicXML, read.metadata, read.prepared, read.engraving,
-        tempo: tempo,
-        textEdits: const {},
-        fonts: r.fonts,
-        textFontFound: textFontFound,
-        options: r.options,
-        textDynamics: r.textDynamics,
-        typography: r.typography,
-        centeredLyrics: r.centeredLyrics,
-        pairs: const [],
-        spacers: r.spacers,
-        gaps: r.gaps,
-        lilypond: lilypond,
-        salience: salience == null ? null : (starts: starts, salience: salience));
+    return _fromDrawn(read, request, tempo: tempo, pdf: pdf, lilypond: lilypond, salience: salience, textFontFound: textFontFound);
   }
+
+  /// What each bar of [musicXML] plays, worked out on another isolate (given only what it needs,
+  /// not the engraving); null when it can't be.
+  static Future<BarSalience?> _salienceApart(String musicXML, ScoreMetadata metadata, List<double> starts) =>
+      Isolate.run(() => BarSalience.of(musicXML, metadata, starts)).then<BarSalience?>((s) => s, onError: (_) => null);
+
+  static LoadedScore _fromDrawn(_DrawnRead read, EngraveRequest r,
+          {double? tempo,
+          PdfScoreArt? pdf,
+          LilyPondScore? lilypond,
+          ({List<double> starts, BarSalience salience})? salience,
+          bool textFontFound = true}) =>
+      _of(read.musicXML, read.metadata, read.prepared, read.engraving, _Drawn.requestOf(r),
+          tempo: tempo, textFontFound: textFontFound, pdf: pdf, lilypond: lilypond, salience: salience);
 
   /// [musicXML] engraved beforehand with [request] as [engraving] ([EngravingFile]): where there is
   /// no engraver. Its fonts must be loaded already ([MusicFont.load], [TextFonts]).
   static LoadedScore engraved(String musicXML, EngraveRequest request, EngravingData engraving,
       {double? tempo, bool textFontFound = true}) {
-    final r = request;
-    final (:metadata, :prepared, barLengths: _) =
-        _prepare(musicXML, r.textEdits, r.pairs, r.textDynamics, r.typography, r.options, r.spacers);
-    return _of(musicXML, metadata, prepared, engraving,
-        tempo: tempo,
-        textEdits: r.textEdits,
-        fonts: r.fonts,
-        textFontFound: textFontFound,
-        options: r.options,
-        textDynamics: r.textDynamics,
-        typography: r.typography,
-        centeredLyrics: r.centeredLyrics,
-        pairs: r.pairs,
-        spacers: r.spacers,
-        gaps: r.gaps);
+    final (:metadata, :prepared, barLengths: _) = _prepare(musicXML, request);
+    return _of(musicXML, metadata, prepared, engraving, request, tempo: tempo, textFontFound: textFontFound);
   }
 
   /// What Verovio is given for [musicXML]: the spacers' parts written in, the edits applied.
-  static ({ScoreMetadata metadata, PreparedScore prepared, List<double> barLengths}) _prepare(
-      String musicXML,
-      Map<String, String> textEdits,
-      List<PlayerPair> pairs,
-      bool textDynamics,
-      ScoreTypography typography,
-      EngravingOptions options,
-      List<VerticalSpacer> spacers) {
+  static ({ScoreMetadata metadata, PreparedScore prepared, List<double> barLengths}) _prepare(String musicXML, EngraveRequest r) {
     final doc = ScoreMetadata.parse(musicXML);
-    Spacers.write(doc, spacers);
+    Spacers.write(doc, r.spacers);
     final metadata = ScoreMetadata.fromDocument(doc);
-    final prepared = PreparedScore.prepare(doc, textEdits,
+    final prepared = PreparedScore.prepare(doc, r.textEdits,
         metadata: metadata,
-        pairs: pairs,
-        textDynamics: textDynamics,
-        typography: typography,
-        textSize: (options.valueOf(EngraveOption.byKey('lyricSize')!) as num).toDouble());
+        pairs: r.pairs,
+        textDynamics: r.textDynamics,
+        typography: r.typography,
+        textSize: (r.options.valueOf(EngraveOption.byKey('lyricSize')!) as num).toDouble());
     return (metadata: metadata, prepared: prepared, barLengths: Spacers.barLengths(doc));
   }
 
-  static LoadedScore _of(String musicXML, ScoreMetadata metadata, PreparedScore prepared, EngravingData engraving,
+  static LoadedScore _of(String musicXML, ScoreMetadata metadata, PreparedScore prepared, EngravingData engraving, EngraveRequest r,
       {required double? tempo,
-      required Map<String, String> textEdits,
-      required ScoreFonts fonts,
       required bool textFontFound,
-      required EngravingOptions options,
-      required bool textDynamics,
-      required ScoreTypography typography,
-      required bool centeredLyrics,
-      required List<PlayerPair> pairs,
-      required List<VerticalSpacer> spacers,
-      required List<HorizontalSpacer> gaps,
       PdfScoreArt? pdf,
       LilyPondScore? lilypond,
       ({List<double> starts, BarSalience salience})? salience}) {
@@ -482,19 +367,20 @@ class LoadedScore {
     return LoadedScore._(metadata, engraving, timeline, beats, ScrollMap(engraving, timeline, beats: beats),
         musicXML: musicXML,
         texts: prepared.texts,
-        textEdits: Map.unmodifiable(textEdits),
-        fonts: fonts,
+        request: EngraveRequest(
+            textEdits: Map.unmodifiable(r.textEdits),
+            pairs: List.unmodifiable(r.pairs),
+            fonts: r.fonts,
+            options: r.options,
+            textDynamics: r.textDynamics,
+            typography: r.typography,
+            centeredLyrics: r.centeredLyrics,
+            spacers: List.unmodifiable(r.spacers),
+            gaps: List.unmodifiable(r.gaps)),
         textFontFound: textFontFound,
-        options: options,
-        textDynamics: textDynamics,
-        typography: typography,
-        centeredLyrics: centeredLyrics,
         // A PDF has no staff two players could share, nor has LilyPond drawn one.
         condensed: pdf != null || lilypond != null ? const [] : prepared.condensed,
         condensing: prepared.condensing!,
-        pairs: List.unmodifiable(pairs),
-        spacers: List.unmodifiable(spacers),
-        gaps: List.unmodifiable(gaps),
         pdf: pdf,
         lilypond: lilypond,
         salience: measured ? salience.salience : null);
@@ -514,12 +400,65 @@ class LoadedScore {
     return resources;
   }
 
-  static Future<LoadedScore> open(String path, {ScoreFonts fonts = ScoreFonts.standard}) async =>
-      load(await ScoreFile.readMusicXML(path), fonts: fonts);
-
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
   Future<LoadedScore> withRequest(EngraveRequest request) =>
       engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf, lilypond: lilypond);
+}
+
+/// A run of staves in one section (start and end, inclusive, in the planned order).
+typedef _SectionRun = ({int start, int end, bool barlines, bool outset});
+
+/// What a drawn score is read into: the score written for it, prepared, and its drawing.
+typedef _DrawnRead = ({String musicXML, ScoreMetadata metadata, PreparedScore prepared, EngravingData engraving});
+
+/// A score drawn from what it is (a PDF's pages, LilyPond's drawing), not engraved by Verovio:
+/// only what reading it needs, so it can go to another isolate (a [PdfScoreArt] holds images).
+sealed class _Drawn {
+  const _Drawn();
+
+  /// The score written for it.
+  String get musicXML;
+
+  /// Its drawing, for [metadata] with [spacers]' staves in.
+  EngravingData engravingWith(ScoreMetadata metadata, List<VerticalSpacer> spacers);
+
+  /// What of [r] a drawn score takes: no text edits, no pairs (the drawing says what is shown).
+  static EngraveRequest requestOf(EngraveRequest r) => EngraveRequest(
+      fonts: r.fonts,
+      options: r.options,
+      textDynamics: r.textDynamics,
+      typography: r.typography,
+      centeredLyrics: r.centeredLyrics,
+      spacers: r.spacers,
+      gaps: r.gaps);
+
+  /// It read as [r] asks (prepared with no text dynamics: its text is drawn as it is).
+  _DrawnRead read(EngraveRequest r) {
+    final musicXML = this.musicXML;
+    final (:metadata, :prepared, barLengths: _) =
+        LoadedScore._prepare(musicXML, EngraveRequest(typography: r.typography, options: r.options, spacers: r.spacers, textDynamics: false));
+    return (musicXML: musicXML, metadata: metadata, prepared: prepared, engraving: engravingWith(metadata, r.spacers));
+  }
+}
+
+class _DrawnPdf extends _Drawn {
+  const _DrawnPdf(this.layout);
+  final PdfScoreLayout layout;
+
+  @override
+  String get musicXML => layout.musicXML();
+  @override
+  EngravingData engravingWith(ScoreMetadata metadata, List<VerticalSpacer> spacers) => PdfEngraving.of(layout, metadata);
+}
+
+class _DrawnLilyPond extends _Drawn {
+  const _DrawnLilyPond(this.score);
+  final LilyPondScore score;
+
+  @override
+  String get musicXML => score.musicXML;
+  @override
+  EngravingData engravingWith(ScoreMetadata metadata, List<VerticalSpacer> spacers) => score.engravingWith(metadata, spacers);
 }
 
 /// Where Verovio's font metrics live on disk (bundled as package assets).
@@ -769,18 +708,17 @@ class CuratedScene {
         for (final MapEntry(key: n, value: look) in _spacerStaves.entries)
           if ((!look.frozen || !look.lines) && _staffIndex[n] != null) _staffIndex[n]!,
         // A PDF score's blank lanes ([PdfInstrument.blank]).
-        if (score.pdf?.layout case final layout?)
-          for (final p in score.metadata.parts)
-            if (layout.playerOf(p.id)?.$1.blank ?? false)
-              for (final n in p.staffNumbers)
-                if (_staffIndex[n] != null) _staffIndex[n]!,
+        for (final p in score.metadata.parts)
+          if (score.isBlankPart(p.id))
+            for (final n in p.staffNumbers)
+              if (_staffIndex[n] != null) _staffIndex[n]!,
       };
 
   /// Whether [partId] is a vertical spacer the frozen zone doesn't name, or a PDF score's blank
   /// lane.
   bool _unnamed(String partId) =>
       (Spacers.isSpacer(partId) && !(_spacers.where((s) => s.id == partId).firstOrNull?.frozen ?? false)) ||
-      (score.pdf?.layout.playerOf(partId)?.$1.blank ?? false);
+      score.isBlankPart(partId);
 
   /// How the score moves (Project Settings ▸ Animation): the staves' spacing, glides and fades, the scroll's
   /// coming to rest, the ending's fade, captions, the bar numbers' row and the tempo at the left.
@@ -928,8 +866,11 @@ class CuratedScene {
   /// shared staff just above its first player's.
   late List<PlannedStaff> _order = _plannedOrder();
 
+  /// The score's parts by id, made once (a frame's layout asks for them).
+  late final Map<String, ScorePart> _parts = {for (final p in score.metadata.parts) p.id: p};
+
   List<PlannedStaff> _plannedOrder() {
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+    final parts = _parts;
     return [
       for (final id in _partOrder) ...[
         for (final g in score.condensed)
@@ -945,12 +886,25 @@ class CuratedScene {
   /// are of one section, two instruments or more, or one the user put in it (bracketed even
   /// while only one shows); [outset] when one of them is on more than one
   /// staff (its brace takes the room beside the staves).
-  late List<({int start, int end, bool barlines, bool outset})> _sectionRuns = _sectionRunsOf(_order);
+  late List<_SectionRun> _sectionRuns = _sectionRunsOf(_order);
 
-  List<({int start, int end, bool barlines, bool outset})> _sectionRunsOf(List<PlannedStaff> order) {
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+  /// Each staff of [_order] in a section's run, the run it is in: made again only as the runs are.
+  Map<int, _SectionRun> get _runOf {
+    if (_runOfKept case (final runs, final of) when identical(runs, _sectionRuns)) return of;
+    final of = <int, _SectionRun>{
+      for (final run in _sectionRuns)
+        for (var i = run.start; i <= run.end; i++) i: run,
+    };
+    _runOfKept = (_sectionRuns, of);
+    return of;
+  }
+
+  (List<_SectionRun>, Map<int, _SectionRun>)? _runOfKept;
+
+  List<_SectionRun> _sectionRunsOf(List<PlannedStaff> order) {
+    final parts = _parts;
     ScorePart partOf(String id) => parts[id] ?? parts[_groups[id]!.partIds.first]!; // a pair: its first player
-    final runs = <({int start, int end, bool barlines, bool outset})>[];
+    final runs = <_SectionRun>[];
     var start = 0;
     for (var i = 1; i <= order.length; i++) {
       final section = sectionOf(partOf(order[start].partId));
@@ -1062,14 +1016,14 @@ class CuratedScene {
   Object _planKeyFor(Curation curation, ui.Size size) =>
       (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _bandReserve, _displayVersion, _motion.glide);
 
-  SpacingPlan _buildPlan(Curation curation, ui.Size size) {
+  SpacingPlan _buildPlan(Curation curation, ui.Size size, {Iterable<RegionEdge>? edges}) {
     final pointerX = renderer.pointerX(size.width);
     final top = _top; // the plan's 0 in the frame
     return SpacingPlan.build(
       staves: display.staves,
       order: _order,
       scrollMap: scrollMap,
-      edges: curation.edgesInSeconds(timeline),
+      edges: edges ?? curation.edgesInSeconds(timeline),
       isShown: (k, seconds) => _isStaffShown(curation, k, seconds),
       spacing: {
         for (final MapEntry(key: id, value: (:above, :below)) in _instrumentSpacing.entries)
@@ -1128,7 +1082,9 @@ class CuratedScene {
     final key = _planKeyFor(curation, size);
     if (_plan == null || _planKey != key) {
       final pointerX = renderer.pointerX(size.width);
-      _plan = _buildPlan(curation, size);
+      // Every lane's edges, worked out once for both plans.
+      final edges = curation.edgesInSeconds(timeline).toList();
+      _plan = _buildPlan(curation, size, edges: edges);
       final zone = renderer.frozen, bare = renderer.bare;
       final kept = [for (final (k, s) in _order.indexed) if (!bare.contains(s.staffIndex)) k];
       _keyPlan = zone == null
@@ -1138,7 +1094,7 @@ class CuratedScene {
               staves: display.staves,
               order: [for (final s in _order) if (!bare.contains(s.staffIndex)) s],
               scrollMap: scrollMap,
-              edges: curation.edgesInSeconds(timeline),
+              edges: edges,
               isShown: (k, seconds) => _isStaffShown(curation, kept[k], seconds),
               minReach: (pointerX - renderer.musicLeftFor(0)) / renderer.scale,
               maxReach: (pointerX - renderer.musicLeft) / renderer.scale,
@@ -1319,16 +1275,25 @@ class CuratedScene {
   ui.Paragraph _keyName(String text) {
     if (_keyNames[text] case final name?) return name;
     if (_keyNames.length >= 64) _disposeKeyNames(); // markings of the user's, typed one by one
-    final look = _typography[TextKind.tonality], fontSize = _bandFont;
+    final look = _typography[TextKind.tonality];
+    return _keyNames[text] = _line(text, look, _bandFont, color: ui.Color.fromRGBO(255, 255, 255, look.opacity));
+  }
+
+  /// [text] on one line in the text font at [fontSize], as [look] sets it ([face] in place of
+  /// its own); cut short with an ellipsis at [width] when one is given.
+  ui.Paragraph _line(String text, TextLook look, double fontSize,
+      {TextFace? face, ui.Color color = const ui.Color(0xFF000000), double? width}) {
+    face ??= look.face;
     final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
         fontFamily: _style.textFontFamily,
         fontSize: fontSize,
-        fontStyle: look.face.fontStyle,
-        fontWeight: look.face.fontWeight,
-        maxLines: 1))
-      ..pushStyle(ui.TextStyle(color: ui.Color.fromRGBO(255, 255, 255, look.opacity), letterSpacing: look.spacingAt(fontSize)))
+        fontStyle: face.fontStyle,
+        fontWeight: face.fontWeight,
+        maxLines: 1,
+        ellipsis: width == null ? null : '…'))
+      ..pushStyle(ui.TextStyle(color: color, letterSpacing: look.spacingAt(fontSize)))
       ..addText(text);
-    return _keyNames[text] = builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+    return builder.build()..layout(ui.ParagraphConstraints(width: width ?? double.infinity));
   }
 
   void _disposeKeyNames() {
@@ -1460,17 +1425,8 @@ class CuratedScene {
   /// A rehearsal mark laid out as [TextKind.rehearsal] looks: bold unless the user chose a
   /// face, larger than the bar numbers.
   ui.Paragraph _rehearsal(String mark) => _rehearsalText.putIfAbsent(mark, () {
-        final look = _typography[TextKind.rehearsal], fontSize = _style.staffSpace * 1.8 * look.size;
-        final face = look.face == TextFace.asWritten ? TextFace.bold : look.face;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: face.fontStyle,
-            fontWeight: face.fontWeight,
-            maxLines: 1))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(mark);
-        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+        final look = _typography[TextKind.rehearsal];
+        return _line(mark, look, _style.staffSpace * 1.8 * look.size, face: look.face == TextFace.asWritten ? TextFace.bold : null);
       });
 
   /// Where a rehearsal mark's box is drawn with its left at [x], its bottom at the row's.
@@ -1485,16 +1441,8 @@ class CuratedScene {
 
   /// A bar's number ([ScoreMetadata.barNumbers]) laid out, as [TextKind.barNumbers] looks.
   ui.Paragraph _barNumber(String number) => _barNumberText.putIfAbsent(number, () {
-        final look = _typography[TextKind.barNumbers], fontSize = _style.staffSpace * 1.3 * look.size;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: look.face.fontStyle,
-            fontWeight: look.face.fontWeight,
-            maxLines: 1))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(number);
-        return builder.build()..layout(const ui.ParagraphConstraints(width: double.infinity));
+        final look = _typography[TextKind.barNumbers];
+        return _line(number, look, _style.staffSpace * 1.3 * look.size);
       });
 
   void _disposeBarNumbers() {
@@ -1708,17 +1656,8 @@ class CuratedScene {
 
   /// [words] laid out as [TextKind.tempoRow] looks.
   ui.Paragraph _tempoText(String words) => _tempoParagraphs.putIfAbsent(words, () {
-        final look = _typography[TextKind.tempoRow], fontSize = _style.labelFontSize * look.size;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-            fontFamily: _style.textFontFamily,
-            fontSize: fontSize,
-            fontStyle: look.face.fontStyle,
-            fontWeight: look.face.fontWeight,
-            maxLines: 1,
-            ellipsis: '…'))
-          ..pushStyle(ui.TextStyle(color: const ui.Color(0xFF000000), letterSpacing: look.spacingAt(fontSize)))
-          ..addText(words);
-        return builder.build()..layout(ui.ParagraphConstraints(width: _style.headerWidth - 16));
+        final look = _typography[TextKind.tempoRow];
+        return _line(words, look, _style.labelFontSize * look.size, width: _style.headerWidth - 16);
       });
 
   void _disposeTempoTexts() {
@@ -1853,7 +1792,7 @@ class CuratedScene {
   }) layoutAt(double time, Curation curation, ui.Size size) {
     final visibility = _visibilityAt(time, curation);
     final tops = [for (final y in _planFor(curation, size).topsAt(time)) y + _top];
-    final parts = {for (final p in score.metadata.parts) p.id: p};
+    final parts = _parts;
 
     final placements = <StaffPlacement>[];
     final labels = <StaffLabel>[];
@@ -1938,10 +1877,7 @@ class CuratedScene {
       final middle = p.y + height / 2;
       return (top: middle - room / 2, bottom: middle + room / 2);
     }
-    final runOf = <int, ({int start, int end, bool barlines, bool outset})>{
-      for (final run in _sectionRuns)
-        for (var i = run.start; i <= run.end; i++) i: run,
-    };
+    final runOf = _runOf;
     final shown = placed.keys.toList();
     for (var k = 1; k < shown.length; k++) {
       final above = placed[shown[k - 1]]!, below = placed[shown[k]]!;

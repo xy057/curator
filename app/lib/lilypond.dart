@@ -11,6 +11,7 @@ import 'package:score_engine/score_engine.dart' show FontFace, LilyPondScore, Te
 import 'app_folders.dart';
 import 'downloader.dart';
 import 'error_text.dart';
+import 'file_names.dart';
 import 'l10n/l10n.dart';
 import 'project_state.dart';
 import 'scratch_space.dart';
@@ -66,8 +67,6 @@ class LilySource {
   /// A project's score: its main file, [name] and [text], with what it keeps ([project]).
   factory LilySource.of(String name, String text, LilyPondProject project) =>
       LilySource(name: name, text: text, folder: project.folder, files: project.files);
-
-  LilySource withText(String text) => LilySource(name: name, text: text, folder: folder, files: files, origin: origin);
 
   /// A score to start from (File ▸ New LilyPond Score…) in a main file named [name]: a staff of
   /// a few bars, its instrument named [part].
@@ -263,7 +262,7 @@ abstract final class LilyPond {
   /// The file names LilyPond scores have (a score, a file one includes).
   static const extensions = ['ly', 'ily'];
 
-  static bool isLilyPond(String path) => extensions.contains(path.split('.').last.toLowerCase());
+  static bool isLilyPond(String path) => extensions.contains(extensionOf(path));
 
   /// Curator's settings for LilyPond (`assets/lilypond/curator.ly`): the piece on one line, its
   /// drawing tagged, what it is written to a data file.

@@ -273,33 +273,16 @@ abstract final class PluginApi {
         'menus': menus,
         'keys': {'modifiers': modifiers, 'names': keyNames},
         'icons': icons,
-        'libraries': [
-          for (final l in libraries)
-            {
-              'name': l.name,
-              'summary': l.summary,
-              'functions': [
-                for (final f in l.functions) {'name': f.name, 'signature': f.signature, 'summary': f.summary, 'since': f.since, if (f.example != null) 'example': f.example},
-              ],
-              if (l.values.isNotEmpty) 'values': [for (final (name, summary) in l.values) {'name': name, 'summary': summary}],
-            },
-        ],
+        'libraries': [for (final l in libraries) l.toJson()],
       };
 
   /// The whole API as Markdown: every library with its functions, every event, every command
   /// and setting of the app's. docs/plugin-api.md is the guide followed by this.
   static String reference() {
     final out = StringBuffer('## Libraries\n');
-    String since(int level) => level > 1 ? ' *(API $level)*' : '';
+    const since = ApiLibrary.since;
     for (final l in libraries) {
-      out.writeln('\n### `${l.name}`\n\n${l.summary}\n');
-      for (final f in l.functions) {
-        out.writeln('- `${f.signature}`${since(f.since)}: ${f.summary}');
-        if (f.example case final example?) out.writeln('\n  ```lua\n${example.split('\n').map((line) => '  $line').join('\n')}\n  ```\n');
-      }
-      for (final (name, summary) in l.values) {
-        out.writeln('- `${l.name}.$name`: $summary');
-      }
+      l.writeDocs(out);
     }
     out.writeln('\n## Events\n\nWhat `app.on` listens to:\n');
     for (final e in events) {

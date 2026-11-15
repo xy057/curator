@@ -7,7 +7,7 @@ import 'package:score_engine/score_engine.dart';
 import '../app_colors.dart';
 import '../app_icons.dart';
 import '../dialog_kit.dart';
-import '../edit_dialogs.dart' show confirmSavePath;
+import '../edit_dialogs.dart' show saveFileAs;
 import '../editor_controller.dart';
 import '../error_text.dart';
 import '../menu_kit.dart';
@@ -24,24 +24,9 @@ import 'extension_settings.dart';
 abstract final class ExtensionActions {
   static const _types = XTypeGroup(label: 'Curator Extension', extensions: [ExtensionPackage.fileExtension]);
 
-  static Future<void> _say(BuildContext context, String title, String message) => showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text(title),
-          content: SizedBox(width: dialogWidth(context, 380), child: Text(message)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
-
   /// An id for an extension named [name] that the project has none with: "user.my-notes".
-  static String idFor(String name, EditorController controller) {
-    final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
-    final base = 'user.${slug.isEmpty ? 'extension' : slug}';
-    for (var n = 1;; n++) {
-      final id = n == 1 ? base : '$base-$n';
-      if (controller.extensions.package(id) == null) return id;
-    }
-  }
+  static String idFor(String name, EditorController controller) =>
+      PackageFiles.userId(name, 'extension', (id) => controller.extensions.package(id) != null);
 
   /// Asks for a new extension's name, adds it to the project and opens it in the editor.
   static Future<void> create(BuildContext context, EditorController controller) async {
@@ -84,9 +69,9 @@ abstract final class ExtensionActions {
     try {
       controller.extensions.add(ExtensionPackage.read(await file.readAsBytes()));
     } on FormatException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Extension'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, e.message.tr);
     } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Extension'.tr, describeError(e));
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, describeError(e));
     }
   }
 
@@ -118,7 +103,7 @@ abstract final class ExtensionActions {
   }
 
   /// Whether [package] has settings of its own (a `settings` socket).
-  static bool hasSettings(ExtensionPackage package) => package.graph.nodes.any((n) => n.type == 'settings');
+  static bool hasSettings(ExtensionPackage package) => package.graph.has('settings');
 
   /// Opens [package]'s own settings, kept for every project: asked of the extension as it
   /// runs in the project, or run for this alone while it is off.
@@ -135,15 +120,12 @@ abstract final class ExtensionActions {
 
   /// Saves [package] as a .cpe file where the user says.
   static Future<void> export(BuildContext context, ExtensionPackage package) async {
-    final location = await getSaveLocation(acceptedTypeGroups: const [_types], suggestedName: '${package.name}.${ExtensionPackage.fileExtension}');
-    if (location == null || !context.mounted) return;
-    final path = await confirmSavePath(context, location.path, ExtensionPackage.fileExtension);
-    if (path == null) return;
-    try {
-      await File(path).writeAsBytes(package.write());
-    } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Save the Extension'.tr, describeError(e));
-    }
+    await saveFileAs(context,
+        types: const [_types],
+        suggestedName: '${package.name}.${ExtensionPackage.fileExtension}',
+        extension: ExtensionPackage.fileExtension,
+        failTitle: 'Couldn’t Save the Extension'.tr,
+        write: (file) => file.writeAsBytes(package.write()));
   }
 
   /// A copy of [package] (one of Curator's own) the project carries and can change, named

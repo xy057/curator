@@ -1,5 +1,7 @@
 import 'package:xml/xml.dart';
 
+import 'musicxml_kit.dart';
+
 /// A key signature of a score at concert pitch: from bar [measure] (an index) on, [fifths];
 /// [minor] as the parts say (`<mode>`; null: none says).
 typedef ConcertKeySignature = ({int measure, int fifths, bool? minor});
@@ -10,7 +12,6 @@ typedef ConcertKeySignature = ({int measure, int fifths, bool? minor});
 List<ConcertKeySignature> concertKeySignatures(String musicXML) => _concertKeySignatures(XmlDocument.parse(musicXML).rootElement);
 
 List<ConcertKeySignature> _concertKeySignatures(XmlElement root) {
-  int? number(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
   // Each part's keys, as they change: (measure, concert fifths, mode) and whether it transposes.
   final parts = <List<(int, int, bool?, bool)>>[];
   for (final part in root.findElements('part')) {
@@ -18,15 +19,13 @@ List<ConcertKeySignature> _concertKeySignatures(XmlElement root) {
     var chromatic = 0, percussion = false;
     for (final (m, measure) in part.findElements('measure').indexed) {
       for (final attributes in measure.findElements('attributes')) {
-        if (attributes.getElement('transpose') case final t?) chromatic = number(t.getElement('chromatic')) ?? 0;
+        if (attributes.getElement('transpose') case final t?) chromatic = xmlInt(t.getElement('chromatic')) ?? 0;
         if (attributes.findElements('clef').any((c) => c.getElement('sign')?.innerText.trim() == 'percussion')) percussion = true;
         final key = attributes.getElement('key');
-        final fifths = number(key?.getElement('fifths'));
+        final fifths = xmlInt(key?.getElement('fifths'));
         if (fifths == null) continue;
         // A transposing part is written that many fifths from concert pitch (a B♭ part two sharper).
-        var shift = (-chromatic * 7) % 12;
-        if (shift > 6) shift -= 12;
-        var concert = fifths - shift;
+        var concert = fifths - writtenFifthsOf(chromatic);
         if (concert > 7) concert -= 12;
         if (concert < -7) concert += 12;
         final mode = key!.getElement('mode')?.innerText.trim();

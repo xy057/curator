@@ -433,11 +433,7 @@ abstract final class PdfDetect {
     // thick, and ragged.
     final inked = List<bool>.filled(to - from, false);
     for (final staff in of) {
-      final half = (staff.thickness * page.scale / 2).floor() + 1;
-      final lineRows = <int>{
-        for (var k = 0; k < 5; k++)
-          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
-      };
+      final lineRows = _lineRows(page, staff);
       final top = page.row(staff.top - staff.space).round(), bottom = page.row(staff.top + 5 * staff.space).round();
       for (var x = from; x < to; x++) {
         if (inked[x - from]) continue;
@@ -493,11 +489,7 @@ abstract final class PdfDetect {
   static bool _accidentalLike(PdfRaster page, List<FoundStaff> staves, int a, int b) {
     for (final staff in staves) {
       final px = staff.space * page.scale;
-      final half = (staff.thickness * page.scale / 2).floor() + 1;
-      final lineRows = <int>{
-        for (var k = 0; k < 5; k++)
-          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
-      };
+      final lineRows = _lineRows(page, staff);
       final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
       int? lo, hi, left, right;
       for (var y = top; y <= bottom; y++) {
@@ -523,11 +515,7 @@ abstract final class PdfDetect {
   static bool _headIn(PdfRaster page, List<FoundStaff> staves, int a, int b) {
     for (final staff in staves) {
       final px = staff.space * page.scale;
-      final half = (staff.thickness * page.scale / 2).floor() + 1;
-      final lineRows = <int>{
-        for (var k = 0; k < 5; k++)
-          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
-      };
+      final lineRows = _lineRows(page, staff);
       final top = page.row(staff.top - staff.space * 2).round(), bottom = page.row(staff.top + staff.space * 6).round();
       var rows = 0;
       for (var y = top; y <= bottom; y++) {
@@ -553,11 +541,7 @@ abstract final class PdfDetect {
     var inked = 0;
     for (final staff in staves) {
       final px = staff.space * page.scale;
-      final half = (staff.thickness * page.scale / 2).floor() + 1;
-      final lineRows = <int>{
-        for (var k = 0; k < 5; k++)
-          for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
-      };
+      final lineRows = _lineRows(page, staff);
       final top = page.row(staff.top - staff.space * 1.5).round(), bottom = page.row(staff.top + staff.space * 5.5).round();
       // As far along this staff as [a]–[b] are along [of]'s (a scan leaning).
       final along = of == null ? 0 : ((staff.left - of.left) * page.scale).round();
@@ -774,17 +758,22 @@ abstract final class PdfDetect {
     return out;
   }
 
+  /// The rows [staff]'s five lines cover on [page], a scan's thick and ragged ones whole.
+  static Set<int> _lineRows(PdfRaster page, FoundStaff staff) {
+    final half = (staff.thickness * page.scale / 2).floor() + 1;
+    return {
+      for (var k = 0; k < 5; k++)
+        for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
+    };
+  }
+
   /// Whether what runs through [staff] at columns [l]–[r] is a line: in most rows between the
   /// staff's lines its ink is no wider than that (a time signature's digits, one over the
   /// other, run through a staff too, and are wide most of the way).
   static bool _thin(PdfRaster page, FoundStaff staff, int l, int r) {
     final px = staff.space * page.scale, wide = math.max(2, (px * 0.3).round());
-    final half = (staff.thickness * page.scale / 2).floor() + 1;
     final top = page.row(staff.top).round(), bottom = page.row(staff.top + 4 * staff.space).round();
-    final lineRows = <int>{
-      for (var k = 0; k < 5; k++)
-        for (var d = -half; d <= half; d++) page.row(staff.top + k * staff.space).round() + d,
-    };
+    final lineRows = _lineRows(page, staff);
     var rows = 0, fat = 0;
     for (var y = top; y <= bottom; y++) {
       if (lineRows.contains(y)) continue;

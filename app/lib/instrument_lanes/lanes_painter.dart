@@ -5,6 +5,9 @@ List<BoxShadow> _liftShadow(AppColors colors) =>
     [BoxShadow(color: colors.text.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 2))];
 
 class _LanesPainter extends CustomPainter {
+  /// Its labels, laid out once.
+  static final _labels = LabelCache();
+
   _LanesPainter(this.s, this.colors, this.rounded, Listenable repaint) : super(repaint: repaint);
   final _InstrumentLanesState s;
   final AppColors colors;
@@ -62,7 +65,7 @@ class _LanesPainter extends CustomPainter {
     final band = s._band.value;
     if (band != null) {
       final color = band.kind == _DragKind.marquee || band.shown ? colors.accentStrong : colors.erase;
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(band.q0, band.q1)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s.c.laneXs(band.q0, band.q1)) {
         final rect = Rect.fromLTRB(x0, band.lane0 * _laneHeight + 1, x1, (band.lane1 + 1) * _laneHeight - 1);
         canvas.drawRect(rect, Paint()..color = color.withValues(alpha: 0.08));
         canvas.drawRect(
@@ -85,7 +88,7 @@ class _LanesPainter extends CustomPainter {
     final activity = Paint()..color = colors.activity;
     final y = top + _laneHeight - 5;
     for (final (q0, q1) in s._activity(parts[i].id)) {
-      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s._xs(q0, q1)) {
+      for (final (:x0, :x1, ownStart: _, ownEnd: _) in s.c.laneXs(q0, q1)) {
         if (x1 < 0 || x0 > size.width) continue;
         canvas.drawRRect(RRect.fromLTRBR(x0 + 1, y, x1 - 1, y + 2, const Radius.circular(1)), activity);
       }
@@ -96,7 +99,7 @@ class _LanesPainter extends CustomPainter {
       final edges = selection[(partId: parts[i].id, region: r)];
       final selected = edges == RegionEdges.both;
       // Once in every pass that plays it; square where a warp cuts it.
-      for (final (:x0, :x1, :ownStart, :ownEnd) in s._xs(r.start, r.end)) {
+      for (final (:x0, :x1, :ownStart, :ownEnd) in s.c.laneXs(r.start, r.end)) {
         if (x1 < 0 || x0 > size.width) continue;
         final round = Radius.circular(rounded ? 4 : 0);
         final rect = RRect.fromLTRBAndCorners(x0, top + 4, x1, top + _laneHeight - 7,
@@ -118,19 +121,13 @@ class _LanesPainter extends CustomPainter {
           canvas.drawRRect(RRect.fromLTRBR(x, rect.top, x + 3, rect.bottom, const Radius.circular(1.5)), Paint()..color = colors.accentStrong);
         }
         // An edge with a transition of its own says so beside it, where the region has room.
-        TextPainter? label(double? seconds) => seconds == null
-            ? null
-            : (TextPainter(
-                text: TextSpan(text: '$seconds s', style: TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong)),
-                textDirection: TextDirection.ltr,
-              )..layout());
+        TextPainter? label(double? seconds) =>
+            seconds == null ? null : _labels.text('$seconds s', TextStyle(fontSize: 10, color: selected ? colors.surface : colors.accentStrong));
         final atStart = ownStart ? label(r.transitionIn) : null, atEnd = ownEnd ? label(r.transitionOut) : null;
         if ((atStart?.width ?? -5) + (atEnd?.width ?? -5) + 20 <= x1 - x0) {
           atStart?.paint(canvas, Offset(x0 + 5, rect.center.dy - atStart.height / 2));
           atEnd?.paint(canvas, Offset(x1 - 5 - atEnd.width, rect.center.dy - atEnd.height / 2));
         }
-        atStart?.dispose();
-        atEnd?.dispose();
         // A region leaving out staves: its instrument's staves stacked in its middle, those it
         // shows filled.
         if (r.hiddenStaves.isNotEmpty && x1 - x0 >= 24) {

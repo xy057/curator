@@ -94,7 +94,7 @@ msgstr "專案，或 MusicXML、PDF、LilyPond 樂譜"
 msgid "A tempo map starts at quarter 0."
 msgstr "速度圖須從第 0 個四分音符開始。"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "About"
 msgstr "關於"
 
@@ -243,7 +243,7 @@ msgstr "強調色"
 msgid "Accidentals"
 msgstr "變音記號"
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/extensions/extension_editor.dart lib/pdf_import.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr "加入"
 
@@ -428,7 +428,7 @@ msgstr "音訊"
 msgid "Audio or video"
 msgstr "音訊或影片"
 
-#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+#: lib/phrase_search_window.dart lib/player_map_view.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
 msgstr "自動"
 
@@ -546,7 +546,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_editor.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -641,7 +641,7 @@ msgstr "譜號"
 msgid "Clefs"
 msgstr "譜號"
 
-#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/phrase_search_window.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
+#: lib/app_menus.dart lib/code_view.dart lib/export_dialog.dart lib/phrase_search_window.dart lib/script_editor.dart lib/settings_dialog.dart lib/update_dialog.dart lib/web_export_dialog.dart
 msgid "Close"
 msgstr "關閉"
 
@@ -862,7 +862,7 @@ msgstr "虛線長度"
 msgid "Default"
 msgstr "預設"
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/player_map_view.dart lib/script_editor.dart
 msgid "Delete"
 msgstr "刪除"
 
@@ -881,7 +881,7 @@ msgstr "取消選取（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先儲存對「{name}」的更動嗎？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_editor.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1083,7 +1083,7 @@ msgstr "淡出曲線"
 msgid "Fermatas"
 msgstr "延長記號"
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/app_menus.dart lib/script_editor.dart
 msgid "File"
 msgstr "檔案"
 
@@ -1219,7 +1219,7 @@ msgstr "二分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高度（譜間距）"
 
-#: lib/app_menus.dart lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/app_menus.dart lib/script_editor.dart
 msgid "Help"
 msgstr "輔助說明"
 
@@ -1439,7 +1439,7 @@ msgstr "音樂字型"
 msgid "Music symbols"
 msgstr "音樂符號"
 
-#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/extensions/connector_view.dart lib/player_map_view.dart lib/script_editor.dart assets/extensions/chapters/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Name"
 msgstr "名稱"
 
@@ -1567,7 +1567,7 @@ msgstr "八度記號"
 msgid "Off"
 msgstr "關閉"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -1745,7 +1745,7 @@ msgstr "錄音"
 msgid "Redo"
 msgstr "重做"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Redo ({key})"
 msgstr "重做（{key}）"
 
@@ -1814,7 +1814,7 @@ msgstr "移除未使用的"
 msgid "Removed: {names}"
 msgstr "移除：{names}"
 
-#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/extensions/extension_editor.dart
+#: lib/edit_dialogs.dart lib/extensions/connector_view.dart lib/script_editor.dart
 msgid "Rename"
 msgstr "重新命名"
 
@@ -1836,7 +1836,7 @@ msgstr "重新命名 {name}…"
 msgid "Renamed: {from} → {to}"
 msgstr "重新命名：{from} → {to}"
 
-#: lib/extensions/extension_editor.dart lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart lib/take_lanes.dart
+#: lib/instrument_lanes/lane_header.dart lib/pdf_import.dart lib/script_editor.dart lib/settings_dialog.dart lib/take_lanes.dart
 msgid "Rename…"
 msgstr "重新命名…"
 
@@ -1974,7 +1974,7 @@ msgstr "隨音樂流動的樂譜。"
 msgid "Scrolling"
 msgstr "捲動"
 
-#: lib/extensions/extension_editor.dart lib/settings_dialog.dart
+#: lib/script_editor.dart lib/settings_dialog.dart
 msgid "Search"
 msgstr "搜尋"
 
@@ -2538,7 +2538,7 @@ msgstr "在 t = 0 或 1 處無定義。"
 msgid "Undo"
 msgstr "還原"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Undo ({key})"
 msgstr "還原（{key}）"
 
@@ -2617,7 +2617,7 @@ msgstr "用於其他專案"
 msgid "UTF-16 MusicXML is not supported yet; save the file as UTF-8."
 msgstr "暫不支援 UTF-16 編碼的 MusicXML；請將檔案存為 UTF-8。"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Version"
 msgstr "版本"
 
@@ -2671,7 +2671,7 @@ msgstr "僅在還沒有錨點時。"
 msgid "WebM video"
 msgstr "WebM 影片"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart lib/settings_dialog.dart
+#: lib/script_editor.dart lib/settings_dialog.dart
 msgid "Website"
 msgstr "網站"
 
@@ -2893,11 +2893,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "無法編輯樂譜"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard"
 msgstr "放棄"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard Your Changes?"
 msgstr "放棄變更？"
 
@@ -2920,7 +2920,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延長與停頓"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Keep Editing"
 msgstr "繼續編輯"
 
@@ -3271,7 +3271,7 @@ msgstr "{n} 個譜表沒有樂器"
 msgid "Show Next"
 msgstr "顯示下一個"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Summary"
 msgstr "概要"
 
@@ -3976,7 +3976,7 @@ msgstr "沒有可刻譜的內容。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "無法匯入 LilyPond 樂譜"
 
-#: lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr "尋找（{key}）"
 
@@ -4750,7 +4750,7 @@ msgstr "無法儲存延伸功能"
 msgid "{name} Copy"
 msgstr "{name} 拷貝"
 
-#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr "複製"
 
@@ -4758,15 +4758,15 @@ msgstr "複製"
 msgid "The extension stays as it was."
 msgstr "延伸功能保持原狀。"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Reference"
 msgstr "參考"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Run ({key})"
 msgstr "執行（{key}）"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Run"
 msgstr "執行"
 
@@ -4774,22 +4774,22 @@ msgstr "執行"
 msgid "Connector"
 msgstr "連接器"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "keyword"
 msgstr "關鍵字"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "function"
 msgstr "函式"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "library"
 msgstr "函式庫"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgctxt "lua"
 msgid "value"
 msgstr "值"
@@ -4802,7 +4802,7 @@ msgstr "API 等級"
 msgid "Data version"
 msgstr "資料版本"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "No results"
 msgstr "沒有結果"
 
@@ -4818,19 +4818,19 @@ msgstr "字母、數字和 _，以字母開頭"
 msgid "Another socket has this name"
 msgstr "已有接口使用此名稱"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Use letters, digits and _, ending in .lua"
 msgstr "使用字母、數字和 _，以 .lua 結尾"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Another file has this name"
 msgstr "已有檔案使用此名稱"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "New File"
 msgstr "新增檔案"
 
-#: lib/extensions/extension_editor.dart
+#: lib/script_editor.dart
 msgid "Rename File"
 msgstr "重新命名檔案"
 
@@ -4842,12 +4842,12 @@ msgstr "延伸功能"
 msgid "Edit Extension"
 msgstr "編輯延伸功能"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgctxt "heading"
 msgid "Files"
 msgstr "檔案"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "ID"
 msgstr ""
 
@@ -4855,11 +4855,11 @@ msgstr ""
 msgid "Like com.example.notes: lower-case, with a dot"
 msgstr "例如 com.example.notes：小寫，含一個點"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Author"
 msgstr "作者"
 
-#: lib/extensions/extension_editor.dart lib/plugins/plugin_editor.dart
+#: lib/script_editor.dart
 msgid "Search Words"
 msgstr "搜尋關鍵字"
 

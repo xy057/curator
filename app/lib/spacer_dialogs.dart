@@ -27,7 +27,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
   late final VerticalSpacer _spacer = c.spacers.verticalOf(widget.id)!;
   late final ScorePart? _part = c.score!.metadata.parts.where((p) => p.id == widget.id).firstOrNull;
   late final _name = TextEditingController(text: _part == null ? Spacers.nameOf(widget.id) : c.partName(_part));
-  late final _height = TextEditingController(text: spacerNumber(_spacer.height));
+  late final _height = TextEditingController(text: plainNumber(_spacer.height));
   late SpacerKey _key = _spacer.key;
   late bool _lines = _spacer.lines, _frozen = _spacer.frozen;
 
@@ -43,7 +43,7 @@ class _VerticalSpacerDialogState extends State<_VerticalSpacerDialog> {
     // (In range, said so that "NaN", which reads as a number, isn't one here.)
     final height = double.tryParse(_height.text.trim());
     final error = height == null || !(height >= VerticalSpacer.minHeight && height <= VerticalSpacer.maxHeight)
-        ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(VerticalSpacer.minHeight), 'max': spacerNumber(VerticalSpacer.maxHeight)})
+        ? 'Enter {min} to {max} staff spaces'.fill({'min': plainNumber(VerticalSpacer.minHeight), 'max': plainNumber(VerticalSpacer.maxHeight)})
         : null;
     void save() {
       if (error != null) return;
@@ -124,7 +124,7 @@ class _HorizontalSpacerDialog extends StatefulWidget {
 
 class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   EditorController get c => widget.controller;
-  late final _width = TextEditingController(text: spacerNumber(c.spacers.horizontal[widget.index].width));
+  late final _width = TextEditingController(text: plainNumber(c.spacers.horizontal[widget.index].width));
 
   @override
   void dispose() {
@@ -136,7 +136,7 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
   Widget build(BuildContext context) {
     final width = double.tryParse(_width.text.trim());
     final error = width == null || !(width >= HorizontalSpacer.minWidth && width <= HorizontalSpacer.maxWidth)
-        ? 'Enter {min} to {max} staff spaces'.fill({'min': spacerNumber(HorizontalSpacer.minWidth), 'max': spacerNumber(HorizontalSpacer.maxWidth)})
+        ? 'Enter {min} to {max} staff spaces'.fill({'min': plainNumber(HorizontalSpacer.minWidth), 'max': plainNumber(HorizontalSpacer.maxWidth)})
         : null;
     void save() {
       if (error != null) return;
@@ -174,6 +174,3 @@ class _HorizontalSpacerDialogState extends State<_HorizontalSpacerDialog> {
     );
   }
 }
-
-/// [v] without a trailing ".0".
-String spacerNumber(double v) => v == v.roundToDouble() ? '${v.round()}' : '$v';

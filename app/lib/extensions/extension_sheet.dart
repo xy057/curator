@@ -226,18 +226,8 @@ class _ExtensionSheetState extends State<_ExtensionSheet> {
   /// Cancel, or Esc: with something changed, asks before the sheet goes.
   Future<void> _cancel() async {
     if (!_edited) return Navigator.pop(context);
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.pop(context);
+    final discard = await confirmDiscard(context);
+    if (discard && mounted) Navigator.pop(context);
   }
 
   void _done() {

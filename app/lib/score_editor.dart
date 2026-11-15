@@ -1251,7 +1251,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_xmlShown) return KeyEventResult.ignored;
     // A popover's field keeps what is typed in it: this is asked before the field is, and a key
     // taken here never reaches it (an F typed for forte would be the note's new pitch).
-    if (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+    if (textFieldFocused) {
       return KeyEventResult.ignored;
     }
     final keys = HardwareKeyboard.instance;
@@ -1571,19 +1571,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   Future<void> _cancel() async {
     if (!_edited && !_xmlEdited) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        content: Text('The score stays as it was.'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context, content: 'The score stays as it was.'.tr);
+    if (discard && mounted) Navigator.of(context).pop();
     if (mounted) (_xmlShown ? _xmlFocus : _focus).requestFocus();
   }
 
@@ -1646,14 +1635,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
           ListenableBuilder(
             listenable: _xmlTicks,
             builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
-              ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: code.canUndo ? code.undo : null),
-              ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: code.canRedo ? code.redo : null),
+              ...undoRedoButtons(context, undo: code.canUndo ? code.undo : null, redo: code.canRedo ? code.redo : null),
               ToolbarButton(icon: AppIcon.search.of(context), tooltip: 'Find ({key})'.fill({'key': shortcut('⌘F')}), onPressed: _findInXml),
             ]),
           )
         else ...[
-          ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: _canUndo ? _undo : null),
-          ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: _canRedo ? _redo : null),
+          ...undoRedoButtons(context, undo: _canUndo ? _undo : null, redo: _canRedo ? _redo : null),
           const ToolbarDivider(),
           ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
           ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
@@ -2147,6 +2134,9 @@ class _SlurPainter extends CustomPainter {
 /// The galley drawn: the paper, the score scrolled, the selection in the accent, the caret, and
 /// the instruments' names in a column of their own at the left.
 class _GalleyPainter extends CustomPainter {
+  /// The instruments' names, laid out once.
+  static final _names = LabelCache();
+
   _GalleyPainter({
     required this.galley,
     required this.zoom,
@@ -2301,14 +2291,8 @@ class _GalleyPainter extends CustomPainter {
       if (top == null || bottom == null) continue;
       final middle = ((top + bottom + galley.staffHeight(last)) / 2) * scale - scroll.dy + ruler;
       if (middle < ruler + 4 || middle > size.height + 20) continue;
-      final painter = TextPainter(
-        text: TextSpan(text: name, style: TextStyle(fontSize: 12, color: text)),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: gutter - 16);
+      final painter = _names.text(name, TextStyle(fontSize: 12, color: text), maxWidth: gutter - 16);
       painter.paint(canvas, Offset(gutter - 10 - painter.width, middle - painter.height / 2));
-      painter.dispose();
     }
   }
 

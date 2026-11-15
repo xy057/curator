@@ -1,6 +1,6 @@
 import 'dart:ui' show Locale, PlatformDispatcher;
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'package:flutter/foundation.dart' show compute, debugPrint, kDebugMode;
 
 import 'po.dart';
 
@@ -228,12 +228,14 @@ abstract final class Strings {
     await Future.wait([
       for (final path in paths)
         if (_poFile.firstMatch(path.replaceAll(r'\', '/')) case final m?)
-          read(path).then((s) {
-            final po = PoFile.parse(s), table = po.table, language = AppLanguage.of(m[1]!);
+          // Parsed off the interface's isolate, all at once: half a megabyte as the app starts.
+          read(path).then((s) => compute(_readPo, s)).then((po) {
+            final (:table, :team) = po;
+            final language = AppLanguage.of(m[1]!);
             if (table.isEmpty || language == AppLanguage.english) return;
             files[language] = path;
             tables[language] = table;
-            if (po.header['Language-Team'] case final team? when team.isNotEmpty) teams[language] = team;
+            if (team != null && team.isNotEmpty) teams[language] = team;
           }).catchError((Object e) => debugPrint('Couldn’t read $path: $e')),
     ]);
     final order = files.keys.toList()..sort((a, b) => a.tag.compareTo(b.tag));
@@ -287,3 +289,9 @@ final _placeholder = RegExp(r'\{(\w+)\}');
 
 /// Ideographs and their punctuation: text that has been translated, or has no letters to.
 final _translated = RegExp(r'[\u3000-\u9fff\uff00-\uffef]|^[^A-Za-z]*$');
+
+/// A translations file's table and its team.
+({Map<String, String> table, String? team}) _readPo(String source) {
+  final po = PoFile.parse(source);
+  return (table: po.table, team: po.header['Language-Team']);
+}
