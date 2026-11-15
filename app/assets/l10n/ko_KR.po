@@ -426,7 +426,7 @@ msgstr ""
 msgid "Audio or video"
 msgstr ""
 
-#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+#: lib/phrase_search_window.dart lib/player_map_view.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
 msgstr ""
 
@@ -1565,7 +1565,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -2891,11 +2891,11 @@ msgstr ""
 msgid "Couldn’t Edit Score"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard Your Changes?"
 msgstr ""
 
@@ -2918,7 +2918,7 @@ msgstr ""
 msgid "Holds"
 msgstr ""
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Keep Editing"
 msgstr ""
 
@@ -4736,7 +4736,7 @@ msgstr ""
 msgid "{name} Copy"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr ""
 

@@ -183,19 +183,8 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
 
   Future<void> _cancel() async {
     if (widget.readOnly || !_edited) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        content: Text('The extension stays as it was.'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context, content: 'The extension stays as it was.'.tr);
+    if (discard && mounted) Navigator.of(context).pop();
   }
 
   void _done() => Navigator.of(context).pop(_edited ? _package : null);

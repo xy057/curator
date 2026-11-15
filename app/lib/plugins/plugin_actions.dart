@@ -7,7 +7,7 @@ import 'package:score_engine/score_engine.dart';
 import '../app_colors.dart';
 import '../app_icons.dart';
 import '../dialog_kit.dart';
-import '../edit_dialogs.dart' show confirmSavePath;
+import '../edit_dialogs.dart' show saveFileAs;
 import '../error_text.dart';
 import '../menu_kit.dart';
 import '../ui_kit.dart';
@@ -21,24 +21,15 @@ import 'plugins.dart';
 abstract final class PluginActions {
   static const _types = XTypeGroup(label: 'Curator Plugin', extensions: [PluginPackage.fileExtension]);
 
-  static Future<void> _say(BuildContext context, String title, String message) => showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text(title),
-          content: SizedBox(width: dialogWidth(context, 380), child: Text(message)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
-
   /// Keeps [package] in the app, saying so when its file can't be written; whether it was.
   static Future<bool> _keep(BuildContext context, Plugins plugins, PluginPackage package, {String title = 'Couldn’t Save the Plugin'}) async {
     try {
       plugins.add(package);
       return true;
     } on FormatException catch (e) {
-      if (context.mounted) await _say(context, title.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, title.tr, e.message.tr);
     } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, title.tr, describeError(e));
+      if (context.mounted) await showNotice(context, title.tr, describeError(e));
     }
     return false;
   }
@@ -86,9 +77,9 @@ abstract final class PluginActions {
       if (!PluginPackage.isThirdPartyId(package.id)) throw const FormatException('The plugin has no id Curator can use.');
       return await _keep(context, plugins, package, title: 'Couldn’t Add the Plugin');
     } on FormatException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Plugin'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, e.message.tr);
     } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
     }
     return false;
   }
@@ -132,15 +123,12 @@ abstract final class PluginActions {
 
   /// Saves [package] as a .cgp file where the user says.
   static Future<void> export(BuildContext context, PluginPackage package) async {
-    final location = await getSaveLocation(acceptedTypeGroups: const [_types], suggestedName: '${package.name}.${PluginPackage.fileExtension}');
-    if (location == null || !context.mounted) return;
-    final path = await confirmSavePath(context, location.path, PluginPackage.fileExtension);
-    if (path == null) return;
-    try {
-      await File(path).writeAsBytes(package.write());
-    } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Save the Plugin'.tr, describeError(e));
-    }
+    await saveFileAs(context,
+        types: const [_types],
+        suggestedName: '${package.name}.${PluginPackage.fileExtension}',
+        extension: PluginPackage.fileExtension,
+        failTitle: 'Couldn’t Save the Plugin'.tr,
+        write: (file) => file.writeAsBytes(package.write()));
   }
 
   /// A copy of [package] the user can change, named "… Copy", with an id of its own (and so a

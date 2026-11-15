@@ -1571,19 +1571,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   Future<void> _cancel() async {
     if (!_edited && !_xmlEdited) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        content: Text('The score stays as it was.'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context, content: 'The score stays as it was.'.tr);
+    if (discard && mounted) Navigator.of(context).pop();
     if (mounted) (_xmlShown ? _xmlFocus : _focus).requestFocus();
   }
 

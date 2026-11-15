@@ -428,7 +428,7 @@ msgstr "Audio"
 msgid "Audio or video"
 msgstr "Audio o vídeo"
 
-#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+#: lib/phrase_search_window.dart lib/player_map_view.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
 msgstr "Auto"
 
@@ -1567,7 +1567,7 @@ msgstr "Indicaciones de octava"
 msgid "Off"
 msgstr "Desactivado"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "Aceptar"
 
@@ -2893,11 +2893,11 @@ msgstr "Acorde (Q)"
 msgid "Couldn’t Edit Score"
 msgstr "No se ha podido editar la partitura"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard"
 msgstr "Descartar"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard Your Changes?"
 msgstr "¿Descartar los cambios?"
 
@@ -2920,7 +2920,7 @@ msgstr "Blanca"
 msgid "Holds"
 msgstr "Prolongaciones"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Keep Editing"
 msgstr "Seguir editando"
 
@@ -4750,7 +4750,7 @@ msgstr ""
 msgid "{name} Copy"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr ""
 

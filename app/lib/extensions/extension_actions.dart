@@ -7,7 +7,7 @@ import 'package:score_engine/score_engine.dart';
 import '../app_colors.dart';
 import '../app_icons.dart';
 import '../dialog_kit.dart';
-import '../edit_dialogs.dart' show confirmSavePath;
+import '../edit_dialogs.dart' show saveFileAs;
 import '../editor_controller.dart';
 import '../error_text.dart';
 import '../menu_kit.dart';
@@ -23,15 +23,6 @@ import 'extension_settings.dart';
 /// of the project, and copy one of Curator's own to change.
 abstract final class ExtensionActions {
   static const _types = XTypeGroup(label: 'Curator Extension', extensions: [ExtensionPackage.fileExtension]);
-
-  static Future<void> _say(BuildContext context, String title, String message) => showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text(title),
-          content: SizedBox(width: dialogWidth(context, 380), child: Text(message)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
 
   /// An id for an extension named [name] that the project has none with: "user.my-notes".
   static String idFor(String name, EditorController controller) {
@@ -84,9 +75,9 @@ abstract final class ExtensionActions {
     try {
       controller.extensions.add(ExtensionPackage.read(await file.readAsBytes()));
     } on FormatException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Extension'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, e.message.tr);
     } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Add the Extension'.tr, describeError(e));
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, describeError(e));
     }
   }
 
@@ -135,15 +126,12 @@ abstract final class ExtensionActions {
 
   /// Saves [package] as a .cpe file where the user says.
   static Future<void> export(BuildContext context, ExtensionPackage package) async {
-    final location = await getSaveLocation(acceptedTypeGroups: const [_types], suggestedName: '${package.name}.${ExtensionPackage.fileExtension}');
-    if (location == null || !context.mounted) return;
-    final path = await confirmSavePath(context, location.path, ExtensionPackage.fileExtension);
-    if (path == null) return;
-    try {
-      await File(path).writeAsBytes(package.write());
-    } on FileSystemException catch (e) {
-      if (context.mounted) await _say(context, 'Couldn’t Save the Extension'.tr, describeError(e));
-    }
+    await saveFileAs(context,
+        types: const [_types],
+        suggestedName: '${package.name}.${ExtensionPackage.fileExtension}',
+        extension: ExtensionPackage.fileExtension,
+        failTitle: 'Couldn’t Save the Extension'.tr,
+        write: (file) => file.writeAsBytes(package.write()));
   }
 
   /// A copy of [package] (one of Curator's own) the project carries and can change, named

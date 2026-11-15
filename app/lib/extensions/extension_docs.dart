@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:file_selector/file_selector.dart';
@@ -9,9 +8,7 @@ import 'package:score_engine/score_engine.dart';
 
 import '../app_colors.dart';
 import '../app_icons.dart';
-import '../dialog_kit.dart';
-import '../edit_dialogs.dart' show confirmSavePath;
-import '../error_text.dart';
+import '../edit_dialogs.dart' show saveFileAs;
 import '../l10n/l10n.dart';
 import '../ui_kit.dart';
 import 'bundled.dart';
@@ -97,24 +94,12 @@ class _ExtensionDocsBarState extends State<ExtensionDocsBar> {
   }
 
   Future<void> _download() async {
-    final location = await getSaveLocation(
-        acceptedTypeGroups: const [XTypeGroup(label: 'Zip', extensions: ['zip'])], suggestedName: widget.packName);
-    if (location == null || !mounted) return;
-    final path = await confirmSavePath(context, location.path, 'zip');
-    if (path == null) return;
-    try {
-      await File(path).writeAsBytes(await widget.pack());
-    } on FileSystemException catch (e) {
-      if (!mounted) return;
-      await showAppDialog<void>(
-        context: context,
-        builder: (context) => AppDialog(
-          title: Text('Couldn’t Save the Docs'.tr),
-          content: Text(describeError(e)),
-          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-        ),
-      );
-    }
+    await saveFileAs(context,
+        types: const [XTypeGroup(label: 'Zip', extensions: ['zip'])],
+        suggestedName: widget.packName,
+        extension: 'zip',
+        failTitle: 'Couldn’t Save the Docs'.tr,
+        write: (file) async => file.writeAsBytes(await widget.pack()));
   }
 
   @override

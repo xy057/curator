@@ -428,7 +428,7 @@ msgstr "音訊"
 msgid "Audio or video"
 msgstr "音訊或影片"
 
-#: lib/phrase_search_window.dart lib/settings_dialog.dart lib/web_player/player.dart
+#: lib/phrase_search_window.dart lib/player_map_view.dart lib/settings_dialog.dart lib/web_player/player.dart
 msgid "Auto"
 msgstr "自動"
 
@@ -1567,7 +1567,7 @@ msgstr "八度記號"
 msgid "Off"
 msgstr "關閉"
 
-#: lib/ai_settings.dart lib/edit_dialogs.dart lib/extensions/extension_actions.dart lib/extensions/extension_docs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr "好"
 
@@ -2893,11 +2893,11 @@ msgstr "和弦（Q）"
 msgid "Couldn’t Edit Score"
 msgstr "無法編輯樂譜"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard"
 msgstr "放棄"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Discard Your Changes?"
 msgstr "放棄變更？"
 
@@ -2920,7 +2920,7 @@ msgstr "二分音符"
 msgid "Holds"
 msgstr "延長與停頓"
 
-#: lib/extensions/extension_editor.dart lib/extensions/extension_sheet.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/dialog_kit.dart
 msgid "Keep Editing"
 msgstr "繼續編輯"
 
@@ -4750,7 +4750,7 @@ msgstr "無法儲存延伸功能"
 msgid "{name} Copy"
 msgstr "{name} 拷貝"
 
-#: lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr "複製"
 

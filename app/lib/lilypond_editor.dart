@@ -270,19 +270,8 @@ class _LilyPondEditorState extends State<LilyPondEditor> {
       _engraving?.cancel();
       return Navigator.of(context).pop();
     }
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        content: Text('The score stays as it was.'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) {
+    final discard = await confirmDiscard(context, content: 'The score stays as it was.'.tr);
+    if (discard && mounted) {
       _engraving?.cancel();
       Navigator.of(context).pop();
     } else if (mounted) {

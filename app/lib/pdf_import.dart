@@ -1444,18 +1444,8 @@ class _PdfImportState extends State<PdfImport> {
 
   Future<void> _cancel() async {
     if (!_edited || widget.layout == null && _layout == null) return Navigator.of(context).pop();
-    final discard = await showAppDialog<bool>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Discard Your Changes?'.tr),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
-        ],
-        confirmsOnReturn: false,
-      ),
-    );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    final discard = await confirmDiscard(context);
+    if (discard && mounted) Navigator.of(context).pop();
     if (mounted) _focus.requestFocus();
   }
 

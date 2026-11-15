@@ -498,3 +498,30 @@ class _AppChipState extends State<AppChip> {
     );
   }
 }
+
+/// Asks whether to throw away what was changed (an editor's Cancel or Esc), [content] saying
+/// what stays as it was. True: discard.
+Future<bool> confirmDiscard(BuildContext context, {String? content}) async =>
+    await showAppDialog<bool>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: Text('Discard Your Changes?'.tr),
+        content: content == null ? null : Text(content),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Keep Editing'.tr)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('Discard'.tr)),
+        ],
+        confirmsOnReturn: false,
+      ),
+    ) ==
+    true;
+
+/// A message with only OK: what went wrong, or what happened.
+Future<void> showNotice(BuildContext context, String title, String message) => showAppDialog<void>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: Text(title),
+        content: SizedBox(width: dialogWidth(context, 380), child: Text(message)),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
+      ),
+    );

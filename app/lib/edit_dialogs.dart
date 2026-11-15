@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_selector/file_selector.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -9,6 +10,7 @@ import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'error_text.dart';
 import 'file_names.dart';
 import 'project_state.dart';
 import 'menu_kit.dart';
@@ -532,6 +534,25 @@ Future<String?> confirmSavePath(BuildContext context, String path, String extens
     ),
   );
   return replace == true ? full : null;
+}
+
+/// Saves a file where the user says (a save panel of [types], [suggestedName] in it, the name
+/// given [extension]) by [write]; a file that can't be written is said under [failTitle].
+Future<void> saveFileAs(BuildContext context,
+    {required List<XTypeGroup> types,
+    required String suggestedName,
+    required String extension,
+    required String failTitle,
+    required Future<void> Function(File file) write}) async {
+  final location = await getSaveLocation(acceptedTypeGroups: types, suggestedName: suggestedName);
+  if (location == null || !context.mounted) return;
+  final path = await confirmSavePath(context, location.path, extension);
+  if (path == null) return;
+  try {
+    await write(File(path));
+  } on FileSystemException catch (e) {
+    if (context.mounted) await showNotice(context, failTitle, describeError(e));
+  }
 }
 
 /// Asks for a group's name (Project Settings ▸ Instruments): a new one's, or [rename]'s new
