@@ -1378,7 +1378,7 @@ class _PdfImportState extends State<PdfImport> {
     // A field being typed in keeps its keys (its arrows move the caret, not the page): this is
     // asked before the field is, and a key taken here never reaches it. Undo stays the import's,
     // its steps the fields' edits.
-    final typing = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+    final typing = textFieldFocused;
     if (typing && !(meta && key == LogicalKeyboardKey.keyZ) && key != LogicalKeyboardKey.pageDown && key != LogicalKeyboardKey.pageUp) {
       return KeyEventResult.ignored;
     }
@@ -1538,8 +1538,7 @@ class _PdfImportState extends State<PdfImport> {
       color: colors.chrome,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(children: [
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: ready && _undo.isNotEmpty ? _undoStep : null),
-        ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: ready && _redo.isNotEmpty ? _redoStep : null),
+        ...undoRedoButtons(context, undo: ready && _undo.isNotEmpty ? _undoStep : null, redo: ready && _redo.isNotEmpty ? _redoStep : null),
         if (_layout != null) ...[
           const ToolbarDivider(),
           if (_ai case final reader?)

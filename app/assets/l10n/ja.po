@@ -1745,7 +1745,7 @@ msgstr "録音"
 msgid "Redo"
 msgstr "やり直す"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Redo ({key})"
 msgstr "やり直す（{key}）"
 
@@ -2538,7 +2538,7 @@ msgstr "t = 0 または 1 で定義されていません。"
 msgid "Undo"
 msgstr "取り消す"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Undo ({key})"
 msgstr "取り消す（{key}）"
 

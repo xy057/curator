@@ -429,9 +429,7 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       child: Row(children: [
         Text('Edit Player Map'.tr, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.text)),
         const SizedBox(width: 16),
-        ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: _undo.isEmpty ? null : _stepBack),
-        ToolbarButton(
-            icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: _redo.isEmpty ? null : _stepOn),
+        ...undoRedoButtons(context, undo: _undo.isEmpty ? null : _stepBack, redo: _redo.isEmpty ? null : _stepOn),
         const ToolbarDivider(),
         Select<bool>(
           listenable: c,

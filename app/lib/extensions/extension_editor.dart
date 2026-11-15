@@ -360,11 +360,7 @@ class _ExtensionEditorState extends State<ExtensionEditor> {
           child: Text(widget.unsaved ? '${_package.name} · ${'Not Saved'.tr}' : _package.name, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted)),
         ),
         if (c != null) ...[
-          if (!widget.readOnly) ...[
-            ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: c.canUndo ? c.undo : null),
-            ToolbarButton(
-                icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: c.canRedo ? c.redo : null),
-          ],
+          if (!widget.readOnly) ...undoRedoButtons(context, undo: c.canUndo ? c.undo : null, redo: c.canRedo ? c.redo : null),
           ToolbarButton(
               icon: AppIcon.search.of(context),
               tooltip: 'Find ({key})'.fill({'key': shortcut('⌘F')}),

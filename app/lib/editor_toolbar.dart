@@ -139,16 +139,9 @@ class EditorToolbar extends StatelessWidget {
         ],
         const Spacer(),
         _SavingIndicator(document: document),
-        ToolbarButton(
-          icon: AppIcon.undo.of(context),
-          tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}),
-          onPressed: c.canUndo ? () => Plugins.doOwn(context, 'undo', c.undo) : null,
-        ),
-        ToolbarButton(
-          icon: AppIcon.redo.of(context),
-          tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}),
-          onPressed: c.canRedo ? () => Plugins.doOwn(context, 'redo', c.redo) : null,
-        ),
+        ...undoRedoButtons(context,
+            undo: c.canUndo ? () => Plugins.doOwn(context, 'undo', c.undo) : null,
+            redo: c.canRedo ? () => Plugins.doOwn(context, 'redo', c.redo) : null),
         const ToolbarDivider(),
         if (c.images.enabled)
           ToolbarButton(

@@ -1745,7 +1745,7 @@ msgstr "錄音"
 msgid "Redo"
 msgstr "重做"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Redo ({key})"
 msgstr "重做（{key}）"
 
@@ -2538,7 +2538,7 @@ msgstr "在 t = 0 或 1 處無定義。"
 msgid "Undo"
 msgstr "還原"
 
-#: lib/editor_toolbar.dart lib/extensions/extension_editor.dart lib/lilypond_editor.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_editor.dart lib/score_editor.dart
+#: lib/ui_kit.dart
 msgid "Undo ({key})"
 msgstr "還原（{key}）"
 

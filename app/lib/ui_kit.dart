@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeybo
 import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'l10n/l10n.dart';
 
 /// Keys as the platform writes them: [mac] on macOS ("⇧⌘Z", "⌥-drag"), [other] elsewhere, or
@@ -116,6 +117,10 @@ class _DialogRoute<T> extends DialogRoute<T> {
 /// everything it shows, so a handler among its widgets never hears a key. This one is the
 /// scope's own. A field with the keyboard keeps Return (it submits), and so does a button
 /// reached with Tab (it is pressed).
+/// Whether a text field has the keyboard, so its keys (a letter, an arrow, Return) are its own
+/// and not a page's.
+bool get textFieldFocused => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+
 class DialogKeys extends StatefulWidget {
   const DialogKeys({super.key, this.onReturn, this.onEscape, required this.child});
 
@@ -207,6 +212,13 @@ class FieldLabel extends StatelessWidget {
 /// before the label. A ghost (text) button needs none: its icon follows the label.
 ButtonStyle? withIconStyle(BuildContext context) =>
     AppStyle.of(context).isCarbon ? const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.fromLTRB(7, 0, 8, 0))) : null;
+
+/// A toolbar's Undo and Redo buttons, [undo] or [redo] null when there is nothing to take back
+/// or do again.
+List<Widget> undoRedoButtons(BuildContext context, {required VoidCallback? undo, required VoidCallback? redo}) => [
+      ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: undo),
+      ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: redo),
+    ];
 
 /// The compact icon button used in every toolbar: [AppStyle.control] square, its label in the
 /// tooltip; when selected a neutral fill (Carbon's $background-selected) under an accent icon

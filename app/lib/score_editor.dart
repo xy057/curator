@@ -1251,7 +1251,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_xmlShown) return KeyEventResult.ignored;
     // A popover's field keeps what is typed in it: this is asked before the field is, and a key
     // taken here never reaches it (an F typed for forte would be the note's new pitch).
-    if (FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+    if (textFieldFocused) {
       return KeyEventResult.ignored;
     }
     final keys = HardwareKeyboard.instance;
@@ -1635,14 +1635,12 @@ class _ScoreEditorState extends State<ScoreEditor> {
           ListenableBuilder(
             listenable: _xmlTicks,
             builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
-              ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: code.canUndo ? code.undo : null),
-              ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: code.canRedo ? code.redo : null),
+              ...undoRedoButtons(context, undo: code.canUndo ? code.undo : null, redo: code.canRedo ? code.redo : null),
               ToolbarButton(icon: AppIcon.search.of(context), tooltip: 'Find ({key})'.fill({'key': shortcut('⌘F')}), onPressed: _findInXml),
             ]),
           )
         else ...[
-          ToolbarButton(icon: AppIcon.undo.of(context), tooltip: 'Undo ({key})'.fill({'key': shortcut('⌘Z')}), onPressed: _canUndo ? _undo : null),
-          ToolbarButton(icon: AppIcon.redo.of(context), tooltip: 'Redo ({key})'.fill({'key': shortcut('⇧⌘Z', 'Ctrl+Y')}), onPressed: _canRedo ? _redo : null),
+          ...undoRedoButtons(context, undo: _canUndo ? _undo : null, redo: _canRedo ? _redo : null),
           const ToolbarDivider(),
           ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
           ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
