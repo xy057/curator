@@ -14,6 +14,16 @@
 #include "ExamplesCommon/PlugInHosting/VST3Loader.h"
 
 #include <AudioToolbox/AudioToolbox.h>
+#include <objc/message.h>
+#include <objc/runtime.h>
+
+#include "ARA_API/ARAVST3.h"
+
+ARA_DISABLE_VST3_WARNINGS_BEGIN
+#include "pluginterfaces/base/ipluginbase.h"
+#include "pluginterfaces/gui/iplugview.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+ARA_DISABLE_VST3_WARNINGS_END
 
 #include "../src/json.h"
 
@@ -254,6 +264,54 @@ OSStatus beatAndTempo (void*, Float64* beat, Float64* tempo) noexcept
     return noErr;
 }
 
+// An NSView made, and how many views are in one, through the Objective-C runtime (this file is C++).
+id newView ()
+{
+    return reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (reinterpret_cast<id> (objc_getClass ("NSView")), sel_registerName ("new"));
+}
+
+unsigned long subviewCount (id view)
+{
+    const id subviews = reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (view, sel_registerName ("subviews"));
+    return reinterpret_cast<unsigned long (*) (id, SEL)> (objc_msgSend) (subviews, sel_registerName ("count"));
+}
+
+void releaseObject (id object)
+{
+    reinterpret_cast<void (*) (id, SEL)> (objc_msgSend) (object, sel_registerName ("release"));
+}
+
+// The VST3's window, as a DAW opens it: the controller's editor view, put in an NSView and taken out.
+void checkVst3View (const char* path)
+{
+    using namespace Steinberg;
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
+    CFBundleRef bundle = CFBundleCreate (nullptr, url);
+    CFRelease (url);
+    auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
+    IPluginFactory* factory = getFactory ? getFactory () : nullptr;
+    check (factory != nullptr, "the VST3 gives its factory");
+    static const TUID controllerID = INLINE_UID (0x1245D387, 0xA75E4A1C, 0x88D4A3DD, 0x99FD9C89);
+    void* object = nullptr;
+    check (factory->createInstance (controllerID, Vst::IEditController_iid, &object) == kResultOk && object, "its controller made");
+    auto* controller = static_cast<Vst::IEditController*> (object);
+    controller->initialize (nullptr);
+    IPlugView* view = controller->createView (Vst::ViewType::kEditor);
+    check (view && view->isPlatformTypeSupported (kPlatformTypeNSView) == kResultTrue, "it has a window for macOS");
+    ViewRect rect;
+    check (view->getSize (&rect) == kResultOk && rect.getWidth () > 0 && rect.getHeight () > 0, "the window has a size");
+    const id parent = newView ();
+    check (view->attached (parent, kPlatformTypeNSView) == kResultOk && subviewCount (parent) == 1, "the window opens in the DAW's");
+    view->removed ();
+    check (subviewCount (parent) == 0, "and closes");
+    view->release ();
+    releaseObject (parent);
+    controller->terminate ();
+    controller->release ();
+    factory->release ();
+    CFRelease (bundle);
+}
+
 // Registered in this process alone (nothing is installed), made, given its host's transport and
 // bound to a document of its own ARA factory as playback renderer: it must play the region as the
 // VST3 does.
@@ -316,6 +374,24 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
     constexpr UInt32 block = 512;
     AudioUnitSetProperty (unit, kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0, &block, sizeof block);
     check (AudioUnitInitialize (unit) == noErr, "initialized");
+
+    AudioUnitCocoaViewInfo viewInfo {};
+    size = sizeof viewInfo;
+    check (AudioUnitGetProperty (unit, kAudioUnitProperty_CocoaUI, kAudioUnitScope_Global, 0, &viewInfo, &size) == noErr && viewInfo.mCocoaAUViewBundleLocation &&
+           viewInfo.mCocoaAUViewClass[0], "it names its window's maker");
+    {
+        char name[128] {};
+        CFStringGetCString (viewInfo.mCocoaAUViewClass[0], name, sizeof name, kCFStringEncodingUTF8);
+        const id maker = reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (reinterpret_cast<id> (objc_getClass (name)), sel_registerName ("new"));
+        check (maker != nullptr, "which is in the bundle");
+        const id window = maker ? reinterpret_cast<id (*) (id, SEL, AudioUnit, CGSize)> (objc_msgSend) (maker, sel_registerName ("uiViewForAudioUnit:withSize:"), unit, CGSize { 0, 0 })
+                                : nullptr;
+        check (window != nullptr && subviewCount (window) == 1, "and makes it");
+        if (maker)
+            releaseObject (maker);
+        CFRelease (viewInfo.mCocoaAUViewBundleLocation);
+        CFRelease (viewInfo.mCocoaAUViewClass[0]);
+    }
     // The samples are read on the plug-in's own thread once access is given: a moment.
     std::this_thread::sleep_for (std::chrono::milliseconds (500));
 
@@ -510,6 +586,8 @@ int main (int argc, const char* argv[])
     check (closed["id"] == id, "Curator is told it is gone");
 
     factory->uninitializeARA ();
+    std::printf ("The VST3's window\n");
+    checkVst3View (argv[1]);
     VST3UnloadBinary (binary);
 
     checkAudioUnit (argv[2], hostInstance);

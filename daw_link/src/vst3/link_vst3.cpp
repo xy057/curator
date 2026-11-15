@@ -2,11 +2,13 @@
 #include "../link_client.h"
 #include "../link_config.h"
 #include "../link_document.h"
+#include "../mac/link_view.h"
 
 #include "ARA_API/ARAVST3.h"
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 #include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "public.sdk/source/common/pluginview.h"
 #include "public.sdk/source/main/pluginfactory.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -19,6 +21,46 @@ using namespace Steinberg;
 namespace curator_link {
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
+
+// The window the DAW opens for the plug-in: its name, and whether Curator is connected.
+class LinkView : public CPluginView {
+public:
+    LinkView () : CPluginView (nullptr) { rect = ViewRect (0, 0, statusViewWidth, statusViewHeight); }
+    ~LinkView () override { removed (); }
+
+    tresult PLUGIN_API isPlatformTypeSupported (FIDString type) override
+    {
+        return type && std::strcmp (type, kPlatformTypeNSView) == 0 ? kResultTrue : kResultFalse;
+    }
+
+    tresult PLUGIN_API attached (void* parent, FIDString type) override
+    {
+        if (isPlatformTypeSupported (type) != kResultTrue || !parent)
+            return kResultFalse;
+        handle_ = attachStatusView (parent);
+        return CPluginView::attached (parent, type);
+    }
+
+    tresult PLUGIN_API removed () override
+    {
+        if (handle_)
+            detachStatusView (handle_);
+        handle_ = nullptr;
+        return CPluginView::removed ();
+    }
+
+private:
+    void* handle_ = nullptr;
+};
+
+// The editing side: no parameters, only the window.
+class LinkController : public Vst::EditController {
+public:
+    IPlugView* PLUGIN_API createView (FIDString name) override
+    {
+        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView : nullptr;
+    }
+};
 
 // The audio side: plays the regions it is given (as an ARA playback renderer), else passes
 // what comes in; tells Curator where the DAW is playing.
@@ -35,7 +77,7 @@ public:
     ~LinkProcessor () override { LinkClient::release (); }
 
     static FUnknown* create (void*) { return static_cast<Vst::IAudioProcessor*> (new LinkProcessor); }
-    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new Vst::EditController); }
+    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new LinkController); }
 
     tresult PLUGIN_API initialize (FUnknown* context) override
     {

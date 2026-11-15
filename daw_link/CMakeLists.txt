@@ -4,7 +4,7 @@
 #
 # The SDKs' sources are compiled as listed below; none of their own build scripts are run.
 cmake_minimum_required(VERSION 3.21)
-project(CuratorLink LANGUAGES C CXX)
+project(CuratorLink LANGUAGES C CXX OBJCXX)
 
 if(NOT APPLE)
     message(FATAL_ERROR "Curator Link is built for macOS.")
@@ -67,6 +67,15 @@ target_link_libraries(link_core PUBLIC ara_plugin)
 target_compile_definitions(link_core PUBLIC LINK_VERSION="${LINK_VERSION}" LINK_BUILD=${LINK_BUILD})
 target_compile_options(link_core PRIVATE -Wall -Wextra -Wno-unused-parameter)
 
+# The plug-in's window (src/mac/link_view.mm) in [target], its classes named for it ([suffix]):
+# the VST3 and the Audio Unit can be loaded in one process.
+function(link_view target suffix)
+    target_sources(${target} PRIVATE src/mac/link_view.mm)
+    target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>")
+    target_compile_definitions(${target} PRIVATE LINK_VIEW_SUFFIX=${suffix})
+    target_link_libraries(${target} PRIVATE "-framework Cocoa")
+endfunction()
+
 # A bundle of [target]: its Info.plist, the licences of the SDKs in it (the app's asset, one
 # copy), and an ad-hoc signature sealing it (Apple silicon runs nothing unsigned).
 set(LINK_LICENSES "${CMAKE_CURRENT_SOURCE_DIR}/../app/assets/daw_link/LICENSES.txt")
@@ -125,6 +134,7 @@ add_library(CuratorLinkVST3 MODULE
     "${VST3_SDK}/public.sdk/source/main/macmain.cpp"
 )
 target_link_libraries(CuratorLinkVST3 PRIVATE link_core vst3_sdk)
+link_view(CuratorLinkVST3 VST3)
 target_link_options(CuratorLinkVST3 PRIVATE "-Wl,-exported_symbols_list,${VST3_SDK}/public.sdk/source/main/macexport.exp")
 link_bundle(CuratorLinkVST3 vst3 "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-VST3.plist.in")
 
@@ -147,6 +157,7 @@ target_link_libraries(audiounit_sdk PUBLIC
 
 add_library(CuratorLinkAU MODULE src/au/link_au.cpp)
 target_link_libraries(CuratorLinkAU PRIVATE link_core audiounit_sdk)
+link_view(CuratorLinkAU AU)
 target_link_options(CuratorLinkAU PRIVATE "-Wl,-exported_symbol,_CuratorLinkFactory")
 link_bundle(CuratorLinkAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.in")
 
@@ -157,5 +168,5 @@ add_executable(link_host
     "${ARA_SDK}/ARA_Examples/ExamplesCommon/PlugInHosting/VST3Loader.cpp"
 )
 target_include_directories(link_host PRIVATE "${ARA_SDK}/ARA_Examples")
-target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk "-framework AudioToolbox" "-framework AudioUnit")
+target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk "-framework AudioToolbox" "-framework AudioUnit" "-framework AppKit")
 add_dependencies(link_host CuratorLinkVST3 CuratorLinkAU)

@@ -1,6 +1,7 @@
 // Curator Link as an Audio Unit with ARA (Logic Pro).
 #include "../link_client.h"
 #include "../link_document.h"
+#include "../mac/link_view.h"
 
 _Pragma ("GCC diagnostic push")
 _Pragma ("GCC diagnostic ignored \"-Wimport-preprocessor-directive-pedantic\"")
@@ -8,6 +9,8 @@ _Pragma ("GCC diagnostic ignored \"-Wimport-preprocessor-directive-pedantic\"")
 _Pragma ("GCC diagnostic pop")
 
 #include "ARA_API/ARAAudioUnit.h"
+
+#include <AudioToolbox/AudioUnitProperties.h>
 
 #include <cstring>
 #include <vector>
@@ -51,6 +54,10 @@ public:
                     writable = false;
                     size = sizeof (ARA::ARAAudioUnitPlugInExtensionBinding);
                     return noErr;
+                case kAudioUnitProperty_CocoaUI:
+                    writable = false;
+                    size = sizeof (AudioUnitCocoaViewInfo);
+                    return noErr;
                 default:
                     break;
             }
@@ -81,6 +88,17 @@ public:
                     binding->outPlugInExtension = extension_.bindToARA (binding->inDocumentControllerRef, binding->knownRoles, binding->assignedRoles);
                     if (!binding->outPlugInExtension)
                         return kAudioUnitErr_CannotDoInCurrentContext;
+                    return noErr;
+                }
+                case kAudioUnitProperty_CocoaUI:
+                {
+                    // The window: a class in this bundle that makes it (the host releases both).
+                    CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.link.component"));
+                    if (!bundle)
+                        return kAudioUnitErr_InvalidProperty;
+                    auto* info = static_cast<AudioUnitCocoaViewInfo*> (data);
+                    info->mCocoaAUViewBundleLocation = CFBundleCopyBundleURL (bundle);
+                    info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
                     return noErr;
                 }
                 default:

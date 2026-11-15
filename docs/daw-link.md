@@ -43,7 +43,8 @@ does not time-stretch, and it tells the DAW so. Changing the DAW's tempo doesn't
 audio. If the sample rates differ, it resamples linearly. A recording longer than three hours of
 stereo at 48 kHz isn't held, and that region plays silence.
 
-The plug-in stores nothing in the DAW's project, because everything it knows the DAW sends again.
+Its window shows only whether Curator is connected. The plug-in stores nothing in the DAW's
+project, because everything it knows the DAW sends again.
 
 ## How Curator and the plug-in talk
 
@@ -98,7 +99,9 @@ Fields are only added over time. A message type or field that one side doesn't k
    - checks what Curator is told;
    - asks for the recording, and checks the file sample by sample;
    - plays the region through the plug-in, and checks it sample by sample against the song;
-   - then registers the Audio Unit in its own process only and checks its playback the same way.
+   - opens the VST3's window in a view of its own and closes it;
+   - then registers the Audio Unit in its own process only, makes its window and checks its
+     playback the same way.
 
 The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`. That file is shown under Settings
 ▸ About ▸ Licenses and copied into each bundle.
