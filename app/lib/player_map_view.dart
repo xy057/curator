@@ -295,6 +295,9 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
   void _setSection(int k, MapSection Function(MapSection s) to, {bool gesture = false}) =>
       _change(_map.withSections([for (final (i, s) in _map.sections.indexed) i == k ? to(s) : s]), gesture: gesture);
 
+  /// Section [k] seated anew as [section], what it would now cover moved out of its way.
+  void _reseat(int k, MapSection section) => _change(_map.roomFor(k, section));
+
   void _addSection() {
     final colors = _map.sections.map((s) => s.color).toSet();
     final color = MapColors.all.firstWhere((c) => !colors.contains(c), orElse: () => MapColors.all.first);
@@ -308,7 +311,10 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
     final k = _section;
     if (k == null) return;
     if (_seat case final i? when _mode == _Mode.players && _map.sections[k].seats.length > 1) {
-      _setSection(k, (s) => s.copyWith(seats: [...s.seats]..removeAt(i)));
+      // The rest seated anew as their plan seats one fewer, each keeping what it plays.
+      final s = _map.sections[k], links = [for (final (j, x) in s.seats.indexed) if (j != i) x.link];
+      final fewer = s.withCount(s.seats.length - 1, aspect: _map.aspect);
+      _reseat(k, fewer.copyWith(seats: [for (final (j, x) in fewer.seats.indexed) x.linked(links[j])]));
       _select(k);
       return;
     }
@@ -643,13 +649,13 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
         IconButton(
           icon: const Text('−', style: TextStyle(fontSize: 18, height: 1)),
           tooltip: 'Fewer'.tr,
-          onPressed: s.seats.length > 1 ? () => _setSection(k, (s) => s.arranged(_shape, s.seats.length - 1, aspect: _map.aspect)) : null,
+          onPressed: s.seats.length > 1 ? () => _reseat(k, s.withCount(s.seats.length - 1, aspect: _map.aspect)) : null,
         ),
         SizedBox(width: 36, child: Text('${s.seats.length}', textAlign: TextAlign.center)),
         IconButton(
           icon: Icon(AppIcon.add.of(context), size: 16),
           tooltip: 'More'.tr,
-          onPressed: s.seats.length < 64 ? () => _setSection(k, (s) => s.arranged(_shape, s.seats.length + 1, aspect: _map.aspect)) : null,
+          onPressed: s.seats.length < 64 ? () => _reseat(k, s.withCount(s.seats.length + 1, aspect: _map.aspect)) : null,
         ),
       ]),
       SizedBox(height: gap / 2),
@@ -660,11 +666,8 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
           ButtonSegment(value: SeatShape.arc, label: Text('Arc'.tr)),
           ButtonSegment(value: SeatShape.line, label: Text('Line'.tr)),
         ],
-        selected: _shape,
-        onChanged: (shape) {
-          setState(() => _shape = shape);
-          _setSection(k, (s) => s.arranged(shape, s.seats.length, aspect: _map.aspect));
-        },
+        selected: s.shape,
+        onChanged: (shape) => _reseat(k, s.arranged(shape, s.seats.length, aspect: _map.aspect)),
       ),
       SizedBox(height: gap),
       _Heading('Size'.tr),
@@ -697,8 +700,6 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       ),
     ];
   }
-
-  SeatShape _shape = SeatShape.rows;
 
   /// The section whose name is being typed: its keystrokes are one Undo step.
   int? _typing;
