@@ -52,3 +52,4 @@ app.*.map.json
 
 # Built by `make web-player` (File ▸ Export to Web…)
 /assets/web_player/player.zip
+/assets/daw_link/CuratorLink.zip
