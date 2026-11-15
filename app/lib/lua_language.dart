@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:score_engine/score_engine.dart' show ApiFunction, ApiLibrary, ExtensionApi, PluginApi;
 
-import 'lilypond_language.dart' show lilyPondTheme;
+import 'lilypond_language.dart' show LineStates, lilyPondTheme;
 
 /// Lua as the extension editor reads it: its text in a controller that colours each line as it
 /// is drawn ([luaCode]: [luaTokens], in the code editors' colours) and what is offered as it is
@@ -15,7 +15,7 @@ import 'lilypond_language.dart' show lilyPondTheme;
 /// The extension editor's text of a Lua file, [text] to begin with.
 CodeLineEditingController luaCode(String text) {
   late final CodeLineEditingController code;
-  final states = LuaStates(() => code.codeLines);
+  final states = LineStates(() => code.codeLines, (line, state) => luaTokens(line, state: state).state);
   return code = CodeLineEditingController(
     codeLines: CodeLines.fromText(text),
     options: const CodeLineOptions(indentSize: 2),
@@ -179,62 +179,6 @@ bool _isWord(int c) => _isWordStart(c) || (c >= 0x30 && c <= 0x39);
   }
   flush(n);
   return (runs: runs, state: state);
-}
-
-/// Where each line of a Lua text starts (the state [luaTokens] reads it from), [lines] the text
-/// as it is now: read down as far as a line is asked for and kept, and read again from the first
-/// line that changed since. A folded line is read with what is folded under it.
-class LuaStates {
-  LuaStates(this.lines);
-  final CodeLines Function() lines;
-
-  CodeLines? _text;
-  final _read = <CodeLine>[];
-  final _starts = [0];
-
-  /// Where line [index] starts (where the last one ends, past the end).
-  int at(int index) {
-    final text = lines();
-    if (!identical(text, _text)) {
-      _text = text;
-      final changed = _firstChanged(text);
-      _read.length = changed;
-      _starts.length = changed + 1;
-    }
-    if (index < _starts.length) return _starts[index];
-    var i = 0;
-    for (final segment in text.segments) {
-      if (i + segment.length > _read.length) {
-        for (var k = _read.length - i; k < segment.length && _starts.length <= index; k++) {
-          _starts.add(_past(segment[k], _starts.last));
-          _read.add(segment[k]);
-        }
-        if (_starts.length > index) break;
-      }
-      i += segment.length;
-    }
-    return _starts[index < _starts.length ? index : _starts.length - 1];
-  }
-
-  int _firstChanged(CodeLines text) {
-    var i = 0;
-    for (final segment in text.segments) {
-      for (final line in segment.codeLines) {
-        if (i == _read.length) return i;
-        if (!identical(line, _read[i]) && line != _read[i]) return i;
-        i++;
-      }
-    }
-    return i;
-  }
-
-  static int _past(CodeLine line, int state) {
-    state = luaTokens(line.text, state: state).state;
-    for (final chunk in line.chunks) {
-      state = _past(chunk, state);
-    }
-    return state;
-  }
 }
 
 /// What a word offered is (shown beside it).
