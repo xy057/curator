@@ -953,9 +953,7 @@ class EditorController extends ChangeNotifier {
       nameGroupOf: nameGroupOf == null ? null : Map.unmodifiable(nameGroupOf),
     );
     if (next == _doc) return;
-    _doc = next;
-    _showSettings();
-    _edited();
+    _showEdit(next);
   }
 
   /// Each instrument's name colour, by part id, while [colorNames]; those in no group left out.
@@ -987,18 +985,14 @@ class EditorController extends ChangeNotifier {
     });
     _previewSections = null;
     if (mapEquals(next, _doc.sections)) return _showSettings();
-    _doc = _doc.copyWith(sections: Map.unmodifiable(next));
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(sections: Map.unmodifiable(next)));
   }
 
   /// Every instrument back in its own family's section: one Undo step.
   void resetSections() {
     _previewSections = null;
     if (_doc.sections.isEmpty) return _showSettings();
-    _doc = _doc.copyWith(sections: const {});
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(sections: const {}));
   }
 
   /// The room the user gave [partId] above and below (staff spaces; see [EditState.spacing]).
@@ -1014,9 +1008,7 @@ class EditorController extends ChangeNotifier {
       next[partId] = room;
     }
     if (mapEquals(next, _doc.spacing)) return;
-    _doc = _doc.copyWith(spacing: Map.unmodifiable(next));
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(spacing: Map.unmodifiable(next)));
   }
 
   /// Shows instruments in other sections (as [setSections] takes them) without an edit, while
@@ -1050,9 +1042,7 @@ class EditorController extends ChangeNotifier {
         abbreviation: abbreviation.trim().isEmpty ? part.abbreviation : abbreviation.trim(),
       );
     }
-    _doc = _doc.copyWith(partNames: Map.unmodifiable(next));
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(partNames: Map.unmodifiable(next)));
   }
 
   /// The latest engraving asked for (a text edit, a pair, fonts or options changed): the one
@@ -1637,9 +1627,7 @@ class EditorController extends ChangeNotifier {
   void _setPartOrder(List<String> ids) {
     final next = _orderedPartIds(_score!, ids, _doc.spacers);
     if (listEquals(next, _doc.partOrder)) return;
-    _doc = _doc.copyWith(partOrder: next);
-    _showSettings();
-    _edited();
+    _showEdit(_doc.copyWith(partOrder: next));
   }
 
   /// Every part of [score] and spacer of [spacers] once (a spacer is in the order while it isn't
