@@ -28,6 +28,7 @@ extension ControllerSettings on EditorController {
     defaultTextDynamics = settings.textDynamics;
     defaultRehearsalInRow = settings.rehearsalInRow;
     defaultCenteredLyrics = settings.centeredLyrics;
+    defaultDynamicsBetween = settings.dynamicsBetween;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
     extensions.followLanguage(settings.language);
   }

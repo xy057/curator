@@ -64,6 +64,7 @@ class EditState {
     this.textDynamics,
     this.rehearsalInRow,
     this.centeredLyrics,
+    this.dynamicsBetween,
     this.spacers = const [],
     this.gaps = const [],
     this.playerMap,
@@ -226,6 +227,11 @@ class EditState {
   /// Settings ▸ Flags, [EngraveRequest.centeredLyrics]); null: the app's.
   final bool? centeredLyrics;
 
+  /// Whether a dynamic, hairpin or text between two staves of one part (a piano's, an organ's)
+  /// is centred between them (Project Settings ▸ Flags, [EngraveRequest.dynamicsBetween]); null:
+  /// the app's.
+  final bool? dynamicsBetween;
+
   /// How a MIDI project's rows are drawn (the MIDI menu's, [MidiLook]); any other project
   /// keeps the standard one, unused.
   final MidiLook midiLook;
@@ -273,6 +279,7 @@ class EditState {
       textDynamics == other.textDynamics &&
       rehearsalInRow == other.rehearsalInRow &&
       centeredLyrics == other.centeredLyrics &&
+      dynamicsBetween == other.dynamicsBetween &&
       listEquals(spacers, other.spacers) &&
       listEquals(gaps, other.gaps) &&
       playerMap == other.playerMap;
@@ -282,7 +289,7 @@ class EditState {
 
   /// This state with the fields given instead of its own. A field that may be null is
   /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont], [playheadColor],
-  /// [textDynamics], [rehearsalInRow], [centeredLyrics]); left
+  /// [textDynamics], [rehearsalInRow], [centeredLyrics], [dynamicsBetween]); left
   /// out, it stays.
   EditState copyWith({
     Object? lanes = _kept,
@@ -321,6 +328,7 @@ class EditState {
     Object? textDynamics = _kept,
     Object? rehearsalInRow = _kept,
     Object? centeredLyrics = _kept,
+    Object? dynamicsBetween = _kept,
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
     Object? playerMap = _kept,
@@ -363,6 +371,7 @@ class EditState {
         textDynamics: identical(textDynamics, _kept) ? this.textDynamics : textDynamics as bool?,
         rehearsalInRow: identical(rehearsalInRow, _kept) ? this.rehearsalInRow : rehearsalInRow as bool?,
         centeredLyrics: identical(centeredLyrics, _kept) ? this.centeredLyrics : centeredLyrics as bool?,
+        dynamicsBetween: identical(dynamicsBetween, _kept) ? this.dynamicsBetween : dynamicsBetween as bool?,
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
         playerMap: identical(playerMap, _kept) ? this.playerMap : playerMap as PlayerMap?,

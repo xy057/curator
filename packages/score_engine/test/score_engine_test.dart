@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
+import 'package:score_engine/src/engraving.dart' show Cmd;
 
 import 'demo_score.dart';
 
@@ -313,7 +314,7 @@ void main() {
     }
   });
 
-  test('curation: regions drawn and erased, a region leaving out a staff, auto-curate only where staves would run off', () async {
+  test('curation: regions drawn and erased, a region leaving out a staff, auto-curate only where staves would run off; a piano’s dynamics between its staves', () async {
     // Drawing joins regions; erasing trims, splits and removes them.
     final c = Curation(['vn', 'va'])..setLane('vn', const [Region(0, 8), Region(12, 16)]);
     c.paint(['vn', 'va'], const Region(6, 14));
@@ -345,6 +346,31 @@ void main() {
     curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
     expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
     pianoScene.dispose();
+
+    // Under the right hand ("p") or over the left ("f"), centred between them; under the left
+    // hand ("pp"), where it was.
+    final marked = flutePianoScore
+        .replaceFirst('<note><pitch><step>E</step>',
+            '<direction placement="below"><direction-type><dynamics><p/></dynamics></direction-type><staff>1</staff></direction><note><pitch><step>E</step>')
+        .replaceFirst('<note><pitch><step>C</step><octave>3</octave>',
+            '<direction placement="above"><direction-type><dynamics><f/></dynamics></direction-type><offset>4</offset><staff>2</staff></direction>'
+            '<direction placement="below"><direction-type><dynamics><pp/></dynamics></direction-type><offset>6</offset><staff>2</staff></direction>'
+            '<note><pitch><step>C</step><octave>3</octave>');
+    // Each dynamic's centre, from the middle between the staves in staff spaces.
+    Future<List<double>> dynamicsIn(bool between) async {
+      final e = (await LoadedScore.load(marked, request: EngraveRequest(dynamicsBetween: between))).engraving;
+      final (upper, lower, dynam) = (e.staves[1], e.staves[2], e.classNames.indexOf('dynam'));
+      final middle = (upper.top + upper.height + lower.top) / 2;
+      return [
+        for (var i = 0; i < e.commandCount; i++)
+          if (e.commandInts[i * Cmd.words + Cmd.classIndex] == dynam)
+            (e.commandFloats[i * Cmd.words + Cmd.bounds + 1] + e.commandFloats[i * Cmd.words + Cmd.bounds + 3] / 2 - middle) / e.staffSpace,
+      ];
+    }
+    final (apart, between) = (await dynamicsIn(false), await dynamicsIn(true));
+    expect([for (final y in apart.take(2)) y.abs() > 1], [true, true], reason: '$apart');
+    expect([for (final y in between.take(2)) y.abs() < 0.5], [true, true], reason: '$between');
+    expect(between.last, greaterThan(4), reason: 'under the left hand');
 
     // Auto-curate, worked out on another isolate while opening (from the file's bar lengths).
     final stages = <LoadStage>[];

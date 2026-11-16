@@ -54,8 +54,30 @@ index 221244d..0647ae4 100644
      /** The mensur */
      Mensur m_currentMensur;
      /** The meter signature (time signature) */
+diff --git a/include/vrv/iomusxml.h b/include/vrv/iomusxml.h
+index 1ef19d5..67ac418 100644
+--- a/include/vrv/iomusxml.h
++++ b/include/vrv/iomusxml.h
+@@ -378,6 +378,8 @@ private:
+      * Process all clef change queue and add clefs to corresponding places in the score
+      */
+     void ProcessClefChangeQueue(Section *section);
++    /** [curated-score patch] [element] (curatedDynamBetween) centred between its part's two staves it is written between */
++    void CuratedPlaceBetween(ControlElement *element) const;
+ 
+     /**
+      * Find the measure created for a given measure count (document position within the part).
+@@ -701,6 +703,8 @@ private:
+      * end of each measure, keyed by the measure count (document position)
+      */
+     std::vector<std::pair<int, ControlElement *>> m_controlElements;
++    /* [curated-score patch] The first and last staff (@n) of the part each staff is in */
++    std::map<int, std::pair<int, int>> m_curatedPartStaves;
+     /* stack of clef changes to be inserted to all layers of a given staff */
+     std::deque<musicxml::ClefChange> m_clefChangeQueue;
+     /* stack of new arpeggios that get more notes added. */
 diff --git a/include/vrv/options.h b/include/vrv/options.h
-index 582de8c..1c05ecc 100644
+index 582de8c..c713fa4 100644
 --- a/include/vrv/options.h
 +++ b/include/vrv/options.h
 @@ -259,6 +259,13 @@ private:
@@ -72,7 +94,7 @@ index 582de8c..1c05ecc 100644
  //----------------------------------------------------------------------------
  // OptionInt
  //----------------------------------------------------------------------------
-@@ -712,6 +719,37 @@ public:
+@@ -712,6 +719,38 @@ public:
      OptionJson m_engravingDefaultsFile;
      OptionDbl m_extenderLineMinSpace;
      OptionDbl m_fingeringScale;
@@ -100,6 +122,7 @@ index 582de8c..1c05ecc 100644
 +    OptionDbl m_curatedMRptScale; // [curated-score patch]
 +    OptionDbl m_curatedRepeatDotScale; // [curated-score patch]
 +    OptionBool m_curatedLyricCentre; // [curated-score patch]
++    OptionBool m_curatedDynamBetween; // [curated-score patch]
 +    OptionString m_curatedSpacers; // [curated-score patch]
 +    OptionDbl m_curatedGlissScale; // [curated-score patch]
 +    OptionDbl m_curatedTabScale; // [curated-score patch]
@@ -110,7 +133,7 @@ index 582de8c..1c05ecc 100644
      OptionString m_font;
      OptionArray m_fontAddCustom;
      OptionIntMap m_fontFallback;
-@@ -907,6 +945,13 @@ private:
+@@ -907,6 +946,13 @@ private:
      std::vector<OptionGrp *> m_grps;
  };
  
@@ -488,7 +511,7 @@ index 5772420..a9ad7d2 100644
              return 2 * unit;
          }
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
-index b0c792f..5b08253 100644
+index b0c792f..be610e8 100644
 --- a/src/iomusxml.cpp
 +++ b/src/iomusxml.cpp
 @@ -711,6 +711,21 @@ std::string MusicXmlInput::GetWordsOrDynamicsText(const pugi::xml_node node) con
@@ -606,7 +629,25 @@ index b0c792f..5b08253 100644
  }
  
  //////////////////////////////////////////////////////////////////////////////
-@@ -2144,6 +2169,47 @@ void MusicXmlInput::ReadMusicXmlAttributes(pugi::xml_node node, Section *section
+@@ -1182,6 +1207,9 @@ bool MusicXmlInput::ReadMusicXml(pugi::xml_node root)
+                 LogWarning("MusicXML import: Could not find the part '%s'", partId.c_str());
+                 continue;
+             }
++            for (int i = 1; i <= nbStaves; ++i) { // [curated-score patch]
++                m_curatedPartStaves[staffOffset + i] = { staffOffset + 1, staffOffset + nbStaves };
++            }
+             this->ReadMusicXmlPart(part.node(), section, nbStaves, staffOffset);
+             // increment the staffOffset for reading the next part
+             staffOffset += nbStaves;
+@@ -1207,6 +1235,7 @@ bool MusicXmlInput::ReadMusicXml(pugi::xml_node root)
+             delete iter.second;
+             continue;
+         }
++        if (m_doc->GetOptions()->m_curatedDynamBetween.GetValue()) this->CuratedPlaceBetween(iter.second); // [curated-score patch]
+         measure->AddChild(iter.second);
+     }
+ 
+@@ -2144,6 +2173,47 @@ void MusicXmlInput::ReadMusicXmlAttributes(pugi::xml_node node, Section *section
          m_meterUnit = time.child("beat-type").text().as_int();
      }
  
@@ -654,7 +695,40 @@ index b0c792f..5b08253 100644
      pugi::xpath_node measureRepeat = node.select_node("measure-style/measure-repeat");
      pugi::xpath_node measureSlash = node.select_node("measure-style/slash");
      if (measureRepeat) {
-@@ -2423,6 +2489,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2282,6 +2352,32 @@ void MusicXmlInput::ReadMusicXmlBarLine(pugi::xml_node node, Measure *measure)
+     }
+ }
+ 
++// [curated-score patch] MusicXML can only say over or under a staff; in a part on more than one
++// (a piano's, an organ's), a dynamic, hairpin or text under any of its staves but the last, or
++// over any but the first, is set between that staff and the next (MEI's @place="between", read
++// from the upper staff), where Verovio centres it in the space left between the two. Text that
++// doesn't say where stays where it is.
++void MusicXmlInput::CuratedPlaceBetween(ControlElement *element) const
++{
++    if (!element->IsAnyOf(std::array{ DYNAM, HAIRPIN, DIR })) return;
++    AttPlacementRelStaff *placement = dynamic_cast<AttPlacementRelStaff *>(element);
++    AttStaffIdent *staffIdent = dynamic_cast<AttStaffIdent *>(element);
++    if (!placement || !staffIdent || (staffIdent->GetStaff().size() != 1)) return;
++    const int n = staffIdent->GetStaff().front();
++    const auto part = m_curatedPartStaves.find(n);
++    if (part == m_curatedPartStaves.end()) return;
++    const auto [first, last] = part->second;
++    data_STAFFREL place = placement->GetPlace();
++    if ((place == STAFFREL_NONE) && !element->Is(DIR)) place = STAFFREL_below;
++    if ((place == STAFFREL_below) && (n < last)) {
++        placement->SetPlace(STAFFREL_between);
++    }
++    else if ((place == STAFFREL_above) && (n > first)) {
++        placement->SetPlace(STAFFREL_between);
++        staffIdent->SetStaff({ n - 1 });
++    }
++}
++
+ void MusicXmlInput::ReadMusicXmlDirection(
+     pugi::xml_node node, Measure *measure, const std::string &measureNum, const short int staffOffset, Section *section)
+ {
+@@ -2423,6 +2519,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          }
          else {
              Dir *dir = new Dir();
@@ -663,7 +737,7 @@ index b0c792f..5b08253 100644
              if (words.size() == 1) {
                  dir->SetLang(words.first().node().attribute("xml:lang").as_string());
              }
-@@ -2493,6 +2561,11 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2493,6 +2591,11 @@ void MusicXmlInput::ReadMusicXmlDirection(
          dynamics.sort();
  
          Dynam *dynam = new Dynam();
@@ -675,7 +749,7 @@ index b0c792f..5b08253 100644
          dynam->SetPlace(dynam->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          dynam->SetTstamp(timeStamp);
          if (staffNode) {
-@@ -2765,6 +2838,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2765,6 +2868,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      pugi::xml_node rehearsal = typeNode.child("rehearsal");
      if (rehearsal) {
          Reh *reh = new Reh();
@@ -683,7 +757,7 @@ index b0c792f..5b08253 100644
          reh->SetPlace(reh->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          const std::string halign = rehearsal.attribute("halign").as_string();
          const std::string lang = rehearsal.attribute("xml:lang") ? rehearsal.attribute("xml:lang").as_string() : "it";
-@@ -2776,6 +2850,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2776,6 +2880,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          reh->SetLang(lang);
          Rend *rend = new Rend();
          rend->SetFontweight(rend->AttTypography::StrToFontweight(rehearsal.attribute("font-weight").as_string()));
@@ -692,7 +766,7 @@ index b0c792f..5b08253 100644
          rend->SetHalign(rend->AttHorizontalAlign::StrToHorizontalalignment(halign));
          const std::string enclosure = rehearsal.attribute("enclosure").as_string();
          rend->SetRend(enclosure.empty() ? TEXTRENDITION_box : ConvertEnclosure(enclosure));
-@@ -2789,6 +2865,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2789,6 +2895,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      // Tempo
      if (containsTempo) {
          Tempo *tempo = new Tempo();
@@ -700,7 +774,7 @@ index b0c792f..5b08253 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
-@@ -3530,6 +3607,7 @@ void MusicXmlInput::ReadMusicXmlNote(
+@@ -3530,6 +3637,7 @@ void MusicXmlInput::ReadMusicXmlNote(
                      if (!textStyle.empty()) syl->SetFontstyle(syl->AttTypography::StrToFontstyle(textStyle.c_str()));
                      if (!textWeight.empty())
                          syl->SetFontweight(syl->AttTypography::StrToFontweight(textWeight.c_str()));
@@ -709,10 +783,10 @@ index b0c792f..5b08253 100644
                      Text *text = new Text();
                      text->SetText(UTF8to32(textStr));
 diff --git a/src/options.cpp b/src/options.cpp
-index aa16fdb..6a91a79 100644
+index aa16fdb..0b4f1fb 100644
 --- a/src/options.cpp
 +++ b/src/options.cpp
-@@ -1307,6 +1307,130 @@ Options::Options()
+@@ -1307,6 +1307,134 @@ Options::Options()
      m_fingeringScale.Init(0.75, 0.25, 1);
      this->Register(&m_fingeringScale, "fingeringScale", &m_generalLayout);
  
@@ -799,6 +873,10 @@ index aa16fdb..6a91a79 100644
 +    m_curatedLyricCentre.SetInfo("Lyric centre", "[curated-score patch] Centre a syllable under its notehead, unless an extender follows it");
 +    m_curatedLyricCentre.Init(false);
 +    this->Register(&m_curatedLyricCentre, "curatedLyricCentre", &m_generalLayout);
++
++    m_curatedDynamBetween.SetInfo("Dynamics between staves", "[curated-score patch] A dynamic, hairpin or text under a staff of a part on more than one, or over its lower staff, centred between the two");
++    m_curatedDynamBetween.Init(false);
++    this->Register(&m_curatedDynamBetween, "curatedDynamBetween", &m_generalLayout);
 +
 +    m_curatedSpacers.SetInfo("Spacers", "[curated-score patch] Stretches of a measure widened: \"measure:from:to:staff spaces\" (quarters into it; measures counted from 0), comma separated");
 +    m_curatedSpacers.Init("");

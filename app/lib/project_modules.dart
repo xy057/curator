@@ -252,13 +252,14 @@ final class _Engraving extends ProjectModule {
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
-    final EditState(:engraving, :typography, :textDynamics, :rehearsalInRow, :centeredLyrics) = state.edits;
+    final EditState(:engraving, :typography, :textDynamics, :rehearsalInRow, :centeredLyrics, :dynamicsBetween) = state.edits;
     return {
       'options': engraving.toJson(),
       'typography': ?typography?.toJson(),
       'textDynamics': ?textDynamics,
       'rehearsalInRow': ?rehearsalInRow,
       'centeredLyrics': ?centeredLyrics,
+      'dynamicsBetween': ?dynamicsBetween,
     };
   }
 
@@ -271,6 +272,7 @@ final class _Engraving extends ProjectModule {
           textDynamics: r.boolean('textDynamics'),
           rehearsalInRow: r.boolean('rehearsalInRow'),
           centeredLyrics: r.boolean('centeredLyrics'),
+          dynamicsBetween: r.boolean('dynamicsBetween'),
         ),
       );
 }

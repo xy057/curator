@@ -42,6 +42,7 @@ abstract final class SettingsFile {
         textDynamics: edits.textDynamics,
         rehearsalInRow: edits.rehearsalInRow,
         centeredLyrics: edits.centeredLyrics,
+        dynamicsBetween: edits.dynamicsBetween,
       );
 
   /// Writes [settings] ([of] them), built beside [path] and moved into place at the end.

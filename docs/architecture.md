@@ -1019,6 +1019,17 @@ re-engraves) centres each syllable, or an elision's syllables together, under it
 Verovio otherwise sets them from just left of it; one an extender follows stays there, so a
 melisma's line runs on. The patched `curatedLyricCentre` option moves it in Verovio's syllable
 spacing, before syllables are kept apart, so the music still makes room.
+Flags ▸ Dynamics between staves (`EditState.dynamicsBetween`, saved in the `engraving` module, null
+taking `AppSettings`'s, off until Save as default; `EngraveRequest.dynamicsBetween`, an Undo step
+that re-engraves) centres a piano's or organ's dynamics, hairpins and text between its staves.
+MusicXML can only say over or under a staff, so the patched `curatedDynamBetween` option, as
+Verovio reads the file, sets MEI's `@place="between"` on a dynamic or hairpin (placement given or
+not) or text (given) under any staff of a part on several but its last, or over any but its
+first (then filed under the staff above, which Verovio places it from); Verovio centres it in the
+room it leaves, clear of the music, dynamics of one `vgrp` (MusicXML's `default-y`) kept in line.
+Curator keeps an instrument's staves as engraved (`SpacingPlan`'s steps), so the middle stays the
+middle on screen. One over the lower staff is drawn with the upper staff: a region leaving the
+upper staff out (Split Lane) leaves it out too.
 While it is on, the texts that speak of the speed (`ScoreText.tempoRole`: a tempo mark; a change for a
 while, "rit.", "accel.", "allarg." and the like; or "a tempo"; a pair's copy with them) are set apart from
 the music (`ScoreDisplayList.build`'s `apart`; the display list and renderer are made again, lazily, and
@@ -1660,7 +1671,8 @@ so any other is verse 1: in a part with such a token, `PreparedScore.prepare` nu
 `patches/*.patch` from a clean tree whenever a patch changes; the build hook refuses to build
 while a patch is newer than the tree. Patches: per-part key changes (transposing instruments
 keep their written key), MusicXML direction ids (so texts can be edited), syllables centred
-under their noteheads (`curatedLyricCentre`), stretches made wider (`curatedSpacers`), the app's typography
+under their noteheads (`curatedLyricCentre`), a part's dynamics between its staves
+(`curatedDynamBetween`), stretches made wider (`curatedSpacers`), the app's typography
 (`curated-score-size` / `curated-score-tracking` on words, rehearsal marks and lyrics, a rehearsal
 mark's `font-style`, the `curated…Scale` options sizing music symbols, accidentals clear of
 articulations and caesuras between their neighbours), engraving fixes (a rehearsal mark set a fifth
@@ -2047,8 +2059,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered
   without it and asks for it there (as `ensureLilyPond` does). Local AI is never hidden by Hide AI
   features, which hides remote AI only.
-- **A flag**: a fix for how other programs write their files, on by default (Centered lyrics, a
-  house style, is off), as an `_Item` on
+- **A flag**: a fix for how other programs write their files, on by default (Centered lyrics and
+  Dynamics between staves, house styles, are off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),
   else the app's default (`AppSettings`), which that page's Save as default sets.
 - **An extension**: a `CuratorExtension` (`extensions/extension.dart`). Each gives a stable
