@@ -100,6 +100,7 @@ abstract final class PluginApi {
   static const commands = <ApiCommand>[
     ApiCommand('about', 'About Curator', 'Curator', rebind: false),
     ApiCommand('settings', 'Settings…', 'Edit', rebind: false),
+    ApiCommand('newProject', 'New Project', 'File'),
     ApiCommand('newLilyPond', 'New LilyPond Score…', 'File'),
     ApiCommand('open', 'Open…', 'File'),
     ApiCommand('importScore', 'Import…', 'File'),

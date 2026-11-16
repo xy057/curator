@@ -167,7 +167,12 @@ class EditorController extends ChangeNotifier {
     if (await File(path).length() > ScoreFile.maxBytes) {
       throw const FormatException('That score is too big. Use one under 256 MB.');
     }
-    final bytes = await File(path).readAsBytes();
+    await openMusicXml(fileNameOf(path), await File(path).readAsBytes());
+  }
+
+  /// Opens (imports) a MusicXML score's [bytes] (or compressed .mxl's) named [name]: as
+  /// [openFile], from no file (File ▸ New Project's blank score).
+  Future<void> openMusicXml(String name, Uint8List bytes) async {
     var edits = await _newProjectEdits();
     LoadedScore score;
     try {
@@ -177,7 +182,7 @@ class EditorController extends ChangeNotifier {
       edits = edits.copyWith(fonts: ScoreFonts.standard); // a default font that can't be read: the standard ones
       score = await _engrave(ScoreFile.decodeMusicXML(bytes), _requestFor(edits), measure: autoCurateImported);
     }
-    await _install(fileNameOf(path), bytes, score, ProjectState(edits: edits));
+    await _install(name, bytes, score, ProjectState(edits: edits));
   }
 
   /// Opens (imports) a PDF score: [bytes], open as [pages], read as [layout] (the PDF import's

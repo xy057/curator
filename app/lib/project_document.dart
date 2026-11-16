@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,22 @@ import 'l10n/l10n.dart';
 
 /// The demo project, bundled with the app.
 const sampleProjectAsset = 'assets/demo/WI275 - 01 Intro.ccs';
+
+/// A blank MusicXML score: one treble staff named [part], 4/4, [bars] bars of rests.
+String blankMusicXml({required String part, int bars = 4}) {
+  String escape(String text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  final b = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n<score-partwise version="4.0">\n'
+      '<part-list><score-part id="P1"><part-name>${escape(part)}</part-name></score-part></part-list>\n<part id="P1">\n');
+  for (var bar = 1; bar <= bars; bar++) {
+    b.write('<measure number="$bar">');
+    if (bar == 1) b.write('<attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>');
+    b.write('<note><rest measure="yes"/><duration>4</duration><voice>1</voice><type>whole</type></note>');
+    if (bar == bars) b.write('<barline location="right"><bar-style>light-heavy</bar-style></barline>');
+    b.write('</measure>\n');
+  }
+  b.write('</part>\n</score-partwise>\n');
+  return b.toString();
+}
 
 /// The open project: where it is saved, whether it has unsaved changes, and autosave.
 class ProjectDocument extends ChangeNotifier {
@@ -150,6 +167,14 @@ class ProjectDocument extends ChangeNotifier {
   /// it has unsaved changes from the start.
   Future<void> newLilyPond(String name, Uint8List bytes, LilyPondProject lilypond) => _oneAtATime(() async {
     await controller.openLilyPond(name, bytes, lilypond);
+    _imported(null);
+  });
+
+  /// File ▸ New Project: a blank score ([blankMusicXml]: one staff, [part], a few empty bars)
+  /// as a new project, named [name], to write in the score editor or replace (Project Info ▸
+  /// Score ▸ Replace…); in no file, so it has unsaved changes from the start.
+  Future<void> newScore(String name, String part) => _oneAtATime(() async {
+    await controller.openMusicXml(name, utf8.encode(blankMusicXml(part: part)));
     _imported(null);
   });
 

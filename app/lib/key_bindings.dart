@@ -127,6 +127,7 @@ enum KeyCommand {
   hideApp('Hide Curator', 'Curator', KeyPlace.menus, [_K(_L.keyH, command: true)], macOnly: true),
   hideOthers('Hide Others', 'Curator', KeyPlace.menus, [_K(_L.keyH, command: true, alt: true)], macOnly: true),
   quit('Quit Curator', 'Curator', KeyPlace.menus, [_K(_L.keyQ, command: true)], macOnly: true),
+  newProject('New Project', 'File', KeyPlace.menus, [_K(_L.keyN, command: true)], editable: true),
   newLilyPond('New LilyPond Score…', 'File', KeyPlace.menus, [], editable: true),
   open('Open…', 'File', KeyPlace.menus, [_K(_L.keyO, command: true)], editable: true),
   importScore('Import…', 'File', KeyPlace.menus, [_K(_L.keyI, command: true)], editable: true),

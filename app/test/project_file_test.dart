@@ -437,6 +437,22 @@ void main() {
       expect((score.isMidi, score.score!.isRoll, score.score!.metadata.parts.length), (true, true, 2));
     }
 
+    // File ▸ New Project: a blank score, one staff of empty bars, unsaved from the start; saved, a score project.
+    {
+      final c = EditorController(vsync: const TestVSync());
+      final doc = ProjectDocument(c, AppSettings.memory()..autosave = Duration.zero);
+      addTearDown(() {
+        doc.dispose();
+        c.dispose();
+      });
+      await doc.newScore('Untitled.musicxml', 'Melody');
+      expect((c.score!.metadata.parts.single.name, c.score!.timeline.measureStarts.length, doc.isDirty, doc.title),
+          ('Melody', 5, true, 'Untitled.musicxml')); // 4 bars and the end
+      final path = '${dir.path}/Untitled.ccs';
+      await doc.save(path);
+      expect((doc.isDirty, json(path, 'manifest.json')['kind']), (false, 'score'));
+    }
+
     // A damaged module says where.
     {
       final path = '${dir.path}/damaged.ccs';
