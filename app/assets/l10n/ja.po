@@ -5492,3 +5492,11 @@ msgstr "待ち受けオフ"
 #: lib/main.dart
 msgid "Not Connected"
 msgstr "未接続"
+
+#: lib/app_menus.dart
+msgid "New Project"
+msgstr "新規プロジェクト"
+
+#: lib/main.dart
+msgid "Couldn’t Create Project"
+msgstr "プロジェクトを作成できませんでした"

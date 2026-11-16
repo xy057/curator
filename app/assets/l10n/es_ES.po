@@ -5492,3 +5492,11 @@ msgstr ""
 #: lib/main.dart
 msgid "Not Connected"
 msgstr ""
+
+#: lib/app_menus.dart
+msgid "New Project"
+msgstr "Nuevo proyecto"
+
+#: lib/main.dart
+msgid "Couldn’t Create Project"
+msgstr "No se ha podido crear el proyecto"

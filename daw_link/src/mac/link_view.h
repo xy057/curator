@@ -1,4 +1,5 @@
-// Curator Link's window in the DAW (link_view.mm): its name, and whether Curator is connected.
+// Curator Link's window in the DAW (link_view.mm): its name, whether Curator is connected (or why
+// not), and the projects following this DAW.
 #pragma once
 
 #define LINK_QUOTE_NAME_(x) #x
@@ -6,7 +7,7 @@
 
 namespace curator_link {
 
-constexpr int statusViewWidth = 320, statusViewHeight = 72;
+constexpr int statusViewWidth = 320, statusViewHeight = 92;
 
 // Puts the view in [parent] (an NSView), filling it; the handle lets it go again.
 void* attachStatusView (void* parent);

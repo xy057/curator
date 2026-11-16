@@ -331,18 +331,30 @@ class AppWindow extends StatefulWidget {
 class _OpenProject {
   _OpenProject(this.path)
       : lilypond = null,
+        blank = false,
         label = ValueNotifier((name: stemOf(fileNameOf(path ?? sampleProjectAsset)), edited: false, path: path));
 
   /// A score written in the LilyPond editor (File ▸ New LilyPond Score…), as a new project.
   _OpenProject.lilypond(LilyPondEdit this.lilypond)
       : path = null,
+        blank = false,
         label = ValueNotifier((name: stemOf(lilypond.source.name), edited: true, path: null));
 
-  /// The project or score file it opened; null: the sample, or a [lilypond] score.
+  /// A blank score (File ▸ New Project), as a new project.
+  _OpenProject.blank()
+      : path = null,
+        lilypond = null,
+        blank = true,
+        label = ValueNotifier((name: 'Untitled'.tr, edited: true, path: null));
+
+  /// The project or score file it opened; null: the sample, a [lilypond] score, or a [blank] one.
   final String? path;
 
   /// The score written in the LilyPond editor it opened, in no file yet.
   final LilyPondEdit? lilypond;
+
+  /// Whether it opened a blank score (File ▸ New Project).
+  final bool blank;
   final key = GlobalKey<_ProjectPageState>();
   final messenger = GlobalKey<ScaffoldMessengerState>();
   final ValueNotifier<ProjectTabLabel> label;
@@ -360,7 +372,7 @@ class _OpenProject {
         _ => path,
       };
 
-  bool get isSample => path == null && lilypond == null;
+  bool get isSample => path == null && lilypond == null && !blank;
 }
 
 class _AppWindowState extends State<AppWindow> implements PluginWindow {
@@ -640,6 +652,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     if (file != null && mounted) _openPath(file.path);
   }
 
+  /// File ▸ New Project (⌘N): a blank score as a new project in a tab of its own (not saved yet).
+  void _newProject() => _show(_add(_OpenProject.blank()));
+
   /// New LilyPond Score…: a score written in the LilyPond editor from a few bars to start from;
   /// Done makes it a new project in a tab of its own (not saved yet). Without LilyPond, it is
   /// asked for first ([ensureLilyPond]).
@@ -738,6 +753,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
         final does = _commands = <String, VoidCallback?>{
           'about': () => _settings(page: 'About'),
           'settings': _settings,
+          'newProject': free ? _newProject : null,
           'newLilyPond': free ? _newLilyPond : null,
           'open': free ? _open : null,
           'importScore': free ? _import : null,
@@ -785,6 +801,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           typing: _typing.value,
           onOpen: does['open'],
           onImport: does['importScore'],
+          onNewProject: does['newProject'],
           onNewLilyPond: does['newLilyPond'],
           onSave: does['save'],
           onSaveAs: does['saveAs'],
@@ -890,6 +907,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
                     plugins: plugins,
                     path: project.path,
                     lilypond: project.lilypond,
+                    blank: project.blank,
                     showing: _showing == project,
                     closing: project.closing,
                     label: project.label,
@@ -964,6 +982,7 @@ class ProjectPage extends StatefulWidget {
     this.plugins,
     required this.path,
     this.lilypond,
+    this.blank = false,
     required this.showing,
     required this.closing,
     required this.label,
@@ -979,11 +998,14 @@ class ProjectPage extends StatefulWidget {
   /// The app's plugins, told what happens to the project.
   final Plugins? plugins;
 
-  /// The project or score it opens; null: the sample, or [lilypond].
+  /// The project or score it opens; null: the sample, [lilypond], or [blank].
   final String? path;
 
   /// A score written in the LilyPond editor, which it opens as a new project.
   final LilyPondEdit? lilypond;
+
+  /// Whether it opens a blank score as a new project (File ▸ New Project).
+  final bool blank;
 
   /// Whether its tab shows (before it stops, [_ProjectPageState._hide] has stopped it playing and
   /// closed its floating windows).
@@ -1146,6 +1168,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _updateWindowTitle() {
     final title = document.title;
     if (title != null) widget.label.value = (name: stemOf(title), edited: document.isDirty, path: document.path);
+    if (title != null) controller.daw.name = stemOf(title); // what a DAW followed is told
     if (!widget.showing || widget.closing) return;
     WindowChrome.showDocument(
       name: title == null ? null : stemOf(title),
@@ -1200,6 +1223,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         final left = [...lilyPondErrors(run), ...?controller.score?.warnings];
         if (left.isNotEmpty && mounted) await showImportWarnings(context, source.name, left);
       }, title: 'Couldn’t Create LilyPond Score'.tr);
+    } else if (widget.blank) {
+      await _guard(() async {
+        await document.newScore('${'Untitled'.tr}.musicxml', 'Melody'.tr);
+        if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name); // the default's
+      }, title: 'Couldn’t Create Project'.tr);
     } else if (path == null) {
       await _guard(() async {
         final problem = await document.openSample();

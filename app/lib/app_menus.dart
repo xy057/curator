@@ -45,6 +45,7 @@ class AppMenus extends StatelessWidget {
     this.keys = KeyMap.standard,
     required this.onOpen,
     required this.onImport,
+    this.onNewProject,
     this.onNewLilyPond,
     required this.onSave,
     required this.onSaveAs,
@@ -100,6 +101,9 @@ class AppMenus extends StatelessWidget {
 
   /// Import…: a PDF or LilyPond score to start a project from.
   final VoidCallback? onImport;
+
+  /// New Project: a blank score, as a new project.
+  final VoidCallback? onNewProject;
 
   /// New LilyPond Score…: a score written in the LilyPond editor, as a new project.
   final VoidCallback? onNewLilyPond;
@@ -220,6 +224,7 @@ class AppMenus extends StatelessWidget {
           ]),
         _Menu('File', label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
+            ?_own('newProject', 'New Project'.tr, shortcut: _keyOf(KeyCommand.newProject), onSelected: onNewProject),
             ?_own('newLilyPond', 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond), onSelected: onNewLilyPond),
             ?_own('open', 'Open…'.tr, shortcut: _keyOf(KeyCommand.open), onSelected: onOpen),
             ?_own('importScore', 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore), onSelected: onImport),

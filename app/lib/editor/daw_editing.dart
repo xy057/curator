@@ -20,6 +20,21 @@ class DawEditing {
   DawFollow? _follow;
   DawSession? _session;
 
+  /// The project's name, told the DAW followed (its Curator Link window shows it).
+  String get name => _name;
+  String _name = '';
+  set name(String value) {
+    if (value == _name) return;
+    _name = value;
+    _tell();
+  }
+
+  /// [_link] told what this project follows, if anything.
+  void _tell() {
+    final f = _follow;
+    _link?.followedBy(this, f == null ? null : (document: f.document, name: _name));
+  }
+
   /// What is followed, or null.
   DawFollow? get following => _follow;
 
@@ -34,6 +49,7 @@ class DawEditing {
     _link = link;
     _follow = follow;
     link.addListener(_linkChanged);
+    _tell();
     _watchTransport();
     final taken = _take();
     _editor._changed();
@@ -44,6 +60,7 @@ class DawEditing {
   void stop() {
     if (_follow == null) return;
     _link?.removeListener(_linkChanged);
+    _link?.followedBy(this, null);
     _session?.transport.removeListener(_transportChanged);
     _session = null;
     _follow = null;

@@ -51,6 +51,25 @@ class DawLink extends ChangeNotifier {
     }
   }
 
+  /// Who follows which document ([DawEditing]): each DAW is told the projects following one of
+  /// its documents (`followers`), for its Curator Link window.
+  final _followers = <Object, ({String document, String name})>{};
+
+  /// [who] follows [document] as the project [name]; null: [who] follows nothing.
+  void followedBy(Object who, ({String document, String name})? follow) {
+    if (follow == null ? _followers.remove(who) == null : _followers[who] == follow) return;
+    if (follow != null) _followers[who] = follow;
+    _tellFollowers();
+  }
+
+  /// Each DAW the projects following its documents, when they differ from what it was told.
+  void _tellFollowers() {
+    for (final s in _sessions) {
+      final names = {for (final f in _followers.values) if (s._documents.containsKey(f.document)) f.name}.toList()..sort();
+      s._tellFollowers(names.join('\n'));
+    }
+  }
+
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
   (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
 
@@ -145,7 +164,11 @@ class DawLinkException implements Exception {
 
 /// One DAW connected to Curator: [host] is its process's name ("Cubase 15", "Logic Pro").
 class DawSession extends ChangeNotifier {
-  DawSession._(this._link, this._socket);
+  DawSession._(this._link, this._socket) {
+    // A DAW that goes with lines unread resets the connection: the reading side closes the
+    // session; the writing side's error is nothing more.
+    _socket.done.then<void>((_) {}, onError: (Object _) {});
+  }
 
   final DawLink _link;
   final Socket _socket;
@@ -193,6 +216,7 @@ class DawSession extends ChangeNotifier {
       plugin = (message['plugin'] as String?) ?? '';
       _link._sessions.add(this);
       _link.notifyListeners();
+      _link._tellFollowers();
       return;
     }
     switch (type) {
@@ -229,8 +253,18 @@ class DawSession extends ChangeNotifier {
       default:
         return; // a later plug-in's
     }
+    _link._tellFollowers(); // a document followed may have come or gone
     notifyListeners();
     _link.notifyListeners();
+  }
+
+  /// What this DAW was last told follows it: the projects' names, one a line.
+  String _followers = '';
+
+  void _tellFollowers(String names) {
+    if (names == _followers) return;
+    _followers = names;
+    _send({'t': 'followers', 'names': names});
   }
 
   void _send(Map<String, Object?> message) {

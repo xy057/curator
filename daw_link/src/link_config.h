@@ -17,6 +17,8 @@
 #define LINK_URL "https://github.com/xy057/curator"
 #define LINK_EMAIL "mailto:"
 #define LINK_FACTORY_ID "com.curatedscore.link.arafactory"
+// Curator's own bundle (app/macos/Runner/Configs/AppInfo.xcconfig): whether it is open.
+#define LINK_CURATOR_BUNDLE_ID "com.curatedscore.curatedScore"
 #define LINK_ARCHIVE_ID "com.curatedscore.link.archive.1"
 
 // What Curator and the plug-in say to each other (docs/daw-link.md); raised only when one

@@ -5492,3 +5492,11 @@ msgstr "未监听"
 #: lib/main.dart
 msgid "Not Connected"
 msgstr "未连接"
+
+#: lib/app_menus.dart
+msgid "New Project"
+msgstr "新建项目"
+
+#: lib/main.dart
+msgid "Couldn’t Create Project"
+msgstr "无法创建项目"

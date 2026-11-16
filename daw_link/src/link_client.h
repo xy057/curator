@@ -49,6 +49,10 @@ public:
     // Whether Curator is connected now.
     bool connected () const noexcept { return fd_.load () >= 0; }
 
+    // The Curator projects following this DAW, as Curator last said (`followers`: one name a
+    // line); empty while none is or Curator isn't connected.
+    std::string followers ();
+
 private:
     LinkClient ();
     ~LinkClient ();
@@ -70,6 +74,7 @@ private:
     std::map<std::string, std::string> states_;
     std::deque<std::string> outbox_;
     std::string inbox_;
+    std::string followers_;
 
     std::mutex handlersMutex_;
     std::map<int, std::function<void (const Message&)>> handlers_;
