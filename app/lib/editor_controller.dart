@@ -1239,13 +1239,38 @@ class EditorController extends ChangeNotifier {
     await engraved;
   }
 
+  /// Whether dynamics between a part's staves are centred there ([EngraveRequest.dynamicsBetween])
+  /// in a project that hasn't chosen: the app's, from Project Settings ▸ Flags ▸ Save as default.
+  /// Not an edit: changing it re-engraves what is open.
+  bool get defaultDynamicsBetween => _defaultDynamicsBetween;
+  bool _defaultDynamicsBetween = false;
+  set defaultDynamicsBetween(bool value) {
+    if (value == _defaultDynamicsBetween) return;
+    _defaultDynamicsBetween = value;
+    if (_score != null && _doc.dynamicsBetween == null) unawaited(_reengrave());
+  }
+
+  /// This project's choice (Project Settings ▸ Flags), else the app's.
+  bool get dynamicsBetween => _doc.dynamicsBetween ?? _defaultDynamicsBetween;
+
+  /// Sets [dynamicsBetween] for this project: one Undo step, re-engraving the score.
+  Future<void> setDynamicsBetween(bool on) async {
+    if (_score == null || on == _doc.dynamicsBetween) return;
+    _doc = _doc.copyWith(dynamicsBetween: on);
+    final engraved = _reengrave();
+    _edited();
+    await engraved;
+  }
+
   /// Sets every flag for this project at once (Flags ▸ Reset to Default): one Undo step,
-  /// re-engraving only if [textDynamics] or [centeredLyrics] changes.
-  Future<void> setFlags({required bool textDynamics, required bool rehearsalInRow, required bool centeredLyrics}) async {
+  /// re-engraving unless only [rehearsalInRow] changes.
+  Future<void> setFlags(
+      {required bool textDynamics, required bool rehearsalInRow, required bool centeredLyrics, required bool dynamicsBetween}) async {
     if (_score == null) return;
-    final next = _doc.copyWith(textDynamics: textDynamics, rehearsalInRow: rehearsalInRow, centeredLyrics: centeredLyrics);
+    final next = _doc.copyWith(
+        textDynamics: textDynamics, rehearsalInRow: rehearsalInRow, centeredLyrics: centeredLyrics, dynamicsBetween: dynamicsBetween);
     if (next == _doc) return;
-    final engrave = textDynamics != _doc.textDynamics || centeredLyrics != _doc.centeredLyrics;
+    final engrave = textDynamics != _doc.textDynamics || centeredLyrics != _doc.centeredLyrics || dynamicsBetween != _doc.dynamicsBetween;
     _doc = next;
     _showSettings();
     final engraved = engrave ? _reengrave() : null;
@@ -1347,6 +1372,7 @@ class EditorController extends ChangeNotifier {
       textDynamics: edits.textDynamics ?? _defaultTextDynamics,
       typography: edits.typography ?? _defaultTypography,
       centeredLyrics: edits.centeredLyrics ?? _defaultCenteredLyrics,
+      dynamicsBetween: edits.dynamicsBetween ?? _defaultDynamicsBetween,
       // Only while an extension that turns them on is (Attach Image).
       spacers: socketOn(edits, extensions._carried, 'spacers') ? edits.spacers : const [],
       gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const [],
@@ -1455,6 +1481,7 @@ class EditorController extends ChangeNotifier {
         textDynamics: textDynamics,
         rehearsalInRow: rehearsalInRow,
         centeredLyrics: centeredLyrics,
+        dynamicsBetween: dynamicsBetween,
       );
 
   /// File ▸ Export to Web…: the project as a page shows it ([WebPage]): [exportedSettings], with
@@ -1476,6 +1503,7 @@ class EditorController extends ChangeNotifier {
       engraving: score.options,
       textDynamics: score.textDynamics,
       centeredLyrics: score.centeredLyrics,
+      dynamicsBetween: score.dynamicsBetween,
       spacers: spacers ? _doc.spacers : const [],
       gaps: spacers ? _doc.gaps : const [],
     );
@@ -1519,6 +1547,7 @@ class EditorController extends ChangeNotifier {
         textDynamics: settings.textDynamics,
         rehearsalInRow: settings.rehearsalInRow,
         centeredLyrics: settings.centeredLyrics,
+        dynamicsBetween: settings.dynamicsBetween,
       );
       if (settings.transition case final seconds?) _curation!.transition = seconds;
       if (settings.captionFont != captions._font) {

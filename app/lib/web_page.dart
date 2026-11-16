@@ -169,6 +169,7 @@ class WebPage {
         textDynamics: edits.textDynamics ?? true,
         typography: edits.typography ?? ScoreTypography.standard,
         centeredLyrics: edits.centeredLyrics ?? false,
+        dynamicsBetween: edits.dynamicsBetween ?? false,
         spacers: edits.spacers,
         gaps: edits.gaps,
         midi: edits.midiLook,

@@ -56,6 +56,7 @@ class AppSettings extends ChangeNotifier {
         _textDynamics = _prefs?.getBool(_textDynamicsKey) ?? defaultTextDynamics,
         _rehearsalInRow = _prefs?.getBool(_rehearsalInRowKey) ?? defaultRehearsalInRow,
         _centeredLyrics = _prefs?.getBool(_centeredLyricsKey) ?? defaultCenteredLyrics,
+        _dynamicsBetween = _prefs?.getBool(_dynamicsBetweenKey) ?? defaultDynamicsBetween,
         legacyExtensions = _readLegacyExtensions(_prefs),
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
@@ -112,6 +113,7 @@ class AppSettings extends ChangeNotifier {
   static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
+  static const _dynamicsBetweenKey = 'dynamicsBetween';
 
   static Color? _readColor(SharedPreferences? prefs, String key) {
     try {
@@ -826,7 +828,7 @@ class AppSettings extends ChangeNotifier {
 
   // MARK: Flags
 
-  static const defaultTextDynamics = true, defaultRehearsalInRow = true, defaultCenteredLyrics = false;
+  static const defaultTextDynamics = true, defaultRehearsalInRow = true, defaultCenteredLyrics = false, defaultDynamicsBetween = false;
 
   /// Dynamics a notation program wrote as text ("f" in a music font) are engraved as dynamics
   /// ([TextDynamics]) in a project that hasn't chosen (Project Settings ▸ Flags ▸ Save as
@@ -859,6 +861,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _centeredLyrics) return;
     _centeredLyrics = value;
     _prefs?.setBool(_centeredLyricsKey, value);
+    notifyListeners();
+  }
+
+  /// A dynamic, hairpin or text between two staves of one part is centred between them
+  /// ([EngraveRequest.dynamicsBetween]), in a project that hasn't chosen. Off by default.
+  bool get dynamicsBetween => _dynamicsBetween;
+  bool _dynamicsBetween;
+  set dynamicsBetween(bool value) {
+    if (value == _dynamicsBetween) return;
+    _dynamicsBetween = value;
+    _prefs?.setBool(_dynamicsBetweenKey, value);
     notifyListeners();
   }
 

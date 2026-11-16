@@ -593,6 +593,12 @@ msgstr "Letra centrada"
 msgid "Centers syllables under their notes."
 msgstr "Centra cada sílaba bajo la nota correspondiente."
 
+msgid "Dynamics between staves"
+msgstr ""
+
+msgid "Centers a piano’s or organ’s dynamics between its staves."
+msgstr ""
+
 #: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "Historial de cambios"

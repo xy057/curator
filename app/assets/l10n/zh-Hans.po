@@ -593,6 +593,12 @@ msgstr "歌词居中"
 msgid "Centers syllables under their notes."
 msgstr "将音节居中对齐到音符下方。"
 
+msgid "Dynamics between staves"
+msgstr "谱表间的力度记号"
+
+msgid "Centers a piano’s or organ’s dynamics between its staves."
+msgstr "将钢琴或管风琴的力度记号居中放在两行谱表之间。"
+
 #: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "更新日志"

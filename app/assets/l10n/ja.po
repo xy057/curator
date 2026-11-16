@@ -593,6 +593,12 @@ msgstr "歌詞を中央揃え"
 msgid "Centers syllables under their notes."
 msgstr "音節を音符の下の中央に揃えます。"
 
+msgid "Dynamics between staves"
+msgstr "譜表間の強弱記号"
+
+msgid "Centers a piano’s or organ’s dynamics between its staves."
+msgstr "ピアノやオルガンの強弱記号を譜表の間の中央に置きます。"
+
 #: lib/settings_dialog.dart
 msgid "Changelog"
 msgstr "変更履歴"

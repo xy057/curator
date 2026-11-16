@@ -732,6 +732,12 @@ final _projectCategories = <_Category>[
       (c) => AppSwitch(value: c.controller!.centeredLyrics, onChanged: c.controller!.setCenteredLyrics),
       keywords: 'flag lyrics syllables words text centre center align alignment choral',
     ),
+    _Item(
+      'Dynamics between staves',
+      (_) => 'Centers a piano’s or organ’s dynamics between its staves.',
+      (c) => AppSwitch(value: c.controller!.dynamicsBetween, onChanged: c.controller!.setDynamicsBetween),
+      keywords: 'flag dynamics hairpins wedges crescendo diminuendo between staves centre center middle grand staff piano organ keyboard harp',
+    ),
   ], saveDefault: (
     shown: null,
     isDefault: _flagsAreDefault,
@@ -739,24 +745,29 @@ final _projectCategories = <_Category>[
       c.settings
         ..textDynamics = c.controller!.textDynamics
         ..rehearsalInRow = c.controller!.rehearsalInRow
-        ..centeredLyrics = c.controller!.centeredLyrics;
+        ..centeredLyrics = c.controller!.centeredLyrics
+        ..dynamicsBetween = c.controller!.dynamicsBetween;
     },
     reset: (c) => c.controller!.setFlags(
         textDynamics: c.settings.textDynamics,
         rehearsalInRow: c.settings.rehearsalInRow,
-        centeredLyrics: c.settings.centeredLyrics),
+        centeredLyrics: c.settings.centeredLyrics,
+        dynamicsBetween: c.settings.dynamicsBetween),
     isSystem: (c) =>
         c.controller!.textDynamics == AppSettings.defaultTextDynamics &&
         c.controller!.rehearsalInRow == AppSettings.defaultRehearsalInRow &&
-        c.controller!.centeredLyrics == AppSettings.defaultCenteredLyrics,
+        c.controller!.centeredLyrics == AppSettings.defaultCenteredLyrics &&
+        c.controller!.dynamicsBetween == AppSettings.defaultDynamicsBetween,
     savedIsSystem: (c) =>
         c.settings.textDynamics == AppSettings.defaultTextDynamics &&
         c.settings.rehearsalInRow == AppSettings.defaultRehearsalInRow &&
-        c.settings.centeredLyrics == AppSettings.defaultCenteredLyrics,
+        c.settings.centeredLyrics == AppSettings.defaultCenteredLyrics &&
+        c.settings.dynamicsBetween == AppSettings.defaultDynamicsBetween,
     resetToSystem: (c) => c.controller!.setFlags(
         textDynamics: AppSettings.defaultTextDynamics,
         rehearsalInRow: AppSettings.defaultRehearsalInRow,
-        centeredLyrics: AppSettings.defaultCenteredLyrics),
+        centeredLyrics: AppSettings.defaultCenteredLyrics,
+        dynamicsBetween: AppSettings.defaultDynamicsBetween),
   )),
   _animationCategory(),
 ];
@@ -844,7 +855,8 @@ _Category _advancedEngravingCategory() {
 bool _flagsAreDefault(_Context c) =>
     c.controller!.textDynamics == c.settings.textDynamics &&
     c.controller!.rehearsalInRow == c.settings.rehearsalInRow &&
-    c.controller!.centeredLyrics == c.settings.centeredLyrics;
+    c.controller!.centeredLyrics == c.settings.centeredLyrics &&
+    c.controller!.dynamicsBetween == c.settings.dynamicsBetween;
 
 /// Whether the project's display is the app's default (Save as default).
 bool _displayIsDefault(_Context c) =>

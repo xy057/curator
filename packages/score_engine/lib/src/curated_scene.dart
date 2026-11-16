@@ -34,7 +34,8 @@ import 'staff_stack.dart';
 
 /// What a score is engraved with besides its MusicXML: the text edits, the user's own pairs of
 /// players, the fonts, the engraving options, whether dynamics typed as text are made
-/// dynamics, whether syllables are centred under their notes, and the spacers. Equal requests engrave a score the same, so a change of any is one to engrave.
+/// dynamics, whether syllables are centred under their notes, whether dynamics between a part's
+/// staves are centred there, and the spacers. Equal requests engrave a score the same, so a change of any is one to engrave.
 @immutable
 class EngraveRequest {
   const EngraveRequest({
@@ -45,6 +46,7 @@ class EngraveRequest {
     this.textDynamics = true,
     this.typography = ScoreTypography.standard,
     this.centeredLyrics = false,
+    this.dynamicsBetween = false,
     this.spacers = const [],
     this.gaps = const [],
     this.midi = const MidiLook(),
@@ -68,6 +70,10 @@ class EngraveRequest {
   /// them at the note's left).
   final bool centeredLyrics;
 
+  /// A dynamic, hairpin or text written between two staves of one part (a piano's, an
+  /// organ's: under the upper, over the lower) centred between them (Verovio sets it by the staff).
+  final bool dynamicsBetween;
+
   /// Vertical spacers, each a part of its own; only what they engrave counts
   /// ([VerticalSpacer.engravesLike]).
   final List<VerticalSpacer> spacers;
@@ -87,6 +93,7 @@ class EngraveRequest {
       textDynamics: textDynamics,
       typography: typography,
       centeredLyrics: centeredLyrics,
+      dynamicsBetween: dynamicsBetween,
       spacers: spacers,
       gaps: gaps,
       midi: midi);
@@ -104,10 +111,11 @@ class EngraveRequest {
       other.options == options &&
       other.textDynamics == textDynamics &&
       other.centeredLyrics == centeredLyrics &&
+      other.dynamicsBetween == dynamicsBetween &&
       other.typography.engravesLike(typography);
 
   @override
-  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centeredLyrics, spacers.length, gaps.length);
+  int get hashCode => Object.hash(textEdits.length, pairs.length, fonts, options, textDynamics, centeredLyrics, dynamicsBetween, spacers.length, gaps.length);
 }
 
 /// How far opening a score has got ([LoadedScore.engrave]'s `onStage`): its file read and
@@ -193,6 +201,9 @@ class LoadedScore {
 
   /// Whether its syllables were centred under their notes ([EngraveRequest.centeredLyrics]).
   bool get centeredLyrics => request.centeredLyrics;
+
+  /// Whether dynamics between a part's staves were centred there ([EngraveRequest.dynamicsBetween]).
+  bool get dynamicsBetween => request.dynamicsBetween;
 
   /// The pairs of players that can share a staff, each engraved on one of its own (the
   /// scene shows it while both are shown and the pair is condensed).
@@ -290,6 +301,7 @@ class LoadedScore {
       verovioOptions: {
         ...r.typography.verovioOptions,
         if (r.centeredLyrics) 'curatedLyricCentre': true,
+        if (r.dynamicsBetween) 'curatedDynamBetween': true,
         if (r.gaps.isNotEmpty) 'curatedSpacers': ?Spacers.verovioOption(r.gaps, barLengths),
       },
     );
@@ -408,6 +420,7 @@ class LoadedScore {
             textDynamics: r.textDynamics,
             typography: r.typography,
             centeredLyrics: r.centeredLyrics,
+            dynamicsBetween: r.dynamicsBetween,
             spacers: List.unmodifiable(r.spacers),
             gaps: List.unmodifiable(r.gaps),
             midi: r.midi),
@@ -465,6 +478,7 @@ sealed class _Drawn {
       textDynamics: r.textDynamics,
       typography: r.typography,
       centeredLyrics: r.centeredLyrics,
+      dynamicsBetween: r.dynamicsBetween,
       spacers: r.spacers,
       gaps: r.gaps,
       midi: r.midi);
