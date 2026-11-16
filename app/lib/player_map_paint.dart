@@ -85,7 +85,11 @@ class PlayerMapPainter extends CustomPainter {
   final TextDirection textDirection;
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, Size size) => paintAt(canvas, size, time.value);
+
+  /// The map at [t] seconds of the performance, whatever [time] says (a video's frame, a view
+  /// the View lane mixes in).
+  void paintAt(Canvas canvas, Size size, double t) {
     final stage = MapStage(size, map.aspect);
     final floor = RRect.fromRectAndRadius(stage.rect, const Radius.circular(6));
     canvas.drawRRect(floor, Paint()..color = _floor);
@@ -94,7 +98,7 @@ class PlayerMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke);
     canvas.save();
     canvas.clipRRect(floor);
-    final t = time.value, labelSize = stage.labelSize;
+    final labelSize = stage.labelSize;
     final glow = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     final dot = Paint();
     final ring = Paint()

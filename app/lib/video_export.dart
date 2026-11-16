@@ -12,6 +12,8 @@ import 'app_colors.dart';
 import 'editor_controller.dart';
 import 'file_names.dart';
 import 'media_converter.dart';
+import 'player_map_paint.dart';
+import 'scene_views.dart';
 import 'extensions/extension_reader.dart';
 import 'l10n/l10n.dart';
 import 'video_frame.dart';
@@ -421,14 +423,21 @@ class VideoExportCancelled implements Exception {
 typedef ExportSound = ({String path, double from, double at, double end, double fadeIn, double fadeOut});
 
 /// Makes a video of the open project: the curated score scrolling past the pointer in time
-/// with the recording, exactly as the preview plays it.
+/// with the recording, exactly as the preview plays it, showing what the Video tab's View lane
+/// has when (the player map too, swelling with the notes, [paintViews]).
 ///
 /// It works on a copy of the curation and the sync taken when it is made, with its own scene
 /// (its own tile cache, at the video's pixel density), so the editor's view is untouched and
 /// nothing done in the editor meanwhile can change a video half written. Make one per export
 /// dialog; [dispose] it when done.
 class VideoExport {
-  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._extensions, {required this.duration, required this.sounds});
+  VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._extensions,
+      {required this.duration, required this.sounds, required StepLane<SceneView> views, PlayerMap? map, Future<PlayerNotes>? notes})
+      : _views = views, // ignore: prefer_initializing_formals
+        _map = map, // ignore: prefer_initializing_formals
+        _reading = notes {
+    unawaited(notes?.then((n) => _notes = n));
+  }
 
   /// Takes what [editor] has open now; with [take], that recording heard whole in its own time
   /// ([EditorController.performedCopy]). The editor must have a score.
@@ -445,10 +454,67 @@ class VideoExport {
     final duration = math.max(CuratedScene.endOf(timeline, editor.motion), chunks.fold(0.0, (end, c) => math.max(end, c.end)));
     // The extensions as they are now, reading the scene's own timeline.
     final extensions = ExtensionReaders(editor.projectState.edits, editor.extensions.carried, score: () => score, timeline: () => scene.timeline);
-    return VideoExport._(scene, copy, timeline, editor.images.hold(), extensions, duration: duration, sounds: [
+    // The views as they are now; the map only where one shows it, and the notes it swells with.
+    final views = editor.automation.views;
+    final map = views.stretches.any((s) => s.value.showsMap) ? editor.playerMap.map : null;
+    return VideoExport._(scene, copy, timeline, editor.images.hold(), extensions,
+        duration: duration, views: views, map: map, notes: map == null ? null : editor.playerMap.notes(), sounds: [
       for (final c in chunks)
         if (files[c.take] case final path?) (path: path, from: c.from, at: c.at, end: c.end, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
     ]);
+  }
+
+  /// What each frame shows when (the View lane, as when this was made).
+  final StepLane<SceneView> _views;
+
+  /// The project's player map, where a view shows it; null: every frame is the score.
+  final PlayerMap? _map;
+
+  /// The score's notes, being read for the map; [_notes] once they are.
+  final Future<PlayerNotes>? _reading;
+  PlayerNotes? _notes;
+
+  /// The map's time as [PlayerMapPainter] takes it: each frame draws it at its own.
+  final _mapTime = ValueNotifier(0.0);
+
+  /// The View lane in the timeline shown ([showBars]'s), made again only when that changes.
+  TimedSteps<SceneView> get _timed {
+    final tl = _scene.timeline;
+    if (_timedViews case (final kept, final timed) when identical(kept, tl)) return timed;
+    final timed = _views.inTime(tl);
+    _timedViews = (tl, timed);
+    return timed;
+  }
+
+  (ScoreTimeline, TimedSteps<SceneView>)? _timedViews;
+
+  /// How swollen the map's players are, as the timeline shown plays the notes.
+  PlayerPulses get _pulses {
+    final notes = _notes, tl = _scene.timeline;
+    if (notes == null) return PlayerPulses.none;
+    if (_mapPulses case (final n, final t, final p) when identical(n, notes) && identical(t, tl)) return p;
+    final pulses = PlayerPulses(notes, tl);
+    _mapPulses = (notes, tl, pulses);
+    return pulses;
+  }
+
+  (PlayerNotes, ScoreTimeline, PlayerPulses)? _mapPulses;
+
+  /// Draws the frame at [time] into [size] (layout points): the views as the lane has them.
+  void _paintFrame(ui.Canvas canvas, ui.Size size,
+      {required double time, required double devicePixelRatio, required ui.Color paper, required ui.Color ink}) {
+    final map = _map;
+    paintViews(
+      canvas,
+      size,
+      _timed.at(time),
+      score: (canvas, layout) => _scene.paint(canvas, layout,
+          time: time, curation: _curation, devicePixelRatio: devicePixelRatio, end: span.end, paper: paper, ink: ink),
+      map: map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: _pulses, time: _mapTime).paintAt(canvas, size, time),
+      paper: paper,
+      ink: ink,
+      fade: _scene.endFadeAt(time, span.end),
+    );
   }
 
   /// Lets go of the editor's images this export draws (see [ImageEditing.hold]).
@@ -585,11 +651,9 @@ class VideoExport {
       ..save()
       ..clipRect(ui.Offset.zero & size)
       ..scale(scale);
-    _scene.paint(canvas, size / scale,
+    _paintFrame(canvas, size / scale,
         time: time,
-        curation: _curation,
         devicePixelRatio: devicePixelRatio * scale,
-        end: span.end,
         paper: transparent ? paper.paper.withValues(alpha: 0) : paper.paper,
         ink: paper.ink);
     canvas.restore();
@@ -670,6 +734,8 @@ class VideoExport {
       throw VideoExportException('“{name}” already holds other files. Choose another name.'.fill({'name': name}));
     }
 
+    // The map swells with the notes from the first frame: they are read before it is drawn.
+    if (_reading case final reading?) _notes ??= await reading;
     final start = from ?? span.start, end = to ?? span.end;
     final frames = format.frameCount(end - start);
     final fadeOut = _fadeOut(start, end);
@@ -712,13 +778,18 @@ class VideoExport {
         final ui.Image image;
         try {
           await _scene.ready(start + format.timeOf(i), frameSize, holder: hold);
-          image = _scene.renderFrame(format.width, format.height,
-              time: start + format.timeOf(i),
-              curation: _curation,
-              devicePixelRatio: format.devicePixelRatio,
-              end: span.end,
-              paper: format.paperColor,
-              ink: format.paper.ink);
+          final recorder = ui.PictureRecorder();
+          final canvas = ui.Canvas(recorder)
+            ..scale(format.devicePixelRatio)
+            ..clipRect(ui.Offset.zero & frameSize);
+          _paintFrame(canvas, frameSize,
+              time: start + format.timeOf(i), devicePixelRatio: format.devicePixelRatio, paper: format.paperColor, ink: format.paper.ink);
+          final picture = recorder.endRecording();
+          try {
+            image = picture.toImageSync(format.width, format.height);
+          } finally {
+            picture.dispose();
+          }
         } finally {
           pdf?.release(hold);
         }
@@ -805,6 +876,7 @@ class VideoExport {
     cancel();
     _scene.dispose();
     _curation.dispose();
+    _mapTime.dispose();
     _releaseImages();
   }
 

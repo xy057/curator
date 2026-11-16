@@ -68,6 +68,7 @@ class EditState {
     this.spacers = const [],
     this.gaps = const [],
     this.playerMap,
+    this.automation,
     this.midiLook = const MidiLook(),
   });
 
@@ -192,6 +193,10 @@ class EditState {
   /// Where the players sit, and what each plays (View ▸ Show Player Map); null: none made yet.
   final PlayerMap? playerMap;
 
+  /// What changes over the performance (the Video tab's lanes: the view a frame shows); null:
+  /// nothing does.
+  final Automation? automation;
+
   /// The font captions are drawn in (a text font family); null: the app's (Settings).
   final String? captionFont;
 
@@ -282,7 +287,8 @@ class EditState {
       dynamicsBetween == other.dynamicsBetween &&
       listEquals(spacers, other.spacers) &&
       listEquals(gaps, other.gaps) &&
-      playerMap == other.playerMap;
+      playerMap == other.playerMap &&
+      automation == other.automation;
 
   @override
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
@@ -332,6 +338,7 @@ class EditState {
     List<VerticalSpacer>? spacers,
     List<HorizontalSpacer>? gaps,
     Object? playerMap = _kept,
+    Object? automation = _kept,
     MidiLook? midiLook,
   }) =>
       EditState(
@@ -375,6 +382,7 @@ class EditState {
         spacers: spacers ?? this.spacers,
         gaps: gaps ?? this.gaps,
         playerMap: identical(playerMap, _kept) ? this.playerMap : playerMap as PlayerMap?,
+        automation: identical(automation, _kept) ? this.automation : automation as Automation?,
         midiLook: midiLook ?? this.midiLook,
       );
 

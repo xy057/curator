@@ -797,7 +797,7 @@ msgstr "Cuenta atrás"
 msgid "Crop"
 msgstr "Recortar"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/video_panel.dart
 msgid "Crossfade"
 msgstr "Fundido cruzado"
 
@@ -1780,7 +1780,7 @@ msgstr "Incluir marcas de ensayo en los números de compás"
 msgid "Remove"
 msgstr "Quitar"
 
-#: lib/instruments_toolbar.dart
+#: lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "Remove (Delete)"
 msgstr "Quitar (Suprimir)"
 
@@ -1957,7 +1957,7 @@ msgstr "Guardar…"
 msgid "Saving…"
 msgstr "Guardando…"
 
-#: lib/editor_toolbar.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "Partitura"
 
@@ -2801,7 +2801,7 @@ msgstr "{n} minutos"
 msgid "{n} regions"
 msgstr "{n} regiones"
 
-#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "{n} s"
 msgstr "{n} s"
 
@@ -3909,7 +3909,7 @@ msgstr "Aún no se ha comprobado."
 msgid "Run Exam"
 msgstr "Realizar examen"
 
-#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart lib/video_panel.dart
 msgid "{n}%"
 msgstr "{n}%"
 
@@ -5190,11 +5190,11 @@ msgstr ""
 msgid "Show Player Map"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart
+#: lib/player_map_view.dart lib/video_panel.dart
 msgid "No player map"
 msgstr ""
 
@@ -5506,3 +5506,69 @@ msgstr "Nuevo proyecto"
 #: lib/main.dart
 msgid "Couldn’t Create Project"
 msgstr "No se ha podido crear el proyecto"
+
+#: lib/video_panel.dart
+msgid "Side by Side"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Inset"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Below"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Above"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Bottom Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Bottom Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Top Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Top Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "View to draw"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Where the map goes"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map size"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Add View"
+msgstr ""
+
+#: lib/video_panel.dart
+msgctxt "transition"
+msgid "Cut"
+msgstr ""
+
+#: lib/video_panel.dart
+msgctxt "video"
+msgid "View"
+msgstr ""

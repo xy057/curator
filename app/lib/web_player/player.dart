@@ -9,6 +9,7 @@ import 'package:score_engine/score_engine.dart';
 import '../app_colors.dart' show ScorePaper;
 import '../l10n/l10n.dart';
 import '../player_map_paint.dart';
+import '../scene_views.dart';
 import '../video_frame.dart';
 import '../web_page.dart';
 import 'page_audio.dart';
@@ -37,9 +38,32 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   late bool _captions = _page.captions.value, _barNumbers = _page.barNumbers.value;
   late Map<String, PartShown> _shown = _page.instruments.value;
 
-  /// The project's player map (null: none); whether it shows in the score's place.
+  /// The project's player map (null: none).
   late final PlayerMap? _map = _loaded.edits.playerMap;
-  late bool _mapShown = _map != null && _page.playerMap.value;
+
+  /// What the project's Video tab shows when ([SceneView]): the page follows it, as a video does.
+  late final StepLane<SceneView> _views = (_loaded.edits.automation ?? Automation.none).steps(SceneViews.target);
+
+  /// Whether there are views to follow: a map, and a stretch showing something else than the score.
+  late final bool _follows = _map != null && !_views.isEmpty;
+
+  /// What shows: the views as the project has them, the score throughout, or the map in its place.
+  late _Shows _shows = _map != null && _page.playerMap.value
+      ? _Shows.map
+      : _follows
+          ? _Shows.views
+          : _Shows.score;
+
+  /// The views in the recording heard's time.
+  TimedSteps<SceneView> get _timed {
+    final tl = _scene.timeline;
+    if (_timedViews case (final kept, final timed) when identical(kept, tl)) return timed;
+    final timed = _views.inTime(tl);
+    _timedViews = (tl, timed);
+    return timed;
+  }
+
+  (ScoreTimeline, TimedSteps<SceneView>)? _timedViews;
 
   late final CuratedScene _scene = CuratedScene(_loaded.score, style: RenderStyle(staffSpace: _page.staffSpace));
   late Curation _curation = _loaded.curation(_shown);
@@ -175,7 +199,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                   _playPause();
                 },
                 child: Stack(children: [
-                  Positioned.fill(child: _mapShown ? _playerMap(context) : _score(paper, ink)),
+                  Positioned.fill(child: _shows == _Shows.map ? _playerMap(context) : _score(paper, ink)),
                   Positioned(left: 0, right: 0, bottom: 0, child: _controls(context, choices.isNotEmpty)),
                 ]),
               ),
@@ -195,7 +219,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
             child: RepaintBoundary(
               child: CustomPaint(
                 size: Size.infinite,
-                painter: _ScorePainter(this, frame.scale, dpr, paper, ink),
+                painter: _ScorePainter(this, frame.scale, dpr, paper, ink, Directionality.of(context)),
               ),
             ),
           ),
@@ -257,15 +281,16 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
             if (_map != null && _page.playerMap.open)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: SegmentedButton<bool>(
+                child: SegmentedButton<_Shows>(
                   showSelectedIcon: false,
                   style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   segments: [
-                    ButtonSegment(value: false, label: Text('Score'.tr)),
-                    ButtonSegment(value: true, label: Text('Player Map'.tr)),
+                    if (_follows) ButtonSegment(value: _Shows.views, label: Text('Auto'.tr)),
+                    ButtonSegment(value: _Shows.score, label: Text('Score'.tr)),
+                    ButtonSegment(value: _Shows.map, label: Text('Player Map'.tr)),
                   ],
-                  selected: {_mapShown},
-                  onSelectionChanged: (s) => setState(() => _mapShown = s.single),
+                  selected: {_shows},
+                  onSelectionChanged: (s) => setState(() => _shows = s.single),
                 ),
               ),
             if (hasChoices)
@@ -393,13 +418,16 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   }
 }
 
+/// What a page shows: the project's views ([SceneView]) as they come, the score, or the map.
+enum _Shows { views, score, map }
+
 class _Skip extends Intent {
   const _Skip(this.seconds);
   final double seconds;
 }
 
 class _ScorePainter extends CustomPainter {
-  _ScorePainter(this.state, this.scale, this.devicePixelRatio, this.paper, this.ink)
+  _ScorePainter(this.state, this.scale, this.devicePixelRatio, this.paper, this.ink, this.textDirection)
       // A PDF score's systems arrive as they are fetched: drawn again then.
       : super(repaint: Listenable.merge([state._time, ?state._loaded.score.pdf]));
   final _PagePlayerState state;
@@ -408,21 +436,29 @@ class _ScorePainter extends CustomPainter {
   final double scale;
   final double devicePixelRatio;
   final Color paper, ink;
+  final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    // As the editor's preview: laid out at the frame's layout size, scaled to fit.
+    // As the editor's preview: laid out at the frame's layout size, scaled to fit, showing the
+    // views as the project has them (the score throughout, unless the viewer asks for them).
     canvas
       ..clipRect(Offset.zero & size)
       ..scale(scale);
-    state._scene.paint(canvas, size / scale,
-        time: state._time.value,
-        curation: state._curation,
-        devicePixelRatio: devicePixelRatio * scale,
-        end: state._heard.end,
-        paper: paper,
-        ink: ink);
+    final s = state, time = s._time.value, end = s._heard.end, map = s._map;
+    final views = s._shows == _Shows.views;
+    paintViews(
+      canvas,
+      size / scale,
+      views ? s._timed.at(time) : (from: SceneView.score, to: SceneView.score, mix: 0.0),
+      score: (canvas, layout) =>
+          s._scene.paint(canvas, layout, time: time, curation: s._curation, devicePixelRatio: devicePixelRatio * scale, end: end, paper: paper, ink: ink),
+      map: !views || map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: s._mapPulses, time: s._time, textDirection: textDirection).paintAt(canvas, size, time),
+      paper: paper,
+      ink: ink,
+      fade: s._scene.endFadeAt(time, end),
+    );
   }
 
   @override

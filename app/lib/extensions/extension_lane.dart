@@ -79,7 +79,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
   List<MarkerSpan> get _spans => c.extensions.spans(runtime, widget.node, end: math.max(tl.endSeconds, c.playback.duration));
 
   /// The tool a press uses: the Instruments tab's, ⌥ swapping as in the lanes; the Audio tab selects.
-  LaneTool get _tool => (c.tab == BottomTab.instruments ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
+  LaneTool get _tool => (c.tab != BottomTab.audio ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
 
   /// The item sounding under [x] (an index into the items).
   int? _hit(double x) {

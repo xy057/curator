@@ -138,9 +138,9 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
             ellipsis: '…',
           )..layout(maxWidth: maxWidth));
 
-  /// The tool a drag uses: the Instruments tab's, ⌥ swapping as in the lanes; in the Audio tab
-  /// it selects, unless it takes the tools there ([SpanLane.tools]).
-  LaneTool get _tool => (c.tab == BottomTab.instruments || widget.tools ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
+  /// The tool a drag uses: the Instruments (and Video) tab's, ⌥ swapping as in the lanes; in the
+  /// Audio tab it selects, unless it takes the tools there ([SpanLane.tools]).
+  LaneTool get _tool => (c.tab != BottomTab.audio || widget.tools ? c.lanes.tool : LaneTool.select).withAlt(HardwareKeyboard.instance.isAltPressed);
 
   double get _total => tl.measureStarts.last;
 

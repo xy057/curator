@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -6,7 +8,7 @@ void main() {
   final starts = [for (var i = 0; i <= 16; i++) i * 4.0];
   SyncMap map() => SyncMap(measureStarts: starts, defaultTempo: 120);
 
-  test('tapping, recordings carried and spliced, markers over a repeat, tempo maps and back, a DAW\'s tempo map', () {
+  test('tapping, recordings carried and spliced, markers over a repeat, automation in time, tempo maps and back, a DAW\'s tempo map', () {
     // The first tap is the start; later ones snap to the bar the tempo so far predicts, and re-time the one before.
     final m = map();
     final taps = TapPass(m);
@@ -30,6 +32,38 @@ void main() {
     const cues = [(start: 0.0, end: 2.0, name: 'A'), (start: 2.0, end: 6.0, name: 'B = 2')];
     expect(chapterTimestamps(cues), '0:00 A\n0:02 B = 2\n');
     expect(chapterMetadata(cues), contains('[CHAPTER]\nTIMEBASE=1/1000\nSTART=2000\nEND=6000\ntitle=B \\= 2\n'));
+
+    // Automation: the View lane painted, in time over the repeat (each stretch once a pass, eased
+    // changes centred on its edges, a cut, nothing changing at the start), saved and read; a curve; where views go.
+    const inset = SceneView(ViewKind.inset, corner: MapCorner.topLeft);
+    var views = StepLane(SceneViews.target, const [AutoStretch(8, 24, SceneView.map), AutoStretch(32, 40, inset, fade: 0)]);
+    final painted = views.painted(const AutoStretch(12, 20, inset));
+    expect(painted.stretches.map((s) => (s.start, s.end, s.value.kind)),
+        [(8, 12, ViewKind.map), (12, 20, ViewKind.inset), (20, 24, ViewKind.map), (32, 40, ViewKind.inset)]);
+    expect(painted.indexOf(const AutoStretch(12, 20, inset)), 1);
+    final timed = views.inTime(twice);
+    expect(timed.changes.map((c) => (c.seconds, c.to.kind)),
+        [(4, ViewKind.map), (8, ViewKind.score), (12, ViewKind.map), (20, ViewKind.score), (24, ViewKind.inset), (28, ViewKind.score)]);
+    expect([timed.at(3.4).mix, timed.at(4).mix, timed.at(6).mix, timed.at(24).mix],
+        [0, closeTo(0.5, 1e-9), 0, 0]);
+    expect([timed.valueAt(6).kind, timed.valueAt(10).kind, timed.valueAt(24), timed.valueAt(30).kind], [ViewKind.map, ViewKind.score, inset, ViewKind.score]);
+    expect(StepLane(SceneViews.target, const [AutoStretch(0, 4, SceneView.map)]).inTime(once).changes.map((c) => c.seconds), [5],
+        reason: 'from the start, so shown from before it');
+    expect(StepLane(SceneViews.target, const [AutoStretch(16, 17, SceneView.map, fade: 2)]).inTime(once).changes.map((c) => c.fade), [1, 1],
+        reason: 'no longer than the time between changes');
+    views = views.reshaped(0, views.stretches[0].withValue(const SceneView(ViewKind.split, side: MapSide.bottom, size: 0.3)));
+    final saved = Automation.none.withSteps(views).toJson()..['later'] = {'kind': 'unknown', 'kept': true};
+    final read = Automation.fromJson(saved, 'lanes', targets: automationTargets);
+    expect(read.steps(SceneViews.target), views);
+    expect(read.toJson(), saved, reason: 'a lane of a later Curator kept as it came');
+    expect(() => Automation.fromJson({'view': {'kind': 'steps', 'stretches': [{'from': 4, 'to': 2, 'value': {'kind': 'map'}}]}}, 'lanes', targets: automationTargets),
+        throwsFormatException);
+    final curve = CurveLane(const _Level(), const [AutoPoint(8, 3), AutoPoint(0, 1, shape: CurveShape.smooth)]);
+    expect([curve.valueAt(-1), curve.valueAt(2), curve.valueAt(20), CurveLane(const _Level()).valueAt(5), curve.valueInTime(once, 3)], [1, 1.3125, 3, 0.5, 1.3125]);
+    const frame = ui.Size(960, 540);
+    expect(SceneView(ViewKind.split, size: 0.4).place(frame), (score: const ui.Rect.fromLTWH(0, 0, 576, 540), scoreLayout: const ui.Size(576, 540), map: const ui.Rect.fromLTWH(576, 0, 384, 540), inset: false));
+    final below = const SceneView(ViewKind.split, side: MapSide.bottom, size: 0.4).place(frame);
+    expect((below.score, below.scoreLayout.width, below.map), (const ui.Rect.fromLTWH(0, 0, 960, 324), 1600, const ui.Rect.fromLTWH(0, 324, 960, 216)));
 
     // Recordings spliced by their lanes: each at its own tempo where its region is, crossfaded, silent between.
     final quick = map()..load(const [SyncAnchor(0, 0), SyncAnchor(64, 32)]);
@@ -83,4 +117,18 @@ void main() {
     expect(() => DawDocument.fromJson({'id': 'x', 'contexts': [{'tempo': [[1, 1], [0, 2]]}]}), throwsFormatException);
     expect(dawTransportOf({'playing': true, 'seconds': 2.5, 'quarters': -1, 'tempo': 0}), (playing: true, seconds: 2.5, quarters: null, tempo: 0.0));
   });
+}
+
+/// A number automated along a curve, for the test: 0.5 where nothing says.
+final class _Level extends AutomationTarget<double> {
+  const _Level() : super('level');
+
+  @override
+  double get base => 0.5;
+
+  @override
+  Object? encode(double value) => value;
+
+  @override
+  double decode(Object? json, String where) => json is num ? json.toDouble() : throw FormatException('$where is not a number.');
 }

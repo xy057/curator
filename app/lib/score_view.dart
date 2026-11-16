@@ -13,7 +13,9 @@ import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
 import 'lanes_common.dart' show SideSwipe, isCommandPressed, isZoomModifierPressed;
+import 'player_map_paint.dart';
 import 'plugins/plugins.dart';
+import 'scene_views.dart';
 import 'spacer_dialogs.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
@@ -27,7 +29,10 @@ part 'score_view/spacer_handles.dart';
 typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double quarter, double top});
 
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
-/// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport).
+/// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport). It shows
+/// what the Video tab's View lane has at the time ([paintViews]): the score, the player map,
+/// both, or a change between them; images and spacers are handled while the score is in its
+/// place ([AutomationEditing.scoreInPlace]).
 ///
 /// It fills the view, or, given an [aspectRatio], shows the video's frame: that aspect ratio,
 /// laid out like the video and scaled to fit ([VideoFrame]), so resizing the window never
@@ -256,10 +261,13 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
           gaps: c.spacers.horizontal,
           reengraving: c.isReengraving,
         ),
-        builder: (context, _) => _view(context),
+        builder: (context, _) => ValueListenableBuilder(
+          valueListenable: c.automation.scoreInPlace,
+          builder: (context, inPlace, _) => _view(context, inPlace: inPlace),
+        ),
       );
 
-  Widget _view(BuildContext context) {
+  Widget _view(BuildContext context, {required bool inPlace}) {
     return LayoutBuilder(builder: (context, constraints) {
       final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
       final aspectRatio = widget.aspectRatio;
@@ -268,7 +276,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
           : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
-      final panning = c.images.enabled || _drag != null || _spacerDrag != null;
+      final panning = inPlace && c.images.enabled || _drag != null || _spacerDrag != null;
       return Stack(children: [
         Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
         Positioned.fromRect(
@@ -278,17 +286,17 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
             decoration: BoxDecoration(border: aspectRatio == null ? null : Border.all(color: colors.line)),
             child: RepaintBoundary(
               child: CustomPaint(
-                painter: _ScorePainter(c, devicePixelRatio, colors, scale: frame.scale),
+                painter: _ScorePainter(c, devicePixelRatio, colors, scale: frame.scale, textDirection: Directionality.of(context)),
                 size: Size.infinite,
               ),
             ),
           ),
         ),
-        if (c.spacers.enabled && (c.spacers.vertical.isNotEmpty || c.spacers.horizontal.isNotEmpty))
+        if (inPlace && c.spacers.enabled && (c.spacers.vertical.isNotEmpty || c.spacers.horizontal.isNotEmpty))
           Positioned.fill(
             child: IgnorePointer(child: CustomPaint(painter: _SpacerOverlay(this, frame, colors))),
           ),
-        if (c.images.enabled && c.images.selected != null)
+        if (inPlace && c.images.enabled && c.images.selected != null)
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(painter: _PatchOverlay(c, frame, colors, devicePixelRatio: devicePixelRatio)),
@@ -321,9 +329,9 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
                   behavior: HitTestBehavior.translucent,
                   supportedDevices: kDragDevices, // a swipe over an image or a spacer doesn't move it
                   dragStartBehavior: DragStartBehavior.down, // a drag takes what was pressed, not what the slop reached
-                  onDoubleTapDown: (d) => _onDoubleTap(d, frame),
-                  onDoubleTap: () {},
-                  onSecondaryTapUp: (d) => _openMenu(d, frame),
+                  onDoubleTapDown: inPlace ? (d) => _onDoubleTap(d, frame) : null,
+                  onDoubleTap: inPlace ? () {} : null,
+                  onSecondaryTapUp: inPlace ? (d) => _openMenu(d, frame) : null,
                   // Kept while a drag lasts: Attach Image turned off under it, its end still comes.
                   onPanStart: panning
                       ? (d) {
@@ -378,7 +386,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
 }
 
 class _ScorePainter extends CustomPainter {
-  _ScorePainter(this.controller, this.devicePixelRatio, this.colors, {required this.scale})
+  _ScorePainter(this.controller, this.devicePixelRatio, this.colors, {required this.scale, required this.textDirection})
       // A PDF score's staves arrive a system at a time: each is drawn as it comes.
       : super(repaint: Listenable.merge([controller.playback.repaint, ?controller.score?.pdf]));
   final EditorController controller;
@@ -387,6 +395,7 @@ class _ScorePainter extends CustomPainter {
 
   /// View points a layout point ([VideoFrame.scale]): 1 when filling the view.
   final double scale;
+  final TextDirection textDirection;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -397,18 +406,35 @@ class _ScorePainter extends CustomPainter {
     canvas
       ..clipRect(Offset.zero & size)
       ..scale(scale);
-    scene.paint(
+    final time = controller.playback.time.value, end = controller.playback.duration;
+    final map = controller.playerMap.map;
+    final mix = controller.automation.viewsTimed.at(time);
+    paintViews(
       canvas,
       size / scale,
-      time: controller.playback.time.value,
-      curation: curation,
-      devicePixelRatio: devicePixelRatio * scale,
-      end: controller.playback.duration,
+      mix,
+      score: (canvas, layout) => scene.paint(
+        canvas,
+        layout,
+        time: time,
+        curation: curation,
+        // The frame's, even where a split draws it smaller: the renderer keeps its tiles for one
+        // pixel ratio, and a change between views would draw them again every frame.
+        devicePixelRatio: devicePixelRatio * scale,
+        end: end,
+        paper: colors.scorePaper,
+        ink: colors.scoreInk,
+      ),
+      map: map == null || !(mix.from.showsMap || mix.to.showsMap)
+          ? null
+          : (canvas, size) => PlayerMapPainter(map: map, pulses: controller.playerMap.pulses, time: controller.playback.time, textDirection: textDirection)
+              .paintAt(canvas, size, time),
       paper: colors.scorePaper,
       ink: colors.scoreInk,
+      fade: scene.endFadeAt(time, end),
     );
     // A PDF score's pages read a screenful ahead (after what is shown), so playing on finds them ready.
-    scene.buffer(controller.playback.time.value, size / scale);
+    scene.buffer(time, size / scale);
   }
 
   @override
@@ -416,6 +442,7 @@ class _ScorePainter extends CustomPainter {
       old.controller != controller ||
       old.devicePixelRatio != devicePixelRatio ||
       old.scale != scale ||
+      old.textDirection != textDirection ||
       old.colors.scorePaper != colors.scorePaper ||
       old.colors.scoreInk != colors.scoreInk;
 }

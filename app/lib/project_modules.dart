@@ -66,6 +66,7 @@ abstract final class ProjectModules {
   static const tonality = _Tonality();
   static const spacers = _Spacers();
   static const playerMap = _PlayerMap();
+  static const automation = _Automation();
   static const packages = _Packages();
   static const extensionData = _ExtensionData();
   static const view = _View();
@@ -76,7 +77,7 @@ abstract final class ProjectModules {
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
     pdf, lilypond, midi, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, stems, images, captions, chapters, //
-    tonality, spacers, packages, extensionData, playerMap, view,
+    tonality, spacers, packages, extensionData, playerMap, automation, view,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -880,6 +881,30 @@ final class _PlayerMap extends ProjectModule {
     if (r.isAbsent('map')) return state;
     try {
       return state.copyWith(edits: state.edits.copyWith(playerMap: PlayerMap.fromJson(r.map('map'), '${r.where}.map')));
+    } on FormatException catch (e) {
+      throw _damaged(e.message);
+    }
+  }
+}
+
+/// What changes over the performance ([Automation.toJson]: the Video tab's lanes, by target);
+/// empty while nothing does. Optional: a Curator that can't read it opens the project without
+/// it (a video of it shows the score throughout), and keeps it. A lane of a target this Curator
+/// doesn't know is kept as it is.
+final class _Automation extends ProjectModule {
+  const _Automation() : super('automation', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {
+        if (state.edits.automation case final a? when !a.isEmpty) 'lanes': a.toJson(),
+      };
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    if (r.isAbsent('lanes')) return state;
+    try {
+      final automation = Automation.fromJson(r.map('lanes'), '${r.where}.lanes', targets: automationTargets);
+      return state.copyWith(edits: state.edits.copyWith(automation: automation.isEmpty ? null : automation));
     } on FormatException catch (e) {
       throw _damaged(e.message);
     }

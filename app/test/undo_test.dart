@@ -49,8 +49,16 @@ void main() {
       c.setTransition(0.8); // the staff transition
       c.setStaffSpace(6); // the view: not an Undo step
       c.playerMap.set(c.playerMap.smart(SeatingPreset.ensemble)); // the player map
+      c.tab = BottomTab.video;
+      c.automation.draw(0, 8); // a view: the map, selected
+      expect(c.automation.selected, 0);
+      c.commands.delete(); // and removed
 
       c.tab = BottomTab.audio; // the tab doesn't decide what Undo undoes
+      c.undo();
+      expect(c.automation.views.stretches.single.value, SceneView.map);
+      c.undo();
+      expect(c.automation.views.isEmpty, isTrue);
       c.undo();
       expect(c.playerMap.map, isNull);
       c.undo();
@@ -66,9 +74,10 @@ void main() {
       expect(c.canUndo, isFalse);
       expect(c.staffSpace, 6);
 
-      for (var i = 0; i < 6; i++) {
+      for (var i = 0; i < 8; i++) {
         c.redo();
       }
+      expect(c.automation.views.isEmpty, isTrue);
       expect(c.curation!.transition, 0.8);
       expect(c.partName(part), 'Solo Piccolo');
       expect(c.textById(vivo.id)!.current, 'Presto');
