@@ -133,6 +133,9 @@ msgstr "匯出為網頁"
 msgid "Export to Web…"
 msgstr "匯出為網頁…"
 
+msgid "Curator Link Settings…"
+msgstr "Curator Link 設定…"
+
 msgid "Frame"
 msgstr "畫面"
 
@@ -5338,7 +5341,7 @@ msgstr "MIDI 檢視"
 msgid "Couldn’t Import MIDI File"
 msgstr "無法匯入 MIDI 檔案"
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Follow DAW…"
 msgstr "跟隨 DAW…"
 
@@ -5406,7 +5409,7 @@ msgstr "正在取得錄音"
 msgid "This build of Curator has no Curator Link."
 msgstr "此版本的 Curator 未包含 Curator Link。"
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Connected: {daws}"
 msgstr "已連線：{daws}"
 
@@ -5426,7 +5429,7 @@ msgstr "重新安裝"
 msgid "Update"
 msgstr "更新"
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Capture Stems…"
 msgstr "擷取分軌…"
 
@@ -5475,9 +5478,17 @@ msgstr "正在擷取分軌"
 msgid "Uninstall"
 msgstr "解除安裝"
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "OS not supported"
 msgstr "不支援此系統"
 
 msgid "Curator Link is not available for this operating system."
 msgstr "Curator Link 不適用於此作業系統。"
+
+#: lib/main.dart
+msgid "Not Listening"
+msgstr "未監聽"
+
+#: lib/main.dart
+msgid "Not Connected"
+msgstr "未連線"

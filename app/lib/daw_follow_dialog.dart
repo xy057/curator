@@ -11,7 +11,7 @@ import 'l10n/l10n.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
-/// The Audio tab's Sync menu ▸ Follow DAW…: a recording in a DAW where Curator Link is (see
+/// File ▸ Curator Link ▸ Follow DAW…: a recording in a DAW where Curator Link is (see
 /// docs/daw-link.md), the DAW's bar the score's bar 1 is at, whether to take the recording itself
 /// (written out by the plug-in, then loaded as the focus's) and whether the playhead follows the
 /// DAW's; then the sync follows the DAW's tempo there ([DawEditing.follow]).

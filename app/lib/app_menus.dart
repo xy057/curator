@@ -25,6 +25,18 @@ typedef MidiMenu = ({
   VoidCallback? onFileTempo,
 });
 
+/// File ▸ Curator Link as it is now (docs/daw-link.md): where it stands, greyed out ([state]:
+/// connected to which DAWs, not connected, not listening, or not on this system), Follow DAW…
+/// (ticked while [following]: choosing it then stops), Capture Stems… and its Settings…; each
+/// null (greyed out) when it can't.
+typedef CuratorLinkMenu = ({
+  String state,
+  bool following,
+  VoidCallback? onFollow,
+  VoidCallback? onCaptureStems,
+  VoidCallback? onSettings,
+});
+
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
 class AppMenus extends StatelessWidget {
@@ -67,6 +79,7 @@ class AppMenus extends StatelessWidget {
     this.tabBarShown = true,
     this.onShowTabBar,
     this.midi,
+    this.curatorLink,
     this.plugins,
     this.free = true,
     this.typing = false,
@@ -153,6 +166,9 @@ class AppMenus extends StatelessWidget {
   /// such menu, while another project or none shows.
   final MidiMenu? midi;
 
+  /// File ▸ Curator Link; null: no such menu (a test).
+  final CuratorLinkMenu? curatorLink;
+
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
   /// ⌘ on macOS, Ctrl elsewhere.
@@ -227,6 +243,20 @@ class AppMenus extends StatelessWidget {
             ?_own('exportVideo', 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
             ?_own('exportWeb', 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
           ]),
+          if (curatorLink case final link?)
+            PlatformMenuItemGroup(members: [
+              PlatformMenu(label: 'Curator Link', menus: [
+                PlatformMenuItem(label: link.state), // no handler: greyed out, a line saying how it is
+                PlatformMenuItemGroup(members: [
+                  ?_own('followDaw', _ticked('Follow DAW…'.tr, link.following),
+                      shortcut: _keyOf(KeyCommand.followDaw), onSelected: link.onFollow),
+                  ?_own('captureStems', 'Capture Stems…'.tr, shortcut: _keyOf(KeyCommand.captureStems), onSelected: link.onCaptureStems),
+                ]),
+                PlatformMenuItemGroup(members: [
+                  ?_own('curatorLinkSettings', 'Settings…'.tr, shortcut: _keyOf(KeyCommand.curatorLinkSettings), onSelected: link.onSettings),
+                ]),
+              ]),
+            ]),
         ]),
         _Menu('Edit', label: 'Edit'.tr, menus: [
           PlatformMenuItemGroup(members: [

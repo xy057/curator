@@ -22,6 +22,7 @@ import 'app_settings.dart';
 import 'audio_panel.dart';
 import 'bottom_panel.dart';
 import 'controller_settings.dart';
+import 'daw_follow_dialog.dart';
 import 'daw_link.dart';
 import 'dialog_kit.dart';
 import 'edit_dialogs.dart';
@@ -54,6 +55,7 @@ import 'score_replacement.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
+import 'stems_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'video_export.dart';
@@ -549,8 +551,17 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
 
   static PluginProject _asPlugins(_OpenProject project) => (name: project.label.value.name, path: project.label.value.path, edited: project.label.value.edited);
 
-  void _settings({String? page}) =>
-      showSettingsDialog(context, settings, controller: _showing?.page?.controller, updater: updater, page: page);
+  void _settings({String? page, String? search}) =>
+      showSettingsDialog(context, settings, controller: _showing?.page?.controller, updater: updater, page: page, search: search);
+
+  /// File ▸ Curator Link's first line: the DAWs connected, else why none is.
+  String get _curatorLinkState {
+    if (!CuratorLinkPlugIns.supported) return 'OS not supported'.tr;
+    final link = widget.dawLink;
+    if (link == null || !link.listening) return 'Not Listening'.tr;
+    final hosts = {for (final s in link.sessions) if (s.host.isNotEmpty) s.host};
+    return hosts.isEmpty ? 'Not Connected'.tr : 'Connected: {daws}'.fill({'daws': hosts.join(', ')});
+  }
 
   // MARK: Tabs
 
@@ -703,7 +714,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_recent, _menus, _typing, plugins]),
+      listenable: Listenable.merge([_recent, _menus, _typing, plugins, ?widget.dawLink]),
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
@@ -736,6 +747,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'saveAs': page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
           'exportVideo': open && page._canExport.value ? page._exportVideo : null,
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
+          'followDaw': open && free && (page._followsDaw.value || CuratorLinkPlugIns.supported) ? page._followDaw : null,
+          'captureStems': open && free && page.controller.daw.document != null ? page._captureStems : null,
+          'curatorLinkSettings': free ? () => _settings(search: 'Curator Link') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
           'redo': edit != null && edit.redo ? page!.controller.redo : null,
           'cut': edit != null && edit.copy ? commands!.cut : null,
@@ -803,6 +817,13 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
           onShowTabBar: (on) => settings.tabBar = on,
+          curatorLink: (
+            state: _curatorLinkState,
+            following: open && page._followsDaw.value,
+            onFollow: does['followDaw'],
+            onCaptureStems: does['captureStems'],
+            onSettings: does['curatorLinkSettings'],
+          ),
           midi: midi == null
               ? null
               : (
@@ -1034,7 +1055,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// shows; null for any other project (and no such menu).
   final _midi = ValueNotifier<({MidiLook look, bool fileTempo})?>(null);
 
-  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi]);
+  /// Whether a DAW is followed (File ▸ Curator Link ▸ Follow DAW…, ticked).
+  final _followsDaw = ValueNotifier(false);
+
+  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi, _followsDaw]);
 
   void _settingsChanged() {
     controller.takeSettings(settings);
@@ -1098,6 +1122,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _hasScore.value = open;
     _canExport.value = open && !controller.isReengraving;
     _midi.value = controller.isMidi ? (look: controller.midiLook, fileTempo: controller.followsFileTempo) : null;
+    _followsDaw.value = controller.daw.following != null;
     _edit.value = (
       undo: controller.canUndo,
       redo: controller.canRedo,
@@ -1142,6 +1167,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _canExport.dispose();
     _isSample.dispose();
     _midi.dispose();
+    _followsDaw.dispose();
     _edit.dispose();
     _shown.dispose();
     _keys.dispose();
@@ -1643,6 +1669,18 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _exportWeb() {
     if (controller.score == null || controller.isReengraving) return;
     showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
+  }
+
+  /// File ▸ Curator Link ▸ Follow DAW…: a recording in a DAW to follow; while one is, stops.
+  void _followDaw() {
+    if (controller.score == null) return;
+    controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
+  }
+
+  /// File ▸ Curator Link ▸ Capture Stems…: the DAW followed's tracks, kept as stems.
+  void _captureStems() {
+    if (controller.daw.document == null) return;
+    showStemCaptureDialog(context, controller);
   }
 
   // MARK: View
