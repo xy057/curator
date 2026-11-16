@@ -797,7 +797,7 @@ msgstr "カウントダウン"
 msgid "Crop"
 msgstr "切り抜き"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/video_panel.dart
 msgid "Crossfade"
 msgstr "クロスフェード"
 
@@ -1780,7 +1780,7 @@ msgstr "小節番号の行にリハーサルマーク"
 msgid "Remove"
 msgstr "削除"
 
-#: lib/instruments_toolbar.dart
+#: lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "Remove (Delete)"
 msgstr "削除（Delete）"
 
@@ -1957,7 +1957,7 @@ msgstr "保存…"
 msgid "Saving…"
 msgstr "保存中…"
 
-#: lib/editor_toolbar.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "楽譜"
 
@@ -2801,7 +2801,7 @@ msgstr "{n} 分"
 msgid "{n} regions"
 msgstr "リージョン {n} 個"
 
-#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "{n} s"
 msgstr "{n} 秒"
 
@@ -3909,7 +3909,7 @@ msgstr "まだテストしていません。"
 msgid "Run Exam"
 msgstr "テストを実行"
 
-#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart lib/video_panel.dart
 msgid "{n}%"
 msgstr ""
 
@@ -5190,11 +5190,11 @@ msgstr "リハーサルマーク"
 msgid "Show Player Map"
 msgstr "奏者配置図を表示"
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "奏者配置図"
 
-#: lib/player_map_view.dart
+#: lib/player_map_view.dart lib/video_panel.dart
 msgid "No player map"
 msgstr "奏者配置図なし"
 
@@ -5506,3 +5506,69 @@ msgstr "新規プロジェクト"
 #: lib/main.dart
 msgid "Couldn’t Create Project"
 msgstr "プロジェクトを作成できませんでした"
+
+#: lib/video_panel.dart
+msgid "Side by Side"
+msgstr "並べて表示"
+
+#: lib/video_panel.dart
+msgid "Map Inset"
+msgstr "配置図をはめ込み"
+
+#: lib/video_panel.dart
+msgid "Map Right"
+msgstr "配置図を右に"
+
+#: lib/video_panel.dart
+msgid "Map Left"
+msgstr "配置図を左に"
+
+#: lib/video_panel.dart
+msgid "Map Below"
+msgstr "配置図を下に"
+
+#: lib/video_panel.dart
+msgid "Map Above"
+msgstr "配置図を上に"
+
+#: lib/video_panel.dart
+msgid "Bottom Right"
+msgstr "右下"
+
+#: lib/video_panel.dart
+msgid "Bottom Left"
+msgstr "左下"
+
+#: lib/video_panel.dart
+msgid "Top Right"
+msgstr "右上"
+
+#: lib/video_panel.dart
+msgid "Top Left"
+msgstr "左上"
+
+#: lib/video_panel.dart
+msgid "View to draw"
+msgstr "描く画面"
+
+#: lib/video_panel.dart
+msgid "Where the map goes"
+msgstr "配置図の位置"
+
+#: lib/video_panel.dart
+msgid "Map size"
+msgstr "配置図のサイズ"
+
+#: lib/video_panel.dart
+msgid "Add View"
+msgstr "画面を追加"
+
+#: lib/video_panel.dart
+msgctxt "transition"
+msgid "Cut"
+msgstr "カット"
+
+#: lib/video_panel.dart
+msgctxt "video"
+msgid "View"
+msgstr "画面"

@@ -118,6 +118,11 @@ void main() {
       final violins = seated.sections.indexWhere((s) => s.link?.part == 'P17');
       final firsts = seated.sections[violins];
       c.playerMap.set(seated.withSection(violins, firsts.withSeat(0, firsts.seats.first.linked(const PlayerLink('P19', name: 'Viola')))));
+      // The Video tab: the map from bar 3 to 9, the two side by side over bars 5–6 (the map below), cut in.
+      c.automation.draw(starts[2], starts[8]);
+      c.automation.drawing = const SceneView(ViewKind.split, side: MapSide.bottom, size: 0.3);
+      c.automation.draw(starts[4], starts[6]);
+      c.automation.setSelectedFade(0);
       final saved = c.projectState;
 
       final path = '${dir.path}/round.ccs';
@@ -132,6 +137,8 @@ void main() {
       await doc2.open(path);
       expect(jsonEncode(ProjectModules.toJson(c2.projectState)), jsonEncode(ProjectModules.toJson(saved)));
       expect(c2.partName(part), 'Solo Piccolo');
+      expect(c2.automation.views.stretches.map((s) => (s.start, s.value.kind, s.fade)),
+          [(starts[2], ViewKind.map, 0.5), (starts[4], ViewKind.split, 0.0), (starts[6], ViewKind.map, 0.5)]);
       expect(c2.curation!.lane(parts[1].id), const [Region(0, 6, hiddenStaves: [2]), Region(6, 9)]);
       expect(c2.spacingOf(parts[2].id), (above: 2.5, below: -1.0));
       expect(c2.condensed, {'cond-P2-P3', 'cond-P6-P12'});

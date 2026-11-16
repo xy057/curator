@@ -626,8 +626,10 @@ class CuratedScene {
     _frozen?.dispose(); // made for the old size, before any renderer took it
     _frozen = null;
     _plan = null;
+    _otherPlan = null;
     _fitPlan = null;
     _liftKey = Object(); // the row's rises were for the old size: never a plan's key
+    _otherLift = null;
     _disposeBarNumbers(); // laid out for the old size
     _disposeKeyNames();
   }
@@ -894,6 +896,10 @@ class CuratedScene {
   KeyColumnPlan? _keyPlan;
   Object? _planKey;
 
+  /// The plan before [_plan], for another size: a frame changing from one view to another
+  /// ([SceneView]) draws the score at two sizes at once, and neither is planned again.
+  ({SpacingPlan plan, KeyColumnPlan? keyPlan, Object key})? _otherPlan;
+
   /// [overflowing]'s plan, for a size the frames aren't painted at.
   SpacingPlan? _fitPlan;
   Object? _fitKey;
@@ -1141,7 +1147,15 @@ class CuratedScene {
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {
     final key = _planKeyFor(curation, size);
+    if (_plan != null && _planKey != key && _otherPlan?.key == key) {
+      final other = _otherPlan!;
+      _otherPlan = (plan: _plan!, keyPlan: _keyPlan, key: _planKey!);
+      _plan = other.plan;
+      _keyPlan = other.keyPlan;
+      _planKey = other.key;
+    }
     if (_plan == null || _planKey != key) {
+      if (_plan != null && _planKey != null) _otherPlan = (plan: _plan!, keyPlan: _keyPlan, key: _planKey!);
       final pointerX = renderer.pointerX(size.width);
       // Every lane's edges, worked out once for both plans.
       final edges = curation.edgesInSeconds(timeline).toList();
@@ -1183,6 +1197,15 @@ class CuratedScene {
   static double endOf(ScoreTimeline timeline, [ScoreMotion motion = ScoreMotion.standard]) =>
       timeline.endSeconds + motion.ending;
 
+  /// How far everything has faded to paper at [time] of a performance ending at [end]: 0 until
+  /// [ScoreMotion.endFade] seconds before it, 1 from it on, eased between.
+  double endFadeAt(double time, double end) {
+    final fadeOut = _motion.endFade;
+    final faded = fadeOut > 0 ? ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0) : (time >= end ? 1.0 : 0.0);
+    // Eased, so it leaves gently and settles into the paper.
+    return _motion.endCurve.inside(faded);
+  }
+
   /// Draws the frame at [time]. [paper] and [ink] override the style's colours (a dark
   /// theme); changing them costs nothing (see ScoreRenderer). Over the last
   /// [ScoreMotion.endFade] seconds before [end] everything fades to paper (on see-through
@@ -1198,10 +1221,7 @@ class CuratedScene {
     final rowShift = barNumbers ? _rowShiftAt(time, curation, size) : 0.0;
     final scrollX = scrollMap.xAt(time);
     final paperColor = paper ?? style.paper;
-    final fadeOut = _motion.endFade;
-    final faded = fadeOut > 0 ? ((time - (end - fadeOut)) / fadeOut).clamp(0.0, 1.0) : (time >= end ? 1.0 : 0.0);
-    // Eased, so it leaves gently and settles into the paper.
-    final fade = _motion.endCurve.inside(faded);
+    final fade = endFadeAt(time, end);
     // Paper painted over see-through paper would show nothing: the whole frame fades instead.
     final fadeLayer = fade > 0 && paperColor.a < 1;
     if (fadeLayer) canvas.saveLayer(ui.Offset.zero & size, ui.Paint()..color = ui.Color.fromRGBO(0, 0, 0, 1 - fade));
@@ -1553,7 +1573,16 @@ class CuratedScene {
   /// how far it was asked before. While [holdBarRow] the steps worked out are kept.
   Float64List _liftFor(Curation curation, ui.Size size, int upTo) {
     final key = _planKeyFor(curation, size);
+    if (_liftKey != key && !(holdBarRow && _liftDone > 0) && _otherLift?.key == key) {
+      // The other size's (two views drawn at once, see _otherPlan), kept as far as it got.
+      final other = _otherLift!;
+      _otherLift = (key: _liftKey, lift: _lift, done: _liftDone);
+      _liftKey = other.key;
+      _lift = other.lift;
+      _liftDone = other.done;
+    }
     if (_liftKey != key && !(holdBarRow && _liftDone > 0)) {
+      _otherLift = (key: _liftKey, lift: _lift, done: _liftDone);
       _liftKey = key;
       _lift = Float64List((endOf(timeline, _motion) / _liftStep).ceil() + 1);
       _liftDone = 0;
@@ -1568,6 +1597,7 @@ class CuratedScene {
 
   Object? _liftKey;
   Float64List _lift = Float64List(0);
+  ({Object? key, Float64List lift, int done})? _otherLift;
 
   /// How many of [_lift]'s steps are worked out.
   int _liftDone = 0;

@@ -1,7 +1,8 @@
 part of '../editor_controller.dart';
 
 /// What the window's commands do now (the Edit menu, the keys, the toolbars' Remove): each acts
-/// on the tab showing, the Instruments tab's regions or the Audio tab's anchors. A menu item is
+/// on the tab showing, the Instruments tab's regions, the Audio tab's anchors or the Video tab's
+/// view selected. A menu item is
 /// enabled by the same `can…` its command checks.
 class EditCommands {
   EditCommands._(this._editor);
@@ -44,6 +45,7 @@ class EditCommands {
       (_editor.images._selected != null ||
           _editor.extensions.hasSelection ||
           _editor.spacers.hasSelection ||
+          _editor.automation.hasSelection ||
           (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
 
   /// Delete: a selected image goes first, then what is selected in an extension's lane (a caption, a key area), a selected
@@ -56,6 +58,8 @@ class EditCommands {
       _editor.spacers.removeSelected();
       return;
     }
+    if (_editor.automation.hasSelection) return _editor.automation.removeSelected();
+    if (_editor._tab == BottomTab.video) return;
     if (_syncing && _editor.takeSelection != null) return _editor.removeTakeRegion();
     _syncing ? _anchors.delete() : _lanes.delete();
   }
@@ -86,6 +90,8 @@ class EditCommands {
       _anchors.moveTempo(direction, fine: fine);
     } else if (_open && _editor.extensions.nudgeSelected(direction, fine: fine)) {
       // An extension's lane took it (Tonality's key area; its lane is in both tabs).
+    } else if (_open && _editor.automation.nudgeSelected(direction, fine: fine)) {
+      // The Video tab's view selected moved.
     } else if (_curating && _lanes.selected.isNotEmpty) {
       _lanes.nudge(direction, beat: fine);
     } else {
@@ -127,6 +133,7 @@ class EditCommands {
   /// start (end) at the playhead's beat.
   void trim({required bool start}) {
     if (_open && _editor.extensions.trimSelected(start: start)) return;
+    if (_open && _editor.automation.trimSelected(start: start)) return;
     if (_curating) _lanes.trimToPlayhead(start: start);
   }
 }

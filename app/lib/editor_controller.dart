@@ -32,6 +32,7 @@ import 'l10n/l10n.dart';
 import 'media_converter.dart';
 import 'scratch_space.dart';
 
+part 'editor/automation_editing.dart';
 part 'editor/caption_look.dart';
 part 'editor/commands.dart';
 part 'editor/daw_editing.dart';
@@ -44,7 +45,7 @@ part 'editor/spacer_editing.dart';
 part 'editor/stem_editing.dart';
 part 'editor/sync_editing.dart';
 
-enum BottomTab { instruments, audio }
+enum BottomTab { instruments, audio, video }
 
 /// Where a MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]):
 /// the file it replaced, the anchors set by hand, or the score's repeats.
@@ -71,6 +72,7 @@ typedef MidiWarpsTaken = ({MidiWarpsFrom from, int count, String? file});
 class EditorController extends ChangeNotifier {
   EditorController({required TickerProvider vsync}) {
     playback = Playback._(this, vsync);
+    playback.time.addListener(automation._followTime);
   }
 
   late final Playback playback;
@@ -80,6 +82,7 @@ class EditorController extends ChangeNotifier {
   late final captions = CaptionLook._(this);
   late final spacers = SpacerEditing._(this);
   late final playerMap = PlayerMapEditing._(this);
+  late final automation = AutomationEditing._(this);
   late final extensions = ExtensionEditing._(this);
   late final commands = EditCommands._(this);
   late final daw = DawEditing._(this);
@@ -2373,10 +2376,12 @@ class EditorController extends ChangeNotifier {
         images._selected == null &&
         spacers._selected == null &&
         extensions._selection.isEmpty &&
+        automation._selected == null &&
         _takeSelected == null) {
       return;
     }
     _takeSelected = null;
+    automation._clearSelection();
     images._deselect();
     spacers._selected = null;
     extensions._selection.clear();
@@ -2483,7 +2488,9 @@ class EditorController extends ChangeNotifier {
     _committed = state;
     lanes._clear();
     anchors._deselect();
+    automation._clearSelection();
     _edited();
+    automation._followTime();
   }
 
   // MARK: Projects
@@ -2540,6 +2547,7 @@ class EditorController extends ChangeNotifier {
     _sync?.dispose();
     unawaited(audio.unload());
     editRevision.dispose();
+    automation._dispose();
     engravingFailure.dispose();
     viewport.dispose();
     super.dispose();

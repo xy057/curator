@@ -12,11 +12,13 @@ import 'instruments_toolbar.dart';
 import 'key_bindings.dart';
 import 'timeline_panel.dart';
 import 'ui_kit.dart';
+import 'video_panel.dart';
 import 'l10n/l10n.dart';
 
 /// The DAW-like panel under the preview. The switch at its top-left changes between the
-/// Instruments tab (when each staff is shown) and the Audio tab (syncing to the recording).
-/// Both share one time axis, so zoom and scroll carry over. Extensions' lanes (Tonality's,
+/// Instruments tab (when each staff is shown), the Audio tab (syncing to the recording) and the
+/// Video tab (what a frame shows when: [VideoLanes]). All share one time axis, so zoom and
+/// scroll carry over. Extensions' lanes (Tonality's,
 /// Captions', Chapters') are pinned under the ruler in both, by their order; with Attach Image
 /// on, the Spacers lane among them. Project Settings… sits at its right end.
 class BottomPanel extends StatelessWidget {
@@ -55,7 +57,7 @@ class BottomPanel extends StatelessWidget {
   Widget _panel(BuildContext context) {
     final c = controller;
     if (c.score == null || c.curation == null || c.sync == null) return const SizedBox.shrink();
-    final audio = c.tab == BottomTab.audio;
+    final up = c.tab == BottomTab.instruments; // the lanes come down from above, going to it
     final colors = context.colors;
     return ColoredBox(
       color: colors.surface,
@@ -75,9 +77,11 @@ class BottomPanel extends StatelessWidget {
                 layoutBuilder: (current, previous) =>
                     Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
                 transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-                child: audio
-                    ? AudioToolbar(key: const ValueKey('audio'), controller: c)
-                    : InstrumentsToolbar(key: const ValueKey('instruments'), controller: c),
+                child: switch (c.tab) {
+                  BottomTab.audio => AudioToolbar(key: const ValueKey('audio'), controller: c),
+                  BottomTab.video => VideoToolbar(key: const ValueKey('video'), controller: c),
+                  BottomTab.instruments => InstrumentsToolbar(key: const ValueKey('instruments'), controller: c),
+                },
               ),
             ),
             const ToolbarDivider(),
@@ -105,7 +109,7 @@ class BottomPanel extends StatelessWidget {
               controller: c,
               child: Column(children: [
                 BarRuler(controller: c),
-                // Pinned: under the ruler in both tabs, never scrolled away. Extensions' lanes go
+                // Pinned: under the ruler in every tab, never scrolled away. Extensions' lanes go
                 // by their order (Tonality's first: its band tops the score), the app's Spacers
                 // lane among them; any other under them.
                 for (final lane in c.extensions.lanes)
@@ -121,13 +125,15 @@ class BottomPanel extends StatelessWidget {
                     transitionBuilder: (child, animation) => FadeTransition(
                       opacity: animation,
                       child: SlideTransition(
-                        position: Tween(begin: Offset(0, audio ? 0.03 : -0.03), end: Offset.zero).animate(animation),
+                        position: Tween(begin: Offset(0, up ? -0.03 : 0.03), end: Offset.zero).animate(animation),
                         child: child,
                       ),
                     ),
-                    child: audio
-                        ? AudioLanes(key: const ValueKey('audio'), controller: c)
-                        : InstrumentLanes(key: const ValueKey('instruments'), controller: c),
+                    child: switch (c.tab) {
+                      BottomTab.audio => AudioLanes(key: const ValueKey('audio'), controller: c),
+                      BottomTab.video => Align(alignment: Alignment.topCenter, child: VideoLanes(key: const ValueKey('video'), controller: c)),
+                      BottomTab.instruments => InstrumentLanes(key: const ValueKey('instruments'), controller: c),
+                    },
                   ),
                 ),
               ]),
@@ -170,7 +176,7 @@ class _Width extends StatelessWidget {
       });
 }
 
-/// Instruments | Audio, as two icons with a highlight that slides between them.
+/// Instruments | Audio | Video, as three icons with a highlight that slides between them.
 class _TabSwitch extends StatelessWidget {
   const _TabSwitch({required this.value, required this.onChanged});
   final BottomTab value;
@@ -179,6 +185,7 @@ class _TabSwitch extends StatelessWidget {
   static const _tabs = [
     (BottomTab.instruments, AppIcon.lanes, 'Instruments'),
     (BottomTab.audio, AppIcon.audio, 'Audio'),
+    (BottomTab.video, AppIcon.frame, 'Video'),
   ];
 
   @override

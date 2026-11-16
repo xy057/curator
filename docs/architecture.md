@@ -51,6 +51,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `plugin/runtime.dart` | `PluginRuntime`: one plugin running over a `PluginHost` (the app): main.lua run once, the commands it added (`PluginCommand`, `PluginKey`), what it changed of the app's own (`hidden`, `titles`, `keys`, `wraps`), what it listens to (`emit`); `checkPlugin` |
 | `plugin/api.dart` | `PluginApi`: every function, event, command and setting of the plugin API with what it does and the level it came with; it only grows. `curator.has`, the plugin editor's reference and docs are made from it |
 | `extension/lua_json.dart`, `extension/markers.dart`, `extension/values.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`); a colour as Lua gives one (`luaColor`: "#rrggbb" or {r, g, b}) and a score's music as Lua takes it (`readScoreMusic`, `scoreMusicTable`: `score.music`) |
+| `automation.dart`, `scene_view.dart` | What changes over a performance (see *What changes over a performance is automation*): a lane per `AutomationTarget`, values held over stretches (`StepLane`, `AutoStretch`) or a number through points (`CurveLane`), in a performance's time (`TimedSteps`), saved as JSON (`Automation`); what a frame shows (`SceneView`: score, map, side by side, inset) and where each goes in it (`place`), the View lane's target (`SceneViews.target`) |
 | `score_band.dart`, `key_signatures.dart` | A stretch of the band along a frame's top (`ScoreBand`: what a `band` socket gives the scene); a score's key signatures at concert pitch (`concertKeySignatures`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
@@ -70,6 +71,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `editor_controller.dart` | The open document: score, curation, sync, names, texts; loading, Undo, project state |
 | `editor/playback.dart`, `editor/lane_editing.dart`, `editor/sync_editing.dart`, `editor/image_editing.dart`, `editor/spacer_editing.dart`, `editor/caption_look.dart`, `editor/extension_editing.dart`, `editor/player_map_editing.dart`, `editor/commands.dart` | Parts of the controller: the clock and transport; the Instruments tab's tools and selection; the Audio tab's tapping and anchor selection; images on the score and spacers (Attach Image); captions (Captions); extensions that are packages (`ExtensionEditing`: their runtimes, data, lanes and selection, the band they give the scene, the score's music read for them); the player map (`PlayerMapEditing`: the project's map, the instruments it may link, its pulses from the notes read on an isolate); what the Edit menu and the keys do in the tab showing (`EditCommands`) |
 | `player_map_paint.dart`, `player_map_view.dart` | The player map: drawn at a time (`PlayerMapPainter`, `MapStage`: no dart:io, so the web player draws it too); shown in the score's place (`PlayerMapPanel`, its menu `PlayerMapMenu`), `.cpm` files (`PlayerMapFiles`) and the editor (`showPlayerMapEditor`) |
+| `editor/automation_editing.dart`, `video_panel.dart`, `scene_views.dart` | The Video tab: the project's automation (`AutomationEditing`: its lanes set as edits, the View lane's stretch selected, the view Draw paints, the lane in the editor's time, whether the score is in its place), its toolbar and lanes (`VideoToolbar`, `VideoLanes`); a frame drawn as the View lane has it (`paintViews`: the preview's, a video's, a page's) |
 | `daw_link.dart`, `daw_follow_dialog.dart`, `editor/daw_editing.dart` | Curator Link (see docs/daw-link.md): Curator's end, a loopback server and the discovery file the plug-in reads (`DawLink`, started while Settings ▸ General ▸ DAW ▸ Listen for Curator Link is on; `DawSession` a DAW connected, its documents and transport; a recording or a track's stem asked for as a file, `recording`, `stem`), the plug-ins installed from the zip the app bundles (`CuratorLinkPlugIns`, Settings' Install); File ▸ Curator Link (`CuratorLinkMenu`: how it stands, Follow DAW… `showDawFollowDialog`, Capture Stems…, Settings… searching Settings for it); following a DAW while the project is open (`DawEditing`: its tempo taken again as it changes, `EditorController.followTempoMap`, one Undo step; its transport running the clock, `Playback`'s DAW clock) |
 | `editor/stem_editing.dart`, `stems_dialog.dart` | Stems (`EditState.stems`, `Stem`; the `stems` module, files in `media/stems/<id>/`): a DAW's tracks captured through Curator Link, each as the song plays it over the recording followed, kept as FLAC in time with a take, with its part (found by name) for soloing later (`StemEditing.capture`, no Undo step); File ▸ Curator Link ▸ Capture Stems… and Project Info ▸ Stems ▸ Edit… (`showStemCaptureDialog`, `showStemsDialog`) |
 | `daw_link/` | Curator Link itself, the ARA plug-in (C++: VST3 and Audio Unit, `make daw-link`): the document read after each of the DAW's edits and published (`link_document.cpp`), the line to Curator shared by every instance in the DAW (`link_client.cpp`), the regions played from the recordings read into memory, a recording written out as a WAV; `test/link_host.cpp`, the DAW in miniature that checks it before it is zipped |
@@ -114,7 +116,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording heard for Align on several isolates (`AudioTrack.notes`), converting to FLAC; `MediaFormats` lists what is accepted |
-| `video_export.dart`, `export_dialog.dart` | Video export: frames from `CuratedScene.renderFrame` piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
+| `video_export.dart`, `export_dialog.dart` | Video export: frames drawn as the View lane has them (`paintViews`) piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `video_frame.dart` | `VideoRatio`, and `VideoFrame`: where a video's frame sits in a view (the preview's, the web player's) |
 | `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
 | `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
@@ -604,7 +606,7 @@ greyed out without room): a command whose `where` is `preview`, told the place c
 Double-click the caption showing (`captions.open`) or right-click it (commands whose `where` is
 `caption`, told its index: `ExtensionEditing.menu`, `ScoreView._command`) to change it; an empty text removes it.
 While the switch is on, the Captions lane (a spans lane, `ExtensionSpanLane`, with `markup`; `lane.lua`) is pinned under the bar ruler in
-both tabs: never scrolled with the instruments, moved or unpinned (a lane without buttons shows the pin). Its
+every tab: never scrolled with the instruments, moved or unpinned (a lane without buttons shows the pin). Its
 captions are regions, edited as the instruments' are with the Instruments tab's tool (the
 Audio tab only selects): Draw drags out a stretch and asks for its text (`ui.form`; nothing is added
 until it has one), Select moves one, trims an edge, selects it for Delete
@@ -642,7 +644,7 @@ as the extension's data (`EditState.extensionData['chapters']`, `{"chapters": [[
 edit, so opening, Undo and closing take them) and saved in the `chapters` module as they always
 were (`ProjectModules.ownData`), which is optional: an older build opens the project and keeps
 them. Its `project.load` checks them as a project opens. While the switch is on, the Chapters
-lane (an `ExtensionLane` of markers, `lane.lua`) is pinned under the Captions lane in both tabs,
+lane (an `ExtensionLane` of markers, `lane.lua`) is pinned under the Captions lane in every tab,
 each chapter drawn where it sounds, with the Instruments tab's tool (the Audio tab selects):
 Select clicks one (Delete removes it), drags where it starts (never past its neighbours, one
 Undo step) and double-clicks it for its dialog (name and From, a `ui.form`; an empty name
@@ -691,7 +693,7 @@ two), as the extension's data (`EditState.extensionData['tonality']`,
 always were (`ProjectModules.ownData`), which is optional; its `project.load` checks them as a
 project opens. While the switch is on, the Tonality lane (an `ExtensionSpanLane`: the
 connector's lane of kind `spans` with `paint` on, `lane.lua`) is pinned under the bar ruler in
-both tabs, above the other pinned lanes: each area drawn where it sounds in its key's colour
+every tab, above the other pinned lanes: each area drawn where it sounds in its key's colour
 (outlined when selected), edited as an instrument's regions are, with the Instruments tab's
 tool. Select: click to select (Delete removes), drag to move, drag an edge to trim, double-click
 for its dialog (a `ui.form`, laid out as the region dialog: From and Until, the key from a list
@@ -1131,7 +1133,46 @@ while the name agrees (`PlayerMap.relinked`), and Replace Score carries it as th
 (`ScoreSwap`). A web page has it in its project: `WebPage.playerMap` says whether the viewer sees it
 first and may switch (the export's Player Map row, only with a map; a page without the field shows
 the score), and the player reads the notes and dynamics itself the first time it shows the map,
-again for each recording's timeline. Not in a video.
+again for each recording's timeline. In a video only as the Video tab's View lane has it (below).
+
+**What changes over a performance is automation** (`Automation`, the project's: `EditState.automation`,
+an edit; the optional `automation` module, `{lanes: {<target id>: lane}}`, so an older Curator opens
+the project without it and keeps it). A lane sets one thing, its `AutomationTarget` (an id, a base
+value where nothing says otherwise, its values as JSON), and is of one of two kinds: a `StepLane`,
+values held over stretches of the score (`AutoStretch`: score quarters as curation's regions are, so
+they stay with the music when the sync changes; a value; a change of `fade` seconds, 0 a cut),
+kept in order and never overlapping (`painted`, `reshaped`: one put over others cuts back what it
+covers, as a region drawn over a lane does); or a `CurveLane`, a number through points along the
+score (`AutoPoint`, linear, smooth or held to the next). A lane of a target this Curator doesn't
+know is kept as JSON and written back as it came (`Automation.foreign`). A step lane in a
+performance is `TimedSteps` (`StepLane.inTime`): each stretch once in every pass that plays it (a
+repeat shows it again), the base between, one held from the start shown from before it (nothing
+changes on the first bar); each change centred on its edge, as long as the stretch coming in says
+(going back to the base, the one going out), never longer than the time to the changes either side,
+eased (half a cosine); `at(seconds)` the two values and how far between. The first target is
+`SceneViews.target` (`view`): what a frame shows, a `SceneView` (score, player map, both side by side
+with the map on any side and its share 20–60%, or the map inset in a corner, 20–50% of the
+height), whose `place` says where the score and the map go in a frame. A split at the left or right
+lays the score out at its own width and the frame's height; above or below, at the frame's height
+and scaled into its room, so its staves are as they are full-frame, and the scene keeps the plan
+(and the bar row's rises) of the size before too (`_otherPlan`, `_otherLift`), so a change between
+two views draws both without planning again; its tiles stay at the frame's pixel ratio whatever the
+scale. `paintViews` (`scene_views.dart`, no dart:io) draws a frame from it: one view, or two each in
+a layer added by their shares (`BlendMode.plus`, exact on see-through paper too), the map on paper
+(an inset one on a card edged in ink) fading at the end with the score (`CuratedScene.endFadeAt`); no
+map, the score throughout. The preview (`ScoreView`), a video's frames (`VideoExport`: the lane as
+it was when the export began, in the timeline shown, the notes read for the map before the first
+frame, `PlayerMapEditing.notes`) and a web page (the viewer's Auto, the default where the project
+has views and a map, beside Score and Player Map) all draw through it. The preview handles images,
+spacers and its menu only while the score is in its place (`AutomationEditing.scoreInPlace`: the
+score or an inset map, nothing mid-change), kept up as the playhead moves. The toolbar's Score /
+Player Map switch still shows the map alone; on Score the preview follows the lane. The Video tab
+(`BottomTab.video`, `video_panel.dart`) holds the lanes: View, a `SpanLane` that paints, each
+stretch in its view's colour, drawn, moved, trimmed and erased with the lanes' tools (live: a drag
+one Undo step), Add View at the playhead; its toolbar sets the stretch selected (view, where the map
+goes and how big, its Crossfade) or, with none, the view Draw paints (`AutomationEditing.drawing`);
+Delete, ←/→ and [ ] act on the stretch selected (`EditCommands`). A new target is a class beside
+`SceneViews.target`, added to `automationTargets`, a lane in the tab and whatever reads it.
 
 **Each project is a tab, and Home is one too.** `AppWindow` holds Home and every project open
 (`_OpenProject`, a `ProjectPage` each: its own controller, document, keys, drops and messages,

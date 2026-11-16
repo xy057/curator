@@ -73,6 +73,21 @@ class PlayerMapEditing {
 
   (PlayerNotes, ScoreTimeline, PlayerPulses)? _pulses;
 
+  /// The score's notes as [pulses] reads them, for a performance of another timeline (a video's):
+  /// those read already, else read now. None while there is no map, or no notes.
+  Future<PlayerNotes> notes() async {
+    final score = _editor._score;
+    if (score == null || map == null || !_editor.hasNotes) return PlayerNotes.none;
+    final kept = _notes;
+    if (kept != null && (identical(kept.xml, score.musicXML) || kept.xml == score.musicXML)) return kept.notes;
+    try {
+      return await _notesOff(score.musicXML, score.timeline.measureStarts);
+    } catch (e) {
+      debugPrint('Player map: the notes couldn’t be read: $e');
+      return PlayerNotes.none;
+    }
+  }
+
   /// Static, so the isolate is sent the score's text and bars alone, never the controller.
   static Future<PlayerNotes> _notesOff(String xml, List<double> starts) =>
       Isolate.run(() => PlayerNotes.of(soundingNotes(xml, starts, unpitched: true), dynamics: ScoreDynamics.read(xml, starts)));

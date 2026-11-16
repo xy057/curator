@@ -797,7 +797,7 @@ msgstr "倒數計時"
 msgid "Crop"
 msgstr "裁切"
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/video_panel.dart
 msgid "Crossfade"
 msgstr "交叉淡化"
 
@@ -1780,7 +1780,7 @@ msgstr "小節號行中的排練記號"
 msgid "Remove"
 msgstr "移除"
 
-#: lib/instruments_toolbar.dart
+#: lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "Remove (Delete)"
 msgstr "移除（Delete）"
 
@@ -1957,7 +1957,7 @@ msgstr "儲存…"
 msgid "Saving…"
 msgstr "正在儲存…"
 
-#: lib/editor_toolbar.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "樂譜"
 
@@ -2801,7 +2801,7 @@ msgstr "{n} 分鐘"
 msgid "{n} regions"
 msgstr "{n} 個區域"
 
-#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "{n} s"
 msgstr "{n} 秒"
 
@@ -3909,7 +3909,7 @@ msgstr "尚未測試。"
 msgid "Run Exam"
 msgstr "執行測試"
 
-#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart lib/video_panel.dart
 msgid "{n}%"
 msgstr ""
 
@@ -5190,11 +5190,11 @@ msgstr "排練記號"
 msgid "Show Player Map"
 msgstr "顯示樂手位置圖"
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "樂手位置圖"
 
-#: lib/player_map_view.dart
+#: lib/player_map_view.dart lib/video_panel.dart
 msgid "No player map"
 msgstr "沒有樂手位置圖"
 
@@ -5506,3 +5506,69 @@ msgstr "新增專案"
 #: lib/main.dart
 msgid "Couldn’t Create Project"
 msgstr "無法建立專案"
+
+#: lib/video_panel.dart
+msgid "Side by Side"
+msgstr "並排"
+
+#: lib/video_panel.dart
+msgid "Map Inset"
+msgstr "位置圖子畫面"
+
+#: lib/video_panel.dart
+msgid "Map Right"
+msgstr "位置圖在右"
+
+#: lib/video_panel.dart
+msgid "Map Left"
+msgstr "位置圖在左"
+
+#: lib/video_panel.dart
+msgid "Map Below"
+msgstr "位置圖在下"
+
+#: lib/video_panel.dart
+msgid "Map Above"
+msgstr "位置圖在上"
+
+#: lib/video_panel.dart
+msgid "Bottom Right"
+msgstr "右下"
+
+#: lib/video_panel.dart
+msgid "Bottom Left"
+msgstr "左下"
+
+#: lib/video_panel.dart
+msgid "Top Right"
+msgstr "右上"
+
+#: lib/video_panel.dart
+msgid "Top Left"
+msgstr "左上"
+
+#: lib/video_panel.dart
+msgid "View to draw"
+msgstr "要繪製的畫面"
+
+#: lib/video_panel.dart
+msgid "Where the map goes"
+msgstr "位置圖的位置"
+
+#: lib/video_panel.dart
+msgid "Map size"
+msgstr "位置圖大小"
+
+#: lib/video_panel.dart
+msgid "Add View"
+msgstr "新增畫面"
+
+#: lib/video_panel.dart
+msgctxt "transition"
+msgid "Cut"
+msgstr "直切"
+
+#: lib/video_panel.dart
+msgctxt "video"
+msgid "View"
+msgstr "畫面"
