@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-15 23:36\n"
+"PO-Revision-Date: 2026-11-16 06:20\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -131,6 +131,9 @@ msgstr ""
 
 #: lib/app_menus.dart
 msgid "Export to Web…"
+msgstr ""
+
+msgid "Curator Link Settings…"
 msgstr ""
 
 msgid "Frame"
@@ -543,7 +546,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -585,6 +588,12 @@ msgid "Centered lyrics"
 msgstr ""
 
 msgid "Centers syllables under their notes."
+msgstr ""
+
+msgid "Dynamics between staves"
+msgstr ""
+
+msgid "Centers a piano’s or organ’s dynamics between its staves."
 msgstr ""
 
 #: lib/settings_dialog.dart
@@ -722,7 +731,7 @@ msgstr ""
 msgid "Couldn’t Load Recording"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart
 msgid "Couldn’t load the recording. {error}"
 msgstr ""
 
@@ -785,7 +794,7 @@ msgstr ""
 msgid "Crop"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/audio_panel.dart lib/video_panel.dart
 msgid "Crossfade"
 msgstr ""
 
@@ -878,7 +887,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1503,7 +1512,7 @@ msgstr ""
 msgid "none"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart lib/stems_dialog.dart
 msgid "None."
 msgstr ""
 
@@ -1564,7 +1573,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: lib/ai_settings.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
+#: lib/ai_settings.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/lilypond_dialog.dart lib/main.dart lib/pdf_import_changes.dart lib/settings_dialog.dart
 msgid "OK"
 msgstr ""
 
@@ -1731,7 +1740,7 @@ msgstr ""
 msgid "RECENT"
 msgstr ""
 
-#: lib/audio_panel.dart lib/take_lanes.dart lib/web_player/player.dart
+#: lib/audio_panel.dart lib/daw_follow_dialog.dart lib/take_lanes.dart lib/web_player/player.dart
 msgid "Recording"
 msgstr ""
 
@@ -1764,11 +1773,11 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "Remove (Delete)"
 msgstr ""
 
@@ -1945,7 +1954,7 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Score"
 msgstr ""
 
@@ -2789,7 +2798,7 @@ msgstr ""
 msgid "{n} regions"
 msgstr ""
 
-#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart
+#: lib/audio_panel.dart lib/edit_dialogs.dart lib/instruments_toolbar.dart lib/video_panel.dart
 msgid "{n} s"
 msgstr ""
 
@@ -3492,6 +3501,24 @@ msgstr ""
 msgid "Keyboard"
 msgstr ""
 
+msgid "DAW"
+msgstr ""
+
+msgid "Listen for Curator Link"
+msgstr ""
+
+msgid "Curator Link plug-in"
+msgstr ""
+
+msgid "Use this recording"
+msgstr ""
+
+msgid "Follow the DAW’s playhead"
+msgstr ""
+
+msgid "DAW bar of the score’s bar 1"
+msgstr ""
+
 #: assets/extensions/chapters/src/lane.lua
 msgid "Chapter"
 msgstr ""
@@ -3861,7 +3888,7 @@ msgstr ""
 msgid "Run Exam"
 msgstr ""
 
-#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart
+#: lib/pdf_ai_model_dialog.dart lib/settings_dialog.dart lib/video_panel.dart
 msgid "{n}%"
 msgstr ""
 
@@ -5142,11 +5169,11 @@ msgstr ""
 msgid "Show Player Map"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart
+#: lib/player_map_view.dart lib/video_panel.dart
 msgid "No player map"
 msgstr ""
 
@@ -5297,5 +5324,231 @@ msgstr ""
 
 #: lib/main.dart
 msgid "Couldn’t Import MIDI File"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Follow DAW…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Couldn’t get the recording from the DAW. {error}"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW gives no tempo for this recording yet."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It is too long."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW is out of memory."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW doesn’t let it be read yet."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It is no longer in the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW disconnected."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The file couldn’t be written."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow DAW"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "No DAW connected."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Curator isn’t listening for Curator Link."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Curator Link on a track in your DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Turn it on in Settings ▸ General."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Getting the Recording"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "This build of Curator has no Curator Link."
+msgstr ""
+
+#: lib/main.dart lib/settings_dialog.dart
+msgid "Connected: {daws}"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Installed"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Install"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Reinstall"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Update"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Capture Stems…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Nothing plays there."
+msgstr ""
+
+#: lib/editor/stem_editing.dart lib/stems_dialog.dart
+msgid "Track"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "{name}: {error}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No tracks with recordings."
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capture"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "No Part"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgctxt "audio"
+msgid "Stems"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Stems captured: {count}"
+msgstr ""
+
+#: lib/stems_dialog.dart
+msgid "Capturing Stems"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Uninstall"
+msgstr ""
+
+#: lib/main.dart lib/settings_dialog.dart
+msgid "OS not supported"
+msgstr ""
+
+msgid "Curator Link is not available for this operating system."
+msgstr ""
+
+#: lib/main.dart
+msgid "Not Listening"
+msgstr ""
+
+#: lib/main.dart
+msgid "Not Connected"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "New Project"
+msgstr ""
+
+#: lib/main.dart
+msgid "Couldn’t Create Project"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Side by Side"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Inset"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Below"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map Above"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Bottom Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Bottom Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Top Right"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Top Left"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "View to draw"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Where the map goes"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Map size"
+msgstr ""
+
+#: lib/video_panel.dart
+msgid "Add View"
+msgstr ""
+
+#: lib/video_panel.dart
+msgctxt "transition"
+msgid "Cut"
+msgstr ""
+
+#: lib/video_panel.dart
+msgctxt "video"
+msgid "View"
 msgstr ""
 
