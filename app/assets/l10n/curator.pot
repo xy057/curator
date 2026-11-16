@@ -124,6 +124,9 @@ msgstr ""
 msgid "Export to Web…"
 msgstr ""
 
+msgid "Curator Link Settings…"
+msgstr ""
+
 msgid "Frame"
 msgstr ""
 
@@ -5315,7 +5318,7 @@ msgstr ""
 msgid "Couldn’t Import MIDI File"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Follow DAW…"
 msgstr ""
 
@@ -5383,7 +5386,7 @@ msgstr ""
 msgid "This build of Curator has no Curator Link."
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Connected: {daws}"
 msgstr ""
 
@@ -5403,7 +5406,7 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Capture Stems…"
 msgstr ""
 
@@ -5452,9 +5455,17 @@ msgstr ""
 msgid "Uninstall"
 msgstr ""
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "OS not supported"
 msgstr ""
 
 msgid "Curator Link is not available for this operating system."
+msgstr ""
+
+#: lib/main.dart
+msgid "Not Listening"
+msgstr ""
+
+#: lib/main.dart
+msgid "Not Connected"
 msgstr ""

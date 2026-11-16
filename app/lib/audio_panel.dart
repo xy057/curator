@@ -12,8 +12,6 @@ import 'package:score_engine/score_engine.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_settings.dart' show AppSettings;
-import 'daw_follow_dialog.dart';
-import 'daw_link.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
@@ -22,7 +20,6 @@ import 'key_bindings.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
 import 'menu_kit.dart';
-import 'stems_dialog.dart';
 import 'take_lanes.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
@@ -783,20 +780,6 @@ class _SyncMenu extends StatelessWidget {
               value: () => c.usesMidiTempo ? c.useMidiTempo(null) : pickMidi(context, c),
               checked: c.usesMidiTempo,
               child: Text(midi == null ? 'MIDI Tempo Map…'.tr : 'Follow {name}'.fill({'name': midi.name}))),
-          // A DAW's tempo where Curator Link is (docs/daw-link.md): checked while followed; greyed
-          // out where there is none (macOS only).
-          checkedMenuItem(context,
-              value: () => c.daw.following != null ? c.daw.stop() : showDawFollowDialog(context, c),
-              checked: c.daw.following != null,
-              enabled: c.daw.following != null || CuratorLinkPlugIns.supported,
-              child: Text('Follow DAW…'.tr)),
-          // Its tracks kept apart, each as the song plays it (Project Info ▸ Stems).
-          if (c.daw.following != null)
-            checkedMenuItem(context,
-                value: () => showStemCaptureDialog(context, c),
-                checked: false,
-                enabled: c.daw.document != null,
-                child: Text('Capture Stems…'.tr)),
           if (midi != null)
             checkedMenuItem(context,
                 value: c.useScoreWarps,

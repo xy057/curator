@@ -13,7 +13,7 @@ import 'menu_kit.dart';
 import 'project_state.dart';
 import 'ui_kit.dart';
 
-/// The Audio tab's Sync menu ▸ Capture Stems…, while a DAW is followed: the tracks of its song
+/// File ▸ Curator Link ▸ Capture Stems…, while a DAW is followed: the tracks of its song
 /// to keep as stems ([StemEditing.capture]), each as the song plays it over the recording
 /// followed. All but the recording's own track are picked at first.
 Future<void> showStemCaptureDialog(BuildContext context, EditorController c) async {

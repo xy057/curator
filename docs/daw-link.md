@@ -21,11 +21,15 @@ can then:
 
 Curator Link runs on macOS (Apple silicon and Intel). Curator carries it, so there is nothing to
 download. On Windows and Linux, Settings ▸ General ▸ DAW says Curator Link is not available for
-the system ("OS not supported"), Listen for Curator Link stays off, Curator opens no port, and the
-Audio tab's Sync ▸ Follow DAW… is greyed out. A project's stems are kept and can be edited there.
+the system ("OS not supported"), Listen for Curator Link stays off, Curator opens no port, and
+File ▸ Curator Link reads OS not supported, its Follow DAW… greyed out. A project's stems are kept
+and can be edited there.
+
+Everything Curator Link does in Curator is under **File ▸ Curator Link**: how it stands, Follow
+DAW…, Capture Stems…, and Settings… (Listen for Curator Link, Install, Update, Uninstall).
 
 1. **Quit your DAW.** A DAW reads its plug-ins when it starts.
-2. In Curator, open **Settings ▸ General ▸ DAW** and click **Install** next to
+2. In Curator, choose **File ▸ Curator Link ▸ Settings…** and click **Install** next to
    **Curator Link plug-in**. Curator puts two files in your own Library. It needs no password,
    and other accounts on the Mac don't get them:
 
@@ -45,7 +49,9 @@ Audio tab's Sync ▸ Follow DAW… is greyed out. A project's stems are kept and
    - **Studio One** and other DAWs: rescan their plug-ins, or restart them once more.
 5. **Check that it works.** Put Curator Link on a track ([Using it](#using-it)), then open its
    window in the DAW. It says **Connected to Curator** while Curator is open, and **Waiting for
-   Curator** otherwise. Curator's Settings row then says **Connected:** and the DAW's name.
+   Curator** otherwise. In Curator, **File ▸ Curator Link** (and its Settings row) then says
+   **Connected:** and the DAW's name; else **Not Connected**, or **Not Listening** while Listen for
+   Curator Link is off.
 
 ### Updating
 
@@ -101,11 +107,11 @@ What stays behind, and how to remove it:
      plug-ins the regions on the track.
    - **Studio One, REAPER** and other ARA hosts: as they add ARA plug-ins
      (VST3).
-2. In Curator, open the score, then the Audio tab ▸ ⋯ ▸ **Follow DAW…**. Choose the recording,
+2. In Curator, open the score, then **File ▸ Curator Link ▸ Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 
-While Curator follows a DAW, the Audio tab ▸ ⋯ ▸ **Capture Stems…** lists the DAW's tracks that
+While Curator follows a DAW, **File ▸ Curator Link ▸ Capture Stems…** lists the DAW's tracks that
 have recordings; every one but the recording's own is picked at first. Each one captured is
 converted to FLAC and saved in the project (`media/stems/<id>/`), with the track's name and
 colour, the take it lines up with, and the part of the score it plays: found by the track's name

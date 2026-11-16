@@ -51,13 +51,15 @@ import 'l10n/l10n.dart';
 /// items on the right.
 ///
 /// Adding a setting is one [_Item] in [_categories]; adding a page is one [_Category]. The
-/// search field filters items across every page. [page] (a category's label) opens that page.
+/// search field filters items across every page. [page] (a category's label) opens that page;
+/// [search] is searched for at once.
 Future<void> showSettingsDialog(
   BuildContext context,
   AppSettings settings, {
   EditorController? controller,
   Updater? updater,
   String? page,
+  String? search,
 }) =>
     _showWindow(
       context,
@@ -67,6 +69,7 @@ Future<void> showSettingsDialog(
         controller: controller,
         updater: updater ?? Updater(channel: settings.updateChannel),
         page: page,
+        search: search,
       ),
     );
 
@@ -1055,10 +1058,14 @@ class _SettingsWindow extends StatefulWidget {
       this.controller,
       required this.updater,
       this.page,
+      this.search,
       this.editScore,
       this.replaceScore,
       this.downloadHub});
   final _Window kind;
+
+  /// Searched for when it opens (File ▸ Curator Link ▸ Settings…: its rows); null: nothing.
+  final String? search;
   final Future<void> Function()? editScore;
   final Future<void> Function(VoidCallback leave)? replaceScore;
   final VoidCallback? downloadHub;
@@ -1142,7 +1149,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
   }
 
   bool _thenDownloadHub = false;
-  final _search = TextEditingController();
+  late final _search = TextEditingController(text: widget.search);
 
   int get _lastPage => _lastPages[widget.kind] ?? 0;
   set _lastPage(int page) => _lastPages[widget.kind] = page;

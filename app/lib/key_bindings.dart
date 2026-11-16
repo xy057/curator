@@ -135,6 +135,10 @@ enum KeyCommand {
   saveAs('Save As…', 'File', KeyPlace.menus, [_K(_L.keyS, command: true, shift: true)], editable: true),
   exportVideo('Export Video…', 'File', KeyPlace.menus, [_K(_L.keyE, command: true)], editable: true),
   exportWeb('Export to Web…', 'File', KeyPlace.menus, [], editable: true),
+  // File ▸ Curator Link.
+  followDaw('Follow DAW…', 'File', KeyPlace.menus, [], editable: true),
+  captureStems('Capture Stems…', 'File', KeyPlace.menus, [], editable: true),
+  curatorLinkSettings('Curator Link Settings…', 'File', KeyPlace.menus, [], editable: true),
   // The editor takes Edit's keys with ⌃ too on macOS ([also]).
   undo('Undo', 'Edit', KeyPlace.menus, [_K(_L.keyZ, command: true)], also: [_K(_L.keyZ, control: true)]),
   redo('Redo', 'Edit', KeyPlace.menus, [_K(_L.keyZ, command: true, shift: true)],

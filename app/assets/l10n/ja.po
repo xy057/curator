@@ -133,6 +133,9 @@ msgstr "Web に書き出す"
 msgid "Export to Web…"
 msgstr "Web に書き出す…"
 
+msgid "Curator Link Settings…"
+msgstr "Curator Link 設定…"
+
 msgid "Frame"
 msgstr "フレーム"
 
@@ -5338,7 +5341,7 @@ msgstr "MIDI ビュー"
 msgid "Couldn’t Import MIDI File"
 msgstr "MIDI ファイルを読み込めませんでした"
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Follow DAW…"
 msgstr "DAW に追従…"
 
@@ -5406,7 +5409,7 @@ msgstr "録音を取得中"
 msgid "This build of Curator has no Curator Link."
 msgstr "この Curator のビルドには Curator Link が含まれていません。"
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "Connected: {daws}"
 msgstr "接続中：{daws}"
 
@@ -5426,7 +5429,7 @@ msgstr "再インストール"
 msgid "Update"
 msgstr "アップデート"
 
-#: lib/audio_panel.dart
+#: lib/app_menus.dart
 msgid "Capture Stems…"
 msgstr "ステムを取り込む…"
 
@@ -5475,9 +5478,17 @@ msgstr "ステムを取り込み中"
 msgid "Uninstall"
 msgstr "アンインストール"
 
-#: lib/settings_dialog.dart
+#: lib/main.dart lib/settings_dialog.dart
 msgid "OS not supported"
 msgstr "このOSには非対応"
 
 msgid "Curator Link is not available for this operating system."
 msgstr "Curator Link はこのオペレーティングシステムでは使用できません。"
+
+#: lib/main.dart
+msgid "Not Listening"
+msgstr "待ち受けオフ"
+
+#: lib/main.dart
+msgid "Not Connected"
+msgstr "未接続"
