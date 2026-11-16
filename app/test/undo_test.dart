@@ -219,7 +219,10 @@ void main() {
       expect(session.host, 'Cubase 15');
 
       final region = document.regions.single, context = document.contexts.single;
+      c.daw.name = 'Ode';
       expect(c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 2, transport: true)), isTrue);
+      expect(await heard.moveNext(), isTrue);
+      expect(jsonDecode(heard.current), {'t': 'followers', 'names': 'Ode'}, reason: 'the DAW is told who follows it');
       final pickup = c.score!.metadata.pickups.contains(0) ? c.score!.timeline.measureStarts[1] : 0.0;
       final expected = context.tempoFor(region, name: 'Cubase 15 · Strings', bar: 2, pickup: pickup)!;
       expect(c.midiTempo, expected.map);

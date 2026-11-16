@@ -132,7 +132,9 @@ does not time-stretch, and it tells the DAW so. Changing the DAW's tempo doesn't
 audio. If the sample rates differ, it resamples linearly. A recording longer than three hours of
 stereo at 48 kHz isn't held, and that region plays silence.
 
-Its window shows only whether Curator is connected. The plug-in stores nothing in the DAW's
+Its window shows whether Curator is connected, and if not, why: Curator isn't open, isn't
+listening (Listen for Curator Link is off), or is still connecting. While connected, it names
+the Curator projects following this DAW. The plug-in stores nothing in the DAW's
 project, because everything it knows the DAW sends again.
 
 ## How Curator and the plug-in talk
@@ -154,6 +156,7 @@ project, because everything it knows the DAW sends again.
 | `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording) |
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
+| `followers` | Curator | `names`: the projects following one of this DAW's documents, one a line (empty: none); sent when they change, and on connecting |
 | `export` | Curator | `document`, `source`: write this recording as a file |
 | `stem` | Curator | `document`, `track`, `from` and `length` (seconds of the song): write the track as the song plays it there |
 | `progress` | plug-in | `document`, `source` or `track`, `done` (0–1) |

@@ -161,6 +161,12 @@ void LinkClient::setTransport (bool playing, double seconds, double quarters, do
     transportStamp_.fetch_add (1, std::memory_order_release);
 }
 
+std::string LinkClient::followers ()
+{
+    std::lock_guard<std::mutex> lock (mutex_);
+    return followers_;
+}
+
 int LinkClient::listen (std::function<void (const Message&)> handler)
 {
     std::lock_guard<std::mutex> lock (handlersMutex_);
@@ -243,6 +249,7 @@ void LinkClient::disconnect ()
         ::close (fd);
     std::lock_guard<std::mutex> lock (mutex_);
     outbox_.clear ();
+    followers_.clear ();
 }
 
 bool LinkClient::sendLine (const std::string& line)
@@ -290,6 +297,12 @@ void LinkClient::receive ()
         Message message;
         if (!readFlatObject (line, message))
             continue;
+        if (message["t"] == "followers")
+        {
+            std::lock_guard<std::mutex> lock (mutex_);
+            followers_ = message["names"];
+            continue;
+        }
         std::lock_guard<std::mutex> lock (handlersMutex_);
         for (auto& handler : handlers_)
             handler.second (message);

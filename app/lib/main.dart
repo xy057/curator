@@ -1168,6 +1168,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _updateWindowTitle() {
     final title = document.title;
     if (title != null) widget.label.value = (name: stemOf(title), edited: document.isDirty, path: document.path);
+    if (title != null) controller.daw.name = stemOf(title); // what a DAW followed is told
     if (!widget.showing || widget.closing) return;
     WindowChrome.showDocument(
       name: title == null ? null : stemOf(title),
