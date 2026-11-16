@@ -325,7 +325,7 @@ class SettingsDropdown<T> extends StatelessWidget {
         isExpanded: width != null,
         icon: Icon(AppIcon.select.of(context), size: 16, color: k?.textPrimary ?? colors.textMuted),
         style: k != null ? TextStyle(fontSize: 14, letterSpacing: 0.16, color: k.textPrimary) : TextStyle(fontSize: 13, color: colors.text),
-        onChanged: onChanged == null ? null : (v) => v == null ? null : onChanged(v),
+        onChanged: onChanged == null ? null : (v) => onChanged(v as T),
         items: items,
       ),
     );
