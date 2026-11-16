@@ -60,7 +60,6 @@ class AppSettings extends ChangeNotifier {
         legacyExtensions = _readLegacyExtensions(_prefs),
         _videoSubtitles = _prefs?.getBool(_videoSubtitlesKey) ?? false,
         _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
-        _previewVideoFrame = _prefs?.getBool(_previewFrameKey) ?? false,
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
         _playerMap = _prefs?.getBool(_playerMapKey) ?? false,
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
@@ -104,7 +103,7 @@ class AppSettings extends ChangeNotifier {
   static const _recentKey = 'recentFiles', _engravingKey = 'engravingOptions', _updatesKey = 'checkForUpdates';
   static const _updateChannelKey = 'updateChannel';
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
-  static const _videoRatioKey = 'videoRatio', _previewFrameKey = 'previewVideoFrame', _videoCodecKey = 'videoCodec';
+  static const _videoRatioKey = 'videoRatio', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
   static const _tabBarKey = 'showTabBar', _playerMapKey = 'showPlayerMap';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
@@ -525,17 +524,6 @@ class AppSettings extends ChangeNotifier {
     if (value == _videoPaper) return;
     _videoPaper = value;
     _prefs?.setString(_videoPaperKey, value.name);
-    notifyListeners();
-  }
-
-  /// The score preview shows the video's frame ([videoFormat]'s aspect ratio, laid out
-  /// like the video), instead of filling the window. Off by default.
-  bool get previewVideoFrame => _previewVideoFrame;
-  bool _previewVideoFrame;
-  set previewVideoFrame(bool value) {
-    if (value == _previewVideoFrame) return;
-    _previewVideoFrame = value;
-    _prefs?.setBool(_previewFrameKey, value);
     notifyListeners();
   }
 

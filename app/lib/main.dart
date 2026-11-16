@@ -1066,8 +1066,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({bool videoFrame, VideoRatio videoRatio, bool tabBar, bool playerMap}) get _shownSettings => (
-        videoFrame: settings.previewVideoFrame,
+  ({VideoRatio videoRatio, bool tabBar, bool playerMap}) get _shownSettings => (
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
         playerMap: settings.playerMap,
@@ -1908,13 +1907,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       // As plugins have them: the toolbar's Export does what the menu's does.
       onExportVideo: () => (widget.plugins?.wrapped('exportVideo', _exportVideo) ?? _exportVideo)(),
       onExportWeb: () => (widget.plugins?.wrapped('exportWeb', _exportWeb) ?? _exportWeb)(),
-      videoFrame: settings.previewVideoFrame,
-      onVideoFrame: (on) => settings.previewVideoFrame = on,
       videoRatio: settings.videoRatio,
-      // Choosing a ratio shows it.
-      onVideoRatio: (r) => settings
-        ..videoRatio = r
-        ..previewVideoFrame = true,
+      onVideoRatio: (r) => settings.videoRatio = r,
       // While the tab bar is hidden, its tabs (Home among them) are a click away.
       onShowTabBar: settings.tabBar ? null : () => settings.tabBar = true,
       readout: _readout,
@@ -1924,7 +1918,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final view = ScoreView(
       key: _scoreView,
       controller: controller,
-      aspectRatio: settings.previewVideoFrame ? settings.videoFormat.aspectRatio : null,
+      aspectRatio: settings.videoFormat.aspectRatio,
     );
     // The toolbar's switch (View ▸ Show Player Map): the map in the score's place. The score is
     // kept, offstage, so it comes back as it was.

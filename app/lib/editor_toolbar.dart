@@ -26,8 +26,6 @@ class EditorToolbar extends StatelessWidget {
     required this.document,
     required this.onExportVideo,
     required this.onExportWeb,
-    required this.videoFrame,
-    required this.onVideoFrame,
     required this.videoRatio,
     required this.onVideoRatio,
     this.onShowTabBar,
@@ -38,10 +36,6 @@ class EditorToolbar extends StatelessWidget {
   final EditorController controller;
   final ProjectDocument document;
   final VoidCallback onExportVideo, onExportWeb;
-
-  /// Whether the score shows the video's frame rather than filling the window.
-  final bool videoFrame;
-  final ValueChanged<bool> onVideoFrame;
 
   /// The video's ratio, which the frame shows and the video is exported at.
   final VideoRatio videoRatio;
@@ -160,12 +154,6 @@ class EditorToolbar extends StatelessWidget {
             onPressed: plugins.actionOf(entry),
           ),
         _ExportMenu(enabled: !c.isReengraving, onVideo: onExportVideo, onWeb: onExportWeb),
-        ToolbarButton(
-          icon: AppIcon.frame.of(context),
-          tooltip: videoFrame ? 'Fill the window' : "Show the video's frame",
-          selected: videoFrame,
-          onPressed: () => onVideoFrame(!videoFrame),
-        ),
         RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
         const ToolbarDivider(),
         Tip(
