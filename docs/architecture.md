@@ -160,15 +160,14 @@ The end is a function of time too: after the final barline the score eases to re
 last `ScoreMotion.endFade` seconds before `paint`'s `end` (the playback's duration: the piece's
 `CuratedScene.endOf`, or the recording if longer), in the preview as in a video.
 A video has any ratio (`VideoRatio`: a preset or one typed, 1:4 to 4:1, chosen in the
-toolbar beside the frame toggle, which choosing one turns on); its size
+toolbar); its size
 (`VideoResolution`, "1080p") is its short side in pixels. It is laid out like a preview
 `VideoFormat.layoutShortSide` (540) points on its short side (`VideoFormat.layoutOf`) at
 `shortSide / 540` pixels a point, so every size frames the score the same way, and a tall
-video draws it as big as a wide one, with room for more staves. The editor's preview fills
-the window by default; the toolbar's frame toggle (`AppSettings.previewVideoFrame`) makes it
-that frame too: `ScoreView` letterboxes `AppSettings.videoFormat`'s aspect ratio, laid out
-the same way and scaled to fit (`VideoFrame.fit`; filling is `VideoFrame.fill`), so the
-window's size never changes what the score shows. Hit tests go through `VideoFrame.toLayout`.
+video draws it as big as a wide one, with room for more staves. The editor's preview is always
+that frame: `ScoreView` letterboxes `AppSettings.videoFormat`'s aspect ratio, laid out the same
+way and scaled to fit (`VideoFrame.fit`), so the window's size never changes what the score
+shows (a web page set to its window fills it, `VideoFrame.fill`). Hit tests go through `VideoFrame.toLayout`.
 What a video is written as is a `VideoCodec` (Export's Format, `AppSettings.videoCodec`): its
 FFmpeg encoders best first (the dialog asks FFmpeg which it has, `VideoEncoder.probeAll`, and greys
 out the rest): FFmpeg's own and its libraries, alike everywhere; for H.264 and HEVC the platform's

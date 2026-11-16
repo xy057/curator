@@ -34,9 +34,8 @@ typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double q
 /// both, or a change between them; images and spacers are handled while the score is in its
 /// place ([AutomationEditing.scoreInPlace]).
 ///
-/// It fills the view, or, given an [aspectRatio], shows the video's frame: that aspect ratio,
-/// laid out like the video and scaled to fit ([VideoFrame]), so resizing the window never
-/// changes what the score shows.
+/// It shows the video's frame: its [aspectRatio], laid out like the video and scaled to fit
+/// ([VideoFrame]), so resizing the window never changes what the score shows.
 ///
 /// Double-click an instrument name to rename it (a text does nothing: editing the score's
 /// texts is deprecated, see docs/architecture.md).
@@ -56,11 +55,11 @@ typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double q
 /// With Captions on, right-click ▸ Add Caption… adds one from where it was clicked;
 /// double-click the caption showing (or right-click it) to change or remove it.
 class ScoreView extends StatefulWidget {
-  const ScoreView({super.key, required this.controller, this.aspectRatio});
+  const ScoreView({super.key, required this.controller, required this.aspectRatio});
   final EditorController controller;
 
-  /// The video's width over its height, to show its frame; null fills the view.
-  final double? aspectRatio;
+  /// The video's width over its height: the frame shown.
+  final double aspectRatio;
 
   @override
   State<ScoreView> createState() => ScoreViewState();
@@ -270,20 +269,17 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
   Widget _view(BuildContext context, {required bool inPlace}) {
     return LayoutBuilder(builder: (context, constraints) {
       final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-      final aspectRatio = widget.aspectRatio;
-      final frame = aspectRatio == null
-          ? VideoFrame.fill(constraints.biggest)
-          : VideoFrame.fit(constraints.biggest, aspectRatio, devicePixelRatio: devicePixelRatio);
+      final frame = VideoFrame.fit(constraints.biggest, widget.aspectRatio, devicePixelRatio: devicePixelRatio);
       _frame = frame;
       final colors = context.colors;
       final panning = inPlace && c.images.enabled || _drag != null || _spacerDrag != null;
       return Stack(children: [
-        Positioned.fill(child: ColoredBox(color: aspectRatio == null ? colors.scorePaper : colors.surface)),
+        Positioned.fill(child: ColoredBox(color: colors.surface)),
         Positioned.fromRect(
           rect: frame.rect,
           child: DecoratedBox(
             position: DecorationPosition.foreground,
-            decoration: BoxDecoration(border: aspectRatio == null ? null : Border.all(color: colors.line)),
+            decoration: BoxDecoration(border: Border.all(color: colors.line)),
             child: RepaintBoundary(
               child: CustomPaint(
                 painter: _ScorePainter(c, devicePixelRatio, colors, scale: frame.scale, textDirection: Directionality.of(context)),

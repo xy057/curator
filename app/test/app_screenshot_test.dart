@@ -124,16 +124,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(button, findsNothing);
 
-    // The same showing the video's frame (the toolbar's toggle), letterboxed in the view.
-    settings.previewVideoFrame = true;
-    await tester.pump(const Duration(milliseconds: 50));
-    await screenshot(tester, 'app-framed');
     // A tall video (9:16): 540 points wide, with room for more staves, centred.
     settings.videoRatio = const VideoRatio(9, 16);
     await tester.pump(const Duration(milliseconds: 50));
     await screenshot(tester, 'app-framed-tall');
     settings.videoRatio = VideoRatio.widescreen;
-    settings.previewVideoFrame = false;
 
     // The same with condensing: both horns (and clarinets) on one staff.
     final controller = state.controller as EditorController;

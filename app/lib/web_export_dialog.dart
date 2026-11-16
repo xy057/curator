@@ -48,7 +48,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   late final _title = TextEditingController(text: widget.suggestedName);
   late final _bars = _c.score!.timeline.measureStarts.length - 1;
   late final _from = TextEditingController(text: '1'), _to = TextEditingController(text: '$_bars');
-  late double? _ratio = widget.settings.previewVideoFrame ? widget.settings.videoRatio.value : null;
+  late double? _ratio = widget.settings.videoRatio.value;
 
   late final _takes = _c.pageState.takes;
   late final _hasCaptions = _c.extensions.captions.isNotEmpty;
