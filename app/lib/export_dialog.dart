@@ -936,7 +936,8 @@ class ExportSelect<T> extends StatelessWidget {
       boxed: true,
       isExpanded: true,
       style: TextStyle(fontSize: 14, color: bad ? error : colors.text),
-      onChanged: (v) => v == null ? null : onChanged(v),
+      // Only a chosen item's value comes back: null is one when T allows it (Web export's Window).
+      onChanged: (v) => onChanged(v as T),
       items: [
         for (final (v, name, enabled) in items)
           DropdownMenuItem<T>(value: v, enabled: enabled, child: Text(named ? name : name.tr, overflow: TextOverflow.ellipsis)),
