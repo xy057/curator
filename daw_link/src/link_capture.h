@@ -24,28 +24,31 @@ public:
     void prepare (double sampleRate, int channels);
 
     // On the audio thread, lock-free: [frames] frames of [channels] at song sample [songSample]
-    // (the first heard), kept while a capture is under way and the DAW is [playing].
+    // (the first heard), kept while a capture is under way and the DAW is [playing], once it
+    // listens: after the DAW stopped and fell quiet (it says `ready`, and Curator has it play).
     void process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept;
 
-    const std::string& id () const noexcept { return id_; }
+    // Its ID: a new one, until the DAW gives back the one it had ([setId], from its saved state,
+    // so the Attacca it was linked to finds it again).
+    std::string id () const;
+    void setId (const std::string& id);
+    // Its name in Attacca's Capturer menu: the DAW's channel it is on ("Stereo Out"), if said.
+    void setName (const std::string& name);
 
-    // Whether a Capturer is in this process: Attacca's own capture is off while one is.
-    static bool any () noexcept;
-    // Whether one is capturing now.
+    // Whether one in this bundle is capturing now.
     static bool busy () noexcept;
-    // How many Attacca (ARA) documents are in this process: a Capturer works with one.
-    static int documents () noexcept;
-    static void countDocument (int delta) noexcept;
 
 private:
     void onMessage (const Message& message);
-    // Curator asks: song time [from] for [length] seconds, for [document], as [name].wav.
-    void start (const std::string& document, double from, double length, const std::string& name);
+    // Curator asks: song time [from] for [length] seconds, for [document], as [name].wav; only
+    // song time [played, playedEnd) is to be heard (what the DAW plays there: a recording's
+    // region), the rest of the file silence.
+    void start (const std::string& document, double from, double length, const std::string& name, double played, double playedEnd);
     // A capture under way ends (its file goes); one done is let go.
     void finish ();
     void publishAll ();
 
-    std::string id_;
+    std::string id_, name_;  // under the registry's lock
     LinkClient& client_;
     int listener_ { 0 };
 

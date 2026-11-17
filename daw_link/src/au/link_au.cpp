@@ -14,9 +14,39 @@ _Pragma ("GCC diagnostic pop")
 #include <AudioToolbox/AudioUnitProperties.h>
 
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace attacca {
+
+namespace {
+
+// A text kept under "attacca" in an Audio Unit's saved state (Attacca: the Capturer linked; a
+// Capturer: its ID), and read back.
+void saveText (CFPropertyListRef* data, const std::string& text)
+{
+    if (!data || !*data || CFGetTypeID (*data) != CFDictionaryGetTypeID ())
+        return;
+    CFStringRef value = CFStringCreateWithCString (kCFAllocatorDefault, text.c_str (), kCFStringEncodingUTF8);
+    if (!value)
+        return;
+    CFDictionarySetValue (static_cast<CFMutableDictionaryRef> (const_cast<void*> (*data)), CFSTR ("attacca"), value);
+    CFRelease (value);
+}
+
+bool restoredText (CFPropertyListRef data, std::string& text)
+{
+    if (!data || CFGetTypeID (data) != CFDictionaryGetTypeID ())
+        return false;
+    const void* value = CFDictionaryGetValue (static_cast<CFDictionaryRef> (data), CFSTR ("attacca"));
+    char buffer[512];
+    if (!value || CFGetTypeID (value) != CFStringGetTypeID () || !CFStringGetCString (static_cast<CFStringRef> (value), buffer, sizeof buffer, kCFStringEncodingUTF8))
+        return false;
+    text = buffer;
+    return true;
+}
+
+}  // namespace
 
 // The audio side: plays the regions it is given (as an ARA playback renderer), else passes
 // what comes in; tells Curator where the DAW is playing.
@@ -167,6 +197,23 @@ public:
 
     bool SupportsTail () override { return true; }
 
+    // The Attacca Capturer linked (in its window's Capturer menu) kept in the DAW's project.
+    OSStatus SaveState (CFPropertyListRef* data) override
+    {
+        const OSStatus result = AUEffectBase::SaveState (data);
+        if (result == noErr)
+            saveText (data, client_.linkedCapturer ());
+        return result;
+    }
+
+    OSStatus RestoreState (CFPropertyListRef data) override
+    {
+        const OSStatus result = AUEffectBase::RestoreState (data);
+        if (std::string id; restoredText (data, id))
+            client_.setLinkedCapturer (id);
+        return result;
+    }
+
 private:
     LinkClient& client_;
     ARA::PlugIn::PlugInExtension extension_;
@@ -201,6 +248,12 @@ public:
             size = sizeof (AudioUnitCocoaViewInfo);
             return noErr;
         }
+        if (scope == kAudioUnitScope_Global && id == audioUnitPropertyCapturerID)
+        {
+            writable = false;
+            size = sizeof (CFStringRef);
+            return noErr;
+        }
         return AUEffectBase::GetPropertyInfo (id, scope, element, size, writable);
     }
 
@@ -217,7 +270,30 @@ public:
             info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
             return noErr;
         }
+        if (scope == kAudioUnitScope_Global && id == audioUnitPropertyCapturerID)
+        {
+            // For its window (whether it is linked); the caller releases it.
+            *static_cast<CFStringRef*> (data) = CFStringCreateWithCString (kCFAllocatorDefault, capturer_.id ().c_str (), kCFStringEncodingUTF8);
+            return noErr;
+        }
         return AUEffectBase::GetProperty (id, scope, element, data);
+    }
+
+    // Its ID kept in the DAW's project, so the Attacca it was linked to finds it again.
+    OSStatus SaveState (CFPropertyListRef* data) override
+    {
+        const OSStatus result = AUEffectBase::SaveState (data);
+        if (result == noErr)
+            saveText (data, capturer_.id ());
+        return result;
+    }
+
+    OSStatus RestoreState (CFPropertyListRef data) override
+    {
+        const OSStatus result = AUEffectBase::RestoreState (data);
+        if (std::string id; restoredText (data, id))
+            capturer_.setId (id);
+        return result;
     }
 
     OSStatus ProcessBufferLists (AudioUnitRenderActionFlags&, const AudioBufferList& in, AudioBufferList& out, UInt32 frames) override

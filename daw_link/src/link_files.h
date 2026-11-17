@@ -83,4 +83,29 @@ inline std::string wavHeader (int channels, double rate, int64_t frames)
     return h;
 }
 
+// A plug-in instance's saved state, kept in the DAW's project: a short text (Attacca: the
+// Capturer linked; a Capturer: its ID) as "Atca", its length (4 bytes, little-endian), its bytes.
+inline std::string stateOf (const std::string& text)
+{
+    std::string out = "Atca";
+    const uint32_t n = static_cast<uint32_t> (text.size ());
+    for (int i = 0; i < 4; ++i)
+        out += static_cast<char> ((n >> (8 * i)) & 0xff);
+    return out + text;
+}
+
+// The text in [state] ([stateOf]); false when it isn't one.
+inline bool textOfState (const std::string& state, std::string& text)
+{
+    if (state.size () < 8 || state.compare (0, 4, "Atca") != 0)
+        return false;
+    uint32_t n = 0;
+    for (int i = 0; i < 4; ++i)
+        n |= static_cast<uint32_t> (static_cast<unsigned char> (state[4 + static_cast<size_t> (i)])) << (8 * i);
+    if (state.size () < 8 + static_cast<size_t> (n) || n > 4096)
+        return false;
+    text = state.substr (8, n);
+    return true;
+}
+
 }  // namespace attacca

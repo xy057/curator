@@ -503,12 +503,14 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   }
 
   /// The DAWs connected that were told of: each one Attacca doesn't support ([DawSession.supported]),
-  /// or whose Attacca is outdated ([DawSession.outdated]), is said once, as it connects.
+  /// or whose Attacca is outdated ([DawSession.outdated]), is said once, as it connects (once a
+  /// process: Attacca and Attacca Capturer connect apart, [DawSession.pid]).
   final _dawsSeen = Expando<bool>();
+  final _dawProcessesSeen = <int>{};
 
   void _dawsChanged() {
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
-      if (_dawsSeen[session] == true) continue;
+      if (_dawsSeen[session] == true || _dawProcessesSeen.contains(session.pid)) continue;
       final said = !session.supported
           ? (session.host.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host}))
           : session.outdated
@@ -516,6 +518,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
               : null;
       if (said == null) continue;
       _dawsSeen[session] = true;
+      if (session.pid > 0) _dawProcessesSeen.add(session.pid);
       _messenger?.showSnackBar(SnackBar(content: Text(said)));
     }
   }
@@ -785,6 +788,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
           'followDaw': open && free && (page._followsDaw.value || AttaccaPlugIns.supported) ? page._followDaw : null,
           // Off for now, always (StemEditing stays for Solo / Spotlight).
+          // While following a DAW: its recording as the DAW plays it (Attacca Capturer).
+          'recordFromDaw': open && free && page._followsDaw.value ? page._recordFromDaw : null,
           'captureStems': null,
           'attaccaSettings': free ? () => _settings(search: 'Attacca') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
@@ -859,6 +864,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
             state: _attaccaState,
             following: open && page._followsDaw.value,
             onFollow: does['followDaw'],
+            onRecord: does['recordFromDaw'],
             onCaptureStems: does['captureStems'],
             onSettings: does['attaccaSettings'],
           ),
@@ -1723,6 +1729,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _followDaw() {
     if (controller.score == null) return;
     controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
+  }
+
+  /// File ▸ Attacca ▸ Record from DAW…: the recording followed, as the DAW plays it.
+  void _recordFromDaw() {
+    if (controller.daw.following != null) recordFromDaw(context, controller);
   }
 
   // MARK: View

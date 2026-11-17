@@ -35,7 +35,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems, an Attacca Capturer capturing in its place', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems, the mix recorded through an Attacca Capturer', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -229,7 +229,7 @@ void main() {
             'sources': [{'id': 'take-1', 'name': 'Take 1', 'rate': 48000, 'frames': 48000 * 60, 'channels': 2}],
             'regions': [{'id': 'r', 'track': 't', 'source': 'take-1', 'start': 1, 'length': 59, 'from': 0.5, 'span': 59}],
           };
-      say({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'plugin': '0.9.0'});
+      say({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'plugin': '0.9.0', 'pid': 4242});
       say(song([[0, 0], [3, 6], [9, 15]]));
       await until(() => link.find('doc') != null);
       final (session, document) = link.find('doc')!;
@@ -269,6 +269,24 @@ void main() {
       say({'t': 'transport', 'playing': false, 'seconds': 4.0, 'quarters': 8, 'tempo': 120});
       await until(() => !c.playback.followsDaw);
       expect(c.playback.time.value, closeTo(3.5, 1e-9), reason: 'song 4 s is 3.5 s into the recording');
+
+      // The DAW letting Attacca drive its transport: Curator's seek, play and pause drive it, in
+      // song time (2 s into the recording is song 2.5 s), Curator itself silent.
+      expect(c.daw.drives, isFalse, reason: 'not until the DAW says it lets it');
+      say({...song([[0, 0], [3, 6], [8, 15]]), 'playback': true});
+      await until(() => c.daw.drives);
+      Future<Object?> next() async => (await heard.moveNext()) ? jsonDecode(heard.current) : null;
+      c.playback.seek(2);
+      expect(await next(), {'t': 'seek', 'document': 'doc', 'at': 2.5});
+      c.playback.togglePlay();
+      expect(await next(), {'t': 'play', 'document': 'doc', 'at': 2.5});
+      expect(c.playback.isPlaying, isFalse, reason: 'the DAW plays, not Curator');
+      say({'t': 'transport', 'playing': true, 'seconds': 2.5, 'quarters': 5, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      c.playback.togglePlay();
+      expect(await next(), {'t': 'stop', 'document': 'doc'});
+      say({'t': 'transport', 'playing': false, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
+      await until(() => !c.playback.followsDaw);
 
       final asked = link.recording(session, 'doc', 'take-1');
       expect(await heard.moveNext(), isTrue);
@@ -356,29 +374,54 @@ void main() {
       c.stems.remove('stem-2');
       expect(c.stems.list.map((s) => s.id), ['stem-1']);
 
-      // An Attacca Capturer in the DAW: told of, the recording asked of it over the span the
-      // recording plays (heard as the DAW plays it), and a capture under way cancelled.
-      say({'t': 'capturers', 'list': [{'id': 'cap', 'channels': 2, 'rate': 48000}]});
-      await until(() => session.capturers.isNotEmpty);
-      final capturer = session.capturers.single;
-      expect((capturer.id, capturer.channels, capturer.rate), ('cap', 2, 48000));
+      // An Attacca Capturer in the DAW, on a connection of its own (a bundle of its own, the same
+      // process): listed to the DAW's Attacca (its window's Capturer menu), linked once chosen
+      // there and told so; the mix asked of it over the span the recording plays, the document's
+      // Attacca asked to have the DAW play and stop; a capture under way cancelled.
+      final mixer = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      final toMixer = StreamIterator(mixer.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
+      void mixerSays(Map<String, Object?> message) => mixer.write('${jsonEncode(message)}\n');
+      Future<Object?> told(StreamIterator<String> lines) async => (await lines.moveNext()) ? jsonDecode(lines.current) : null;
+      mixerSays({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'pid': 4242});
+      mixerSays({'t': 'capturers', 'list': [{'id': 'cap', 'name': 'Stereo Out', 'channels': 2, 'rate': 48000}]});
+      await until(() => link.capturersOf(session).isNotEmpty);
+      final capturer = link.capturersOf(session).single;
+      expect((capturer.id, capturer.name, capturer.channels, capturer.rate, capturer.session != session), ('cap', 'Stereo Out', 2, 48000, true));
+      final listed = {'t': 'inserts', 'ids': 'cap', 'names': 'Stereo Out'};
+      expect([await told(toMixer), await told(toMixer)], [listed, {'t': 'linked', 'ids': ''}]);
+      expect(await told(heard), listed);
+      expect(link.linkedCapturerOf(session), isNull, reason: 'not until chosen in Attacca’s window');
+      say({'t': 'link', 'capturer': 'cap'});
+      expect(await told(toMixer), {'t': 'linked', 'ids': 'cap'});
+      expect(link.linkedCapturerOf(session)?.id, 'cap');
       final heardSoFar = <double>[];
-      final mix = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1', progress: heardSoFar.add);
-      expect(await heard.moveNext(), isTrue);
-      expect(jsonDecode(heard.current), {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1'});
-      say({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
-      say({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
+      // The whole recording's length (lined up with it), only the region the DAW plays to be heard.
+      final mix = link.capture(session, 'doc', capturer,
+          from: 0.5, length: 60, played: (start: 1, end: 60), name: 'Take 1', progress: heardSoFar.add);
+      expect(await told(toMixer),
+          {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1', 'start': 1, 'end': 60});
+      expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'what rings from before isn’t the mix');
+      mixerSays({'t': 'ready', 'document': 'doc', 'capturer': 'cap'});
+      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': 0}, reason: 'once ready, a second before the region');
+      mixerSays({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
+      mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
       expect(await mix, '/tmp/Mix.wav');
       expect(heardSoFar, [0.25]);
+      expect(await told(heard), {'t': 'stop', 'document': 'doc'});
       final cancelled = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1');
-      expect(await heard.moveNext(), isTrue);
-      link.cancelCapture(session, 'doc', capturer);
-      expect(await heard.moveNext(), isTrue);
-      expect(jsonDecode(heard.current), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
-      say({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'error': 'cancelled'});
+      expect(await told(toMixer), containsPair('t', 'capture'));
+      expect(await told(heard), containsPair('t', 'stop'));
+      link.cancelCapture('doc', capturer);
+      expect(await told(toMixer), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
+      mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'error': 'cancelled'});
       await expectLater(cancelled, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'cancelled')));
-      say({'t': 'capturers', 'list': <Object>[]});
-      await until(() => session.capturers.isEmpty);
+      expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'cancelled before ready: never played, stopped');
+      mixer.destroy();
+      await until(() => link.capturersOf(session).isEmpty);
+      // The mix recorded goes in place of the Attacca take, an ordinary recording from then on.
+      final focused = c.focus;
+      await c.debugLoadTrack(track('Mix.wav'), intoAttacca: true);
+      expect((c.attaccaTake, c.takes.firstWhere((t) => t.id == attacca.id).label, c.focus), (null, 'Mix', focused));
 
       c.useMidiTempo(null);
       expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');
@@ -401,16 +444,19 @@ void main() {
             '<key>CFBundleShortVersionString</key>\n\t<string>0.9.0</string>\n<key>CFBundleVersion</key><string>468</string>'))
         ..add(ArchiveFile.string('Attacca.vst3/Contents/MacOS/Attacca', 'program'))
         ..add(ArchiveFile.string('Attacca.component/Contents/MacOS/Attacca', 'program'))
+        ..add(ArchiveFile.string('Attacca Capturer.vst3/Contents/MacOS/Attacca Capturer', 'program'))
         ..add(ArchiveFile.string('Elsewhere/stray.txt', 'no'));
       await AttaccaPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
       expect(AttaccaPlugIns.installed(folder: plugIns), '0.9.0 (468)');
       expect(File('$plugIns/VST3/Attacca.vst3/Contents/old.txt').existsSync(), isFalse);
       expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'its former name goes');
       expect(File('$plugIns/Components/Attacca.component/Contents/MacOS/Attacca').statSync().modeString(), 'rwxr-xr-x');
+      expect(File('$plugIns/VST3/Attacca Capturer.vst3/Contents/MacOS/Attacca Capturer').existsSync(), isTrue, reason: 'Attacca Capturer, a VST3 of its own');
       expect(Directory('$plugIns/Elsewhere').existsSync() || File('${folder.path}/Elsewhere/stray.txt').existsSync(), isFalse);
       await AttaccaPlugIns.uninstall(folder: plugIns);
       expect(AttaccaPlugIns.installed(folder: plugIns), isNull);
-      expect(Directory('$plugIns/Components/Attacca.component').existsSync(), isFalse, reason: 'uninstalled, both go');
+      expect(Directory('$plugIns/Components/Attacca.component').existsSync() || Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync(), isFalse,
+          reason: 'uninstalled, all go');
       await folder.delete(recursive: true);
     }
   });

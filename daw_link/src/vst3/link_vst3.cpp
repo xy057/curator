@@ -3,11 +3,15 @@
 #include "../link_client.h"
 #include "../link_config.h"
 #include "../link_document.h"
+#include "../link_files.h"
 #include "../mac/link_view.h"
 
 #include "ARA_API/ARAVST3.h"
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
+#include "base/source/fstring.h"
+#include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstchannelcontextinfo.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "public.sdk/source/common/pluginview.h"
 #include "public.sdk/source/main/pluginfactory.h"
@@ -17,7 +21,10 @@ ARA_DISABLE_VST3_WARNINGS_END
 
 #include <atomic>
 #include <cstring>
+#include <functional>
 #include <memory>
+#include <mutex>
+#include <utility>
 
 using namespace Steinberg;
 
@@ -28,7 +35,8 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 // The window the DAW opens for the plug-in: its name, and whether Curator is connected.
 class LinkView : public CPluginView {
 public:
-    LinkView (bool capturer, std::shared_ptr<std::atomic<int>> bound) : CPluginView (nullptr), capturer_ (capturer), bound_ (std::move (bound))
+    LinkView (bool capturer, std::shared_ptr<std::atomic<int>> bound, std::function<std::string ()> capturerId = {})
+        : CPluginView (nullptr), capturer_ (capturer), bound_ (std::move (bound)), capturerId_ (std::move (capturerId))
     {
         rect = ViewRect (0, 0, statusViewWidth, statusViewHeight);
     }
@@ -44,7 +52,7 @@ public:
         if (isPlatformTypeSupported (type) != kResultTrue || !parent)
             return kResultFalse;
         auto bound = bound_;
-        handle_ = attachStatusView (parent, capturer_, bound ? std::function<int ()> ([bound] { return bound->load (); }) : std::function<int ()> ());
+        handle_ = attachStatusView (parent, capturer_, bound ? std::function<int ()> ([bound] { return bound->load (); }) : std::function<int ()> (), capturerId_);
         return CPluginView::attached (parent, type);
     }
 
@@ -60,10 +68,46 @@ private:
     void* handle_ = nullptr;
     bool capturer_;
     std::shared_ptr<std::atomic<int>> bound_;
+    std::function<std::string ()> capturerId_;
 };
 
 // What Attacca's audio side tells its editing side: whether it is bound to ARA ("bound": 1 or 0).
 constexpr const char* boundMessage = "attacca.bound";
+// What Attacca Capturer's audio side tells its editing side: its ID ("id", UTF-8); and back, the
+// DAW's channel it is on ("name", UTF-8).
+constexpr const char* capturerIdMessage = "attacca.capturer";
+constexpr const char* channelMessage = "attacca.channel";
+
+// A UTF-8 text sent in a message's binary attribute [key], and read back.
+void putText (Vst::IMessage* message, const char* key, const std::string& text) { message->getAttributes ()->setBinary (key, text.data (), static_cast<uint32> (text.size ())); }
+bool getText (Vst::IMessage* message, const char* key, std::string& text)
+{
+    const void* data = nullptr;
+    uint32 size = 0;
+    if (!message->getAttributes () || message->getAttributes ()->getBinary (key, data, size) != kResultOk)
+        return false;
+    text.assign (static_cast<const char*> (data), size);
+    return true;
+}
+
+// A plug-in's saved state ([stateOf]) written to and read from the DAW's stream.
+tresult writeState (IBStream* stream, const std::string& text)
+{
+    const std::string state = stateOf (text);
+    int32 written = 0;
+    return stream && stream->write (const_cast<char*> (state.data ()), static_cast<int32> (state.size ()), &written) == kResultOk && written == static_cast<int32> (state.size ())
+               ? kResultOk
+               : kResultFalse;
+}
+bool readState (IBStream* stream, std::string& text)
+{
+    std::string state;
+    char buffer[512];
+    int32 read = 0;
+    while (stream && stream->read (buffer, sizeof buffer, &read) == kResultOk && read > 0 && state.size () < 8192)
+        state.append (buffer, static_cast<size_t> (read));
+    return textOfState (state, text);
+}
 
 // The editing side: no parameters, only the window (Attacca's, or [capturer] its Capturer's).
 class LinkController : public Vst::EditController {
@@ -88,9 +132,64 @@ public:
         return EditController::notify (message);
     }
 
-private:
+protected:
     bool capturer_;
     std::shared_ptr<std::atomic<int>> bound_ = std::make_shared<std::atomic<int>> (-1);
+};
+
+// Attacca Capturer's editing side: its window (told the Capturer's ID by its audio side, to say
+// whether it is linked), and the DAW's channel it is on passed to its audio side (its name in
+// Attacca's Capturer menu).
+class CaptureController : public LinkController, public Vst::ChannelContext::IInfoListener {
+public:
+    CaptureController () : LinkController (true) {}
+
+    IPlugView* PLUGIN_API createView (FIDString name) override
+    {
+        auto id = id_;
+        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView (true, nullptr, [id] {
+            std::lock_guard<std::mutex> lock (id->first);
+            return id->second;
+        })
+                                                                     : nullptr;
+    }
+
+    tresult PLUGIN_API notify (Vst::IMessage* message) override
+    {
+        std::string id;
+        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), capturerIdMessage) == 0 && getText (message, "id", id))
+        {
+            std::lock_guard<std::mutex> lock (id_->first);
+            id_->second = id;
+            return kResultOk;
+        }
+        return LinkController::notify (message);
+    }
+
+    tresult PLUGIN_API setChannelContextInfos (Vst::IAttributeList* list) override
+    {
+        Vst::String128 name {};
+        if (!list || list->getString (Vst::ChannelContext::kChannelNameKey, name, sizeof (name)) != kResultTrue)
+            return kResultOk;
+        String text (name);
+        text.toMultiByte (kCP_Utf8);
+        if (IPtr<Vst::IMessage> message = owned (allocateMessage ()))
+        {
+            message->setMessageID (channelMessage);
+            putText (message, "name", text.text8 () ? text.text8 () : "");
+            sendMessage (message);
+        }
+        return kResultOk;
+    }
+
+    OBJ_METHODS (CaptureController, LinkController)
+    DEFINE_INTERFACES
+        DEF_INTERFACE (Vst::ChannelContext::IInfoListener)
+    END_DEFINE_INTERFACES (LinkController)
+    REFCOUNT_METHODS (LinkController)
+
+private:
+    std::shared_ptr<std::pair<std::mutex, std::string>> id_ = std::make_shared<std::pair<std::mutex, std::string>> ();
 };
 
 // The audio side: plays the regions it is given (as an ARA playback renderer), else passes
@@ -195,6 +294,16 @@ public:
         return result;
     }
 
+    // The Attacca Capturer linked (in its window's Capturer menu) kept in the DAW's project.
+    tresult PLUGIN_API getState (IBStream* stream) override { return writeState (stream, client_.linkedCapturer ()); }
+    tresult PLUGIN_API setState (IBStream* stream) override
+    {
+        std::string id;
+        if (readState (stream, id))
+            client_.setLinkedCapturer (id);
+        return kResultOk;
+    }
+
     OBJ_METHODS (LinkProcessor, AudioEffect)
     DEFINE_INTERFACES
         DEF_INTERFACE (IPlugInEntryPoint)
@@ -238,7 +347,7 @@ public:
     }
 
     static FUnknown* create (void*) { return static_cast<Vst::IAudioProcessor*> (new CaptureProcessor); }
-    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new LinkController (true)); }
+    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new CaptureController); }
 
     tresult PLUGIN_API initialize (FUnknown* context) override
     {
@@ -267,6 +376,39 @@ public:
         return AudioEffect::setActive (state);
     }
 
+    // Its ID kept in the DAW's project, so the Attacca it was linked to finds it again.
+    tresult PLUGIN_API getState (IBStream* stream) override { return writeState (stream, capturer_.id ()); }
+    tresult PLUGIN_API setState (IBStream* stream) override
+    {
+        std::string id;
+        if (readState (stream, id))
+        {
+            capturer_.setId (id);
+            tellId ();
+        }
+        return kResultOk;
+    }
+
+    // Connected to its editing side: told its ID (for its window).
+    tresult PLUGIN_API connect (Vst::IConnectionPoint* other) override
+    {
+        const tresult result = AudioEffect::connect (other);
+        tellId ();
+        return result;
+    }
+
+    // The DAW's channel it is on, from its editing side: its name in Attacca's Capturer menu.
+    tresult PLUGIN_API notify (Vst::IMessage* message) override
+    {
+        std::string name;
+        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), channelMessage) == 0 && getText (message, "name", name))
+        {
+            capturer_.setName (name);
+            return kResultOk;
+        }
+        return AudioEffect::notify (message);
+    }
+
     tresult PLUGIN_API canProcessSampleSize (int32 size) override { return size == Vst::kSample32 ? kResultTrue : kResultFalse; }
 
     tresult PLUGIN_API process (Vst::ProcessData& data) override
@@ -290,6 +432,16 @@ public:
     }
 
 private:
+    void tellId ()
+    {
+        if (IPtr<Vst::IMessage> message = owned (allocateMessage ()))
+        {
+            message->setMessageID (capturerIdMessage);
+            putText (message, "id", capturer_.id ());
+            sendMessage (message);
+        }
+    }
+
     Capturer capturer_;
 };
 
@@ -321,22 +473,27 @@ DEF_CLASS_IID (ARA::IPlugInEntryPoint2)
 
 #define LINK_FULL_VERSION LINK_VERSION "." LINK_QUOTE (LINK_BUILD)
 
+// Each in a bundle of its own (LINK_VST3_CAPTURER): Attacca, ARA only (OnlyARA: not offered as
+// an insert); Attacca Capturer, an insert only (a DAW pairs every effect of a bundle that has an
+// ARA factory with it, and would offer the Capturer as an ARA extension).
 BEGIN_FACTORY_DEF (LINK_VENDOR, LINK_URL, LINK_EMAIL)
 
+#if LINK_VST3_CAPTURER
+    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_CAPTURER_NAME,
+                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::create)
+
+    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_CAPTURER_NAME,
+                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::createController)
+#else
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_NAME,
-                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::create)
+                Vst::kDistributable, "Fx|OnlyARA", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::create)
 
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_NAME,
                 0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::createController)
 
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkMainFactory::classID ()), PClassInfo::kManyInstances, kARAMainFactoryClass, LINK_NAME,
                 0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkMainFactory::create)
-
-    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_CAPTURER_NAME,
-                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::create)
-
-    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_CAPTURER_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::createController)
+#endif
 
 END_FACTORY
 

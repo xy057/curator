@@ -164,32 +164,116 @@ class DawLink extends ChangeNotifier {
           {required double from, required double length, void Function(double done)? progress}) =>
       session._ask((document, 'track', track), {'t': 'stem', 'document': document, 'track': track, 'from': from, 'length': length}, progress);
 
-  /// Asks [capturer] of [session] for what it hears from song time [from] for [length] seconds,
-  /// as the DAW plays it (the DAW is asked to play from a second before, where it lets Attacca
-  /// ask), written in Curator's cache as [name].wav; completes with its path once every moment
-  /// of it was heard. [progress] hears how much was, 0–1. As [recording] otherwise.
+  /// Asks [capturer] (in [session]'s DAW: [capturersOf]) for what it hears from song time [from]
+  /// for [length] seconds, as the DAW plays it, written in Curator's cache as [name].wav;
+  /// completes with its path once every moment of it was heard. [document]'s Attacca (in
+  /// [session]) is asked to have the DAW stop (`stop`), then, once the Capturer is `ready` (the
+  /// DAW stopped and fallen quiet: what still rang from before isn't the mix; ten seconds at
+  /// most), to play from a second before (`play`, where the DAW lets it ask), and to stop once it
+  /// is done, whichever way: the Capturer is in a bundle of its own, so Curator says when.
+  /// [progress] hears how much was, 0–1. As [recording] otherwise.
+  ///
+  /// [played] is the song time the DAW plays of it (a recording's region, its `start` and
+  /// `end`): only that is to be heard, the rest of the file silence, so the capture is done when
+  /// the DAW has played the region, however long the file; the whole of it when null.
   Future<String> capture(DawSession session, String document, DawCapturer capturer,
-          {required double from, required double length, required String name, void Function(double done)? progress}) =>
-      session._ask((document, 'capturer', capturer.id),
-          {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
+      {required double from,
+      required double length,
+      required String name,
+      ({double start, double end})? played,
+      void Function(double done)? progress}) async {
+    final key = (document, 'capturer', capturer.id);
+    final ready = capturer.session._ready[key] = Completer<void>();
+    void go() {
+      if (!ready.isCompleted) ready.complete();
+    }
+
+    final captured = capturer.session._ask(key, {
+      't': 'capture',
+      'document': document,
+      'capturer': capturer.id,
+      'from': from,
+      'length': length,
+      'name': name,
+      if (played != null) ...{'start': played.start, 'end': played.end},
+    }, progress);
+    var over = false;
+    unawaited(captured.then((_) {}, onError: (_) {}).whenComplete(() {
+      over = true;
+      go();
+    }));
+    final wait = Timer(const Duration(seconds: 10), go);
+    drive(session, document, 'stop');
+    try {
+      await ready.future;
+      // A second before what is to be heard (Attacca puts it no earlier than 0).
+      if (!over) drive(session, document, 'play', at: (played?.start ?? from) - 1);
+      return await captured;
+    } finally {
+      wait.cancel();
+      capturer.session._ready.remove(key);
+      session._send({'t': 'stop', 'document': document});
+    }
+  }
+
+  /// Asks [document]'s Attacca in [session] to have the DAW's transport [command]: `play` (from
+  /// song time [at], if given), `stop`, or `seek` to [at]; where the DAW lets it
+  /// ([DawDocument.playback]), at once.
+  void drive(DawSession session, String document, String command, {double? at}) =>
+      session._send({'t': command, 'document': document, 'at': ?at});
 
   /// Ends [capture] of [capturer] under way: it fails as `cancelled`.
-  void cancelCapture(DawSession session, String document, DawCapturer capturer) =>
-      session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});
+  void cancelCapture(String document, DawCapturer capturer) => capturer.session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});
+
+  /// The Attacca Capturers in [session]'s DAW: its own and those of the other connections from
+  /// the same process (Attacca Capturer's VST3 is a bundle of its own, with its own connection).
+  List<DawCapturer> capturersOf(DawSession session) => [
+        for (final s in _sessions)
+          if (s == session || (session.pid > 0 && s.pid == session.pid)) ...s.capturers,
+      ];
+
+  /// The Attacca Capturer linked to the Attacca of [session]'s DAW (chosen in Attacca's window:
+  /// [DawSession.linkedCapturer]), if it is there: Record from DAW… captures with it.
+  DawCapturer? linkedCapturerOf(DawSession session) {
+    final daw = _sameDaw(session);
+    final linked = {for (final s in daw) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
+    return [for (final s in daw) ...s.capturers].where((c) => linked.contains(c.id)).firstOrNull;
+  }
+
+  /// The connections from [session]'s DAW: itself, and the others from its process.
+  List<DawSession> _sameDaw(DawSession session) => [for (final s in _sessions) if (s == session || (session.pid > 0 && s.pid == session.pid)) s];
+
+  /// Each connection told, from what its DAW's connections say: Attacca's, the Capturers there
+  /// for its window's Capturer menu (`inserts`); a Capturer's, which of its Capturers are linked to
+  /// an Attacca there with a document (`linked`: its window says Linked, or Not linked).
+  void _tellLinked() {
+    for (final s in _sessions) {
+      final daw = _sameDaw(s);
+      final capturers = [for (final o in daw) ...o.capturers];
+      s._tellInserts([for (final c in capturers) c.id], [
+        for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
+      ]);
+      if (s.capturers.isEmpty) continue;
+      final linked = {for (final o in daw) if (o._documents.isNotEmpty && o.linkedCapturer.isNotEmpty) o.linkedCapturer};
+      s._tellLinked([for (final c in s.capturers) if (linked.contains(c.id)) c.id]);
+    }
+  }
 }
 
-/// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate].
+/// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate];
+/// [session] the connection it is on; [name] the DAW's channel it is on ('' unsaid).
 @immutable
 class DawCapturer {
-  const DawCapturer(this.id, {this.channels = 2, this.rate = 0});
+  const DawCapturer(this.session, this.id, {this.name = '', this.channels = 2, this.rate = 0});
+  final DawSession session;
   final String id;
+  final String name;
   final int channels;
   final double rate;
 }
 
 /// What a DAW said went wrong: [reason] is the plug-in's word for it ("gone", "unreadable",
-/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected", "capturer":
-/// an Attacca Capturer captures in Attacca's place).
+/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected").
 class DawLinkException implements Exception {
   const DawLinkException(this.reason);
   final String reason;
@@ -221,6 +305,14 @@ class DawSession extends ChangeNotifier {
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;
 
+  /// The Attacca Capturer its Attacca is linked to (`link`, chosen in Attacca's window; ''
+  /// none): [DawLink.linkedCapturerOf].
+  String linkedCapturer = '';
+
+  /// The DAW's process (0: unsaid): Attacca's and Attacca Capturer's connections from one DAW
+  /// share it.
+  int pid = 0;
+
   /// Whether its Attacca is older than this Curator ([appBuild]): Curator bundles a newer one,
   /// installed already ([AttaccaPlugIns.installedBuild]: the DAW loads it once it opens again)
   /// or not yet.
@@ -241,6 +333,9 @@ class DawSession extends ChangeNotifier {
 
   /// Files asked for and not yet written, by document, kind ("source", "track") and id.
   final _recordings = <(String, String, String), ({Completer<String> completer, List<void Function(double)> progress})>{};
+
+  /// Captures asked for whose Capturer isn't `ready` yet ([DawLink.capture]), by key.
+  final _ready = <(String, String, String), Completer<void>>{};
 
   /// What the file [key] is, sent as [message] unless it was asked for already.
   Future<String> _ask((String, String, String) key, Map<String, Object?> message, void Function(double)? progress) {
@@ -268,6 +363,7 @@ class DawSession extends ChangeNotifier {
       host = (message['host'] as String?) ?? '';
       plugin = (message['plugin'] as String?) ?? '';
       build = (message['build'] as num?)?.toInt() ?? 0;
+      pid = (message['pid'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);
       _link.notifyListeners();
       _link._tellFollowers();
@@ -286,11 +382,16 @@ class DawSession extends ChangeNotifier {
       case 'transport':
         transport.value = dawTransportOf(message);
         return;
+      case 'link':
+        linkedCapturer = (message['capturer'] as String?) ?? '';
       case 'capturers':
         capturers = [
           for (final c in (message['list'] as List?) ?? const [])
-            if (c case {'id': final String id}) DawCapturer(id, channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
+            if (c case {'id': final String id}) DawCapturer(this, id, name: (c['name'] as String?) ?? '', channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
         ];
+      case 'ready':
+        if (_ready[_keyOf(message)] case final ready? when !ready.isCompleted) ready.complete();
+        return;
       case 'progress':
         final pending = _recordings[_keyOf(message)];
         final done = message['done'];
@@ -313,12 +414,31 @@ class DawSession extends ChangeNotifier {
         return; // a later plug-in's
     }
     _link._tellFollowers(); // a document followed may have come or gone
+    _link._tellLinked();
     notifyListeners();
     _link.notifyListeners();
   }
 
   /// What this DAW was last told follows it: the projects' names, one a line.
   String _followers = '';
+
+  /// What this connection was last told: its Capturers linked, its DAW's Capturers.
+  String? _linked;
+  String _inserts = '';
+
+  void _tellLinked(List<String> ids) {
+    final said = ids.join('\n');
+    if (said == _linked) return;
+    _linked = said;
+    _send({'t': 'linked', 'ids': said});
+  }
+
+  void _tellInserts(List<String> ids, List<String> names) {
+    final said = '${ids.join('\n')}\u0000${names.join('\n')}';
+    if (said == _inserts || (_inserts.isEmpty && ids.isEmpty)) return;
+    _inserts = said;
+    _send({'t': 'inserts', 'ids': ids.join('\n'), 'names': names.join('\n')});
+  }
 
   void _tellFollowers(String names) {
     if (names == _followers) return;
@@ -346,7 +466,10 @@ class DawSession extends ChangeNotifier {
     }
     _recordings.clear();
     _documents.clear();
-    if (_link._sessions.remove(this)) _link.notifyListeners();
+    if (_link._sessions.remove(this)) {
+      _link._tellLinked();
+      _link.notifyListeners();
+    }
     notifyListeners();
   }
 }
@@ -356,14 +479,15 @@ class DawSession extends ChangeNotifier {
 /// `…/Components`. macOS only; a build made without them has none to install ([bundled]).
 abstract final class AttaccaPlugIns {
   static const asset = 'assets/daw_link/Attacca.zip';
-  static const vst3 = 'Attacca.vst3', component = 'Attacca.component';
+  static const vst3 = 'Attacca.vst3', component = 'Attacca.component', capturerVst3 = 'Attacca Capturer.vst3';
 
   /// The bundles as they were named before (Curator Link): the same plug-in to a DAW, so they
   /// go wherever these come or go.
   static const _formerly = ['VST3/Curator Link.vst3', 'Components/Curator Link.component'];
 
   /// Every bundle of it in [folder], under either name.
-  static List<String> _bundlesIn(String folder) => ['$folder/VST3/$vst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
+  static List<String> _bundlesIn(String folder) =>
+      ['$folder/VST3/$vst3', '$folder/VST3/$capturerVst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
 
   /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
   /// Follow DAW… is greyed out; Curator doesn't listen.
@@ -418,7 +542,7 @@ abstract final class AttaccaPlugIns {
     folder ??= plugInsFolder;
     if (folder == null) throw const FileSystemException('No home folder.');
     final files = ZipDecoder().decodeBytes(bytes).files;
-    String? target(String name) => name.startsWith('$vst3/')
+    String? target(String name) => name.startsWith('$vst3/') || name.startsWith('$capturerVst3/')
         ? '$folder/VST3/$name'
         : name.startsWith('$component/')
             ? '$folder/Components/$name'

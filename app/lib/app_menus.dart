@@ -27,12 +27,14 @@ typedef MidiMenu = ({
 
 /// File ▸ Attacca as it is now (docs/daw-link.md): where it stands, greyed out ([state]:
 /// connected to which DAWs, not connected, not listening, or not on this system), Follow DAW…
-/// (ticked while [following]: choosing it then stops), Capture Stems… and its Settings…; each
-/// null (greyed out) when it can't.
+/// (ticked while [following]: choosing it then stops), Record from DAW… (the recording
+/// followed, as the DAW plays it, through Attacca Capturer), Capture Stems… and its Settings…;
+/// each null (greyed out) when it can't.
 typedef AttaccaMenu = ({
   String state,
   bool following,
   VoidCallback? onFollow,
+  VoidCallback? onRecord,
   VoidCallback? onCaptureStems,
   VoidCallback? onSettings,
 });
@@ -255,6 +257,7 @@ class AppMenus extends StatelessWidget {
                 PlatformMenuItemGroup(members: [
                   ?_own('followDaw', _ticked('Follow DAW…'.tr, link.following),
                       shortcut: _keyOf(KeyCommand.followDaw), onSelected: link.onFollow),
+                  ?_own('recordFromDaw', 'Record from DAW…'.tr, shortcut: _keyOf(KeyCommand.recordFromDaw), onSelected: link.onRecord),
                   ?_own('captureStems', 'Capture Stems…'.tr, shortcut: _keyOf(KeyCommand.captureStems), onSelected: link.onCaptureStems),
                 ]),
                 PlatformMenuItemGroup(members: [

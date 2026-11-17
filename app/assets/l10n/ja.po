@@ -5586,11 +5586,9 @@ msgstr "Attacca 録音はプロジェクトに 1 つです。"
 msgid "Bars: {count}"
 msgstr "小節：{count}"
 
-#: lib/daw_follow_dialog.dart
 msgid "Attacca Capturer captures in its place."
 msgstr "Attacca Capturer が代わりにキャプチャします。"
 
-#: lib/daw_follow_dialog.dart
 msgid "Captured by Attacca Capturer as the DAW plays it."
 msgstr "DAW の再生中に Attacca Capturer がキャプチャします。"
 
@@ -5649,3 +5647,23 @@ msgstr "{daw} の Attacca が古くなっています。「設定 ▸ 一般」�
 #: lib/main.dart
 msgid "{daw} (outdated)"
 msgstr "{daw}（古い Attacca）"
+
+#: lib/app_menus.dart
+msgid "Record from DAW…"
+msgstr "DAW から録音…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Record from DAW"
+msgstr "DAW から録音"
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Attacca Capturer on the DAW’s output."
+msgstr "DAW の出力に Attacca Capturer を挿してください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The recording followed isn’t in the DAW."
+msgstr "追従中の録音が DAW にありません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Choose the Capturer in Attacca’s window in the DAW."
+msgstr "DAW の Attacca のウインドウで Capturer を選んでください。"

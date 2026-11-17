@@ -29,6 +29,8 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 ARA_DISABLE_VST3_WARNINGS_END
 
 #include "../src/json.h"
+#include "../src/link_files.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -45,6 +47,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <fstream>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -103,11 +106,39 @@ ARAPersistentID ARA_CALL archiveID (ARAArchivingControllerHostRef, ARAArchiveRea
 const ARAArchivingControllerInterface archiving = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAArchivingControllerInterface, getDocumentArchiveID),
                                                     &archiveSize, &readArchive, &writeArchive, &archivingProgress, &archivingProgress, &archiveID };
 
-// What the plug-in asked the DAW's transport to do (for Attacca Capturer).
-std::vector<std::string> playbackAsked;
-void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("start"); }
-void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("stop"); }
-void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { playbackAsked.push_back ("at " + std::to_string (at)); }
+// What the plug-in asked the DAW's transport to do (Curator's transport driving it, a capture),
+// from the connection's thread.
+std::mutex playbackMutex;
+std::vector<std::string> playbackAskedList;
+void ask (std::string what)
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    playbackAskedList.push_back (std::move (what));
+}
+std::vector<std::string> playbackAsked ()
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    return playbackAskedList;
+}
+void clearPlaybackAsked ()
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    playbackAskedList.clear ();
+}
+// Waits (running [idle]) until the DAW was asked [count] things since cleared; what it was asked.
+std::vector<std::string> waitForAsked (size_t count, const std::function<void ()>& idle)
+{
+    for (int i = 0; i < 100 && playbackAsked ().size () < count; ++i)
+    {
+        if (idle)
+            idle ();
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    return playbackAsked ();
+}
+void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { ask ("start"); }
+void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { ask ("stop"); }
+void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { ask ("at " + std::to_string (at)); }
 void ARA_CALL setCycle (ARAPlaybackControllerHostRef, ARATimePosition, ARATimeDuration) {}
 void ARA_CALL enableCycle (ARAPlaybackControllerHostRef, ARABool) {}
 const ARAPlaybackControllerInterface playbackControl = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAPlaybackControllerInterface, requestEnableCycle),
@@ -173,8 +204,11 @@ const ARAModelUpdateControllerInterface modelUpdates = { ARA_IMPLEMENTED_STRUCT_
 
 struct Curator {
     int listener { -1 };
-    int connection { -1 };
-    std::string pending;
+    // A connection a bundle: Attacca's, and Attacca Capturer's (a VST3 of its own).
+    std::vector<int> connections;
+    std::vector<std::string> pending;
+    // The connection the last message came on.
+    size_t from { 0 };
 
     void listen (const std::string& home)
     {
@@ -192,53 +226,69 @@ struct Curator {
         std::ofstream (folder + "/daw-link.json") << "{\"port\":" << ntohs (address.sin_port) << ",\"token\":\"t0k3n\",\"pid\":" << ::getpid () << "}";
     }
 
-    // The next message whose "t" is [type] (others are passed over), within [seconds]; [idle]
-    // runs while waiting, as a host's main thread would go on.
+    // The next message whose "t" is [type] (others are passed over), on any connection, within
+    // [seconds]; [idle] runs while waiting, as a host's main thread would go on.
     std::map<std::string, std::string> next (const std::string& type, double seconds, const std::function<void ()>& idle = {})
     {
         const auto end = std::chrono::steady_clock::now () + std::chrono::duration<double> (seconds);
         while (std::chrono::steady_clock::now () < end)
         {
-            if (connection < 0)
+            pollfd p { listener, POLLIN, 0 };
+            if (::poll (&p, 1, 0) > 0)
             {
-                pollfd p { listener, POLLIN, 0 };
-                if (::poll (&p, 1, 20) > 0)
-                    connection = ::accept (listener, nullptr, nullptr);
+                connections.push_back (::accept (listener, nullptr, nullptr));
+                pending.emplace_back ();
             }
-            size_t at;
-            while (connection >= 0 && (at = pending.find ('\n')) != std::string::npos)
+            for (size_t c = 0; c < connections.size (); ++c)
             {
-                const std::string line = pending.substr (0, at);
-                pending.erase (0, at + 1);
-                std::map<std::string, std::string> message;
-                if (!readFlatObject (line, message))
-                    fail ("a line that isn't a JSON object: " + line);
-                lines.push_back (line);
-                if (message["t"] == type)
-                    return message;
-            }
-            if (connection >= 0)
-            {
-                pollfd p { connection, POLLIN, 0 };
-                if (::poll (&p, 1, 20) > 0)
+                size_t at;
+                while ((at = pending[c].find ('\n')) != std::string::npos)
                 {
-                    char buffer[65536];
-                    const ssize_t n = ::recv (connection, buffer, sizeof buffer, 0);
-                    if (n <= 0)
-                        fail ("Attacca hung up");
-                    pending.append (buffer, static_cast<size_t> (n));
+                    const std::string line = pending[c].substr (0, at);
+                    pending[c].erase (0, at + 1);
+                    std::map<std::string, std::string> message;
+                    if (!readFlatObject (line, message))
+                        fail ("a line that isn't a JSON object: " + line);
+                    lines.push_back (line);
+                    if (message["t"] == type)
+                    {
+                        from = c;
+                        return message;
+                    }
                 }
             }
+            for (size_t c = 0; c < connections.size (); ++c)
+            {
+                pollfd q { connections[c], POLLIN, 0 };
+                if (connections[c] >= 0 && ::poll (&q, 1, 10) > 0)
+                {
+                    char buffer[65536];
+                    const ssize_t n = ::recv (connections[c], buffer, sizeof buffer, 0);
+                    if (n <= 0)
+                    {
+                        // A bundle whose last instance went lets go (what it sent is read first).
+                        ::close (connections[c]);
+                        connections[c] = -1;
+                    }
+                    else
+                    {
+                        pending[c].append (buffer, static_cast<size_t> (n));
+                    }
+                }
+            }
+            if (connections.empty ())
+                ::poll (nullptr, 0, 20);
             if (idle)
                 idle ();
         }
         fail ("no \"" + type + "\" message within " + std::to_string (seconds) + " s");
     }
 
-    void say (const std::string& line)
+    // [line] said on connection [to] (the first: Attacca's).
+    void say (const std::string& line, size_t to = 0)
     {
         const std::string data = line + "\n";
-        if (::send (connection, data.data (), data.size (), 0) != static_cast<ssize_t> (data.size ()))
+        if (to >= connections.size () || ::send (connections[to], data.data (), data.size (), 0) != static_cast<ssize_t> (data.size ()))
             fail ("can't write to Attacca");
     }
 
@@ -295,7 +345,7 @@ void releaseObject (id object)
 }
 
 // The VST3's window, as a DAW opens it: the controller's editor view, put in an NSView and taken out.
-void checkVst3View (const char* path)
+void checkVst3View (const char* path, Curator& curator)
 {
     using namespace Steinberg;
     CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
@@ -304,6 +354,26 @@ void checkVst3View (const char* path)
     auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
     IPluginFactory* factory = getFactory ? getFactory () : nullptr;
     check (factory != nullptr, "the VST3 gives its factory");
+    // Attacca alone in its bundle, ARA only: no DAW offers it as an insert (OnlyARA).
+    {
+        IPluginFactory2* factory2 = nullptr;
+        bool onlyAttacca = true, onlyARA = false;
+        if (factory->queryInterface (IPluginFactory2::iid, reinterpret_cast<void**> (&factory2)) == kResultOk && factory2)
+        {
+            for (int32 i = 0; i < factory2->countClasses (); ++i)
+            {
+                PClassInfo2 info;
+                if (factory2->getClassInfo2 (i, &info) != kResultOk)
+                    continue;
+                onlyAttacca = onlyAttacca && std::strcmp (info.name, "Attacca") == 0;
+                if (std::strcmp (info.category, kVstAudioEffectClass) == 0)
+                    onlyARA = std::strstr (info.subCategories, "OnlyARA") != nullptr;
+            }
+            factory2->release ();
+        }
+        check (onlyAttacca, "Attacca alone in its bundle");
+        check (onlyARA, "ARA only, not an insert");
+    }
     // The controller as the factory lists it (as a DAW finds it), not by an ID written here.
     TUID controllerID {};
     bool listed = false;
@@ -333,6 +403,30 @@ void checkVst3View (const char* path)
     releaseObject (parent);
     controller->terminate ();
     controller->release ();
+
+    // The Attacca Capturer linked (its window's Capturer menu) kept in an instance's state: given
+    // back by the DAW, Curator is told the link; and saved again as it is.
+    TUID attaccaID {};
+    for (int32 i = 0; i < factory->countClasses (); ++i)
+    {
+        PClassInfo info;
+        if (factory->getClassInfo (i, &info) == kResultOk && std::strcmp (info.category, kVstAudioEffectClass) == 0)
+            std::memcpy (attaccaID, info.cid, sizeof (TUID));
+    }
+    Vst::IComponent* component = nullptr;
+    check (factory->createInstance (attaccaID, Vst::IComponent::iid, reinterpret_cast<void**> (&component)) == kResultOk && component, "an instance made");
+    component->initialize (nullptr);
+    const std::string kept = attacca::stateOf ("cap-kept");
+    auto* given = new MemoryStream (const_cast<char*> (kept.data ()), static_cast<TSize> (kept.size ()));
+    check (component->setState (given) == kResultOk, "its state given back");
+    given->release ();
+    auto link = curator.next ("link", 5);
+    check (link["capturer"] == "cap-kept", "Curator told the Capturer linked");
+    auto* saved = new MemoryStream ();
+    check (component->getState (saved) == kResultOk && std::string (saved->getData (), static_cast<size_t> (saved->getSize ())) == kept, "and saved as it is");
+    saved->release ();
+    component->terminate ();
+    component->release ();
     factory->release ();
     CFRelease (bundle);
 }
@@ -489,10 +583,11 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
 
 }  // namespace
 
-// Attacca Capturer (the VST3's second class), as a DAW runs it on its output: while it is there
-// Attacca's own capture is off; asked to capture, the DAW is asked to play from a second before,
-// what it hears is kept by song time however the span is played (here its end first), and the
-// DAW is asked to stop once it is heard whole.
+// Attacca Capturer (a VST3 of its own, so no DAW offers it as an ARA extension), as a DAW runs it
+// on its output: its own connection to Curator; Attacca's own capture (Follow DAW…'s, by ARA)
+// works beside it; asked to capture (Record from DAW…), with the document's Attacca asked to
+// have the DAW play from a second before, what it hears is kept by song time however the span is
+// played (here its end first); asked to stop, the DAW is asked to stop.
 void checkCapturer (const char* path, Curator& curator, const std::string& document, const std::function<void ()>& idle)
 {
     using namespace Steinberg;
@@ -503,17 +598,20 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     IPluginFactory* factory = getFactory ? getFactory () : nullptr;
     check (factory != nullptr, "the VST3 gives its factory");
     TUID capturerID {};
-    bool listed = false;
-    for (int32 i = 0; i < factory->countClasses () && !listed; ++i)
+    bool listed = false, ara = false;
+    for (int32 i = 0; i < factory->countClasses (); ++i)
     {
         PClassInfo info;
-        if (factory->getClassInfo (i, &info) == kResultOk && std::strcmp (info.category, kVstAudioEffectClass) == 0 && std::strcmp (info.name, "Attacca Capturer") == 0)
+        if (factory->getClassInfo (i, &info) != kResultOk)
+            continue;
+        ara = ara || std::strcmp (info.category, kARAMainFactoryClass) == 0;
+        if (std::strcmp (info.category, kVstAudioEffectClass) == 0 && std::strcmp (info.name, "Attacca Capturer") == 0)
         {
             std::memcpy (capturerID, info.cid, sizeof (TUID));
             listed = true;
         }
     }
-    check (listed, "Attacca Capturer listed beside Attacca");
+    check (listed && !ara, "Attacca Capturer in a bundle of its own, no ARA there");
     Vst::IComponent* component = nullptr;
     check (factory->createInstance (capturerID, Vst::IComponent::iid, reinterpret_cast<void**> (&component)) == kResultOk && component, "made");
     check (component->initialize (nullptr) == kResultOk, "initialized");
@@ -533,27 +631,41 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
         curator.next ("capturers", 5);
         line = curator.lines.back ();
     }
+    const size_t capturerLine = curator.from;
+    check (capturerLine != 0, "on a connection of its own");
     const std::string key = "\"list\":[{\"id\":\"";
     const size_t at = line.find (key);
     check (at != std::string::npos, "Curator is told of it");
     const std::string capturer = line.substr (at + key.size (), line.find ('"', at + key.size ()) - at - key.size ());
     check (contains (line, "\"channels\":2,\"rate\":48000"), "with its channels and rate");
 
+    // Its ID kept in the DAW's project: saved, then given back (as the project opens again), it is
+    // that one again, so the Attacca linked to it finds it.
+    {
+        auto* saved = new MemoryStream ();
+        check (component->getState (saved) == kResultOk && std::string (saved->getData (), static_cast<size_t> (saved->getSize ())) == attacca::stateOf (capturer),
+               "its ID saved in its state");
+        saved->release ();
+        const std::string kept = attacca::stateOf ("cap-saved");
+        auto* given = new MemoryStream (const_cast<char*> (kept.data ()), static_cast<TSize> (kept.size ()));
+        component->setState (given);
+        given->release ();
+        std::string again;
+        for (int i = 0; i < 3 && !contains (again, "\"id\":\"cap-saved\""); ++i)
+        {
+            curator.next ("capturers", 5);
+            again = curator.lines.back ();
+        }
+        check (contains (again, "\"id\":\"cap-saved\""), "given back, that one again");
+    }
+    const std::string savedCapturer = "cap-saved";
+
     curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
-    auto refused = curator.next ("exported", 10, idle);
-    check (refused["error"] == "capturer", "Attacca's own capture is off");
+    auto beside = curator.next ("exported", 10, idle);
+    check (beside["error"].empty (), "Attacca's own capture works beside it");
 
     // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
     auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
-    playbackAsked.clear ();
-    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + capturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}");
-    for (int i = 0; i < 50 && playbackAsked.size () < 2; ++i)
-    {
-        idle ();
-        std::this_thread::sleep_for (std::chrono::milliseconds (10));
-    }
-    check (playbackAsked.size () >= 2 && playbackAsked[0] == "at 0.000000" && playbackAsked[1] == "start", "the DAW asked to play from a second before");
-
     std::vector<float> left (block), right (block), outLeft (block), outRight (block);
     float* ins[2] { left.data (), right.data () };
     float* outs[2] { outLeft.data (), outRight.data () };
@@ -573,13 +685,15 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     data.outputs = &out;
     data.processContext = &context;
     bool through = true;
-    auto play = [&] (int64_t from, int64_t to) {
+    // The DAW playing (or stopped) song samples [from, to): [sound] at each, or what is to be heard.
+    auto feed = [&] (int64_t from, int64_t to, bool playing, const std::function<float (int64_t, int)>& sound) {
+        context.state = playing ? Vst::ProcessContext::kPlaying : 0;
         for (int64_t song = from; song < to; song += block)
         {
             for (int i = 0; i < block; ++i)
             {
-                left[static_cast<size_t> (i)] = heard (song + i, 0);
-                right[static_cast<size_t> (i)] = heard (song + i, 1);
+                left[static_cast<size_t> (i)] = sound (song + i, 0);
+                right[static_cast<size_t> (i)] = sound (song + i, 1);
             }
             context.projectTimeSamples = song;
             processor->process (data);
@@ -587,11 +701,30 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
             std::this_thread::sleep_for (std::chrono::microseconds (200));
         }
     };
+    auto play = [&] (int64_t from, int64_t to) { feed (from, to, true, heard); };
+    // Asked to capture: what the DAW played and still rings from before (loud, over the span) isn't
+    // kept; once stopped and quiet a quarter of a second it is ready, and Curator has it play.
+    auto settle = [&] {
+        auto junk = [] (int64_t, int) { return 0.9f; };
+        for (auto end = std::chrono::steady_clock::now () + std::chrono::milliseconds (400); std::chrono::steady_clock::now () < end;)
+            feed (24000, 96000, true, junk);
+        curator.say ("{\"t\":\"stop\",\"document\":\"" + document + "\"}");
+        feed (0, 24000, false, junk);  // its tail, stopped
+        feed (0, 24000, false, [] (int64_t, int) { return 0.00001f; });
+        auto ready = curator.next ("ready", 5, idle);
+        check (ready["capturer"] == savedCapturer && curator.from == capturerLine, "ready once the DAW stopped and fell quiet");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":-0.5}");  // a second before, by Curator
+    };
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
+    settle ();
+    const auto started = waitForAsked (3, idle);
+    check (started.size () >= 3 && started[0] == "stop" && started[1] == "at 0.000000" && started[2] == "start", "the DAW stopped, then asked to play from a second before");
     play (48000, 96000);  // the span's end first
     play (0, 48000);
     check (through, "what it hears passed through untouched");
     auto captured = curator.next ("captured", 10, idle);
-    check (captured["error"].empty () && captured["capturer"] == capturer, "captured without an error " + captured["error"]);
+    check (captured["error"].empty () && captured["capturer"] == savedCapturer, "captured without an error " + captured["error"]);
     const std::string file = captured["path"];
     check (contains (file, "/Library/Caches/Curator/DAW Link/Captures/") && contains (file, "/Mix.wav"), "into Curator's cache, by the name asked");
     {
@@ -608,12 +741,30 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
         }
         check (same, "each frame where the song has it");
     }
-    for (int i = 0; i < 50 && (playbackAsked.empty () || playbackAsked.back () != "stop"); ++i)
+    curator.say ("{\"t\":\"stop\",\"document\":\"" + document + "\"}");
+    const auto stopped = waitForAsked (4, idle);
+    check (stopped.size () == 4 && stopped.back () == "stop", "the DAW asked to stop once it is heard whole");
+
+    // A recording's region the DAW plays (song 0.75 s to 1 s) of a file as long as the recording
+    // (song 0.5 s for 1 s): done once the region was heard, the rest silence, the file lined up.
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer +
+                 "\",\"from\":0.5,\"length\":1,\"start\":0.75,\"end\":1,\"name\":\"Region\"}", capturerLine);
+    settle ();
+    play (36000, 48000);
+    auto region = curator.next ("captured", 10, idle);
+    check (region["error"].empty () && contains (region["path"], "/Region.wav"), "a region: done once it is heard " + region["error"]);
     {
-        idle ();
-        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        std::ifstream wav (region["path"], std::ios::binary);
+        std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
+        bool right = bytes.size () == 56 + static_cast<size_t> (48000) * 2 * 4;
+        for (int64_t k = 0; right && k < 48000; k += 7)
+        {
+            float l;
+            std::memcpy (&l, bytes.data () + 56 + k * 8, 4);
+            right = l == (k >= 12000 && k < 24000 ? heard (24000 + k, 0) : 0.0f);
+        }
+        check (right, "as long as the recording, silent outside the region");
     }
-    check (!playbackAsked.empty () && playbackAsked.back () == "stop", "the DAW asked to stop once it is heard whole");
 
     processor->setProcessing (false);
     component->setActive (false);
@@ -622,17 +773,14 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     component->release ();
     curator.next ("capturers", 5);
     check (contains (curator.lines.back (), "\"list\":[]"), "Curator is told it is gone");
-    curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
-    auto again = curator.next ("exported", 10, idle);
-    check (again["error"].empty (), "Attacca's own capture is back");
     CFRelease (bundle);
 }
 
 int main (int argc, const char* argv[])
 {
-    if (argc != 3)
+    if (argc != 4)
     {
-        std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\"\n");
+        std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\" \"<path>/Attacca Capturer.vst3\"\n");
         return 2;
     }
     char homeTemplate[] = "/tmp/attacca-host.XXXXXX";
@@ -705,6 +853,16 @@ int main (int argc, const char* argv[])
     check (contains (line, "{\"id\":\"take-1\",\"name\":\"Take 1\",\"rate\":44100,\"frames\":220500,\"channels\":1"), "the recording");
     check (contains (line, "\"source\":\"take-1\",\"start\":1,\"length\":3,\"from\":0.5,\"span\":3"), "the region placing it in the song");
 
+    std::printf ("Curator's transport drives the DAW's\n");
+    check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":2.5}");
+    curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
+    curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
+    curator.say ("{\"t\":\"play\",\"document\":\"elsewhere\",\"at\":1}");
+    const auto driven = waitForAsked (4, {});
+    check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }), "moved, played from there and stopped, at once; another document's passed over");
+
     std::printf ("Curator asks for the recording\n");
     curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"take-1\"}");
     auto exported = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
@@ -765,8 +923,8 @@ int main (int argc, const char* argv[])
         check (worst < 1e-5, "the region where the song plays it");
     }
 
-    std::printf ("Attacca Capturer captures the mix in Attacca's place\n");
-    checkCapturer (argv[1], curator, id, [&] { dc->notifyModelUpdates (controller); });
+    std::printf ("Attacca Capturer captures the mix (Record from DAW…)\n");
+    checkCapturer (argv[3], curator, id, [&] { dc->notifyModelUpdates (controller); });
 
     std::printf ("The region plays where the song has it\n");
     VST3Effect effect = VST3CreateEffect (binary, nullptr);
@@ -815,7 +973,7 @@ int main (int argc, const char* argv[])
 
     factory->uninitializeARA ();
     std::printf ("The VST3's window\n");
-    checkVst3View (argv[1]);
+    checkVst3View (argv[1], curator);
     VST3UnloadBinary (binary);
 
     checkAudioUnit (argv[2], hostInstance);

@@ -87,16 +87,21 @@ function(link_view target suffix)
 endfunction()
 
 # A bundle of [target]: its Info.plist, the licences of the SDKs in it (the app's asset, one
-# copy), and an ad-hoc signature sealing it (Apple silicon runs nothing unsigned).
+# copy), and an ad-hoc signature sealing it (Apple silicon runs nothing unsigned). Its program is
+# named Attacca, or the name given after [plist].
 set(LINK_LICENSES "${CMAKE_CURRENT_SOURCE_DIR}/../app/assets/daw_link/LICENSES.txt")
 function(link_bundle target extension plist)
+    set(name "Attacca")
+    if(ARGC GREATER 3)
+        set(name "${ARGV3}")
+    endif()
     configure_file("${plist}" "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist" @ONLY)
     target_sources(${target} PRIVATE "${LINK_LICENSES}")
     set_source_files_properties("${LINK_LICENSES}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     set_target_properties(${target} PROPERTIES
         BUNDLE ON
         BUNDLE_EXTENSION ${extension}
-        OUTPUT_NAME "Attacca"
+        OUTPUT_NAME "${name}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/out"
     )
@@ -148,6 +153,18 @@ link_view(AttaccaVST3 VST3)
 target_link_options(AttaccaVST3 PRIVATE "-Wl,-exported_symbols_list,${VST3_SDK}/public.sdk/source/main/macexport.exp")
 link_bundle(AttaccaVST3 vst3 "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-VST3.plist.in")
 
+# Attacca Capturer as a VST3 of its own: in Attacca's bundle a DAW would offer it as an ARA
+# extension too (it pairs a bundle's effects with its ARA factory).
+add_library(AttaccaCapturerVST3 MODULE
+    src/vst3/link_vst3.cpp
+    "${VST3_SDK}/public.sdk/source/main/macmain.cpp"
+)
+target_compile_definitions(AttaccaCapturerVST3 PRIVATE LINK_VST3_CAPTURER=1)
+target_link_libraries(AttaccaCapturerVST3 PRIVATE link_core vst3_sdk)
+link_view(AttaccaCapturerVST3 CapturerVST3)
+target_link_options(AttaccaCapturerVST3 PRIVATE "-Wl,-exported_symbols_list,${VST3_SDK}/public.sdk/source/main/macexport.exp")
+link_bundle(AttaccaCapturerVST3 vst3 "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-CapturerVST3.plist.in" "Attacca Capturer")
+
 # Audio Unit (Apple's AudioUnitSDK, Apache 2.0): the effect base class.
 add_library(audiounit_sdk STATIC
     "${AU_SDK}/src/AudioUnitSDK/AUBase.cpp"
@@ -176,7 +193,8 @@ link_bundle(AttaccaAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.i
 add_executable(link_host
     test/link_host.cpp
     "${ARA_SDK}/ARA_Examples/ExamplesCommon/PlugInHosting/VST3Loader.cpp"
+    "${VST3_SDK}/public.sdk/source/common/memorystream.cpp"
 )
 target_include_directories(link_host PRIVATE "${ARA_SDK}/ARA_Examples")
 target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk "-framework AudioToolbox" "-framework AudioUnit" "-framework AppKit")
-add_dependencies(link_host AttaccaVST3 AttaccaAU)
+add_dependencies(link_host AttaccaVST3 AttaccaCapturerVST3 AttaccaAU)

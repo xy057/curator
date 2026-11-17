@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <thread>
 #include <vector>
@@ -19,9 +20,15 @@ namespace {
 // The Capturers in this process, and how many are capturing.
 std::mutex registryMutex;
 std::vector<Capturer*> registry;
-std::atomic<int> capturersHere { 0 };
 std::atomic<int> capturing { 0 };
-std::atomic<int> araDocuments { 0 };
+
+// Before a capture listens, the DAW stopped and this quiet (peak, -80 dBFS) for a quarter of a
+// second: what still rings from before (a reverb's tail when the DAW stopped, or what it played
+// before it jumped) isn't the mix. Or it doesn't run the Capturer while stopped (a second without
+// a block), or it never falls quiet (eight seconds).
+constexpr float quietLevel = 1.0e-4f;
+constexpr double quietSeconds = 0.25;
+constexpr auto idleWait = std::chrono::seconds (1), longestWait = std::chrono::seconds (8);
 
 // The audio thread hands what it hears over in blocks of at most this many frames.
 constexpr int64_t blockFrames = 512;
@@ -48,8 +55,28 @@ struct Capture {
     std::atomic<uint64_t> head { 0 }, tail { 0 };
 
     std::vector<uint64_t> heard;
-    int64_t heardCount { 0 };
+    int64_t heardCount { 0 }, heardAtStart { 0 };
     std::atomic<bool> cancel { false };
+
+    // Whether it keeps what the DAW plays yet (once the DAW stopped and fell quiet); till then,
+    // how many frames the DAW has been stopped and quiet, and how many blocks it was given.
+    std::atomic<bool> listening { false };
+    std::atomic<int64_t> quiet { 0 };
+    std::atomic<uint64_t> calls { 0 };
+
+    // The audio thread's side while it doesn't listen yet: how long the DAW is stopped and quiet.
+    void wait (const float* const* in, int inChannels, int64_t count, bool playing) noexcept
+    {
+        calls.fetch_add (1, std::memory_order_relaxed);
+        float peak = 0;
+        for (int c = 0; !playing && c < inChannels; ++c)
+        {
+            for (int64_t i = 0; in[c] && i < count; ++i)
+                peak = std::max (peak, std::abs (in[c][i]));
+        }
+        const int64_t q = quiet.load (std::memory_order_relaxed);
+        quiet.store (playing || peak >= quietLevel ? 0 : q + count, std::memory_order_relaxed);
+    }
     std::thread writer;
 
     // The audio thread's side: the part of [frames] at song sample [song] inside the span.
@@ -101,7 +128,6 @@ Capturer::Capturer () : id_ (randomId ()), client_ (LinkClient::retain ())
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         registry.push_back (this);
-        capturersHere.fetch_add (1);
     }
     listener_ = client_.listen ([this] (const Message& m) { onMessage (m); });
     publishAll ();
@@ -114,16 +140,42 @@ Capturer::~Capturer ()
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         registry.erase (std::remove (registry.begin (), registry.end (), this), registry.end ());
-        capturersHere.fetch_sub (1);
     }
     publishAll ();
     LinkClient::release ();
 }
 
-bool Capturer::any () noexcept { return capturersHere.load () > 0; }
 bool Capturer::busy () noexcept { return capturing.load () > 0; }
-int Capturer::documents () noexcept { return araDocuments.load (); }
-void Capturer::countDocument (int delta) noexcept { araDocuments.fetch_add (delta); }
+
+std::string Capturer::id () const
+{
+    std::lock_guard<std::mutex> lock (registryMutex);
+    return id_;
+}
+
+void Capturer::setId (const std::string& id)
+{
+    if (id.empty ())
+        return;
+    {
+        std::lock_guard<std::mutex> lock (registryMutex);
+        if (id == id_)
+            return;
+        id_ = id;
+    }
+    publishAll ();
+}
+
+void Capturer::setName (const std::string& name)
+{
+    {
+        std::lock_guard<std::mutex> lock (registryMutex);
+        if (name == name_)
+            return;
+        name_ = name;
+    }
+    publishAll ();
+}
 
 void Capturer::prepare (double sampleRate, int channels)
 {
@@ -142,7 +194,7 @@ void Capturer::publishAll ()
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         for (const auto* c : registry)
-            w.object ().field ("id", c->id_).field ("channels", static_cast<double> (c->channels_.load ())).field ("rate", c->sampleRate_.load ()).endObject ();
+            w.object ().field ("id", c->id_).field ("name", c->name_).field ("channels", static_cast<double> (c->channels_.load ())).field ("rate", c->sampleRate_.load ()).endObject ();
     }
     w.endArray ().endObject ();
     client_.publish ("capturers", w.text ());
@@ -151,8 +203,13 @@ void Capturer::publishAll ()
 void Capturer::process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept
 {
     processing_.fetch_add (1, std::memory_order_acquire);
-    if (Capture* capture = live_.load (std::memory_order_acquire); capture && playing && frames > 0)
-        capture->push (in, channels, frames, songSample);
+    if (Capture* capture = live_.load (std::memory_order_acquire); capture && frames > 0)
+    {
+        if (!capture->listening.load (std::memory_order_acquire))
+            capture->wait (in, channels, frames, playing);
+        else if (playing)
+            capture->push (in, channels, frames, songSample);
+    }
     processing_.fetch_sub (1, std::memory_order_release);
 }
 
@@ -163,13 +220,18 @@ void Capturer::onMessage (const Message& message)
         return found == message.end () ? nullptr : &found->second;
     };
     const std::string *t = field ("t"), *capturer = field ("capturer"), *document = field ("document");
-    if (!t || !capturer || *capturer != id_ || !document)
+    if (!t || !capturer || *capturer != id () || !document)
         return;
     if (*t == "capture" && field ("from") && field ("length"))
     {
         const double from = std::strtod (field ("from")->c_str (), nullptr), length = std::strtod (field ("length")->c_str (), nullptr);
+        // What the DAW plays of it (`start`, `end`; the whole of it when unsaid).
+        double played = field ("start") ? std::strtod (field ("start")->c_str (), nullptr) : from;
+        double playedEnd = field ("end") ? std::strtod (field ("end")->c_str (), nullptr) : from + length;
+        if (!std::isfinite (played) || !std::isfinite (playedEnd))
+            played = from, playedEnd = from + length;
         if (std::isfinite (from) && std::isfinite (length))
-            start (*document, from, length, field ("name") ? *field ("name") : std::string ());
+            start (*document, from, length, field ("name") ? *field ("name") : std::string (), played, playedEnd);
     }
     else if (*t == "cancel")
     {
@@ -177,12 +239,13 @@ void Capturer::onMessage (const Message& message)
     }
 }
 
-void Capturer::start (const std::string& document, double from, double length, const std::string& name)
+void Capturer::start (const std::string& document, double from, double length, const std::string& name, double played, double playedEnd)
 {
     std::lock_guard<std::mutex> lock (mutex_);
-    auto reply = [this, document] (const std::string& key, const std::string& value) {
+    const std::string me = id ();
+    auto reply = [this, document, me] (const std::string& key, const std::string& value) {
         JsonWriter w;
-        w.object ().field ("t", "captured").field ("document", document).field ("capturer", id_).field (key.c_str (), value).endObject ();
+        w.object ().field ("t", "captured").field ("document", document).field ("capturer", me).field (key.c_str (), value).endObject ();
         client_.send (w.text ());
     };
 
@@ -230,15 +293,38 @@ void Capturer::start (const std::string& document, double from, double length, c
     capture->heard.assign (static_cast<size_t> ((capture->frames + 63) / 64), 0);
     if (capture->start < 0)
         capture->hear (0, std::min (capture->frames, -capture->start));
+    // Outside what the DAW plays (the recording's region), heard already: silence there, so the
+    // capture is done once the region was heard, the file still lined up with the recording.
+    const int64_t first = std::clamp<int64_t> (std::llround (played * capture->rate) - capture->start, 0, capture->frames);
+    const int64_t last = std::clamp<int64_t> (std::llround (playedEnd * capture->rate) - capture->start, first, capture->frames);
+    capture->hear (0, first);
+    capture->hear (last, capture->frames - last);
+    capture->heardAtStart = capture->heardCount;
 
     Capture* c = capture.get ();
     capturing.fetch_add (1);
     live_.store (c, std::memory_order_release);
-    c->writer = std::thread ([this, c, reply, partial] {
+    c->writer = std::thread ([this, c, reply, partial, me] {
         bool ok = true;
-        auto said = std::chrono::steady_clock::now ();
+        const auto begun = std::chrono::steady_clock::now ();
+        auto said = begun, called = begun;
+        uint64_t calls = 0;
         while (!c->cancel.load () && ok && c->heardCount < c->frames)
         {
+            if (!c->listening.load (std::memory_order_relaxed))
+            {
+                const auto now = std::chrono::steady_clock::now ();
+                if (const uint64_t n = c->calls.load (std::memory_order_relaxed); n != calls)
+                    calls = n, called = now;
+                if (c->quiet.load (std::memory_order_relaxed) >= std::llround (quietSeconds * c->rate) || now - called > idleWait || now - begun > longestWait)
+                {
+                    // Curator has the DAW play once told.
+                    c->listening.store (true, std::memory_order_release);
+                    JsonWriter ready;
+                    ready.object ().field ("t", "ready").field ("document", c->document).field ("capturer", me).endObject ();
+                    client_.send (ready.text ());
+                }
+            }
             const uint64_t t = c->tail.load (std::memory_order_relaxed);
             if (t == c->head.load (std::memory_order_acquire))
             {
@@ -261,8 +347,8 @@ void Capturer::start (const std::string& document, double from, double length, c
                 progress.object ()
                     .field ("t", "progress")
                     .field ("document", c->document)
-                    .field ("capturer", id_)
-                    .field ("done", static_cast<double> (c->heardCount) / static_cast<double> (c->frames))
+                    .field ("capturer", me)
+                    .field ("done", static_cast<double> (c->heardCount - c->heardAtStart) / static_cast<double> (std::max<int64_t> (1, c->frames - c->heardAtStart)))
                     .endObject ();
                 client_.send (progress.text ());
             }

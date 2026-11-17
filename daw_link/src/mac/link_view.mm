@@ -13,6 +13,10 @@
 
 #include <dlfcn.h>
 
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 // Each bundle names its classes for itself (LINK_VIEW_SUFFIX): a DAW can load the VST3 and the
 // Audio Unit at once, and Objective-C classes are one namespace for the whole process.
 #define LINK_JOIN_(a, b) a##b
@@ -41,6 +45,7 @@ int installedBuild ()
 
 @interface LinkStatusView : NSView
 - (void)setBound:(std::function<int ()>)bound;
+- (void)setCapturerId:(std::function<std::string ()>)capturerId;
 - (instancetype)initWithFrame:(NSRect)frame capturer:(BOOL)capturer;
 @end
 
@@ -52,12 +57,62 @@ int installedBuild ()
     attacca::LinkClient* _client;
     BOOL _capturer;
     std::function<int ()> _bound;
+    std::function<std::string ()> _capturerId;
+    // Attacca's: the Capturer linked to it, chosen from those in the DAW (as Curator says).
+    NSPopUpButton* _capturers;
+    std::vector<std::pair<std::string, std::string>> _listed;
 }
 
 - (void)setBound:(std::function<int ()>)bound
 {
     _bound = std::move (bound);
     [self update];
+}
+
+- (void)setCapturerId:(std::function<std::string ()>)capturerId
+{
+    _capturerId = std::move (capturerId);
+    [self update];
+}
+
+// Attacca's Capturer menu chosen: that Capturer linked (none: the first item).
+- (void)capturerChosen:(NSPopUpButton*)sender
+{
+    const NSInteger at = sender.indexOfSelectedItem;
+    _client->setLinkedCapturer (at > 0 && static_cast<size_t> (at) <= _listed.size () ? _listed[static_cast<size_t> (at - 1)].first : std::string ());
+    [self update];
+}
+
+// The Capturer menu as the DAW's Capturers are now, the linked one chosen (one linked that isn't
+// there now is listed all the same, so the link isn't lost while its insert loads).
+- (void)updateCapturers
+{
+    auto listed = _client->inserts ();
+    const std::string linked = _client->linkedCapturer ();
+    if (!linked.empty () && std::none_of (listed.begin (), listed.end (), [&] (const auto& c) { return c.first == linked; }))
+        listed.emplace_back (linked, "Attacca Capturer (not in the DAW)");
+    if (listed != _listed)
+    {
+        _listed = listed;
+        [_capturers removeAllItems];
+        [_capturers addItemWithTitle:@"None"];
+        for (const auto& c : _listed)
+        {
+            NSString* title = [NSString stringWithUTF8String:c.second.c_str ()] ?: @"Attacca Capturer";
+            // (Titles must differ for the menu to keep them apart.)
+            while ([_capturers itemWithTitle:title])
+                title = [title stringByAppendingString:@" \u2032"];
+            [_capturers addItemWithTitle:title];
+        }
+    }
+    NSInteger chosen = 0;
+    for (size_t i = 0; i < _listed.size (); ++i)
+    {
+        if (_listed[i].first == linked)
+            chosen = static_cast<NSInteger> (i) + 1;
+    }
+    [_capturers selectItemAtIndex:chosen];
+    _capturers.enabled = _client->connected () || !linked.empty ();
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -87,7 +142,23 @@ int installedBuild ()
     _detail.textColor = NSColor.secondaryLabelColor;
     _detail.lineBreakMode = NSLineBreakByTruncatingTail;
     [_detail setContentCompressionResistancePriority:NSLayoutPriorityDefaultLow forOrientation:NSLayoutConstraintOrientationHorizontal];
-    NSStackView* stack = [NSStackView stackViewWithViews:@[ title, state, _detail ]];
+    NSMutableArray<NSView*>* rows = [NSMutableArray arrayWithArray:@[ title, state, _detail ]];
+    if (!capturer)
+    {
+        // The Attacca Capturer linked to this DAW's Attacca: Record from DAW… captures with it.
+        NSTextField* label = [NSTextField labelWithString:@"Capturer"];
+        label.font = [NSFont systemFontOfSize:11];
+        _capturers = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+        _capturers.controlSize = NSControlSizeSmall;
+        _capturers.font = [NSFont systemFontOfSize:11];
+        _capturers.target = self;
+        _capturers.action = @selector (capturerChosen:);
+        [_capturers addItemWithTitle:@"None"];
+        NSStackView* row = [NSStackView stackViewWithViews:@[ label, _capturers ]];
+        row.spacing = 6;
+        [rows addObject:row];
+    }
+    NSStackView* stack = [NSStackView stackViewWithViews:rows];
     stack.orientation = NSUserInterfaceLayoutOrientationVertical;
     stack.alignment = NSLayoutAttributeLeading;
     stack.spacing = 4;
@@ -141,13 +212,28 @@ int installedBuild ()
         dot = NSColor.systemOrangeColor;
         detail = @"Settings \u25B8 General \u25B8 DAW \u25B8 Listen for Attacca";
     }
-    // Not linked: Attacca on an insert only, never bound to ARA; the Capturer with no Attacca on
-    // a track (an ARA document) in this DAW.
-    if (_capturer ? attacca::Capturer::documents () == 0 : (_bound && _bound () == 0))
+    // Attacca on an insert only, never bound to ARA; the Capturer linked or not to the Attacca on
+    // a track (chosen in its window), as Curator says.
+    if (!_capturer && _bound && _bound () == 0)
     {
         dot = NSColor.systemOrangeColor;
-        detail = _capturer ? @"Not linked: no Attacca on a track as an ARA extension" : @"Insert only: add Attacca to a track as an ARA extension";
+        detail = @"Insert only: add Attacca to a track as an ARA extension";
     }
+    if (_capturer && _capturerId)
+    {
+        const int linked = _client->linked (_capturerId ());
+        if (linked == 0)
+        {
+            dot = NSColor.systemOrangeColor;
+            detail = @"Not linked: choose it in Attacca\u2019s window";
+        }
+        else if (linked == 1 && !attacca::Capturer::busy ())
+        {
+            detail = @"Linked to Attacca";
+        }
+    }
+    if (_capturers)
+        [self updateCapturers];
     // Outdated: a newer Attacca is installed (the DAW keeps the one it loaded until it opens
     // again), or Curator bundles a newer one.
     const int loaded = LINK_BUILD, installed = installedBuild (), curator = _client->curatorBuild ();
@@ -213,17 +299,32 @@ int installedBuild ()
             return AudioUnitGetProperty (unit, attacca::audioUnitPropertyBoundToARA, kAudioUnitScope_Global, 0, &bound, &size) == noErr ? static_cast<int> (bound) : -1;
         }];
     }
+    // The Capturer's: its ID, as the instance says (whether it is linked).
+    if (capturer && unit)
+    {
+        [view setCapturerId:[unit] () -> std::string {
+            CFStringRef id = nullptr;
+            UInt32 size = sizeof id;
+            if (AudioUnitGetProperty (unit, attacca::audioUnitPropertyCapturerID, kAudioUnitScope_Global, 0, &id, &size) != noErr || !id)
+                return {};
+            std::string text = [(__bridge NSString*) id UTF8String] ?: "";
+            CFRelease (id);
+            return text;
+        }];
+    }
     return view;
 }
 @end
 
 namespace attacca {
 
-void* attachStatusView (void* parent, bool capturer, std::function<int ()> bound)
+void* attachStatusView (void* parent, bool capturer, std::function<int ()> bound, std::function<std::string ()> capturerId)
 {
     LinkStatusView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, statusViewWidth, statusViewHeight) capturer:capturer];
     if (bound)
         [view setBound:std::move (bound)];
+    if (capturerId)
+        [view setCapturerId:std::move (capturerId)];
     view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [(__bridge NSView*) parent addSubview:view];
     return (__bridge_retained void*) view;

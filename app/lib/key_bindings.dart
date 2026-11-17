@@ -138,6 +138,7 @@ enum KeyCommand {
   exportWeb('Export to Web…', 'File', KeyPlace.menus, [], editable: true),
   // File ▸ Attacca.
   followDaw('Follow DAW…', 'File', KeyPlace.menus, [], editable: true),
+  recordFromDaw('Record from DAW…', 'File', KeyPlace.menus, [], editable: true),
   captureStems('Capture Stems…', 'File', KeyPlace.menus, [], editable: true),
   attaccaSettings('Attacca Settings…', 'File', KeyPlace.menus, [], editable: true),
   // The editor takes Edit's keys with ⌃ too on macOS ([also]).

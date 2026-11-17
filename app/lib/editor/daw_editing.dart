@@ -38,6 +38,40 @@ class DawEditing {
   /// What is followed, or null.
   DawFollow? get following => _follow;
 
+  /// Whether Curator's transport drives the DAW's ([Playback.play], [Playback.pause],
+  /// [Playback.seek]): following its playhead, the DAW there and letting Attacca
+  /// ([DawDocument.playback]). Curator is silent then; the DAW plays, and its transport moves
+  /// the playhead.
+  bool get drives {
+    final f = _follow, found = document;
+    return f != null && f.transport && found != null && found.$2.playback && _regionIn(found.$2) != null;
+  }
+
+  /// The DAW asked to [command] (`play`, `stop`, `seek`), at [seconds] into the recording
+  /// followed (its song time where the region followed plays it).
+  void _drive(String command, {double? seconds}) {
+    final found = document, link = _link;
+    if (!drives || found == null || link == null) return;
+    // Seeks come fast (a wheel, a drag): one sent at most every 60 ms, the last where it ended.
+    if (command == 'seek') {
+      _seekTo = seconds;
+      if (_seekTimer?.isActive ?? false) return;
+      _seekTimer = Timer(const Duration(milliseconds: 60), () {
+        if (_seekTo case final at? when at != _seekSent) _drive('seek', seconds: at);
+      });
+      if (seconds == _seekSent) return;
+      _seekSent = seconds;
+    } else {
+      _seekTimer?.cancel();
+      _seekSent = null;
+    }
+    final region = _regionIn(found.$2)!;
+    link.drive(found.$1, found.$2.id, command, at: seconds == null ? null : region.songAt(seconds));
+  }
+
+  Timer? _seekTimer;
+  double? _seekTo, _seekSent;
+
   /// The DAW document followed and its DAW, as last sent; null when it is gone (or nothing is
   /// followed).
   (DawSession, DawDocument)? get document => _follow == null ? null : _link?.find(_follow!.document);

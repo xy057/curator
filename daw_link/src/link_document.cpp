@@ -1,6 +1,5 @@
 #include "link_document.h"
 #include "link_files.h"
-#include "link_capture.h"
 
 #include "json.h"
 #include "link_client.h"
@@ -204,13 +203,11 @@ LinkDocumentController::LinkDocumentController (const ARA::PlugIn::PlugInEntry* 
   client_ (LinkClient::retain ())
 {
     listener_ = client_.listen ([this] (const Message& m) { onMessage (m); });
-    Capturer::countDocument (1);
 }
 
 LinkDocumentController::~LinkDocumentController ()
 {
     client_.unlisten (listener_);
-    Capturer::countDocument (-1);
     stopExport (nullptr);
     JsonWriter closed;
     closed.object ().field ("t", "closed").field ("id", id_).endObject ();
@@ -240,36 +237,6 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
-    followCapture ();
-}
-
-void LinkDocumentController::followCapture () noexcept
-{
-    // A Capturer hears only what the DAW plays: the DAW is asked to play from a second before
-    // the span, and to stop once it is heard whole (where the host lets a plug-in ask).
-    auto* playback = getHostPlaybackController ();
-    if (wantPlayback_.exchange (false))
-    {
-        if (playback)
-        {
-            playback->requestSetPlaybackPosition (std::max (0.0, playFrom_.load () - 1.0));
-            playback->requestStartPlayback ();
-        }
-        playing_ = true;
-        sawCapture_ = false;
-    }
-    if (!playing_)
-        return;
-    if (Capturer::busy ())
-    {
-        sawCapture_ = true;
-    }
-    else if (sawCapture_)
-    {
-        if (playback)
-            playback->requestStopPlayback ();
-        playing_ = false;
-    }
 }
 
 void LinkDocumentController::doUpdateMusicalContextContent (ARA::PlugIn::MusicalContext*, const ARA::ARAContentTimeRange*, ARA::ContentUpdateScopes) noexcept
@@ -369,6 +336,8 @@ std::string LinkDocumentController::snapshot ()
     auto* document = getDocument ();
     w.object ().field ("t", "document").field ("id", id_);
     name (w, "name", document->getName ());
+    // Whether the DAW lets Attacca drive its transport (Curator's then does, while following).
+    w.field ("playback", getHostPlaybackController () != nullptr);
 
     w.key ("contexts").array ();
     for (const auto* context : document->getMusicalContexts ())
@@ -570,15 +539,20 @@ void LinkDocumentController::onMessage (const Message& message)
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;
-    if (*t == "capture" && field ("capturer") && field ("from"))
+    // Curator's transport (following this DAW, or capturing the mix) driving the DAW's: asked of
+    // the host at once, from this thread (ARA lets a plug-in from any but a render thread).
+    if (*t == "play" || *t == "stop" || *t == "seek")
     {
-        // A Capturer takes it (link_capture.cpp); the DAW is asked to play it from here.
-        const double from = std::strtod (field ("from")->c_str (), nullptr);
-        if (std::isfinite (from))
-        {
-            playFrom_.store (from);
-            wantPlayback_.store (true);
-        }
+        auto* playback = getHostPlaybackController ();
+        const double at = field ("at") ? std::strtod (field ("at")->c_str (), nullptr) : NAN;
+        if (!playback)
+            return;
+        if (*t != "stop" && std::isfinite (at))
+            playback->requestSetPlaybackPosition (std::max (0.0, at));
+        if (*t == "play")
+            playback->requestStartPlayback ();
+        else if (*t == "stop")
+            playback->requestStopPlayback ();
         return;
     }
     ExportJob job;
@@ -612,14 +586,6 @@ void LinkDocumentController::startPendingExport ()
             return;
         job = pending_.front ();
         pending_.erase (pending_.begin ());
-    }
-    // A Capturer in the DAW captures in Attacca's place (the mix as heard): its own capture is off.
-    if (Capturer::any ())
-    {
-        JsonWriter w;
-        w.object ().field ("t", job.stem ? "stemmed" : "exported").field ("document", id_).field (job.stem ? "track" : "source", job.id).field ("error", "capturer").endObject ();
-        client_.send (w.text ());
-        return;
     }
     if (job.stem)
         startStem (job);
