@@ -319,7 +319,7 @@ void main() {
       ]);
       expect([for (final i in flat(midi.firstWhere((m) => m.label == 'View').menus)) i.label], contains('Show MIDI View'));
 
-      // File ▸ Attacca: how it stands (greyed out), Follow DAW… ticked while followed, Record
+      // File ▸ Attacca: how it stands (greyed out), Connect Attacca… ticked while followed, Record
       // from DAW… while it is, Capture Stems… greyed out for now, its Settings….
       final link = AppMenus(
         onOpen: () {},
@@ -333,7 +333,7 @@ void main() {
       final fileMenu = flat(link.firstWhere((m) => m.label == 'File').menus);
       expect([for (final i in flat(fileMenu.whereType<PlatformMenu>().firstWhere((m) => m.label == 'Attacca').menus)) (i.label, i.onSelected != null)], [
         ('Connected: Logic Pro', false),
-        ('✓ Follow DAW…', true),
+        ('✓ Connect Attacca…', true),
         ('Record from DAW…', true),
         ('Capture Stems…', false),
         ('Settings…', true),

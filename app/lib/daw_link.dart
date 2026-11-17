@@ -296,7 +296,7 @@ class DawSession extends ChangeNotifier {
   String host = '';
 
   /// Whether Attacca supports this DAW ([DawLink.supports]); one that isn't is told of, and
-  /// Follow DAW… refuses its recordings unless ⌥ is held.
+  /// Connect Attacca… refuses its recordings unless ⌥ is held.
   bool get supported => DawLink.supports(host);
 
   /// The plug-in's version (Curator's, when they came together).
@@ -490,7 +490,7 @@ abstract final class AttaccaPlugIns {
       ['$folder/VST3/$vst3', '$folder/VST3/$capturerVst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
 
   /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
-  /// Follow DAW… is greyed out; Curator doesn't listen.
+  /// Connect Attacca… is greyed out; Curator doesn't listen.
   static bool get supported => debugSupported ?? Platform.isMacOS;
 
   /// Stands in for the system in tests; null: the real one.

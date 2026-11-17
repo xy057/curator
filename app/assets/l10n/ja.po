@@ -3532,8 +3532,8 @@ msgstr "Attacca を待ち受ける"
 msgid "Attacca plug-in"
 msgstr "Attacca プラグイン"
 
-msgid "Use this recording"
-msgstr "この録音を使う"
+msgid "Load ARA Clip"
+msgstr "ARA クリップを読み込む"
 
 msgid "Follow the DAW’s playhead"
 msgstr "DAW の再生ヘッドに追従"
@@ -5348,10 +5348,6 @@ msgstr "MIDI ビュー"
 msgid "Couldn’t Import MIDI File"
 msgstr "MIDI ファイルを読み込めませんでした"
 
-#: lib/app_menus.dart
-msgid "Follow DAW…"
-msgstr "DAW に追従…"
-
 #: lib/daw_follow_dialog.dart
 msgid "Couldn’t get the recording from the DAW. {error}"
 msgstr "DAW から録音を取得できませんでした。{error}"
@@ -5383,10 +5379,6 @@ msgstr "DAW との接続が切れました。"
 #: lib/daw_follow_dialog.dart
 msgid "The file couldn’t be written."
 msgstr "ファイルを書き込めませんでした。"
-
-#: lib/daw_follow_dialog.dart
-msgid "Follow DAW"
-msgstr "DAW に追従"
 
 #: lib/daw_follow_dialog.dart
 msgid "No DAW connected."
@@ -5613,10 +5605,6 @@ msgid "Attacca works in {daws}."
 msgstr "Attacca は {daws} で使えます。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Follow Anyway"
-msgstr "それでも追従"
-
-#: lib/daw_follow_dialog.dart
 msgid "Attacca isn’t on a recording in the DAW."
 msgstr "DAW の Attacca が録音に適用されていません。"
 
@@ -5667,3 +5655,15 @@ msgstr "追従中の録音が DAW にありません。"
 #: lib/daw_follow_dialog.dart
 msgid "Choose the Capturer in Attacca’s window in the DAW."
 msgstr "DAW の Attacca のウインドウで Capturer を選んでください。"
+
+#: lib/app_menus.dart
+msgid "Connect Attacca…"
+msgstr "Attacca に接続…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Attacca"
+msgstr "Attacca に接続"
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Anyway"
+msgstr "それでも接続"

@@ -3532,8 +3532,8 @@ msgstr "監聽 Attacca"
 msgid "Attacca plug-in"
 msgstr "Attacca 外掛程式"
 
-msgid "Use this recording"
-msgstr "使用此錄音"
+msgid "Load ARA Clip"
+msgstr "載入 ARA 片段"
 
 msgid "Follow the DAW’s playhead"
 msgstr "跟隨 DAW 的播放頭"
@@ -5348,10 +5348,6 @@ msgstr "MIDI 檢視"
 msgid "Couldn’t Import MIDI File"
 msgstr "無法匯入 MIDI 檔案"
 
-#: lib/app_menus.dart
-msgid "Follow DAW…"
-msgstr "跟隨 DAW…"
-
 #: lib/daw_follow_dialog.dart
 msgid "Couldn’t get the recording from the DAW. {error}"
 msgstr "無法從 DAW 取得錄音。{error}"
@@ -5383,10 +5379,6 @@ msgstr "DAW 已中斷連線。"
 #: lib/daw_follow_dialog.dart
 msgid "The file couldn’t be written."
 msgstr "無法寫入檔案。"
-
-#: lib/daw_follow_dialog.dart
-msgid "Follow DAW"
-msgstr "跟隨 DAW"
 
 #: lib/daw_follow_dialog.dart
 msgid "No DAW connected."
@@ -5613,10 +5605,6 @@ msgid "Attacca works in {daws}."
 msgstr "Attacca 可用於 {daws}。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Follow Anyway"
-msgstr "仍然跟隨"
-
-#: lib/daw_follow_dialog.dart
 msgid "Attacca isn’t on a recording in the DAW."
 msgstr "DAW 中的 Attacca 沒有用在錄音上。"
 
@@ -5667,3 +5655,15 @@ msgstr "跟隨的錄音不在 DAW 中。"
 #: lib/daw_follow_dialog.dart
 msgid "Choose the Capturer in Attacca’s window in the DAW."
 msgstr "請在 DAW 中 Attacca 的視窗裡選擇 Capturer。"
+
+#: lib/app_menus.dart
+msgid "Connect Attacca…"
+msgstr "連接 Attacca…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Attacca"
+msgstr "連接 Attacca"
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Anyway"
+msgstr "仍然連接"

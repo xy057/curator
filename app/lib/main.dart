@@ -1103,7 +1103,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// shows; null for any other project (and no such menu).
   final _midi = ValueNotifier<({MidiLook look, bool fileTempo})?>(null);
 
-  /// Whether a DAW is followed (File ▸ Attacca ▸ Follow DAW…, ticked).
+  /// Whether a DAW is followed (File ▸ Attacca ▸ Connect Attacca…, ticked).
   final _followsDaw = ValueNotifier(false);
 
   late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi, _followsDaw]);
@@ -1725,7 +1725,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
-  /// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW to follow; while one is, stops.
+  /// File ▸ Attacca ▸ Connect Attacca…: a recording in a DAW to follow; while one is, stops.
   void _followDaw() {
     if (controller.score == null) return;
     controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
