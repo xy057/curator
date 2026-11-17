@@ -66,8 +66,8 @@ public:
 // what comes in; tells Curator where the DAW is playing.
 class LinkProcessor : public Vst::AudioEffect, public ARA::IPlugInEntryPoint, public ARA::IPlugInEntryPoint2 {
 public:
-    static const FUID classID () { return FUID (0x0F041F96, 0xA2654B5A, 0xB41C67D5, 0x36C58ED9); }
-    static const FUID controllerID () { return FUID (0x1245D387, 0xA75E4A1C, 0x88D4A3DD, 0x99FD9C89); }
+    static const FUID classID () { return FUID (0xAFB4775C, 0x839D4BA3, 0x8447247E, 0x8ED44D1E); }
+    static const FUID controllerID () { return FUID (0x83F3EE18, 0x3745449B, 0x87759A19, 0x5CFB7E21); }
 
     LinkProcessor () : client_ (LinkClient::retain ())
     {
@@ -177,7 +177,7 @@ class LinkMainFactory : public ARA::IMainFactory {
 public:
     LinkMainFactory () { FUNKNOWN_CTOR }
     virtual ~LinkMainFactory () { FUNKNOWN_DTOR }
-    static const FUID classID () { return FUID (0x7F016CB2, 0xBF5A4C89, 0xB5BCE924, 0x2F895E3C); }
+    static const FUID classID () { return FUID (0xCCE65654, 0xB4244C60, 0x933A6DA8, 0x6F147299); }
     static FUnknown* create (void*) { return static_cast<ARA::IMainFactory*> (new LinkMainFactory ()); }
     DECLARE_FUNKNOWN_METHODS
     const ARA::ARAFactory* PLUGIN_API getFactory () override { return LinkDocumentController::getARAFactory (); }
