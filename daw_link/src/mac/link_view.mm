@@ -1,7 +1,9 @@
 // Attacca's window in the DAW: its name, whether Curator is connected (or why not), and
-// the Curator projects following this DAW.
+// the Curator projects following this DAW. Attacca Capturer's says whether it is capturing,
+// or that it needs Attacca on a track.
 #include "link_view.h"
 
+#include "../link_capture.h"
 #include "../link_client.h"
 #include "../link_config.h"
 
@@ -16,6 +18,7 @@
 #define LinkViewFactory LINK_JOIN(AttaccaViewFactory_, LINK_VIEW_SUFFIX)
 
 @interface LinkStatusView : NSView
+- (instancetype)initWithFrame:(NSRect)frame capturer:(BOOL)capturer;
 @end
 
 @implementation LinkStatusView {
@@ -24,17 +27,24 @@
     NSTextField* _detail;
     NSTimer* _timer;
     attacca::LinkClient* _client;
+    BOOL _capturer;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
 {
+    return [self initWithFrame:frame capturer:NO];
+}
+
+- (instancetype)initWithFrame:(NSRect)frame capturer:(BOOL)capturer
+{
     if (!(self = [super initWithFrame:frame]))
         return nil;
+    _capturer = capturer;
     _client = &attacca::LinkClient::retain ();
     self.wantsLayer = YES;
     self.layer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
 
-    NSTextField* title = [NSTextField labelWithString:@"Attacca"];
+    NSTextField* title = [NSTextField labelWithString:capturer ? @"Attacca Capturer" : @"Attacca"];
     title.font = [NSFont boldSystemFontOfSize:15];
     _dot = [NSTextField labelWithString:@"\u25CF"];
     _dot.font = [NSFont systemFontOfSize:10];
@@ -79,6 +89,15 @@
         NSArray<NSString*>* followers = names.length == 0 ? @[] : [names componentsSeparatedByString:@"\n"];
         detail = followers.count == 0 ? @"No project follows this DAW"
                                       : [@"Followed by " stringByAppendingString:[followers componentsJoinedByString:@", "]];
+        if (_capturer && attacca::Capturer::documents () == 0)
+        {
+            dot = NSColor.systemOrangeColor;
+            detail = @"Needs Attacca on a track";
+        }
+        else if (_capturer && attacca::Capturer::busy ())
+        {
+            detail = @"Capturing for Curator\u2026";
+        }
     }
     else if ([NSRunningApplication runningApplicationsWithBundleIdentifier:@LINK_CURATOR_BUNDLE_ID].count == 0)
     {
@@ -132,15 +151,23 @@
 
 - (NSView*)uiViewForAudioUnit:(AudioUnit)unit withSize:(NSSize)size
 {
-    return [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, attacca::statusViewWidth, attacca::statusViewHeight)];
+    // Attacca Capturer's, told by its component's name.
+    BOOL capturer = NO;
+    CFStringRef name = nullptr;
+    if (unit && AudioComponentCopyName (AudioComponentInstanceGetComponent (unit), &name) == noErr && name)
+    {
+        capturer = [(__bridge NSString*) name containsString:@"Capturer"];
+        CFRelease (name);
+    }
+    return [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, attacca::statusViewWidth, attacca::statusViewHeight) capturer:capturer];
 }
 @end
 
 namespace attacca {
 
-void* attachStatusView (void* parent)
+void* attachStatusView (void* parent, bool capturer)
 {
-    NSView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, statusViewWidth, statusViewHeight)];
+    NSView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, statusViewWidth, statusViewHeight) capturer:capturer];
     view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [(__bridge NSView*) parent addSubview:view];
     return (__bridge_retained void*) view;

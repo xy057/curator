@@ -5585,3 +5585,19 @@ msgstr "Attacca 録音はプロジェクトに 1 つです。"
 #: lib/score_editor.dart
 msgid "Bars: {count}"
 msgstr "小節：{count}"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca Capturer captures in its place."
+msgstr "Attacca Capturer が代わりにキャプチャします。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Captured by Attacca Capturer as the DAW plays it."
+msgstr "DAW の再生中に Attacca Capturer がキャプチャします。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Capturing the Recording"
+msgstr "録音をキャプチャ中"
+
+#: lib/daw_follow_dialog.dart
+msgid "Play it in the DAW if it doesn’t start."
+msgstr "始まらない場合は DAW で再生してください。"

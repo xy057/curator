@@ -5585,3 +5585,19 @@ msgstr "每个项目一个 Attacca 录音。"
 #: lib/score_editor.dart
 msgid "Bars: {count}"
 msgstr "小节：{count}"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca Capturer captures in its place."
+msgstr "由 Attacca Capturer 代为捕获。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Captured by Attacca Capturer as the DAW plays it."
+msgstr "在 DAW 播放时由 Attacca Capturer 捕获。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Capturing the Recording"
+msgstr "正在捕获录音"
+
+#: lib/daw_follow_dialog.dart
+msgid "Play it in the DAW if it doesn’t start."
+msgstr "如果没有开始，请在 DAW 中播放。"

@@ -22,7 +22,10 @@
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/gui/iplugview.h"
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
 ARA_DISABLE_VST3_WARNINGS_END
 
 #include "../src/json.h"
@@ -99,6 +102,16 @@ void ARA_CALL archivingProgress (ARAArchivingControllerHostRef, float) {}
 ARAPersistentID ARA_CALL archiveID (ARAArchivingControllerHostRef, ARAArchiveReaderHostRef) { return nullptr; }
 const ARAArchivingControllerInterface archiving = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAArchivingControllerInterface, getDocumentArchiveID),
                                                     &archiveSize, &readArchive, &writeArchive, &archivingProgress, &archivingProgress, &archiveID };
+
+// What the plug-in asked the DAW's transport to do (for Attacca Capturer).
+std::vector<std::string> playbackAsked;
+void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("start"); }
+void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("stop"); }
+void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { playbackAsked.push_back ("at " + std::to_string (at)); }
+void ARA_CALL setCycle (ARAPlaybackControllerHostRef, ARATimePosition, ARATimeDuration) {}
+void ARA_CALL enableCycle (ARAPlaybackControllerHostRef, ARABool) {}
+const ARAPlaybackControllerInterface playbackControl = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAPlaybackControllerInterface, requestEnableCycle),
+                                                          &startPlayback, &stopPlayback, &setPosition, &setCycle, &enableCycle };
 
 // The song: 120 to quarter 4 (2 s), then 90 (six quarters in 4 s); 4/4, then 3/4 from quarter 8.
 const ARAContentTempoEntry tempo[] = { { 0.0, 0.0 }, { 2.0, 4.0 }, { 6.0, 10.0 } };
@@ -448,9 +461,165 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
     dc->endEditing (controller);
     dc->destroyDocumentController (controller);
     factory->uninitializeARA ();
+
+    // Attacca Capturer as an Audio Unit: in the same bundle, made and set up, with a window.
+    auto capturerFactory = reinterpret_cast<AudioComponentFactoryFunction> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("AttaccaCapturerFactory")));
+    check (capturerFactory != nullptr, "the component exports AttaccaCapturerFactory");
+    const AudioComponentDescription capturerDescription { kAudioUnitType_Effect, 'Atcp', 'Crtr', 0, 0 };
+    AudioComponent capturerComponent = AudioComponentRegister (&capturerDescription, CFSTR ("Curator: Attacca Capturer (test)"), 1, capturerFactory);
+    AudioComponentInstance capturer = nullptr;
+    check (capturerComponent && AudioComponentInstanceNew (capturerComponent, &capturer) == noErr && AudioUnitInitialize (capturer) == noErr, "Attacca Capturer made and set up");
+    AudioUnitCocoaViewInfo view {};
+    UInt32 viewSize = sizeof view;
+    check (AudioUnitGetProperty (capturer, kAudioUnitProperty_CocoaUI, kAudioUnitScope_Global, 0, &view, &viewSize) == noErr && view.mCocoaAUViewClass[0], "with a window");
+    if (view.mCocoaAUViewBundleLocation)
+        CFRelease (view.mCocoaAUViewBundleLocation);
+    if (view.mCocoaAUViewClass[0])
+        CFRelease (view.mCocoaAUViewClass[0]);
+    AudioUnitUninitialize (capturer);
+    AudioComponentInstanceDispose (capturer);
 }
 
 }  // namespace
+
+// Attacca Capturer (the VST3's second class), as a DAW runs it on its output: while it is there
+// Attacca's own capture is off; asked to capture, the DAW is asked to play from a second before,
+// what it hears is kept by song time however the span is played (here its end first), and the
+// DAW is asked to stop once it is heard whole.
+void checkCapturer (const char* path, Curator& curator, const std::string& document, const std::function<void ()>& idle)
+{
+    using namespace Steinberg;
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
+    CFBundleRef bundle = CFBundleCreate (nullptr, url);
+    CFRelease (url);
+    auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
+    IPluginFactory* factory = getFactory ? getFactory () : nullptr;
+    check (factory != nullptr, "the VST3 gives its factory");
+    TUID capturerID {};
+    bool listed = false;
+    for (int32 i = 0; i < factory->countClasses () && !listed; ++i)
+    {
+        PClassInfo info;
+        if (factory->getClassInfo (i, &info) == kResultOk && std::strcmp (info.category, kVstAudioEffectClass) == 0 && std::strcmp (info.name, "Attacca Capturer") == 0)
+        {
+            std::memcpy (capturerID, info.cid, sizeof (TUID));
+            listed = true;
+        }
+    }
+    check (listed, "Attacca Capturer listed beside Attacca");
+    Vst::IComponent* component = nullptr;
+    check (factory->createInstance (capturerID, Vst::IComponent::iid, reinterpret_cast<void**> (&component)) == kResultOk && component, "made");
+    check (component->initialize (nullptr) == kResultOk, "initialized");
+    Vst::IAudioProcessor* processor = nullptr;
+    check (component->queryInterface (Vst::IAudioProcessor::iid, reinterpret_cast<void**> (&processor)) == kResultOk && processor, "an audio processor");
+    constexpr double rate = 48000;
+    constexpr int32 block = 480;
+    Vst::ProcessSetup setup { Vst::kRealtime, Vst::kSample32, block, rate };
+    check (processor->setupProcessing (setup) == kResultOk, "set up at 48 kHz");
+    component->setActive (true);
+    processor->setProcessing (true);
+
+    // (Said again once the DAW has set it up: the last one says its rate.)
+    std::string line;
+    for (int i = 0; i < 3 && !contains (line, "\"rate\":48000"); ++i)
+    {
+        curator.next ("capturers", 5);
+        line = curator.lines.back ();
+    }
+    const std::string key = "\"list\":[{\"id\":\"";
+    const size_t at = line.find (key);
+    check (at != std::string::npos, "Curator is told of it");
+    const std::string capturer = line.substr (at + key.size (), line.find ('"', at + key.size ()) - at - key.size ());
+    check (contains (line, "\"channels\":2,\"rate\":48000"), "with its channels and rate");
+
+    curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
+    auto refused = curator.next ("exported", 10, idle);
+    check (refused["error"] == "capturer", "Attacca's own capture is off");
+
+    // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
+    auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
+    playbackAsked.clear ();
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + capturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}");
+    for (int i = 0; i < 50 && playbackAsked.size () < 2; ++i)
+    {
+        idle ();
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    check (playbackAsked.size () >= 2 && playbackAsked[0] == "at 0.000000" && playbackAsked[1] == "start", "the DAW asked to play from a second before");
+
+    std::vector<float> left (block), right (block), outLeft (block), outRight (block);
+    float* ins[2] { left.data (), right.data () };
+    float* outs[2] { outLeft.data (), outRight.data () };
+    Vst::AudioBusBuffers in {}, out {};
+    in.numChannels = out.numChannels = 2;
+    in.channelBuffers32 = ins;
+    out.channelBuffers32 = outs;
+    Vst::ProcessContext context {};
+    context.state = Vst::ProcessContext::kPlaying;
+    context.sampleRate = rate;
+    Vst::ProcessData data {};
+    data.processMode = Vst::kRealtime;
+    data.symbolicSampleSize = Vst::kSample32;
+    data.numSamples = block;
+    data.numInputs = data.numOutputs = 1;
+    data.inputs = &in;
+    data.outputs = &out;
+    data.processContext = &context;
+    bool through = true;
+    auto play = [&] (int64_t from, int64_t to) {
+        for (int64_t song = from; song < to; song += block)
+        {
+            for (int i = 0; i < block; ++i)
+            {
+                left[static_cast<size_t> (i)] = heard (song + i, 0);
+                right[static_cast<size_t> (i)] = heard (song + i, 1);
+            }
+            context.projectTimeSamples = song;
+            processor->process (data);
+            through = through && outLeft == left && outRight == right;
+            std::this_thread::sleep_for (std::chrono::microseconds (200));
+        }
+    };
+    play (48000, 96000);  // the span's end first
+    play (0, 48000);
+    check (through, "what it hears passed through untouched");
+    auto captured = curator.next ("captured", 10, idle);
+    check (captured["error"].empty () && captured["capturer"] == capturer, "captured without an error " + captured["error"]);
+    const std::string file = captured["path"];
+    check (contains (file, "/Library/Caches/Curator/DAW Link/Captures/") && contains (file, "/Mix.wav"), "into Curator's cache, by the name asked");
+    {
+        std::ifstream wav (file, std::ios::binary);
+        std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
+        check (bytes.size () == 56 + static_cast<size_t> (48000) * 2 * 4, "a stereo float WAV as long as asked");
+        bool same = true;
+        for (int64_t k = 0; k < 48000; k += 7)
+        {
+            float l, r;
+            std::memcpy (&l, bytes.data () + 56 + k * 8, 4);
+            std::memcpy (&r, bytes.data () + 56 + k * 8 + 4, 4);
+            same = same && l == heard (24000 + k, 0) && r == heard (24000 + k, 1);
+        }
+        check (same, "each frame where the song has it");
+    }
+    for (int i = 0; i < 50 && (playbackAsked.empty () || playbackAsked.back () != "stop"); ++i)
+    {
+        idle ();
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    check (!playbackAsked.empty () && playbackAsked.back () == "stop", "the DAW asked to stop once it is heard whole");
+
+    processor->setProcessing (false);
+    component->setActive (false);
+    processor->release ();
+    component->terminate ();
+    component->release ();
+    curator.next ("capturers", 5);
+    check (contains (curator.lines.back (), "\"list\":[]"), "Curator is told it is gone");
+    curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
+    auto again = curator.next ("exported", 10, idle);
+    check (again["error"].empty (), "Attacca's own capture is back");
+    CFRelease (bundle);
+}
 
 int main (int argc, const char* argv[])
 {
@@ -486,7 +655,7 @@ int main (int argc, const char* argv[])
         reinterpret_cast<ARAArchivingControllerHostRef> (11), &archiving,
         reinterpret_cast<ARAContentAccessControllerHostRef> (12), &contentAccess,
         reinterpret_cast<ARAModelUpdateControllerHostRef> (13), &modelUpdates,
-        nullptr, nullptr };
+        reinterpret_cast<ARAPlaybackControllerHostRef> (14), &playbackControl };
     const ARADocumentProperties documentProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), "Symphony" };
     const auto* instance = factory->createDocumentControllerWithDocument (&hostInstance, &documentProperties);
     const auto controller = instance->documentControllerRef;
@@ -584,6 +753,9 @@ int main (int argc, const char* argv[])
         check (silent, "silence before the region");
         check (worst < 1e-5, "the region where the song plays it");
     }
+
+    std::printf ("Attacca Capturer captures the mix in Attacca's place\n");
+    checkCapturer (argv[1], curator, id, [&] { dc->notifyModelUpdates (controller); });
 
     std::printf ("The region plays where the song has it\n");
     VST3Effect effect = VST3CreateEffect (binary, nullptr);

@@ -26,12 +26,30 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
   if (choice.recording) {
     final done = ValueNotifier<double>(0);
-    final dialog = showAppDialog<void>(context: context, barrierDismissible: false, builder: (_) => _Fetching(done: done));
+    // With an Attacca Capturer in the DAW, the mix as it plays there over the recording's span;
+    // else the recording itself, as Attacca reads it.
+    final capturer = choice.session.capturers.firstOrNull;
+    final region = choice.document.regionsOf(choice.source.id).firstOrNull;
+    final dialog = showAppDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _Fetching(
+        done: done,
+        capturing: capturer != null,
+        onCancel: capturer == null ? null : () => link.cancelCapture(choice.session, choice.document.id, capturer),
+      ),
+    );
     String? path;
     try {
-      path = await link.recording(choice.session, choice.document.id, choice.source.id, progress: (d) => done.value = d);
+      path = capturer != null && region != null
+          ? await link.capture(choice.session, choice.document.id, capturer,
+              from: region.songAt(0),
+              length: choice.source.seconds,
+              name: choice.source.name.isEmpty ? 'Recording'.tr : choice.source.name,
+              progress: (d) => done.value = d)
+          : await link.recording(choice.session, choice.document.id, choice.source.id, progress: (d) => done.value = d);
     } on DawLinkException catch (e) {
-      say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
+      if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
     }
     if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
     await dialog;
@@ -57,6 +75,7 @@ String dawProblem(String reason) => switch (reason) {
       'empty' => 'Nothing plays there.'.tr,
       'gone' => 'It is no longer in the DAW.'.tr,
       'disconnected' => 'The DAW disconnected.'.tr,
+      'capturer' => 'Attacca Capturer captures in its place.'.tr,
       _ => 'The file couldn’t be written.'.tr,
     };
 
@@ -168,6 +187,12 @@ class _FollowDialogState extends State<_FollowDialog> {
                 ),
                 SizedBox(height: dialogGap(context)),
                 AppCheckRow(value: _recording, onChanged: (v) => setState(() => _recording = v ?? false), label: 'Use this recording'),
+                // Taken as the mix, through Attacca Capturer, as the DAW plays it.
+                if (_recording && chosen.session.capturers.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 28, bottom: 4),
+                    child: Text('Captured by Attacca Capturer as the DAW plays it.'.tr, style: muted),
+                  ),
                 AppCheckRow(value: _playhead, onChanged: (v) => setState(() => _playhead = v ?? false), label: 'Follow the DAW’s playhead'),
               ]),
             ),
@@ -192,21 +217,30 @@ class _FollowDialogState extends State<_FollowDialog> {
       );
 }
 
-/// While the DAW writes the recording out: how far it has got.
+/// While the DAW writes the recording out, or ([capturing]) Attacca Capturer hears it as the
+/// DAW plays it: how far it has got; a capture can be cancelled.
 class _Fetching extends StatelessWidget {
-  const _Fetching({required this.done});
+  const _Fetching({required this.done, this.capturing = false, this.onCancel});
   final ValueNotifier<double> done;
+  final bool capturing;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) => AppDialog(
-        title: Text('Getting the Recording'.tr),
+        title: Text(capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr),
         content: SizedBox(
           width: dialogWidth(context, 320),
-          child: ValueListenableBuilder<double>(
-            valueListenable: done,
-            builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ValueListenableBuilder<double>(
+              valueListenable: done,
+              builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
+            ),
+            if (capturing) ...[
+              const SizedBox(height: 10),
+              Text('Play it in the DAW if it doesn’t start.'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+            ],
+          ]),
         ),
-        actions: const [],
+        actions: [if (onCancel case final cancel?) TextButton(onPressed: cancel, child: Text('Cancel'.tr))],
       );
 }

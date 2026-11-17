@@ -34,7 +34,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems, an Attacca Capturer capturing in its place', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -341,6 +341,30 @@ void main() {
       await media.delete(recursive: true);
       c.stems.remove('stem-2');
       expect(c.stems.list.map((s) => s.id), ['stem-1']);
+
+      // An Attacca Capturer in the DAW: told of, the recording asked of it over the span the
+      // recording plays (heard as the DAW plays it), and a capture under way cancelled.
+      say({'t': 'capturers', 'list': [{'id': 'cap', 'channels': 2, 'rate': 48000}]});
+      await until(() => session.capturers.isNotEmpty);
+      final capturer = session.capturers.single;
+      expect((capturer.id, capturer.channels, capturer.rate), ('cap', 2, 48000));
+      final heardSoFar = <double>[];
+      final mix = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1', progress: heardSoFar.add);
+      expect(await heard.moveNext(), isTrue);
+      expect(jsonDecode(heard.current), {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1'});
+      say({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
+      say({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
+      expect(await mix, '/tmp/Mix.wav');
+      expect(heardSoFar, [0.25]);
+      final cancelled = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1');
+      expect(await heard.moveNext(), isTrue);
+      link.cancelCapture(session, 'doc', capturer);
+      expect(await heard.moveNext(), isTrue);
+      expect(jsonDecode(heard.current), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
+      say({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'error': 'cancelled'});
+      await expectLater(cancelled, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'cancelled')));
+      say({'t': 'capturers', 'list': <Object>[]});
+      await until(() => session.capturers.isEmpty);
 
       c.useMidiTempo(null);
       expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');

@@ -13,6 +13,7 @@
 #endif
 
 #define LINK_NAME "Attacca"
+#define LINK_CAPTURER_NAME "Attacca Capturer"
 #define LINK_VENDOR "Curator"
 #define LINK_URL "https://github.com/xy057/curator"
 #define LINK_EMAIL "mailto:"
