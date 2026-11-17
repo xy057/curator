@@ -12,7 +12,8 @@ import 'search.dart';
 /// from the start of the song.
 @immutable
 class DawDocument {
-  const DawDocument({required this.id, required this.name, this.contexts = const [], this.tracks = const [], this.sources = const [], this.regions = const []});
+  const DawDocument(
+      {required this.id, required this.name, this.contexts = const [], this.tracks = const [], this.sources = const [], this.regions = const [], this.playback = false});
 
   /// The plug-in's own name for the document, new each time the DAW opens it.
   final String id;
@@ -23,6 +24,10 @@ class DawDocument {
   final List<DawTrack> tracks;
   final List<DawSource> sources;
   final List<DawRegion> regions;
+
+  /// Whether the DAW lets Attacca start, stop and move its transport (an ARA playback
+  /// controller): Curator's own then drives it while following.
+  final bool playback;
 
   /// Reads a `document` message. Throws a [FormatException] saying what isn't right; what a
   /// later plug-in may add is passed over.
@@ -44,6 +49,7 @@ class DawDocument {
       tracks: each('tracks', DawTrack.fromJson)..sort((a, b) => a.order.compareTo(b.order)),
       sources: each('sources', DawSource.fromJson),
       regions: each('regions', DawRegion.fromJson)..sort((a, b) => a.start.compareTo(b.start)),
+      playback: json['playback'] == true,
     );
   }
 

@@ -270,6 +270,24 @@ void main() {
       await until(() => !c.playback.followsDaw);
       expect(c.playback.time.value, closeTo(3.5, 1e-9), reason: 'song 4 s is 3.5 s into the recording');
 
+      // The DAW letting Attacca drive its transport: Curator's seek, play and pause drive it, in
+      // song time (2 s into the recording is song 2.5 s), Curator itself silent.
+      expect(c.daw.drives, isFalse, reason: 'not until the DAW says it lets it');
+      say({...song([[0, 0], [3, 6], [8, 15]]), 'playback': true});
+      await until(() => c.daw.drives);
+      Future<Object?> next() async => (await heard.moveNext()) ? jsonDecode(heard.current) : null;
+      c.playback.seek(2);
+      expect(await next(), {'t': 'seek', 'document': 'doc', 'at': 2.5});
+      c.playback.togglePlay();
+      expect(await next(), {'t': 'play', 'document': 'doc', 'at': 2.5});
+      expect(c.playback.isPlaying, isFalse, reason: 'the DAW plays, not Curator');
+      say({'t': 'transport', 'playing': true, 'seconds': 2.5, 'quarters': 5, 'tempo': 120});
+      await until(() => c.playback.followsDaw);
+      c.playback.togglePlay();
+      expect(await next(), {'t': 'stop', 'document': 'doc'});
+      say({'t': 'transport', 'playing': false, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
+      await until(() => !c.playback.followsDaw);
+
       final asked = link.recording(session, 'doc', 'take-1');
       expect(await heard.moveNext(), isTrue);
       expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
@@ -373,7 +391,7 @@ void main() {
       final heardSoFar = <double>[];
       final mix = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1', progress: heardSoFar.add);
       expect(await told(toMixer), {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1'});
-      expect(await told(heard), {'t': 'play', 'document': 'doc', 'from': 0.5});
+      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': -0.5}, reason: 'a second before');
       mixerSays({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
       mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
       expect(await mix, '/tmp/Mix.wav');

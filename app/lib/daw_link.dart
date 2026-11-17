@@ -174,13 +174,19 @@ class DawLink extends ChangeNotifier {
       {required double from, required double length, required String name, void Function(double done)? progress}) async {
     final captured = capturer.session._ask((document, 'capturer', capturer.id),
         {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
-    session._send({'t': 'play', 'document': document, 'from': from});
+    drive(session, document, 'play', at: from - 1); // a second before (Attacca puts it no earlier than 0)
     try {
       return await captured;
     } finally {
       session._send({'t': 'stop', 'document': document});
     }
   }
+
+  /// Asks [document]'s Attacca in [session] to have the DAW's transport [command]: `play` (from
+  /// song time [at], if given), `stop`, or `seek` to [at]; where the DAW lets it
+  /// ([DawDocument.playback]), at once.
+  void drive(DawSession session, String document, String command, {double? at}) =>
+      session._send({'t': command, 'document': document, 'at': ?at});
 
   /// Ends [capture] of [capturer] under way: it fails as `cancelled`.
   void cancelCapture(String document, DawCapturer capturer) => capturer.session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});

@@ -686,7 +686,7 @@ class EditorController extends ChangeNotifier {
     _history.clear();
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
-    playback.seek(view.time ?? 0);
+    playback._seekHere(view.time ?? 0);
     viewport.requestFit();
     notifyListeners();
   }
@@ -2220,7 +2220,7 @@ class EditorController extends ChangeNotifier {
       _syncedTake = id;
     }
     _performanceChanged();
-    playback.seek(before.carriedTo(timeline, t));
+    playback._seekHere(before.carriedTo(timeline, t)); // (the same moment: a DAW driven isn't moved)
     notifyListeners();
   }
 

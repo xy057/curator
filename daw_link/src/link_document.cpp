@@ -237,30 +237,6 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
-    followCapture ();
-}
-
-void LinkDocumentController::followCapture () noexcept
-{
-    // An Attacca Capturer hears only what the DAW plays: Curator asks for the span to be played
-    // from a second before, and for the DAW to stop once it was heard (where the host lets a
-    // plug-in ask). The Capturer may be in another bundle, so Curator says when.
-    auto* playback = getHostPlaybackController ();
-    if (wantPlayback_.exchange (false))
-    {
-        if (playback)
-        {
-            playback->requestSetPlaybackPosition (std::max (0.0, playFrom_.load () - 1.0));
-            playback->requestStartPlayback ();
-        }
-        playing_ = true;
-    }
-    if (wantStop_.exchange (false) && playing_)
-    {
-        if (playback)
-            playback->requestStopPlayback ();
-        playing_ = false;
-    }
 }
 
 void LinkDocumentController::doUpdateMusicalContextContent (ARA::PlugIn::MusicalContext*, const ARA::ARAContentTimeRange*, ARA::ContentUpdateScopes) noexcept
@@ -360,6 +336,8 @@ std::string LinkDocumentController::snapshot ()
     auto* document = getDocument ();
     w.object ().field ("t", "document").field ("id", id_);
     name (w, "name", document->getName ());
+    // Whether the DAW lets Attacca drive its transport (Curator's then does, while following).
+    w.field ("playback", getHostPlaybackController () != nullptr);
 
     w.key ("contexts").array ();
     for (const auto* context : document->getMusicalContexts ())
@@ -561,20 +539,20 @@ void LinkDocumentController::onMessage (const Message& message)
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;
-    if (*t == "play" && field ("from"))
+    // Curator's transport (following this DAW, or capturing the mix) driving the DAW's: asked of
+    // the host at once, from this thread (ARA lets a plug-in from any but a render thread).
+    if (*t == "play" || *t == "stop" || *t == "seek")
     {
-        // An Attacca Capturer is capturing from here: the DAW is asked to play it.
-        const double from = std::strtod (field ("from")->c_str (), nullptr);
-        if (std::isfinite (from))
-        {
-            playFrom_.store (from);
-            wantPlayback_.store (true);
-        }
-        return;
-    }
-    if (*t == "stop")
-    {
-        wantStop_.store (true);
+        auto* playback = getHostPlaybackController ();
+        const double at = field ("at") ? std::strtod (field ("at")->c_str (), nullptr) : NAN;
+        if (!playback)
+            return;
+        if (*t != "stop" && std::isfinite (at))
+            playback->requestSetPlaybackPosition (std::max (0.0, at));
+        if (*t == "play")
+            playback->requestStartPlayback ();
+        else if (*t == "stop")
+            playback->requestStopPlayback ();
         return;
     }
     ExportJob job;

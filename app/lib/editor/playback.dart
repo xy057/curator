@@ -48,6 +48,12 @@ class Playback {
 
   void play() {
     if (_editor.score == null) return;
+    // Following a DAW that lets it: the DAW plays from here (its transport then runs the clock).
+    if (_editor.daw.drives) {
+      if (time.value >= duration) _seekHere(0);
+      _editor.daw._drive('play', seconds: time.value);
+      return;
+    }
     if (time.value >= duration) seek(0);
     _playing = true;
     _wake();
@@ -59,12 +65,19 @@ class Playback {
   }
 
   void pause() {
+    if (_daw && _editor.daw.drives) _editor.daw._drive('stop');
+    _pauseHere();
+  }
+
+  /// Curator's own playing stops (the DAW's, if it plays, goes on).
+  void _pauseHere() {
     _playing = false;
     _audio.stop();
     _editor._changed();
   }
 
-  void togglePlay() => _playing ? pause() : play();
+  /// Playing (or the DAW playing, followed): pauses; else plays.
+  void togglePlay() => _playing || _daw ? pause() : play();
 
   // MARK: The DAW's clock
 
@@ -80,7 +93,7 @@ class Playback {
   void _fromDaw({required bool playing, required double seconds}) {
     final elapsed = _now;
     if (playing) {
-      if (_playing) pause(); // the DAW is heard, not both
+      if (_playing) _pauseHere(); // the DAW is heard, not both
       if (!_daw) {
         _daw = true;
         _timeAnchor = seconds;
@@ -98,7 +111,7 @@ class Playback {
       }
     } else if (_daw || seconds != _dawAt) {
       _daw = false;
-      seek(seconds);
+      _seekHere(seconds);
       _editor.viewport.follow(time.value);
     }
     _dawAt = seconds;
@@ -156,7 +169,13 @@ class Playback {
     _audio.click(accent: now.beat == beats.measureStarts[beats.measureAt(now.beat)]);
   }
 
+  /// Moves the playhead to [seconds]; following a DAW that lets it, the DAW's too.
   void seek(double seconds) {
+    _seekHere(seconds);
+    _editor.daw._drive('seek', seconds: time.value);
+  }
+
+  void _seekHere(double seconds) {
     time.value = seconds.clamp(0, math.max(0, duration));
     _playAnchor = _now;
     _timeAnchor = time.value;
@@ -185,6 +204,7 @@ class Playback {
   void endScrub() {
     if (!_scrubbing) return;
     _scrubbing = false;
+    _editor.daw._drive('seek', seconds: time.value); // the DAW's too, once let go
     _ranFrom(time.value);
     _playAnchor = _now;
     _timeAnchor = time.value;

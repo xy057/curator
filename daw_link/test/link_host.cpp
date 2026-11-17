@@ -45,6 +45,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <fstream>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -103,11 +104,39 @@ ARAPersistentID ARA_CALL archiveID (ARAArchivingControllerHostRef, ARAArchiveRea
 const ARAArchivingControllerInterface archiving = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAArchivingControllerInterface, getDocumentArchiveID),
                                                     &archiveSize, &readArchive, &writeArchive, &archivingProgress, &archivingProgress, &archiveID };
 
-// What the plug-in asked the DAW's transport to do (for Attacca Capturer).
-std::vector<std::string> playbackAsked;
-void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("start"); }
-void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { playbackAsked.push_back ("stop"); }
-void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { playbackAsked.push_back ("at " + std::to_string (at)); }
+// What the plug-in asked the DAW's transport to do (Curator's transport driving it, a capture),
+// from the connection's thread.
+std::mutex playbackMutex;
+std::vector<std::string> playbackAskedList;
+void ask (std::string what)
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    playbackAskedList.push_back (std::move (what));
+}
+std::vector<std::string> playbackAsked ()
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    return playbackAskedList;
+}
+void clearPlaybackAsked ()
+{
+    std::lock_guard<std::mutex> lock (playbackMutex);
+    playbackAskedList.clear ();
+}
+// Waits (running [idle]) until the DAW was asked [count] things since cleared; what it was asked.
+std::vector<std::string> waitForAsked (size_t count, const std::function<void ()>& idle)
+{
+    for (int i = 0; i < 100 && playbackAsked ().size () < count; ++i)
+    {
+        if (idle)
+            idle ();
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    return playbackAsked ();
+}
+void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { ask ("start"); }
+void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { ask ("stop"); }
+void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { ask ("at " + std::to_string (at)); }
 void ARA_CALL setCycle (ARAPlaybackControllerHostRef, ARATimePosition, ARATimeDuration) {}
 void ARA_CALL enableCycle (ARAPlaybackControllerHostRef, ARABool) {}
 const ARAPlaybackControllerInterface playbackControl = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAPlaybackControllerInterface, requestEnableCycle),
@@ -590,15 +619,11 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
 
     // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
     auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
-    playbackAsked.clear ();
+    clearPlaybackAsked ();
     curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + capturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
-    curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"from\":0.5}");
-    for (int i = 0; i < 50 && playbackAsked.size () < 2; ++i)
-    {
-        idle ();
-        std::this_thread::sleep_for (std::chrono::milliseconds (10));
-    }
-    check (playbackAsked.size () >= 2 && playbackAsked[0] == "at 0.000000" && playbackAsked[1] == "start", "the DAW asked to play from a second before");
+    curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":-0.5}");  // a second before, by Curator
+    const auto started = waitForAsked (2, idle);
+    check (started.size () >= 2 && started[0] == "at 0.000000" && started[1] == "start", "the DAW asked to play from a second before");
 
     std::vector<float> left (block), right (block), outLeft (block), outRight (block);
     float* ins[2] { left.data (), right.data () };
@@ -655,12 +680,8 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
         check (same, "each frame where the song has it");
     }
     curator.say ("{\"t\":\"stop\",\"document\":\"" + document + "\"}");
-    for (int i = 0; i < 50 && (playbackAsked.empty () || playbackAsked.back () != "stop"); ++i)
-    {
-        idle ();
-        std::this_thread::sleep_for (std::chrono::milliseconds (10));
-    }
-    check (!playbackAsked.empty () && playbackAsked.back () == "stop", "the DAW asked to stop once it is heard whole");
+    const auto stopped = waitForAsked (3, idle);
+    check (stopped.size () == 3 && stopped.back () == "stop", "the DAW asked to stop once it is heard whole");
 
     processor->setProcessing (false);
     component->setActive (false);
@@ -748,6 +769,16 @@ int main (int argc, const char* argv[])
     check (contains (line, "\"name\":\"Strings\"") && contains (line, "\"color\":\"#ff8000\""), "the track, by name and colour");
     check (contains (line, "{\"id\":\"take-1\",\"name\":\"Take 1\",\"rate\":44100,\"frames\":220500,\"channels\":1"), "the recording");
     check (contains (line, "\"source\":\"take-1\",\"start\":1,\"length\":3,\"from\":0.5,\"span\":3"), "the region placing it in the song");
+
+    std::printf ("Curator's transport drives the DAW's\n");
+    check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":2.5}");
+    curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
+    curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
+    curator.say ("{\"t\":\"play\",\"document\":\"elsewhere\",\"at\":1}");
+    const auto driven = waitForAsked (4, {});
+    check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }), "moved, played from there and stopped, at once; another document's passed over");
 
     std::printf ("Curator asks for the recording\n");
     curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"take-1\"}");

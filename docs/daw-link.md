@@ -16,7 +16,10 @@ can then:
   by hand) lines the barlines up with the recording;
 - **take the recording itself**, written out of the DAW as a file and loaded as the project's;
 - **follow the DAW's playhead**. While the DAW plays, the score moves with it and Curator stays
-  silent;
+  silent. Where the DAW lets Attacca drive its transport (an ARA playback controller: Cubase,
+  Nuendo, Studio One, REAPER), Curator's own drives the DAW's too: play and pause (Space), going
+  to a place (a click, the wheel, a drag once let go, Home, Go To) start, stop and move the DAW,
+  which plays while Curator stays silent;
 - **keep the DAW's tracks as stems**. Each track is written out as the song plays it, over the
   length of the recording followed, and kept apart in the project. Each stem lines up sample for
   sample with the recording, ready for hearing one instrument alone or bringing it forward.
@@ -207,7 +210,7 @@ project, because everything it knows the DAW sends again.
 | Message | From | Holds |
 |---|---|---|
 | `hello` | plug-in | `token`, `protocol` (1), `plugin` (its version), `build`, `host` (the DAW process's name), `pid` |
-| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording) |
+| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport |
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
 | `followers` | Curator | `names`: the projects following one of this DAW's documents, one a line (empty: none); sent when they change, and on connecting |
@@ -218,8 +221,9 @@ project, because everything it knows the DAW sends again.
 | `stemmed` | plug-in | `document`, `track`, then `path` (a 32-bit float WAV under `DAW Link/Stems/`) or `error` (`empty`: nothing plays there) |
 | `capturers` | plug-in | `list`: each Attacca Capturer in the process (`id`, `channels`, `rate`); sent when one comes, goes or is set up, and on connecting |
 | `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection) |
-| `play` | Curator | `document`, `from`: the document's Attacca asks the DAW to play from a second before `from` (a capture starting) |
-| `stop` | Curator | `document`: the document's Attacca asks the DAW to stop, if it asked it to play (the capture done, failed or cancelled) |
+| `play` | Curator | `document`, `at` (song seconds, optional): the document's Attacca asks the DAW to play (from `at`, no earlier than 0), at once, from the connection's thread (ARA lets a plug-in from any but a render thread): Curator's play while following, or a capture starting (a second before its span) |
+| `stop` | Curator | `document`: the DAW asked to stop (Curator's pause; a capture done, failed or cancelled) |
+| `seek` | Curator | `document`, `at`: the DAW asked to go there (Curator's playhead moved while following; at most one every 60 ms, the last where it ended) |
 | `linked` | Curator | `value`: to a connection with Capturers, whether an Attacca in the same DAW process has a document |
 | `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
 | `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
