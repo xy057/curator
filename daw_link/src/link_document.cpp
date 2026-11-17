@@ -14,6 +14,7 @@
 #include <functional>
 #include <random>
 #include <sys/stat.h>
+#include <utility>
 
 namespace attacca {
 
@@ -51,6 +52,16 @@ void name (JsonWriter& w, const char* key, const char* text)
         w.string (text);
     else
         w.null ();
+}
+
+// The frames [first, last) of a block of [frames] at [rate], its first frame at song sample
+// [origin], that song time [from, to) can reach, with a frame to spare either side: no frame
+// outside them plays any of it, so none needs a look. (One that isn't a number: the whole block.)
+std::pair<int64_t, int64_t> framesWithin (double from, double to, double rate, double origin, int64_t frames)
+{
+    const double first = std::floor (from * rate - origin) - 1, last = std::ceil (to * rate - origin) + 1;
+    const double n = static_cast<double> (frames);
+    return { first > 0 ? static_cast<int64_t> (std::min (first, n)) : 0, last < n ? static_cast<int64_t> (std::max (last, 0.0)) : frames };
 }
 
 void put16 (std::FILE* f, uint16_t v) { const unsigned char b[2] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8) }; std::fwrite (b, 1, 2, f); }
@@ -124,18 +135,21 @@ void LinkAudioSource::stopReading ()
 
 // MARK: - LinkPlaybackRenderer
 
-void LinkPlaybackRenderer::enable (double sampleRate, int channels) noexcept
+void LinkPlaybackRenderer::render (float* const* out, int channels, double sampleRate, int64_t songSample, int64_t frames, bool playing) noexcept
 {
-    sampleRate_ = sampleRate > 0 ? sampleRate : 44100;
-    channels_ = channels;
-}
-
-void LinkPlaybackRenderer::render (float* const* out, int64_t songSample, int64_t frames, bool playing) noexcept
-{
-    for (int c = 0; c < channels_; ++c)
-        std::memset (out[c], 0, sizeof (float) * static_cast<size_t> (frames));
-    if (!playing || channels_ <= 0)
+    // (As many channels as the host gives buffers for this block, whatever it was set up with.)
+    if (!out || channels <= 0 || frames <= 0)
         return;
+    for (int c = 0; c < channels; ++c)
+    {
+        if (!out[c])
+            return;
+    }
+    for (int c = 0; c < channels; ++c)
+        std::memset (out[c], 0, sizeof (float) * static_cast<size_t> (frames));
+    if (!playing)
+        return;
+    const double songRate = sampleRate > 0 ? sampleRate : 44100;
 
     auto* controller = getDocumentController<LinkDocumentController> ();
     if (!controller->rendererWillAccessModel ())
@@ -157,9 +171,12 @@ void LinkPlaybackRenderer::render (float* const* out, int64_t songSample, int64_
         const double sourceStart = std::max (0.0, region->getStartInAudioModificationTime ());
         const double sourceEnd = region->getEndInAudioModificationTime ();
 
-        for (int64_t i = 0; i < frames; ++i)
+        // Only the frames the region can reach: a track of many regions costs a block little.
+        const auto [first, last] = framesWithin (std::max (regionStart, sourceStart - offset), std::min (regionEnd, sourceEnd - offset), songRate,
+                                                 static_cast<double> (songSample), frames);
+        for (int64_t i = first; i < last; ++i)
         {
-            const double song = static_cast<double> (songSample + i) / sampleRate_;
+            const double song = static_cast<double> (songSample + i) / songRate;
             if (song < regionStart || song >= regionEnd)
                 continue;
             const double at = song + offset;
@@ -175,9 +192,9 @@ void LinkPlaybackRenderer::render (float* const* out, int64_t songSample, int64_
                 const float* data = source->channel (c);
                 return data[index] + (data[next] - data[index]) * fraction;
             };
-            if (sourceChannels == channels_)
+            if (sourceChannels == channels)
             {
-                for (int c = 0; c < channels_; ++c)
+                for (int c = 0; c < channels; ++c)
                     out[c][i] += sample (c);
             }
             else
@@ -187,7 +204,7 @@ void LinkPlaybackRenderer::render (float* const* out, int64_t songSample, int64_
                 for (int c = 0; c < sourceChannels; ++c)
                     mono += sample (c);
                 mono /= static_cast<float> (sourceChannels);
-                for (int c = 0; c < channels_; ++c)
+                for (int c = 0; c < channels; ++c)
                     out[c][i] += mono;
             }
         }
@@ -731,7 +748,9 @@ void LinkDocumentController::startStem (const ExportJob& job)
                     const double sourceRate = p.source->getSampleRate ();
                     const int64_t available = p.source->frames ();
                     const int sourceChannels = p.source->channels ();
-                    for (int64_t i = 0; i < n; ++i)
+                    const auto [first, last] = framesWithin (std::max (p.start, p.sourceStart - p.offset), std::min (p.end, p.sourceEnd - p.offset), rate,
+                                                             from * rate + static_cast<double> (at), n);
+                    for (int64_t i = first; i < last; ++i)
                     {
                         const double song = from + static_cast<double> (at + i) / rate;
                         if (song < p.start || song >= p.end)

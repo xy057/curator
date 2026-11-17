@@ -227,16 +227,6 @@ public:
         return kResultFalse;
     }
 
-    tresult PLUGIN_API setActive (TBool state) override
-    {
-        if (auto* renderer = extension_.getPlaybackRenderer<LinkPlaybackRenderer> ())
-        {
-            if (state)
-                renderer->enable (processSetup.sampleRate, outputChannels ());
-        }
-        return AudioEffect::setActive (state);
-    }
-
     tresult PLUGIN_API canProcessSampleSize (int32 size) override { return size == Vst::kSample32 ? kResultTrue : kResultFalse; }
 
     tresult PLUGIN_API process (Vst::ProcessData& data) override
@@ -258,7 +248,8 @@ public:
         {
             const bool playing = data.processContext && (data.processContext->state & Vst::ProcessContext::kPlaying);
             const int64 at = data.processContext ? data.processContext->projectTimeSamples : 0;
-            renderer->render (out.channelBuffers32, at, data.numSamples, playing);
+            const double rate = data.processContext && data.processContext->sampleRate > 0 ? data.processContext->sampleRate : processSetup.sampleRate;
+            renderer->render (out.channelBuffers32, out.numChannels, rate, at, data.numSamples, playing);
         }
         else if (data.inputs && data.numInputs > 0)
         {
@@ -321,12 +312,6 @@ private:
             message->getAttributes ()->setInt ("bound", extension_.isBoundToARA () ? 1 : 0);
             sendMessage (message);
         }
-    }
-
-    int outputChannels () const
-    {
-        auto* bus = FCast<Vst::AudioBus> (audioOutputs.at (0).get ());
-        return bus ? Vst::SpeakerArr::getChannelCount (bus->getArrangement ()) : 2;
     }
 
     LinkClient& client_;

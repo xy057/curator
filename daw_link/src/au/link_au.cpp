@@ -55,14 +55,6 @@ public:
     explicit LinkAudioUnit (AudioComponentInstance component) : AUEffectBase (component), client_ (LinkClient::retain ()) { CreateElements (); }
     ~LinkAudioUnit () override { LinkClient::release (); }
 
-    OSStatus Initialize () override
-    {
-        const OSStatus result = AUEffectBase::Initialize ();
-        if (auto* renderer = extension_.getPlaybackRenderer<LinkPlaybackRenderer> ())
-            renderer->enable (GetSampleRate (), static_cast<int> (GetNumberOfChannels ()));
-        return result;
-    }
-
     UInt32 SupportedNumChannels (const AUChannelInfo** info) override
     {
         static const AUChannelInfo any { -1, -1 };
@@ -170,7 +162,7 @@ public:
             outputs[c] = static_cast<float*> (out.mBuffers[c].mData);
         if (auto* renderer = extension_.getPlaybackRenderer<LinkPlaybackRenderer> ())
         {
-            renderer->render (outputs, static_cast<int64_t> (sample), frames, playing);
+            renderer->render (outputs, static_cast<int> (n), rate, static_cast<int64_t> (sample), frames, playing);
         }
         else
         {

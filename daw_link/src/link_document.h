@@ -51,12 +51,9 @@ class LinkPlaybackRenderer : public ARA::PlugIn::PlaybackRenderer {
 public:
     using ARA::PlugIn::PlaybackRenderer::PlaybackRenderer;
 
-    void enable (double sampleRate, int channels) noexcept;
-    void render (float* const* out, int64_t songSample, int64_t frames, bool playing) noexcept;
-
-private:
-    double sampleRate_ { 44100 };
-    int channels_ { 2 };
+    // On the audio thread: [frames] frames into the [channels] buffers of [out], as the host
+    // gives them for this block at [sampleRate], the first at song sample [songSample].
+    void render (float* const* out, int channels, double sampleRate, int64_t songSample, int64_t frames, bool playing) noexcept;
 };
 
 // One DAW document as Curator sees it. After every edit the host makes it is read whole (the
