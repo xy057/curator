@@ -627,7 +627,7 @@ msgstr "Cifrado de acordes"
 msgid "Chords"
 msgstr "Acordes"
 
-#: lib/home_screen.dart lib/phrase_search_window.dart
+#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr "Vaciar"
 
@@ -3530,6 +3530,9 @@ msgid "Listen for Attacca"
 msgstr ""
 
 msgid "Attacca plug-in"
+msgstr ""
+
+msgid "Attacca cache"
 msgstr ""
 
 msgid "Load ARA Clip"

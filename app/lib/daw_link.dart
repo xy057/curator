@@ -71,6 +71,10 @@ class DawLink extends ChangeNotifier {
     }
   }
 
+  /// Whether a DAW is writing a file for Curator now (a recording, a track, a capture): its
+  /// cache isn't cleared meanwhile ([AttaccaCache]).
+  bool get busy => _sessions.any((s) => s._recordings.isNotEmpty);
+
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
   (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
 
@@ -496,6 +500,63 @@ class DawSession extends ChangeNotifier {
       _link.notifyListeners();
     }
     notifyListeners();
+  }
+}
+
+/// What Attacca wrote for Curator (`DAW Link` in [AppFolders.cache]): recordings, tracks and
+/// captures as WAV files, each left there once Curator has loaded it. A project open plays its
+/// recording from there until it closes (saved, it holds a copy of its own), so nothing ever
+/// removed them: Settings ▸ General ▸ DAW shows how much there is, and clears it.
+abstract final class AttaccaCache {
+  static Directory get folder => Directory('${AppFolders.cache.path}${Platform.pathSeparator}DAW Link');
+
+  /// The bytes its files take up; 0 when there is none.
+  static Future<int> size({Directory? folder}) async {
+    folder ??= AttaccaCache.folder;
+    var bytes = 0;
+    try {
+      await for (final e in folder.list(recursive: true, followLinks: false)) {
+        if (e is File) bytes += await e.length();
+      }
+    } on FileSystemException {
+      // (No such folder, or a file gone meanwhile: what was counted.)
+    }
+    return bytes;
+  }
+
+  /// Removes its files, all but those in [keep] (what the recordings open now play:
+  /// `AudioTrack.filesInUse`), and the folders left empty. One that can't be removed stays.
+  static Future<void> clear({Directory? folder, Iterable<String> keep = const []}) async {
+    folder ??= AttaccaCache.folder;
+    if (!folder.existsSync()) return;
+    // (By where each really is: the cache named through a link is the same place.)
+    String real(String path) {
+      try {
+        return File(path).resolveSymbolicLinksSync();
+      } on FileSystemException {
+        return File(path).absolute.path;
+      }
+    }
+
+    final kept = {for (final path in keep) real(path)};
+    final entries = await folder.list(recursive: true, followLinks: false).toList();
+    for (final e in entries) {
+      if (e is Directory || kept.contains(real(e.path))) continue;
+      try {
+        await e.delete();
+      } on FileSystemException {
+        // In use by something else: left.
+      }
+    }
+    // The deepest first; one that still holds a file doesn't go.
+    final folders = [for (final e in entries) if (e is Directory) e]..sort((a, b) => b.path.length.compareTo(a.path.length));
+    for (final d in folders) {
+      try {
+        await d.delete();
+      } on FileSystemException {
+        // Not empty.
+      }
+    }
   }
 }
 

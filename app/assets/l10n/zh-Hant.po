@@ -627,7 +627,7 @@ msgstr "和弦記號"
 msgid "Chords"
 msgstr "和弦"
 
-#: lib/home_screen.dart lib/phrase_search_window.dart
+#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr "清除"
 
@@ -3531,6 +3531,9 @@ msgstr "監聽 Attacca"
 
 msgid "Attacca plug-in"
 msgstr "Attacca 外掛程式"
+
+msgid "Attacca cache"
+msgstr "Attacca 快取"
 
 msgid "Load ARA Clip"
 msgstr "載入 ARA 片段"

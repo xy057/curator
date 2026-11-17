@@ -102,8 +102,9 @@ What stays behind, and how to remove it:
 - **Curator's projects keep what they took.** That includes a tempo map, a recording and
   stems. They are part of each project and don't need the plug-in.
 - **Files written for Curator stay in its cache.** Recordings and stems the plug-in wrote are
-  in `~/Library/Caches/Curator/DAW Link`. Curator has copied what it uses into its projects,
-  so the folder can be deleted.
+  in `~/Library/Caches/Curator/DAW Link`. A project saved holds its own copy of what it uses.
+  **Settings ▸ General ▸ DAW ▸ Attacca cache** shows how much is there, and **Clear** removes it
+  (all but the files a project open now still plays, which go the next time).
 - **Curator still listens for the plug-in.** Turn off **Listen for Attacca** to stop it.
   Curator then also removes `daw-link.json`, the file in
   `~/Library/Application Support/Curator` that tells the plug-in where to connect.

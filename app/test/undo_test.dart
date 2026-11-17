@@ -473,6 +473,21 @@ void main() {
       expect(AttaccaPlugIns.installed(folder: plugIns), isNull);
       expect(Directory('$plugIns/Components/Attacca.component').existsSync() || Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync(), isFalse,
           reason: 'uninstalled, all go');
+
+      // Attacca's cache cleared (Settings ▸ General ▸ DAW): the files the plug-in wrote go, one
+      // half written too, and the folders left empty; one a recording open still plays stays.
+      final cache = Directory('${folder.path}/DAW Link');
+      for (final file in ['a1/Take 1.wav', 'Captures/b2/Mix.wav', 'Stems/c3/Strings.wav.part']) {
+        File('${cache.path}/$file')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(Uint8List(1000));
+      }
+      expect(await AttaccaCache.size(folder: cache), 3000);
+      await AttaccaCache.clear(folder: cache, keep: ['${cache.path}/Captures/b2/Mix.wav']);
+      expect([for (final e in cache.listSync(recursive: true)) e.path.substring(cache.path.length + 1)]..sort(), ['Captures', 'Captures/b2', 'Captures/b2/Mix.wav']);
+      await AttaccaCache.clear(folder: cache);
+      expect(cache.listSync(), isEmpty);
+      expect(await AttaccaCache.size(folder: Directory('${folder.path}/none')), 0, reason: 'no cache yet: nothing');
       await folder.delete(recursive: true);
     }
   });
