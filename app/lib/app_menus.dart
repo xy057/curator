@@ -25,11 +25,11 @@ typedef MidiMenu = ({
   VoidCallback? onFileTempo,
 });
 
-/// File ▸ Curator Link as it is now (docs/daw-link.md): where it stands, greyed out ([state]:
+/// File ▸ Attacca as it is now (docs/daw-link.md): where it stands, greyed out ([state]:
 /// connected to which DAWs, not connected, not listening, or not on this system), Follow DAW…
 /// (ticked while [following]: choosing it then stops), Capture Stems… and its Settings…; each
 /// null (greyed out) when it can't.
-typedef CuratorLinkMenu = ({
+typedef AttaccaMenu = ({
   String state,
   bool following,
   VoidCallback? onFollow,
@@ -80,7 +80,7 @@ class AppMenus extends StatelessWidget {
     this.tabBarShown = true,
     this.onShowTabBar,
     this.midi,
-    this.curatorLink,
+    this.attacca,
     this.plugins,
     this.free = true,
     this.typing = false,
@@ -170,8 +170,8 @@ class AppMenus extends StatelessWidget {
   /// such menu, while another project or none shows.
   final MidiMenu? midi;
 
-  /// File ▸ Curator Link; null: no such menu (a test).
-  final CuratorLinkMenu? curatorLink;
+  /// File ▸ Attacca; null: no such menu (a test).
+  final AttaccaMenu? attacca;
 
   static bool get _mac => defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -248,9 +248,9 @@ class AppMenus extends StatelessWidget {
             ?_own('exportVideo', 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
             ?_own('exportWeb', 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
           ]),
-          if (curatorLink case final link?)
+          if (attacca case final link?)
             PlatformMenuItemGroup(members: [
-              PlatformMenu(label: 'Curator Link', menus: [
+              PlatformMenu(label: 'Attacca', menus: [
                 PlatformMenuItem(label: link.state), // no handler: greyed out, a line saying how it is
                 PlatformMenuItemGroup(members: [
                   ?_own('followDaw', _ticked('Follow DAW…'.tr, link.following),
@@ -258,7 +258,7 @@ class AppMenus extends StatelessWidget {
                   ?_own('captureStems', 'Capture Stems…'.tr, shortcut: _keyOf(KeyCommand.captureStems), onSelected: link.onCaptureStems),
                 ]),
                 PlatformMenuItemGroup(members: [
-                  ?_own('curatorLinkSettings', 'Settings…'.tr, shortcut: _keyOf(KeyCommand.curatorLinkSettings), onSelected: link.onSettings),
+                  ?_own('attaccaSettings', 'Settings…'.tr, shortcut: _keyOf(KeyCommand.attaccaSettings), onSelected: link.onSettings),
                 ]),
               ]),
             ]),

@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'midi_tempo.dart';
 import 'search.dart';
 
-/// A DAW's document as Curator Link reads it there (see *Curator Link* in docs/daw-link.md): its
+/// A DAW's document as Attacca reads it there (see *Attacca* in docs/daw-link.md): its
 /// musical contexts (the tempo map, bar and key signatures each has), its tracks, its
 /// recordings and the regions placing them in the song. Read from what the plug-in sends
 /// ([DawDocument.fromJson]); every time is in seconds, every position in quarter notes, both
@@ -271,7 +271,7 @@ class DawRegion {
   final String? track;
   final int? color;
 
-  /// Where song time [seconds] is in the recording (Curator Link plays it unstretched).
+  /// Where song time [seconds] is in the recording (Attacca plays it unstretched).
   double sourceAt(double seconds) => seconds - start + from;
 
   /// When the recording's [seconds] sound in the song.

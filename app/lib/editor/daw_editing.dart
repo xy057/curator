@@ -1,12 +1,12 @@
 part of '../editor_controller.dart';
 
-/// What a project follows of a DAW through Curator Link (see docs/daw-link.md): the recording
+/// What a project follows of a DAW through Attacca (see docs/daw-link.md): the recording
 /// [source] of the DAW document [document] (its region [region] in the song, or the first
 /// playing it), the score's bar 1 at the DAW's bar [bar], and, with [transport], where the DAW
 /// plays.
 typedef DawFollow = ({String document, String source, String? region, int bar, bool transport});
 
-/// Following a DAW (Curator Link): the sync takes the tempo map of the DAW's song where the
+/// Following a DAW (Attacca): the sync takes the tempo map of the DAW's song where the
 /// recording followed is placed in it, as it follows a MIDI file's ([EditorController.followTempoMap]),
 /// now and again each time the DAW sends its document changed; and while the DAW plays, the
 /// playhead goes where it is in the recording ([Playback]'s DAW clock). Lasts while the project
@@ -20,7 +20,7 @@ class DawEditing {
   DawFollow? _follow;
   DawSession? _session;
 
-  /// The project's name, told the DAW followed (its Curator Link window shows it).
+  /// The project's name, told the DAW followed (its Attacca window shows it).
   String get name => _name;
   String _name = '';
   set name(String value) {

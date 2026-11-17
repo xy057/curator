@@ -1,4 +1,4 @@
-Curator Link, the ARA plug-in that comes with Curator (GPL-3.0), is built on these SDKs.
+Attacca, the ARA plug-in that comes with Curator (GPL-3.0), is built on these SDKs.
 
 --------------------------------------------------------------------------------
 ARA Audio Random Access SDK 2.3.0

@@ -89,7 +89,7 @@ void main() {
       expect(back.quarterAtSeconds(s), closeTo(hand.quarterAtSeconds(s), 1e-9), reason: '$s s');
     }
 
-    // A DAW's document as Curator Link sends it (the song of daw_link/test/link_host.cpp): 120 to
+    // A DAW's document as Attacca sends it (the song of daw_link/test/link_host.cpp): 120 to
     // quarter 4, then 90; 4/4, then 3/4 from quarter 8; the recording from 0.5 s in, at 1 s in the song.
     final daw = DawDocument.fromJson({
       'id': 'd1', 'name': 'Symphony',

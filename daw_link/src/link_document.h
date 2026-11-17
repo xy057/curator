@@ -1,4 +1,4 @@
-// Curator Link's ARA side: a DAW document read for Curator, and its regions played back.
+// Attacca's ARA side: a DAW document read for Curator, and its regions played back.
 #pragma once
 
 #include "ARA_Library/PlugIn/ARAPlug.h"
@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-namespace curator_link {
+namespace attacca {
 
 class LinkClient;
 
@@ -132,4 +132,4 @@ private:
     int lockouts_ { 0 };
 };
 
-}  // namespace curator_link
+}  // namespace attacca

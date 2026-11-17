@@ -8,13 +8,13 @@ PATCHES := $(sort $(wildcard patches/*.patch))
 WEB_PLAYER := app/assets/web_player/player.zip
 # Shown in Settings ▸ About.
 COMMIT := --dart-define=CURATOR_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null)
-# Curator Link, the ARA plug-in (docs/daw-link.md): the SDKs it is built on, at these tags, and
+# Attacca, the ARA plug-in (docs/daw-link.md): the SDKs it is built on, at these tags, and
 # the zip of its VST3 and Audio Unit the app bundles (Settings ▸ DAW Link installs them). Not in git.
 ARA_TAG := releases/2.3.0
 VST3_TAG := v3.8.0_build_66
 AU_SDK_TAG := AudioUnitSDK-1.4.0
 DAW_LINK_SDKS := daw_link/third_party
-DAW_LINK_ZIP := app/assets/daw_link/CuratorLink.zip
+DAW_LINK_ZIP := app/assets/daw_link/Attacca.zip
 APP_VERSION = $(shell sed -n 's/^version: *\([0-9.]*\)+.*/\1/p' app/pubspec.yaml)
 APP_BUILD = $(shell sed -n 's/^version: *[0-9.]*+\([0-9]*\).*/\1/p' app/pubspec.yaml)
 # The release's patch, kept apart from the build (the version's patch): updater.dart's appReleasePatch.
@@ -29,7 +29,7 @@ help:
 	@echo "make run     – launch the app (macOS)"
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
-	@echo "make daw-link – build Curator Link, the ARA plug-in (VST3, AU) for DAWs (run and build do when it is out of date)"
+	@echo "make daw-link – build Attacca, the ARA plug-in (VST3, AU) for DAWs (run and build do when it is out of date)"
 	@echo "make l10n    – put new interface text into the translation files (app/assets/l10n, synced with Crowdin)"
 	@echo "make extension-docs – write docs/extension-api.md from the guide and the extension API's own list"
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
@@ -72,7 +72,7 @@ web-player: setup
 	cd app && flutter build web -t lib/web_player/main.dart --release --no-web-resources-cdn --no-wasm-dry-run -o build/web_player $(COMMIT)
 	cd app && dart tool/pack_web_player.dart
 
-# Curator Link (daw_link/, docs/daw-link.md): Celemony's ARA SDK, Steinberg's VST3 SDK and Apple's
+# Attacca (daw_link/, docs/daw-link.md): Celemony's ARA SDK, Steinberg's VST3 SDK and Apple's
 # AudioUnitSDK fetched at the tags above, the plug-in built with Curator's version (universal,
 # ad-hoc signed), checked by a DAW in miniature (daw_link/test/link_host.cpp) and both bundles zipped into the asset Settings ▸ DAW Link installs from.
 $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h:
@@ -91,9 +91,9 @@ DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DA
 $(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
 	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
-	daw_link/build/link_host "daw_link/build/out/Curator Link.vst3" "daw_link/build/out/Curator Link.component"
+	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca.component"
 	rm -f $@
-	cd daw_link/build/out && zip -qry "$(CURDIR)/$@" "Curator Link.vst3" "Curator Link.component"
+	cd daw_link/build/out && zip -qry "$(CURDIR)/$@" "Attacca.vst3" "Attacca.component"
 
 daw-link: $(DAW_LINK_ZIP)
 

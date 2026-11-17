@@ -23,7 +23,7 @@ void main() {
   final binding = AccessibilityMirrorBinding();
   final mirror = binding.mirror;
 
-  testWidgets('every settings page, scrolled through in a short window and reached by the sidebar, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out; where Curator Link can’t be, it says so', (tester) async {
+  testWidgets('every settings page, scrolled through in a short window and reached by the sidebar, keeps the accessibility tree whole; a MIDI project’s engraving pages are greyed out; where Attacca can’t be, it says so', (tester) async {
     tester.view
       ..physicalSize = const Size(2000, 1240)
       ..devicePixelRatio = 2;
@@ -153,20 +153,20 @@ void main() {
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await frames('closing a MIDI project’s Engraving');
 
-    // Off macOS Curator Link isn't there: Settings say so, and its switch is off for good.
-    CuratorLinkPlugIns.debugSupported = false;
-    addTearDown(() => CuratorLinkPlugIns.debugSupported = null);
+    // Off macOS Attacca isn't there: Settings say so, and its switch is off for good.
+    AttaccaPlugIns.debugSupported = false;
+    addTearDown(() => AttaccaPlugIns.debugSupported = null);
     unawaited(showSettingsDialog(context(), settings, controller: c, page: 'General'));
-    await frames('Settings without Curator Link');
-    await tester.enterText(find.byType(SearchField), 'Curator Link');
-    await frames('Settings without Curator Link, searched');
-    expect(find.text('Curator Link is not available for this operating system.'), findsOneWidget);
+    await frames('Settings without Attacca');
+    await tester.enterText(find.byType(SearchField), 'Attacca');
+    await frames('Settings without Attacca, searched');
+    expect(find.text('Attacca is not available for this operating system.'), findsOneWidget);
     expect(find.text('OS not supported'), findsOneWidget);
     expect(find.text('Install'), findsNothing);
-    expect(tester.widget<AppSwitch>(find.descendant(of: find.ancestor(of: find.text('Listen for Curator Link'), matching: find.byType(Row)).first,
+    expect(tester.widget<AppSwitch>(find.descendant(of: find.ancestor(of: find.text('Listen for Attacca'), matching: find.byType(Row)).first,
         matching: find.byType(AppSwitch))).onChanged, isNull);
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
-    await frames('closing Settings without Curator Link');
+    await frames('closing Settings without Attacca');
     handle.dispose();
   });
 }

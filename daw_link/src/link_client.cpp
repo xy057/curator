@@ -16,7 +16,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace curator_link {
+namespace attacca {
 
 namespace {
 
@@ -400,4 +400,4 @@ void LinkClient::run ()
     disconnect ();
 }
 
-}  // namespace curator_link
+}  // namespace attacca

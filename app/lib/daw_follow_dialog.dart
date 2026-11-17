@@ -11,7 +11,7 @@ import 'l10n/l10n.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
-/// File ▸ Curator Link ▸ Follow DAW…: a recording in a DAW where Curator Link is (see
+/// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW where Attacca is (see
 /// docs/daw-link.md), the DAW's bar the score's bar 1 is at, whether to take the recording itself
 /// (written out by the plug-in, then loaded as the focus's) and whether the playhead follows the
 /// DAW's; then the sync follows the DAW's tempo there ([DawEditing.follow]).
@@ -100,9 +100,9 @@ class _FollowDialogState extends State<_FollowDialog> {
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.link.listening ? 'No DAW connected.'.tr : 'Curator isn’t listening for Curator Link.'.tr),
+                  Text(widget.link.listening ? 'No DAW connected.'.tr : 'Curator isn’t listening for Attacca.'.tr),
                   const SizedBox(height: 6),
-                  Text(widget.link.listening ? 'Put Curator Link on a track in your DAW.'.tr : 'Turn it on in Settings ▸ General.'.tr, style: muted),
+                  Text(widget.link.listening ? 'Put Attacca on a track in your DAW.'.tr : 'Turn it on in Settings ▸ General.'.tr, style: muted),
                 ]),
               ),
               actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],

@@ -68,7 +68,7 @@ class Playback {
 
   // MARK: The DAW's clock
 
-  /// Whether the DAW followed is playing (Curator Link, [DawEditing]): the clock runs on its
+  /// Whether the DAW followed is playing (Attacca, [DawEditing]): the clock runs on its
   /// transport, Curator silent, the DAW heard.
   bool get followsDaw => _daw;
   bool _daw = false;

@@ -107,7 +107,7 @@ class EditState {
   /// keeps alike. Their lanes are edits.
   final List<Take> takes;
 
-  /// One instrument or group alone each, from the tracks of a DAW (Curator Link), kept for
+  /// One instrument or group alone each, from the tracks of a DAW (Attacca), kept for
   /// soloing ([Stem]). Their files are the project's (`media/stems/`).
   final List<Stem> stems;
 

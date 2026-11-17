@@ -75,7 +75,7 @@ Future<void> main() async {
   if (settings.rememberWindow) await WindowChrome.restoreFrame(settings.windowFrame);
   final updater = Updater(channel: settings.updateChannel);
   if (settings.checkForUpdates) unawaited(updater.check());
-  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins, dawLink: CuratorLinkPlugIns.supported ? DawLink.shared : null));
+  runApp(CuratedScoreApp(settings: settings, updater: updater, plugins: plugins, dawLink: AttaccaPlugIns.supported ? DawLink.shared : null));
 }
 
 /// The interface's languages: each translations file the bundle has.
@@ -107,7 +107,7 @@ Stream<LicenseEntry> bundledLicenses() async* {
       (font, 'packages/score_engine/assets/fonts/$font-OFL.txt'),
     for (final library in ['Verovio', 'PDFium']) (library, 'packages/score_engine/assets/licenses/$library.txt'),
     ('Basic Pitch', 'assets/basic_pitch/LICENSE.txt'),
-    ('Curator Link', 'assets/daw_link/LICENSES.txt'), // the SDKs the DAW plug-in is built on
+    ('Attacca', 'assets/daw_link/LICENSES.txt'), // the SDKs the DAW plug-in is built on
   ]) {
     yield LicenseEntryWithLineBreaks([package], await rootBundle.loadString(file));
   }
@@ -125,7 +125,7 @@ class CuratedScoreApp extends StatefulWidget {
   /// Settings ▸ About; one that hasn't checked yet when not given (tests).
   final Updater? updater;
 
-  /// Curator Link's end here ([DawLink.shared]), listening while Settings say; none when not
+  /// Attacca's end here ([DawLink.shared]), listening while Settings say; none when not
   /// given (tests: no port opened, no discovery file written).
   final DawLink? dawLink;
 
@@ -493,7 +493,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     }
   }
 
-  /// Curator Link: listening while Settings ▸ General ▸ DAW says so. One that can't (no port) is
+  /// Attacca: listening while Settings ▸ General ▸ DAW says so. One that can't (no port) is
   /// left off: the plug-in waits for a Curator that can.
   void _listenForDaw() {
     final link = widget.dawLink;
@@ -566,9 +566,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   void _settings({String? page, String? search}) =>
       showSettingsDialog(context, settings, controller: _showing?.page?.controller, updater: updater, page: page, search: search);
 
-  /// File ▸ Curator Link's first line: the DAWs connected, else why none is.
-  String get _curatorLinkState {
-    if (!CuratorLinkPlugIns.supported) return 'OS not supported'.tr;
+  /// File ▸ Attacca's first line: the DAWs connected, else why none is.
+  String get _attaccaState {
+    if (!AttaccaPlugIns.supported) return 'OS not supported'.tr;
     final link = widget.dawLink;
     if (link == null || !link.listening) return 'Not Listening'.tr;
     final hosts = {for (final s in link.sessions) if (s.host.isNotEmpty) s.host};
@@ -763,9 +763,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'saveAs': page == null ? _nothingToSave : page._isSample.value ? null : page._saveAs,
           'exportVideo': open && page._canExport.value ? page._exportVideo : null,
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
-          'followDaw': open && free && (page._followsDaw.value || CuratorLinkPlugIns.supported) ? page._followDaw : null,
+          'followDaw': open && free && (page._followsDaw.value || AttaccaPlugIns.supported) ? page._followDaw : null,
           'captureStems': open && free && page.controller.daw.document != null ? page._captureStems : null,
-          'curatorLinkSettings': free ? () => _settings(search: 'Curator Link') : null,
+          'attaccaSettings': free ? () => _settings(search: 'Attacca') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
           'redo': edit != null && edit.redo ? page!.controller.redo : null,
           'cut': edit != null && edit.copy ? commands!.cut : null,
@@ -834,12 +834,12 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
           onShowTabBar: (on) => settings.tabBar = on,
-          curatorLink: (
-            state: _curatorLinkState,
+          attacca: (
+            state: _attaccaState,
             following: open && page._followsDaw.value,
             onFollow: does['followDaw'],
             onCaptureStems: does['captureStems'],
-            onSettings: does['curatorLinkSettings'],
+            onSettings: does['attaccaSettings'],
           ),
           midi: midi == null
               ? null
@@ -1076,7 +1076,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// shows; null for any other project (and no such menu).
   final _midi = ValueNotifier<({MidiLook look, bool fileTempo})?>(null);
 
-  /// Whether a DAW is followed (File ▸ Curator Link ▸ Follow DAW…, ticked).
+  /// Whether a DAW is followed (File ▸ Attacca ▸ Follow DAW…, ticked).
   final _followsDaw = ValueNotifier(false);
 
   late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi, _followsDaw]);
@@ -1698,13 +1698,13 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
-  /// File ▸ Curator Link ▸ Follow DAW…: a recording in a DAW to follow; while one is, stops.
+  /// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW to follow; while one is, stops.
   void _followDaw() {
     if (controller.score == null) return;
     controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
   }
 
-  /// File ▸ Curator Link ▸ Capture Stems…: the DAW followed's tracks, kept as stems.
+  /// File ▸ Attacca ▸ Capture Stems…: the DAW followed's tracks, kept as stems.
   void _captureStems() {
     if (controller.daw.document == null) return;
     showStemCaptureDialog(context, controller);

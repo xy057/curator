@@ -124,7 +124,7 @@ msgstr ""
 msgid "Export to Web…"
 msgstr ""
 
-msgid "Curator Link Settings…"
+msgid "Attacca Settings…"
 msgstr ""
 
 msgid "Frame"
@@ -3502,10 +3502,10 @@ msgstr ""
 msgid "DAW"
 msgstr ""
 
-msgid "Listen for Curator Link"
+msgid "Listen for Attacca"
 msgstr ""
 
-msgid "Curator Link plug-in"
+msgid "Attacca plug-in"
 msgstr ""
 
 msgid "Use this recording"
@@ -5369,11 +5369,11 @@ msgid "No DAW connected."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Curator isn’t listening for Curator Link."
+msgid "Curator isn’t listening for Attacca."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Put Curator Link on a track in your DAW."
+msgid "Put Attacca on a track in your DAW."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
@@ -5389,7 +5389,7 @@ msgid "Getting the Recording"
 msgstr ""
 
 #: lib/settings_dialog.dart
-msgid "This build of Curator has no Curator Link."
+msgid "This build of Curator has no Attacca."
 msgstr ""
 
 #: lib/main.dart lib/settings_dialog.dart
@@ -5465,7 +5465,7 @@ msgstr ""
 msgid "OS not supported"
 msgstr ""
 
-msgid "Curator Link is not available for this operating system."
+msgid "Attacca is not available for this operating system."
 msgstr ""
 
 #: lib/main.dart
