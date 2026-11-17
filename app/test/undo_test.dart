@@ -233,6 +233,10 @@ void main() {
       await until(() => link.find('doc') != null);
       final (session, document) = link.find('doc')!;
       expect(session.host, 'Cubase 15');
+      // Supported DAWs, by their process's name; any other is told of, and not followed but by ⌥.
+      expect(session.supported, isTrue);
+      expect([for (final h in ['Nuendo 14', 'Studio One 6', 'REAPER', 'Logic Pro', 'Live', 'Bitwig Studio', '']) DawLink.supports(h)],
+          [true, true, true, false, false, false, false]);
 
       final region = document.regions.single, context = document.contexts.single;
       c.daw.name = 'Ode';

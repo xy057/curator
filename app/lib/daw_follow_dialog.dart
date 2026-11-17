@@ -98,18 +98,37 @@ class _FollowDialogState extends State<_FollowDialog> {
   final _bar = TextEditingController(text: '1');
   bool _recording = true, _playhead = true;
 
+  /// Whether DAWs Attacca doesn't support are offered too ([DawSession.supported]): the hidden
+  /// Follow Anyway, shown while ⌥ is held ([_option]).
+  bool _anyDaw = false, _option = HardwareKeyboard.instance.isAltPressed;
+
+  bool _keys(KeyEvent _) {
+    final option = HardwareKeyboard.instance.isAltPressed;
+    if (option != _option && mounted) setState(() => _option = option);
+    return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_keys);
+  }
+
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_keys);
     _bar.dispose();
     super.dispose();
   }
 
-  /// Every recording placed in a song, in every DAW connected.
+  /// Every recording placed in a song, in every DAW connected (that Attacca supports, unless
+  /// [_anyDaw]).
   List<({DawSession session, DawDocument document, DawSource source})> get _recordings => [
         for (final (session, document) in widget.link.documents)
-          for (final source in document.sources)
-            if (document.regionsOf(source.id).isNotEmpty && (widget.bound == null || widget.bound!.source == source.id))
-              (session: session, document: document, source: source),
+          if (_anyDaw || session.supported)
+            for (final source in document.sources)
+              if (document.regionsOf(source.id).isNotEmpty && (widget.bound == null || widget.bound!.source == source.id))
+                (session: session, document: document, source: source),
       ];
 
   int? get _barValue => switch (int.tryParse(_bar.text.trim())) { final n? when n >= 1 && n <= 9999 => n, _ => null };
@@ -121,6 +140,26 @@ class _FollowDialogState extends State<_FollowDialog> {
           final recordings = _recordings;
           final chosen = recordings.where((r) => (r.document.id, r.source.id) == _key).firstOrNull ?? recordings.firstOrNull;
           final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
+          // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Follow Anyway.
+          final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
+          if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
+            final name = unsupported.where((h) => h.isNotEmpty).join(', ');
+            return AppDialog(
+              title: Text('Follow DAW'.tr),
+              content: SizedBox(
+                width: dialogWidth(context, 360),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': name})),
+                  const SizedBox(height: 6),
+                  Text('Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}), style: muted),
+                ]),
+              ),
+              actions: [
+                if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Follow Anyway'.tr)),
+                FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr)),
+              ],
+            );
+          }
           final bound = widget.bound;
           if (chosen == null && bound != null && widget.link.sessions.isNotEmpty) {
             // Its own Attacca recording isn't in the DAWs connected: no other is offered.

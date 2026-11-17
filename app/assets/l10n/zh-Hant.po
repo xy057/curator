@@ -5601,3 +5601,19 @@ msgstr "正在擷取錄音"
 #: lib/daw_follow_dialog.dart
 msgid "Play it in the DAW if it doesn’t start."
 msgstr "如果沒有開始，請在 DAW 中播放。"
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "This DAW isn’t supported by Attacca."
+msgstr "Attacca 不支援此 DAW。"
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "{daw} isn’t supported by Attacca."
+msgstr "Attacca 不支援 {daw}。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca works in {daws}."
+msgstr "Attacca 可用於 {daws}。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow Anyway"
+msgstr "仍然跟隨"
