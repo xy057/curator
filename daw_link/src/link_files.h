@@ -22,16 +22,30 @@ inline std::string randomId ()
     return buffer;
 }
 
-// A file name of [text]: letters, digits, spaces and a few marks; at most 60 bytes.
+// A file name of [text]: letters, digits, spaces and a few marks; at most 60 bytes, of whole
+// characters (a name cut inside one isn't UTF-8, and macOS makes no file by such a name), a
+// byte that is no character's left out.
 inline std::string safeName (const std::string& text)
 {
     std::string out;
-    for (unsigned char c : text)
+    for (size_t i = 0; i < text.size ();)
     {
-        if (std::isalnum (c) || c == ' ' || c == '-' || c == '_' || c == '.' || c >= 0x80)
-            out += static_cast<char> (c);
-        if (out.size () >= 60)
+        const unsigned char c = static_cast<unsigned char> (text[i]);
+        // The character here: one byte, or a UTF-8 lead byte and those that follow it.
+        const size_t n = c < 0x80 ? 1 : c < 0xc2 ? 0 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : c < 0xf5 ? 4 : 0;
+        bool whole = n > 0 && i + n <= text.size ();
+        for (size_t k = 1; whole && k < n; ++k)
+            whole = (static_cast<unsigned char> (text[i + k]) & 0xc0) == 0x80;
+        if (!whole)
+        {
+            ++i;
+            continue;
+        }
+        if (out.size () + n > 60)
             break;
+        if (n > 1 || std::isalnum (c) || c == ' ' || c == '-' || c == '_' || c == '.')
+            out.append (text, i, n);
+        i += n;
     }
     while (!out.empty () && (out.front () == '.' || out.front () == ' '))
         out.erase (out.begin ());

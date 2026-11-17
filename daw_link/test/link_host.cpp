@@ -783,6 +783,17 @@ int main (int argc, const char* argv[])
         std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\" \"<path>/Attacca Capturer.vst3\"\n");
         return 2;
     }
+    // A file's name from a recording's or a track's: marks no file may have left out, and cut to
+    // 60 bytes between characters, never inside one.
+    {
+        std::string strings;
+        for (int i = 0; i < 25; ++i)
+            strings += "\xe5\xbc\xa6";  // 弦, three bytes
+        const std::string named = attacca::safeName (strings);
+        check (named.size () == 60 && named == strings.substr (0, 60), "a long name cut between characters");
+        check (attacca::safeName ("../Take\xe5 1: \xe5\xbc\xa6/a") == "Take 1 \xe5\xbc\xa6" "a", "a name's marks and stray bytes left out");
+    }
+
     char homeTemplate[] = "/tmp/attacca-host.XXXXXX";
     const char* home = ::mkdtemp (homeTemplate);
     if (!home)
