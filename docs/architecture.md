@@ -1293,7 +1293,7 @@ Space on, T tie, S slur, V the next voice, R repeat, `/` and ⇧/ grace notes (c
 not), ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
 sound spelled as the note above or below, ⌥←→ ⌥↑↓ a marking moved (⇧⌥←→ a hairpin's end), `[` `]` `{` `}`
 `'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
-⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`) and barlines, ⇧R repeats (`1.`, `1, 2` an ending over the
+⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`; `=32` the score's length, also the toolbar's Bars: n) and barlines, ⇧R repeats (`1.`, `1, 2` an ending over the
 bars selected; `segno`, `coda`, `D.C.`, `D.S.`, either `al Fine` or `al Coda`, `Fine`, `To Coda`),
 ⇧A a rehearsal mark (the next after the last before it offered), ⇧H holds, ⇧O ornaments, ⇧L
 lyrics (Space or `-` to the next note), `;` a tuplet (`:` ends it). A time signature change fills

@@ -2886,6 +2886,7 @@ msgstr "Semifusa"
 msgid "Accent ([)"
 msgstr "Acento ([)"
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr "Compases y barras de compás"
 
@@ -5571,4 +5572,8 @@ msgstr ""
 #: lib/video_panel.dart
 msgctxt "video"
 msgid "View"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
 msgstr ""

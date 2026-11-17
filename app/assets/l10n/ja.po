@@ -2886,6 +2886,7 @@ msgstr "64 分音符"
 msgid "Accent ([)"
 msgstr "アクセント（[）"
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr "小節と小節線"
 
@@ -5572,3 +5573,7 @@ msgstr "カット"
 msgctxt "video"
 msgid "View"
 msgstr "画面"
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
+msgstr "小節：{count}"

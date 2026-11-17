@@ -258,7 +258,7 @@ void main() {
       expect([for (final staves in [1, 2, 4, 5, 8, 12, 21, 60]) EditChunk.barsFor(staves)], [6, 6, 6, 4, 3, 2, 2, 2]);
     }
 
-    // Bars deleted from two instruments: each keeps what they set (the piano its staves, clefs and divisions, not
+    // Bars deleted from two instruments (and the score's length set outright): each keeps what they set (the piano its staves, clefs and divisions, not
     // only the first instrument), and only the last bars' going moves the final barline.
     {
       final score = EditableScore.parse(flutePianoScore);
@@ -273,6 +273,17 @@ void main() {
       expect((again.clefAt(1, 2, 0, Frac.zero).sign, again.barLength(0)), ('F', Frac(4)));
       expect([for (final e in again.eventsIn(1, 0, again.voicesIn(1, 0).first)) e.length], [Frac(4)], reason: 'its divisions are still said');
       expect('light-heavy'.allMatches(score.toMusicXML()).length, 2);
+
+      // Its length set outright: bars added at the end, or the last taken off; never none.
+      again.setBarCount(5);
+      expect(again.measureCount, 5);
+      again.setBarCount(2);
+      expect(again.measureCount, 2);
+      again.undo();
+      expect(again.measureCount, 5, reason: 'one Undo step');
+      again.setBarCount(2);
+      again.setBarCount(0);
+      expect(again.measureCount, 2);
     }
 
     // A slur taken off again (S on its first note) leaves the notes as they were, a lyric too.

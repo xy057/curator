@@ -3122,6 +3122,14 @@ class EditableScore {
     return keys.firstOrNull;
   }
 
+  /// The score made [count] bars long (at least one): empty bars added at the end
+  /// ([addBars]), or the last ones taken out ([deleteBars]). One edit either way.
+  void setBarCount(int count) {
+    final bars = measureCount;
+    if (count < 1 || count == bars) return;
+    count > bars ? addBars(bars, count - bars) : deleteBars(count, bars - count);
+  }
+
   /// Bars [from] to [from] + [count] taken out of every part (never all of them): the clefs,
   /// key, time and divisions they set carry on to the bar after, unless it sets its own.
   void deleteBars(int from, int count) => edit(() {

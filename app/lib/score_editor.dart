@@ -41,7 +41,7 @@ enum _Popover {
   key('Key Signature', 'K', 'G  Eb  f#'),
   clef('Clef', 'C', 'treble  bass  alto'),
   text('Text', 'X', ''),
-  bars('Bars and Barlines', 'B', '+2  -1  ||  |]  :|  |:'),
+  bars('Bars and Barlines', 'B', '+2  -1  =32  ||  |]  :|'),
   repeats('Repeats', 'R', '1.  2.  segno  D.S.  Fine'),
   rehearsal('Rehearsal Mark', 'A', 'A  B  12'),
   holds('Holds', 'H', 'fermata  breath  caesura'),
@@ -1077,7 +1077,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
 
   // MARK: Popovers
 
-  void _openPopover(_Popover kind) {
+  /// Popover [kind], [text] in it (selected) when given.
+  void _openPopover(_Popover kind, {String? text}) {
     if (_target == null && kind != _Popover.bars && kind != _Popover.goTo) return;
     if (kind == _Popover.lyrics && _selectedNotes.isEmpty) return;
     if (kind == _Popover.tuplet && _caret == null) return;
@@ -1085,7 +1086,7 @@ class _ScoreEditorState extends State<ScoreEditor> {
       _Popover.lyrics => score.lyricOf(_selectedNotes.first),
       // The bar's mark, or the one after the last before it.
       _Popover.rehearsal => score.rehearsalAt(_target!.measure) ?? score.nextRehearsal(_target!.measure),
-      _ => '',
+      _ => text ?? '',
     };
     _popoverText.selection = TextSelection(baseOffset: 0, extentOffset: _popoverText.text.length);
     setState(() {
@@ -1158,7 +1159,19 @@ class _ScoreEditorState extends State<ScoreEditor> {
         _edit(() => score.addText(at, t));
       case _Popover.bars:
         final count = RegExp(r'^([+-])\s*(\d+)$').firstMatch(t);
-        if (count != null) {
+        // =32: the score's length in bars, bars added or taken off at its end.
+        if (RegExp(r'^=\s*(\d+)$').firstMatch(t) case final total?) {
+          final n = int.tryParse(total.group(1)!);
+          if (n == null || n < 1 || n > 9999) return false;
+          final shorter = n < score.measureCount;
+          _edit(() => score.setBarCount(n));
+          if (shorter) {
+            setState(() {
+              _caret = null;
+              _selected = {};
+            });
+          }
+        } else if (count != null) {
           final n = int.tryParse(count.group(2)!);
           if (n == null || n < 1 || n > 999) return false;
           if (count.group(1) == '+') {
@@ -1644,6 +1657,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
           const ToolbarDivider(),
           ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom Out'.tr, onPressed: () => _zoomBy(1 / 1.2)),
           ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom In'.tr, onPressed: () => _zoomBy(1.2)),
+          const ToolbarDivider(),
+          // The score's length: a click asks for another (the Bars popover's =).
+          Tip(
+            message: 'Bars and Barlines'.tr,
+            child: TextButton(
+              onPressed: () => _openPopover(_Popover.bars, text: '=${score.measureCount}'),
+              child: Text('Bars: {count}'.fill({'count': score.measureCount})),
+            ),
+          ),
         ],
         ToolbarButton(icon: AppIcon.code.of(context), tooltip: 'MusicXML'.tr, onPressed: _toggleXml, selected: _xmlShown),
         const ToolbarDivider(),

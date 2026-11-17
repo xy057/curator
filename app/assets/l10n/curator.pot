@@ -2875,6 +2875,7 @@ msgstr ""
 msgid "Accent ([)"
 msgstr ""
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr ""
 
@@ -5548,4 +5549,8 @@ msgstr ""
 #: lib/video_panel.dart
 msgctxt "video"
 msgid "View"
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
 msgstr ""
