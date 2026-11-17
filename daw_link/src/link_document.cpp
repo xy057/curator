@@ -254,6 +254,9 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
+    // What changed outside an edit (a recording's samples let be read, or no longer) is told here.
+    if (dirty_ && lockouts_ == 0)
+        publish ();
 }
 
 void LinkDocumentController::doUpdateMusicalContextContent (ARA::PlugIn::MusicalContext*, const ARA::ARAContentTimeRange*, ARA::ContentUpdateScopes) noexcept
@@ -282,6 +285,9 @@ void LinkDocumentController::willEnableAudioSourceSamplesAccess (ARA::PlugIn::Au
 
 void LinkDocumentController::didEnableAudioSourceSamplesAccess (ARA::PlugIn::AudioSource* source, bool enable) noexcept
 {
+    // A DAW may do this outside an edit: Curator is told (`access`, `problem`) when the edit
+    // ends, or else when the DAW next asks for model updates.
+    dirty_ = true;
     if (!enable)
         return;
     auto* link = static_cast<LinkAudioSource*> (source);

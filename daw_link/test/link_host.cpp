@@ -864,6 +864,11 @@ int main (int argc, const char* argv[])
     check (contains (line, "{\"id\":\"take-1\",\"name\":\"Take 1\",\"rate\":44100,\"frames\":220500,\"channels\":1"), "the recording");
     check (contains (line, "\"source\":\"take-1\",\"start\":1,\"length\":3,\"from\":0.5,\"span\":3"), "the region placing it in the song");
 
+    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates.
+    check (contains (line, "\"access\":false"), "not readable yet as the edit ends");
+    curator.next ("document", 5, [&] { dc->notifyModelUpdates (controller); });
+    check (contains (curator.lines.back (), "\"access\":true"), "readable once the DAW lets it be read");
+
     std::printf ("Curator's transport drives the DAW's\n");
     check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");
     clearPlaybackAsked ();
