@@ -298,18 +298,21 @@ ARA::PlugIn::PlaybackRenderer* LinkDocumentController::doCreatePlaybackRenderer 
     return new LinkPlaybackRenderer (this);
 }
 
+// A renderer says it is in, then looks whether it may be; the host's thread says it may not, then
+// looks whether one is in. All four sequentially consistent: with anything weaker each could miss
+// the other's word, and a renderer would read samples being made anew.
 bool LinkDocumentController::rendererWillAccessModel () noexcept
 {
-    renderersAccessing_.fetch_add (1, std::memory_order_acquire);
-    if (renderersMayAccess_.load (std::memory_order_acquire))
+    renderersAccessing_.fetch_add (1);
+    if (renderersMayAccess_.load ())
         return true;
-    renderersAccessing_.fetch_sub (1, std::memory_order_release);
+    renderersAccessing_.fetch_sub (1);
     return false;
 }
 
 void LinkDocumentController::rendererDidAccessModel () noexcept
 {
-    renderersAccessing_.fetch_sub (1, std::memory_order_release);
+    renderersAccessing_.fetch_sub (1);
 }
 
 // Both on the host's main thread, and nested (samples made anew inside an edit).
@@ -317,15 +320,15 @@ void LinkDocumentController::lockOutRenderers () noexcept
 {
     if (lockouts_++ > 0)
         return;
-    renderersMayAccess_.store (false, std::memory_order_release);
-    while (renderersAccessing_.load (std::memory_order_acquire) > 0)
+    renderersMayAccess_.store (false);
+    while (renderersAccessing_.load () > 0)
         std::this_thread::yield ();
 }
 
 void LinkDocumentController::letRenderersIn () noexcept
 {
     if (lockouts_ > 0 && --lockouts_ == 0)
-        renderersMayAccess_.store (true, std::memory_order_release);
+        renderersMayAccess_.store (true);
 }
 
 // MARK: Publishing
