@@ -11,7 +11,7 @@ import 'l10n/l10n.dart';
 const _majorMinor = '0.9';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
-const appBuild = 481;
+const appBuild = 482;
 
 /// The patch of the release this build is (or comes after): kept apart from the build, and
 /// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
@@ -108,27 +108,46 @@ class Release {
     this.notes = '',
     this.prerelease = false,
     this.published,
+    this.build,
   });
 
   /// The line the Release workflow writes under what is new, before how to install: the app
   /// shows a description up to it.
   static const installMarker = '<!-- install -->';
 
+  /// The line the Release workflow writes under [installMarker]: the build released
+  /// (`<!-- build: 481 -->`). Releases from before builds were written there have none.
+  static final _buildLine = RegExp(r'<!--\s*build:?\s*(\d+)\s*-->');
+
   /// The most of a description that is kept (GitHub's own limit is 125 000).
   static const _notesLimit = 60000;
 
   /// The newest of a GitHub API list of releases (`GET /repos/…/releases`), pre-releases among
-  /// them: the highest version that is no draft, the first listed of two with the same; null
+  /// them: the newest ([isNewerThan]) that is no draft, the first listed of two alike; null
   /// when there is none.
   static Release? newest(Object? json, {String platform = '', Uri? origin}) {
     Release? newest;
     for (final entry in json is List ? json : const []) {
       if (entry is! Map || entry['draft'] == true) continue;
       final release = fromJson(entry, platform: platform, origin: origin);
-      if (release != null && (newest == null || release.version > newest.version)) newest = release;
+      if (release != null && (newest == null || release.isNewerThan(newest.version, newest.build))) newest = release;
     }
     return newest;
   }
+
+  /// Whether this comes after [version] built as [build]: by build when both are known (a
+  /// build only ever goes up, whatever letters a release's patch has: 0.9.2-rc1 before 0.9.2),
+  /// else by version.
+  bool isNewerThan(Version version, int? build) {
+    final mine = this.build;
+    return mine != null && build != null ? mine > build : this.version > version;
+  }
+
+  /// Whether this comes after the app as it is ([appRelease], [appBuild]).
+  bool get isNewerThanThisApp => isNewerThan(Version.current, appBuild);
+
+  /// Its version, and its build when known: "0.9.1a (490)", as the app shows its own.
+  String get label => build == null ? '$version' : '$version ($build)';
 
   /// Reads a GitHub API release (`GET /repos/…/releases/latest`); null when it has no version.
   /// Its addresses are taken only when they are https on github.com, or on [origin] (the
@@ -153,6 +172,9 @@ class Release {
     final size = asset?['size'];
     final body = json['body'];
     final published = json['published_at'];
+    // Only under the install line: what is new above it is anyone's text.
+    final cut = body is String ? body.indexOf(installMarker) : -1;
+    final build = cut < 0 ? null : int.tryParse(_buildLine.firstMatch((body as String).substring(cut))?[1] ?? '');
     return Release(
       version: version,
       pageUrl: '${trusted(json['html_url']) ?? '$repositoryUrl/releases'}',
@@ -162,6 +184,7 @@ class Release {
       notes: body is String ? _notesOf(body) : '',
       prerelease: json['prerelease'] == true,
       published: published is String ? DateTime.tryParse(published) : null,
+      build: build,
     );
   }
 
@@ -187,6 +210,9 @@ class Release {
 
   /// When it was published.
   final DateTime? published;
+
+  /// The build released, as the description says under [installMarker]; null when it doesn't.
+  final int? build;
 
   /// The download's own name when it is a plain one (`Curator-1.2.3-macos.zip`); otherwise
   /// (a folder in it, `..`, a name for another kind of file) the name the workflow gives it.
@@ -323,7 +349,7 @@ class Updater extends ChangeNotifier {
           if (json is! List) throw const FormatException('No list of releases');
           release = Release.newest(json, platform: platform, origin: api); // null: nothing released yet
       }
-      if (release != null && release.version > Version.current) {
+      if (release != null && release.isNewerThanThisApp) {
         _set = UpdateAvailable(release);
         return release;
       }

@@ -7,6 +7,9 @@
 # major.minor and the patch kept apart for it, which may have letters: app/lib/updater.dart's
 # `appReleasePatch` (`'1a'` → tag v0.9.1a). To release again, bump that and run this again
 # (`make versions` checks pubspec.yaml and updater.dart agree, and so does this).
+# The release is titled with its build too ("Curator 0.9.1a (490)"), and its description carries
+# it under `<!-- install -->` as `<!-- build: 490 -->`: the app compares releases by that build
+# (a release's patch may have letters; a build only goes up), so keep that line.
 # A version that is already released stops the run before anything is built.
 #
 # A pre-release (the "Pre-release" box) is versioned as any other (0.9.1): only GitHub's mark on
@@ -60,6 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -73,12 +77,15 @@ jobs:
           patch=$(sed -n "s/^const appReleasePatch = '\([0-9A-Za-z-]*\)';/\1/p" app/lib/updater.dart)
           [ -n "$majorMinor" ] && [ -n "$patch" ] || { echo "::error::No release version in app/lib/updater.dart"; exit 1; }
           version="$majorMinor.$patch"
+          build=$(sed -n 's/^const appBuild = \([0-9]*\);/\1/p' app/lib/updater.dart)
+          [ -n "$build" ] || { echo "::error::No appBuild in app/lib/updater.dart"; exit 1; }
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
             echo "::error::v$version is already released. Bump appReleasePatch in app/lib/updater.dart first."
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Releasing v$version"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version (build $build)"
 
   macos:
     needs: version
@@ -201,6 +208,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
+          BUILD: ${{ needs.version.outputs.build }}
           # Read from the environment, never written into the script: what is pasted is text,
           # whatever it says.
           NOTES: ${{ inputs.notes }}
@@ -215,10 +223,9 @@ jobs:
               -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" --jq .body > notes.md
           fi
           # The app's update window shows the description up to this line (Release.installMarker
-          # in app/lib/updater.dart): keep it as it is.
+          # in app/lib/updater.dart), and compares releases by the build under it: keep both.
+          printf '\n<!-- install -->\n<!-- build: %s -->\n' "$BUILD" >> notes.md
           cat >> notes.md <<'EOF'
-
-          <!-- install -->
           ## Install
 
           **macOS:** unzip and move the app to Applications. The app isn't notarized by Apple, so
@@ -237,7 +244,7 @@ jobs:
           if [ "$DRAFT" = true ]; then flags+=(--draft); fi
           gh release create "v$VERSION" Curator-*.zip \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Curator $VERSION" \
+            --title "Curator $VERSION ($BUILD)" \
             --notes-file notes.md \
             --target "$GITHUB_SHA" \
             "${flags[@]}"

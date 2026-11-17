@@ -2066,8 +2066,12 @@ the patch and the build always the same number, so macOS and Windows show 0.9.48
 the build bumps both (and `appBuild` in `updater.dart`; `appVersion` is made from it). A release
 is major.minor and a patch kept apart: `appReleasePatch` (`appRelease`), text that may have letters
 and `-` (`0`, `1a`, `2-rc1`). It names the tag (`v0.9.1a`), the downloads and the release, is what
-the updater compares (`Version`: digits as numbers, the rest as text, so 0.9.1 < 0.9.1a < 0.9.2),
-and is what the app shows, with the build: "0.9.0 (480)". `make versions` (from `make check`, and
+the updater compares when a release has no build (`Version`: digits as numbers, the rest as text,
+so 0.9.1 < 0.9.1a < 0.9.2), and is what the app shows, with the build: "0.9.0 (480)". The workflow
+titles a release with its build too ("Curator 0.9.1a (490)") and writes it under
+`<!-- install -->` as `<!-- build: 490 -->` (`Release.build`); the updater compares by builds
+when both are known (`Release.isNewerThan`), since a build only goes up while a patch's letters
+needn't (0.9.2-rc1 sorts after 0.9.2). `make versions` (from `make check`, and
 the workflow's first step) checks pubspec.yaml's major.minor and both its numbers against
 `updater.dart`, and that the release patch is there. The Curator Link plug-ins carry the version
 and build; an Audio Unit's patch byte is the release's leading digits (the build doesn't fit). The app asks on the channel chosen in Settings ▸ About ▸

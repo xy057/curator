@@ -73,7 +73,7 @@ class _UpdateDialog extends StatelessWidget {
         };
         return AppDialog(
           title: Row(children: [
-            Flexible(child: Text('Curator ${release.version}', overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text('Curator ${release.label}', overflow: TextOverflow.ellipsis)),
             if (release.prerelease) ...[const SizedBox(width: 10), _Tag('Pre-release'.tr)],
           ]),
           content: SizedBox(
