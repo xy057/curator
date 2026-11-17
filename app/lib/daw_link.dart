@@ -167,9 +167,11 @@ class DawLink extends ChangeNotifier {
   /// Asks [capturer] (in [session]'s DAW: [capturersOf]) for what it hears from song time [from]
   /// for [length] seconds, as the DAW plays it, written in Curator's cache as [name].wav;
   /// completes with its path once every moment of it was heard. [document]'s Attacca (in
-  /// [session]) is asked to have the DAW play from a second before (`play`, where the DAW lets
-  /// it ask) and to stop once it is done (`stop`), whichever way: the Capturer is in a bundle of
-  /// its own, so Curator says when. [progress] hears how much was, 0–1. As [recording] otherwise.
+  /// [session]) is asked to have the DAW stop (`stop`), then, once the Capturer is `ready` (the
+  /// DAW stopped and fallen quiet: what still rang from before isn't the mix; ten seconds at
+  /// most), to play from a second before (`play`, where the DAW lets it ask), and to stop once it
+  /// is done, whichever way: the Capturer is in a bundle of its own, so Curator says when.
+  /// [progress] hears how much was, 0–1. As [recording] otherwise.
   ///
   /// [played] is the song time the DAW plays of it (a recording's region, its `start` and
   /// `end`): only that is to be heard, the rest of the file silence, so the capture is done when
@@ -180,7 +182,13 @@ class DawLink extends ChangeNotifier {
       required String name,
       ({double start, double end})? played,
       void Function(double done)? progress}) async {
-    final captured = capturer.session._ask((document, 'capturer', capturer.id), {
+    final key = (document, 'capturer', capturer.id);
+    final ready = capturer.session._ready[key] = Completer<void>();
+    void go() {
+      if (!ready.isCompleted) ready.complete();
+    }
+
+    final captured = capturer.session._ask(key, {
       't': 'capture',
       'document': document,
       'capturer': capturer.id,
@@ -189,11 +197,21 @@ class DawLink extends ChangeNotifier {
       'name': name,
       if (played != null) ...{'start': played.start, 'end': played.end},
     }, progress);
-    // A second before what is to be heard (Attacca puts it no earlier than 0).
-    drive(session, document, 'play', at: (played?.start ?? from) - 1);
+    var over = false;
+    unawaited(captured.then((_) {}, onError: (_) {}).whenComplete(() {
+      over = true;
+      go();
+    }));
+    final wait = Timer(const Duration(seconds: 10), go);
+    drive(session, document, 'stop');
     try {
+      await ready.future;
+      // A second before what is to be heard (Attacca puts it no earlier than 0).
+      if (!over) drive(session, document, 'play', at: (played?.start ?? from) - 1);
       return await captured;
     } finally {
+      wait.cancel();
+      capturer.session._ready.remove(key);
       session._send({'t': 'stop', 'document': document});
     }
   }
@@ -316,6 +334,9 @@ class DawSession extends ChangeNotifier {
   /// Files asked for and not yet written, by document, kind ("source", "track") and id.
   final _recordings = <(String, String, String), ({Completer<String> completer, List<void Function(double)> progress})>{};
 
+  /// Captures asked for whose Capturer isn't `ready` yet ([DawLink.capture]), by key.
+  final _ready = <(String, String, String), Completer<void>>{};
+
   /// What the file [key] is, sent as [message] unless it was asked for already.
   Future<String> _ask((String, String, String) key, Map<String, Object?> message, void Function(double)? progress) {
     final asked = _recordings.containsKey(key);
@@ -368,6 +389,9 @@ class DawSession extends ChangeNotifier {
           for (final c in (message['list'] as List?) ?? const [])
             if (c case {'id': final String id}) DawCapturer(this, id, name: (c['name'] as String?) ?? '', channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
         ];
+      case 'ready':
+        if (_ready[_keyOf(message)] case final ready? when !ready.isCompleted) ready.complete();
+        return;
       case 'progress':
         final pending = _recordings[_keyOf(message)];
         final done = message['done'];

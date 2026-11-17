@@ -24,7 +24,8 @@ public:
     void prepare (double sampleRate, int channels);
 
     // On the audio thread, lock-free: [frames] frames of [channels] at song sample [songSample]
-    // (the first heard), kept while a capture is under way and the DAW is [playing].
+    // (the first heard), kept while a capture is under way and the DAW is [playing], once it
+    // listens: after the DAW stopped and fell quiet (it says `ready`, and Curator has it play).
     void process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept;
 
     // Its ID: a new one, until the DAW gives back the one it had ([setId], from its saved state,

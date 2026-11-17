@@ -400,7 +400,9 @@ void main() {
           from: 0.5, length: 60, played: (start: 1, end: 60), name: 'Take 1', progress: heardSoFar.add);
       expect(await told(toMixer),
           {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1', 'start': 1, 'end': 60});
-      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': 0}, reason: 'a second before the region');
+      expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'what rings from before isn’t the mix');
+      mixerSays({'t': 'ready', 'document': 'doc', 'capturer': 'cap'});
+      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': 0}, reason: 'once ready, a second before the region');
       mixerSays({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
       mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
       expect(await mix, '/tmp/Mix.wav');
@@ -408,12 +410,12 @@ void main() {
       expect(await told(heard), {'t': 'stop', 'document': 'doc'});
       final cancelled = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1');
       expect(await told(toMixer), containsPair('t', 'capture'));
-      expect(await told(heard), containsPair('t', 'play'));
+      expect(await told(heard), containsPair('t', 'stop'));
       link.cancelCapture('doc', capturer);
       expect(await told(toMixer), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
       mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'error': 'cancelled'});
       await expectLater(cancelled, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'cancelled')));
-      expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'cancelled, the DAW stops too');
+      expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'cancelled before ready: never played, stopped');
       mixer.destroy();
       await until(() => link.capturersOf(session).isEmpty);
       // The mix recorded goes in place of the Attacca take, an ordinary recording from then on.

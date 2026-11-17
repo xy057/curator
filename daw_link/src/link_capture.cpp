@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <thread>
 #include <vector>
@@ -20,6 +21,14 @@ namespace {
 std::mutex registryMutex;
 std::vector<Capturer*> registry;
 std::atomic<int> capturing { 0 };
+
+// Before a capture listens, the DAW stopped and this quiet (peak, -80 dBFS) for a quarter of a
+// second: what still rings from before (a reverb's tail when the DAW stopped, or what it played
+// before it jumped) isn't the mix. Or it doesn't run the Capturer while stopped (a second without
+// a block), or it never falls quiet (eight seconds).
+constexpr float quietLevel = 1.0e-4f;
+constexpr double quietSeconds = 0.25;
+constexpr auto idleWait = std::chrono::seconds (1), longestWait = std::chrono::seconds (8);
 
 // The audio thread hands what it hears over in blocks of at most this many frames.
 constexpr int64_t blockFrames = 512;
@@ -48,6 +57,26 @@ struct Capture {
     std::vector<uint64_t> heard;
     int64_t heardCount { 0 }, heardAtStart { 0 };
     std::atomic<bool> cancel { false };
+
+    // Whether it keeps what the DAW plays yet (once the DAW stopped and fell quiet); till then,
+    // how many frames the DAW has been stopped and quiet, and how many blocks it was given.
+    std::atomic<bool> listening { false };
+    std::atomic<int64_t> quiet { 0 };
+    std::atomic<uint64_t> calls { 0 };
+
+    // The audio thread's side while it doesn't listen yet: how long the DAW is stopped and quiet.
+    void wait (const float* const* in, int inChannels, int64_t count, bool playing) noexcept
+    {
+        calls.fetch_add (1, std::memory_order_relaxed);
+        float peak = 0;
+        for (int c = 0; !playing && c < inChannels; ++c)
+        {
+            for (int64_t i = 0; in[c] && i < count; ++i)
+                peak = std::max (peak, std::abs (in[c][i]));
+        }
+        const int64_t q = quiet.load (std::memory_order_relaxed);
+        quiet.store (playing || peak >= quietLevel ? 0 : q + count, std::memory_order_relaxed);
+    }
     std::thread writer;
 
     // The audio thread's side: the part of [frames] at song sample [song] inside the span.
@@ -174,8 +203,13 @@ void Capturer::publishAll ()
 void Capturer::process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept
 {
     processing_.fetch_add (1, std::memory_order_acquire);
-    if (Capture* capture = live_.load (std::memory_order_acquire); capture && playing && frames > 0)
-        capture->push (in, channels, frames, songSample);
+    if (Capture* capture = live_.load (std::memory_order_acquire); capture && frames > 0)
+    {
+        if (!capture->listening.load (std::memory_order_acquire))
+            capture->wait (in, channels, frames, playing);
+        else if (playing)
+            capture->push (in, channels, frames, songSample);
+    }
     processing_.fetch_sub (1, std::memory_order_release);
 }
 
@@ -272,9 +306,25 @@ void Capturer::start (const std::string& document, double from, double length, c
     live_.store (c, std::memory_order_release);
     c->writer = std::thread ([this, c, reply, partial, me] {
         bool ok = true;
-        auto said = std::chrono::steady_clock::now ();
+        const auto begun = std::chrono::steady_clock::now ();
+        auto said = begun, called = begun;
+        uint64_t calls = 0;
         while (!c->cancel.load () && ok && c->heardCount < c->frames)
         {
+            if (!c->listening.load (std::memory_order_relaxed))
+            {
+                const auto now = std::chrono::steady_clock::now ();
+                if (const uint64_t n = c->calls.load (std::memory_order_relaxed); n != calls)
+                    calls = n, called = now;
+                if (c->quiet.load (std::memory_order_relaxed) >= std::llround (quietSeconds * c->rate) || now - called > idleWait || now - begun > longestWait)
+                {
+                    // Curator has the DAW play once told.
+                    c->listening.store (true, std::memory_order_release);
+                    JsonWriter ready;
+                    ready.object ().field ("t", "ready").field ("document", c->document).field ("capturer", me).endObject ();
+                    client_.send (ready.text ());
+                }
+            }
             const uint64_t t = c->tail.load (std::memory_order_relaxed);
             if (t == c->head.load (std::memory_order_acquire))
             {

@@ -666,12 +666,6 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
 
     // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
     auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
-    clearPlaybackAsked ();
-    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
-    curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":-0.5}");  // a second before, by Curator
-    const auto started = waitForAsked (2, idle);
-    check (started.size () >= 2 && started[0] == "at 0.000000" && started[1] == "start", "the DAW asked to play from a second before");
-
     std::vector<float> left (block), right (block), outLeft (block), outRight (block);
     float* ins[2] { left.data (), right.data () };
     float* outs[2] { outLeft.data (), outRight.data () };
@@ -691,13 +685,15 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     data.outputs = &out;
     data.processContext = &context;
     bool through = true;
-    auto play = [&] (int64_t from, int64_t to) {
+    // The DAW playing (or stopped) song samples [from, to): [sound] at each, or what is to be heard.
+    auto feed = [&] (int64_t from, int64_t to, bool playing, const std::function<float (int64_t, int)>& sound) {
+        context.state = playing ? Vst::ProcessContext::kPlaying : 0;
         for (int64_t song = from; song < to; song += block)
         {
             for (int i = 0; i < block; ++i)
             {
-                left[static_cast<size_t> (i)] = heard (song + i, 0);
-                right[static_cast<size_t> (i)] = heard (song + i, 1);
+                left[static_cast<size_t> (i)] = sound (song + i, 0);
+                right[static_cast<size_t> (i)] = sound (song + i, 1);
             }
             context.projectTimeSamples = song;
             processor->process (data);
@@ -705,6 +701,25 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
             std::this_thread::sleep_for (std::chrono::microseconds (200));
         }
     };
+    auto play = [&] (int64_t from, int64_t to) { feed (from, to, true, heard); };
+    // Asked to capture: what the DAW played and still rings from before (loud, over the span) isn't
+    // kept; once stopped and quiet a quarter of a second it is ready, and Curator has it play.
+    auto settle = [&] {
+        auto junk = [] (int64_t, int) { return 0.9f; };
+        for (auto end = std::chrono::steady_clock::now () + std::chrono::milliseconds (400); std::chrono::steady_clock::now () < end;)
+            feed (24000, 96000, true, junk);
+        curator.say ("{\"t\":\"stop\",\"document\":\"" + document + "\"}");
+        feed (0, 24000, false, junk);  // its tail, stopped
+        feed (0, 24000, false, [] (int64_t, int) { return 0.00001f; });
+        auto ready = curator.next ("ready", 5, idle);
+        check (ready["capturer"] == savedCapturer && curator.from == capturerLine, "ready once the DAW stopped and fell quiet");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":-0.5}");  // a second before, by Curator
+    };
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
+    settle ();
+    const auto started = waitForAsked (3, idle);
+    check (started.size () >= 3 && started[0] == "stop" && started[1] == "at 0.000000" && started[2] == "start", "the DAW stopped, then asked to play from a second before");
     play (48000, 96000);  // the span's end first
     play (0, 48000);
     check (through, "what it hears passed through untouched");
@@ -727,14 +742,14 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
         check (same, "each frame where the song has it");
     }
     curator.say ("{\"t\":\"stop\",\"document\":\"" + document + "\"}");
-    const auto stopped = waitForAsked (3, idle);
-    check (stopped.size () == 3 && stopped.back () == "stop", "the DAW asked to stop once it is heard whole");
+    const auto stopped = waitForAsked (4, idle);
+    check (stopped.size () == 4 && stopped.back () == "stop", "the DAW asked to stop once it is heard whole");
 
     // A recording's region the DAW plays (song 0.75 s to 1 s) of a file as long as the recording
     // (song 0.5 s for 1 s): done once the region was heard, the rest silence, the file lined up.
     curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer +
                  "\",\"from\":0.5,\"length\":1,\"start\":0.75,\"end\":1,\"name\":\"Region\"}", capturerLine);
-    std::this_thread::sleep_for (std::chrono::milliseconds (300));  // (taken up on the Capturer's connection)
+    settle ();
     play (36000, 48000);
     auto region = curator.next ("captured", 10, idle);
     check (region["error"].empty () && contains (region["path"], "/Region.wav"), "a region: done once it is heard " + region["error"]);

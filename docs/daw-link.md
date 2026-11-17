@@ -177,9 +177,14 @@ Follow DAW… always takes the recording through ARA (**Use this recording**), C
 span the recording followed plays in the song (its region: the file is as long as the recording,
 lined up with it, silent outside the region, and done once the region was heard), and loads it
 in place of the project's Attacca take as an ordinary recording: the mix, no longer the DAW's
-recording, so no longer marked Attacca (the project still follows the DAW). Curator asks the DAW to play from a second before it and to stop once
-every moment of it was heard; a DAW that doesn't let a plug-in start it (or one that stops
-early) is played by hand, and the span may be played in pieces or out of order. The progress bar
+recording, so no longer marked Attacca (the project still follows the DAW). Curator asks the
+DAW to stop first, and the Capturer keeps nothing until the DAW has been stopped and quiet for a
+quarter of a second (what still rings from before, a reverb's tail when the DAW last stopped or
+what it played before it jumped, would land on the region's first moments, a sound the DAW
+itself never plays there from a stop); then it says it is ready (or after a second without being
+run, or eight seconds that never fall quiet), and Curator asks the DAW to play from a second
+before the region and to stop once every moment of it was heard; a DAW that doesn't let a
+plug-in start it (or one that stops early) is played by hand, and the span may be played in pieces or out of order. The progress bar
 is how much of it was heard; Cancel stops. It captures with the Capturer linked: without one in
 the DAW it says to put one on the output, and with none linked to choose it in Attacca's window.
 
@@ -233,10 +238,11 @@ project, because everything it knows the DAW sends again.
 | `inserts` | Curator | `ids`, `names` (one a line): the Capturers in the same DAW process, for Attacca's Capturer menu |
 | `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection); `start` and `end` (optional): the song time the DAW plays of it, the only part to be heard, the rest of the file silence (Record from DAW…: the whole recording's length, lined up with it, and its region) |
 | `play` | Curator | `document`, `at` (song seconds, optional): the document's Attacca asks the DAW to play (from `at`, no earlier than 0), at once, from the connection's thread (ARA lets a plug-in from any but a render thread): Curator's play while following, or a capture starting (a second before its span) |
-| `stop` | Curator | `document`: the DAW asked to stop (Curator's pause; a capture done, failed or cancelled) |
+| `stop` | Curator | `document`: the DAW asked to stop (Curator's pause; a capture starting, before it is `ready`; a capture done, failed or cancelled) |
 | `seek` | Curator | `document`, `at`: the DAW asked to go there (Curator's playhead moved while following; at most one every 60 ms, the last where it ended) |
 | `linked` | Curator | `ids` (one a line): to a connection with Capturers, those linked to an Attacca with a document in the same DAW process |
 | `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
+| `ready` | plug-in | `document`, `capturer`: a capture asked for listens now, the DAW stopped and fallen quiet (what it heard before is dropped); Curator asks the DAW to play then |
 | `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
 
 A stem has the most channels and the highest sample rate of the recordings on its track. Each
