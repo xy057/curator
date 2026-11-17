@@ -14,7 +14,8 @@ import 'ui_kit.dart';
 
 /// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW where Attacca is (see
 /// docs/daw-link.md), the DAW's bar the score's bar 1 is at, whether to take the recording itself
-/// (written out by the plug-in, then loaded as the focus's) and whether the playhead follows the
+/// (written out by the plug-in through ARA, an Attacca Capturer or not; Record from DAW… takes
+/// the mix instead: [recordFromDaw]) and whether the playhead follows the
 /// DAW's; then the sync follows the DAW's tempo there ([DawEditing.follow]). A project takes one
 /// Attacca recording, for now: once it has one ([EditorController.attaccaTake]), only that one
 /// is offered, and taken again it goes back into its take.
@@ -24,47 +25,82 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
   if (choice == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
-  if (choice.recording) {
-    final done = ValueNotifier<double>(0);
-    // With an Attacca Capturer in the DAW, the mix as it plays there over the recording's span;
-    // else the recording itself, as Attacca reads it.
-    final capturer = choice.session.capturers.firstOrNull;
-    final region = choice.document.regionsOf(choice.source.id).firstOrNull;
-    final dialog = showAppDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _Fetching(
-        done: done,
-        capturing: capturer != null,
-        onCancel: capturer == null ? null : () => link.cancelCapture(choice.session, choice.document.id, capturer),
-      ),
-    );
-    String? path;
-    try {
-      path = capturer != null && region != null
-          ? await link.capture(choice.session, choice.document.id, capturer,
-              from: region.songAt(0),
-              length: choice.source.seconds,
-              name: choice.source.name.isEmpty ? 'Recording'.tr : choice.source.name,
-              progress: (d) => done.value = d)
-          : await link.recording(choice.session, choice.document.id, choice.source.id, progress: (d) => done.value = d);
-    } on DawLinkException catch (e) {
-      if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
-    }
-    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-    await dialog;
-    done.dispose();
-    if (path == null) return;
-    try {
-      final source = choice.source;
-      await c.loadAudio(path, daw: (host: choice.session.host, source: source.id, name: source.name));
-    } catch (e) {
-      say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
-      return;
-    }
+  // The recording itself, as Attacca (ARA) reads it.
+  if (choice.recording &&
+      !await _take(context, c, choice.session, choice.source,
+          (progress) => link.recording(choice.session, choice.document.id, choice.source.id, progress: progress))) {
+    return;
   }
   final taken = c.daw.follow(link, (document: choice.document.id, source: choice.source.id, region: null, bar: choice.bar, transport: choice.playhead));
   if (!taken) say('The DAW gives no tempo for this recording yet.'.tr);
+}
+
+/// File ▸ Attacca ▸ Record from DAW…: the recording followed as the DAW plays it, its mix over the
+/// recording's span captured by Attacca Capturer (the DAW asked to play it), loaded into the
+/// project's Attacca take as Follow DAW…'s Use this recording would be.
+Future<void> recordFromDaw(BuildContext context, EditorController c) async {
+  final link = DawLink.shared;
+  final follow = c.daw.following, found = c.daw.document;
+  if (follow == null || found == null) return;
+  final (session, document) = found;
+  final source = document.sources.where((s) => s.id == follow.source).firstOrNull;
+  final region = document.regionsOf(follow.source).firstOrNull;
+  final capturer = session.capturers.firstOrNull;
+  if (source == null || region == null || capturer == null) {
+    await showAppDialog<void>(
+      context: context,
+      builder: (context) => AppDialog(
+        title: Text('Record from DAW'.tr),
+        content: SizedBox(
+          width: dialogWidth(context, 360),
+          child: Text(capturer == null ? 'Put Attacca Capturer on the DAW’s output.'.tr : 'The recording followed isn’t in the DAW.'.tr),
+        ),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
+      ),
+    );
+    return;
+  }
+  await _take(
+    context,
+    c,
+    session,
+    source,
+    (progress) => link.capture(session, document.id, capturer,
+        from: region.songAt(0), length: source.seconds, name: source.name.isEmpty ? 'Recording'.tr : source.name, progress: progress),
+    onCancel: () => link.cancelCapture(session, document.id, capturer),
+  );
+}
+
+/// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got
+/// (a capture, [onCancel] given, can be cancelled), then loaded into the project's Attacca take;
+/// false when it couldn't be.
+Future<bool> _take(BuildContext context, EditorController c, DawSession session, DawSource source,
+    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
+  final done = ValueNotifier<double>(0);
+  final dialog = showAppDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _Fetching(done: done, capturing: onCancel != null, onCancel: onCancel),
+  );
+  String? path;
+  try {
+    path = await fetch((d) => done.value = d);
+  } on DawLinkException catch (e) {
+    if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
+  }
+  if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+  await dialog;
+  done.dispose();
+  if (path == null) return false;
+  try {
+    await c.loadAudio(path, daw: (host: session.host, source: source.id, name: source.name));
+  } catch (e) {
+    say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
+    return false;
+  }
+  return true;
 }
 
 /// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
@@ -84,7 +120,6 @@ String dawProblem(String reason) => switch (reason) {
       'empty' => 'Nothing plays there.'.tr,
       'gone' => 'It is no longer in the DAW.'.tr,
       'disconnected' => 'The DAW disconnected.'.tr,
-      'capturer' => 'Attacca Capturer captures in its place.'.tr,
       _ => 'The file couldn’t be written.'.tr,
     };
 
@@ -249,12 +284,6 @@ class _FollowDialogState extends State<_FollowDialog> {
                 ),
                 SizedBox(height: dialogGap(context)),
                 AppCheckRow(value: _recording, onChanged: (v) => setState(() => _recording = v ?? false), label: 'Use this recording'),
-                // Taken as the mix, through Attacca Capturer, as the DAW plays it.
-                if (_recording && chosen.session.capturers.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 28, bottom: 4),
-                    child: Text('Captured by Attacca Capturer as the DAW plays it.'.tr, style: muted),
-                  ),
                 AppCheckRow(value: _playhead, onChanged: (v) => setState(() => _playhead = v ?? false), label: 'Follow the DAW’s playhead'),
                 ...outdated,
               ]),

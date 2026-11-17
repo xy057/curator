@@ -489,8 +489,8 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
 
 }  // namespace
 
-// Attacca Capturer (the VST3's second class), as a DAW runs it on its output: while it is there
-// Attacca's own capture is off; asked to capture, the DAW is asked to play from a second before,
+// Attacca Capturer (the VST3's second class), as a DAW runs it on its output: Attacca's own
+// capture (Follow DAW…'s, by ARA) works beside it; asked to capture (Record from DAW…), the DAW is asked to play from a second before,
 // what it hears is kept by song time however the span is played (here its end first), and the
 // DAW is asked to stop once it is heard whole.
 void checkCapturer (const char* path, Curator& curator, const std::string& document, const std::function<void ()>& idle)
@@ -540,8 +540,8 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     check (contains (line, "\"channels\":2,\"rate\":48000"), "with its channels and rate");
 
     curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
-    auto refused = curator.next ("exported", 10, idle);
-    check (refused["error"] == "capturer", "Attacca's own capture is off");
+    auto beside = curator.next ("exported", 10, idle);
+    check (beside["error"].empty (), "Attacca's own capture works beside it");
 
     // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
     auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
@@ -622,9 +622,6 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     component->release ();
     curator.next ("capturers", 5);
     check (contains (curator.lines.back (), "\"list\":[]"), "Curator is told it is gone");
-    curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
-    auto again = curator.next ("exported", 10, idle);
-    check (again["error"].empty (), "Attacca's own capture is back");
     CFRelease (bundle);
 }
 

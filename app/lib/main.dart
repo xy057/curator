@@ -785,6 +785,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
           'followDaw': open && free && (page._followsDaw.value || AttaccaPlugIns.supported) ? page._followDaw : null,
           // Off for now, always (StemEditing stays for Solo / Spotlight).
+          // While following a DAW: its recording as the DAW plays it (Attacca Capturer).
+          'recordFromDaw': open && free && page._followsDaw.value ? page._recordFromDaw : null,
           'captureStems': null,
           'attaccaSettings': free ? () => _settings(search: 'Attacca') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
@@ -859,6 +861,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
             state: _attaccaState,
             following: open && page._followsDaw.value,
             onFollow: does['followDaw'],
+            onRecord: does['recordFromDaw'],
             onCaptureStems: does['captureStems'],
             onSettings: does['attaccaSettings'],
           ),
@@ -1723,6 +1726,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _followDaw() {
     if (controller.score == null) return;
     controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
+  }
+
+  /// File ▸ Attacca ▸ Record from DAW…: the recording followed, as the DAW plays it.
+  void _recordFromDaw() {
+    if (controller.daw.following != null) recordFromDaw(context, controller);
   }
 
   // MARK: View

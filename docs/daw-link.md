@@ -154,18 +154,16 @@ sends and the mix. To take the recording as you hear it instead, put **Attacca C
 last slot of the DAW's output (Stereo Out, the main bus). It passes everything through untouched.
 
 It works together with Attacca on a track, which still tells Curator the song. Its window says
-**Not linked** until there is one (an Attacca bound to ARA in the same DAW). While a Capturer is in the DAW:
+**Not linked** until there is one (an Attacca bound to ARA in the same DAW).
 
-- **Use this recording** (Follow DAW…) captures the mix over the span the recording plays in the
-  song. Curator asks the DAW to play from a second before it and to stop once every moment of it
-  was heard; a DAW that doesn't let a plug-in start it (or one that stops early) is played by
-  hand, and the span may be played in pieces or out of order. The progress bar is how much of it
-  was heard; Cancel stops.
-- Attacca's own capture is off: the plug-in refuses to write a
-  recording or a track itself (`capturer`).
-
-Taking the Capturer out turns Attacca's own capture back on. If there are several Capturers,
-the first one placed is used.
+Follow DAW… always takes the recording through ARA (**Use this recording**), Capturer or not.
+**File ▸ Attacca ▸ Record from DAW…**, while the project follows a DAW, captures the mix over the
+span the recording followed plays in the song, and loads it into the project's Attacca take as
+Use this recording would. Curator asks the DAW to play from a second before it and to stop once
+every moment of it was heard; a DAW that doesn't let a plug-in start it (or one that stops
+early) is played by hand, and the span may be played in pieces or out of order. The progress bar
+is how much of it was heard; Cancel stops. Without a Capturer in the DAW it says to put one on
+the output. If there are several Capturers, the first one placed is used.
 
 **Listen for Attacca** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
 this. The menu item is checked while Curator follows a DAW, and choosing it again stops. So does
@@ -211,7 +209,7 @@ project, because everything it knows the DAW sends again.
 | `progress` | plug-in | `document`, `source` or `track`, `done` (0–1) |
 | `exported` | plug-in | `document`, `source`, then `path` (a 32-bit float WAV in Curator's cache folder, under `DAW Link/`) or `error` |
 | `stemmed` | plug-in | `document`, `track`, then `path` (a 32-bit float WAV under `DAW Link/Stems/`) or `error` (`empty`: nothing plays there) |
-| `capturers` | plug-in | `list`: each Attacca Capturer in the process (`id`, `channels`, `rate`); sent when one comes, goes or is set up, and on connecting. While it isn't empty, `export` and `stem` answer `error`: `capturer` |
+| `capturers` | plug-in | `list`: each Attacca Capturer in the process (`id`, `channels`, `rate`); sent when one comes, goes or is set up, and on connecting |
 | `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there; the document's Attacca asks the DAW to play from a second before `from`, and to stop once it is done |
 | `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
 | `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |

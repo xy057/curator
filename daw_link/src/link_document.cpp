@@ -613,14 +613,6 @@ void LinkDocumentController::startPendingExport ()
         job = pending_.front ();
         pending_.erase (pending_.begin ());
     }
-    // A Capturer in the DAW captures in Attacca's place (the mix as heard): its own capture is off.
-    if (Capturer::any ())
-    {
-        JsonWriter w;
-        w.object ().field ("t", job.stem ? "stemmed" : "exported").field ("document", id_).field (job.stem ? "track" : "source", job.id).field ("error", "capturer").endObject ();
-        client_.send (w.text ());
-        return;
-    }
     if (job.stem)
         startStem (job);
     else

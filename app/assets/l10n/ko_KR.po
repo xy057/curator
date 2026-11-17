@@ -5572,11 +5572,9 @@ msgstr ""
 msgid "Bars: {count}"
 msgstr ""
 
-#: lib/daw_follow_dialog.dart
 msgid "Attacca Capturer captures in its place."
 msgstr ""
 
-#: lib/daw_follow_dialog.dart
 msgid "Captured by Attacca Capturer as the DAW plays it."
 msgstr ""
 
@@ -5634,4 +5632,20 @@ msgstr ""
 
 #: lib/main.dart
 msgid "{daw} (outdated)"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Record from DAW…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Record from DAW"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Attacca Capturer on the DAW’s output."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The recording followed isn’t in the DAW."
 msgstr ""

@@ -5586,11 +5586,9 @@ msgstr "每个项目一个 Attacca 录音。"
 msgid "Bars: {count}"
 msgstr "小节：{count}"
 
-#: lib/daw_follow_dialog.dart
 msgid "Attacca Capturer captures in its place."
 msgstr "由 Attacca Capturer 代为捕获。"
 
-#: lib/daw_follow_dialog.dart
 msgid "Captured by Attacca Capturer as the DAW plays it."
 msgstr "在 DAW 播放时由 Attacca Capturer 捕获。"
 
@@ -5649,3 +5647,19 @@ msgstr "{daw} 中的 Attacca 已过时：请在“设置 ▸ 通用”中更新�
 #: lib/main.dart
 msgid "{daw} (outdated)"
 msgstr "{daw}（已过时）"
+
+#: lib/app_menus.dart
+msgid "Record from DAW…"
+msgstr "从 DAW 录制…"
+
+#: lib/daw_follow_dialog.dart
+msgid "Record from DAW"
+msgstr "从 DAW 录制"
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Attacca Capturer on the DAW’s output."
+msgstr "请将 Attacca Capturer 放在 DAW 的输出上。"
+
+#: lib/daw_follow_dialog.dart
+msgid "The recording followed isn’t in the DAW."
+msgstr "跟随的录音不在 DAW 中。"
