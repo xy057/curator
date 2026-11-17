@@ -16,12 +16,13 @@
 #define LINK_VENDOR "Curator"
 #define LINK_URL "https://github.com/xy057/curator"
 #define LINK_EMAIL "mailto:"
-// The ARA factory and archive IDs, the VST3 class IDs and the Audio Unit's codes are still
-// those it had as Curator Link: a DAW project made with it finds Attacca in its place.
-#define LINK_FACTORY_ID "com.curatedscore.link.arafactory"
+// Attacca's own IDs, none of Curator Link's: a DAW keeps what it learnt of a plug-in by its
+// IDs (Cubase its name and buses by the VST3 class ID), so Curator Link's would have kept it
+// "Curator Link" with no audio buses.
+#define LINK_FACTORY_ID "com.curatedscore.attacca.arafactory"
 // Curator's own bundle (app/macos/Runner/Configs/AppInfo.xcconfig): whether it is open.
 #define LINK_CURATOR_BUNDLE_ID "com.curatedscore.curatedScore"
-#define LINK_ARCHIVE_ID "com.curatedscore.link.archive.1"
+#define LINK_ARCHIVE_ID "com.curatedscore.attacca.archive.1"
 
 // What Curator and the plug-in say to each other (docs/daw-link.md); raised only when one
 // side could no longer read the other.

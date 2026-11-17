@@ -291,7 +291,19 @@ void checkVst3View (const char* path)
     auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
     IPluginFactory* factory = getFactory ? getFactory () : nullptr;
     check (factory != nullptr, "the VST3 gives its factory");
-    static const TUID controllerID = INLINE_UID (0x1245D387, 0xA75E4A1C, 0x88D4A3DD, 0x99FD9C89);
+    // The controller as the factory lists it (as a DAW finds it), not by an ID written here.
+    TUID controllerID {};
+    bool listed = false;
+    for (int32 i = 0; i < factory->countClasses () && !listed; ++i)
+    {
+        PClassInfo info;
+        if (factory->getClassInfo (i, &info) == kResultOk && std::strcmp (info.category, kVstComponentControllerClass) == 0)
+        {
+            std::memcpy (controllerID, info.cid, sizeof (TUID));
+            listed = true;
+        }
+    }
+    check (listed, "its controller listed");
     void* object = nullptr;
     check (factory->createInstance (controllerID, Vst::IEditController_iid, &object) == kResultOk && object, "its controller made");
     auto* controller = static_cast<Vst::IEditController*> (object);
@@ -325,7 +337,7 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
         fail (std::string ("can't load ") + path);
     auto factoryFunction = reinterpret_cast<AudioComponentFactoryFunction> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("AttaccaFactory")));
     check (factoryFunction != nullptr, "the component exports AttaccaFactory");
-    const AudioComponentDescription description { kAudioUnitType_Effect, 'CrLk', 'Crtr', 0, 0 };
+    const AudioComponentDescription description { kAudioUnitType_Effect, 'Atca', 'Crtr', 0, 0 };
     AudioComponent component = AudioComponentRegister (&description, CFSTR ("Curator: Attacca (test)"), 1, factoryFunction);
     AudioComponentInstance unit = nullptr;
     check (component && AudioComponentInstanceNew (component, &unit) == noErr, "an instance made");

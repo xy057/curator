@@ -1,7 +1,8 @@
 # Attacca
 
 (Attacca was called Curator Link until build 484. Install and Uninstall remove bundles by that
-name too, and a DAW project that used Curator Link finds Attacca in its place.)
+name too. Since build 485 it is a plug-in of its own to a DAW, with IDs of its own: a DAW project
+that used Curator Link says it is missing, so put Attacca on that track instead.)
 
 Attacca is an ARA 2 plug-in (VST3 and Audio Unit) that a DAW loads on an audio track. It
 reads the DAW's song through ARA, which hands a plug-in the host's model instead of only its
