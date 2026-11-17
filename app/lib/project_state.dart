@@ -451,7 +451,7 @@ class Take {
   final double leadIn;
   final MidiTempoMap? midi;
 
-  /// Where its recording came from when Attacca wrote it out of a DAW (Follow DAW…), else null:
+  /// Where its recording came from when Attacca wrote it out of a DAW (Connect Attacca…), else null:
   /// a project has one such take at most ([EditState.attaccaTake]).
   final TakeDaw? daw;
 

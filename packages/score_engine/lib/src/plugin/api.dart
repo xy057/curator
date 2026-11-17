@@ -109,7 +109,7 @@ abstract final class PluginApi {
     ApiCommand('saveAs', 'Save As…', 'File'),
     ApiCommand('exportVideo', 'Export Video…', 'File'),
     ApiCommand('exportWeb', 'Export to Web…', 'File'),
-    ApiCommand('followDaw', 'Follow DAW…', 'File'),
+    ApiCommand('followDaw', 'Connect Attacca…', 'File'),
     ApiCommand('captureStems', 'Capture Stems…', 'File'),
     ApiCommand('attaccaSettings', 'Attacca Settings…', 'File'),
     ApiCommand('undo', 'Undo', 'Edit', rebind: false),

@@ -29,7 +29,7 @@ can then:
 Attacca runs on macOS (Apple silicon and Intel). Curator carries it, so there is nothing to
 download. On Windows and Linux, Settings ▸ General ▸ DAW says Attacca is not available for
 the system ("OS not supported"), Listen for Attacca stays off, Curator opens no port, and
-File ▸ Attacca reads OS not supported, its Follow DAW… greyed out. A project's stems are kept
+File ▸ Attacca reads OS not supported, its Connect Attacca… greyed out. A project's stems are kept
 and can be edited there.
 
 Everything Attacca does in Curator is under **File ▸ Attacca**: how it stands, Follow
@@ -112,8 +112,8 @@ What stays behind, and how to remove it:
 
 Attacca supports **Cubase, Nuendo, Studio One (Studio Pro) and REAPER**, told by the DAW's
 process name. Any other DAW is not supported: Logic Pro, and DAWs without ARA such as Ableton
-Live and Bitwig Studio. When one connects, Curator says it isn't supported, and Follow DAW…
-doesn't offer its recordings. Holding **⌥ (Option)** in that notice shows **Follow Anyway**,
+Live and Bitwig Studio. When one connects, Curator says it isn't supported, and Connect Attacca…
+doesn't offer its recordings. Holding **⌥ (Option)** in that notice shows **Connect Anyway**,
 which offers them all the same (for this time only).
 
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
@@ -124,8 +124,8 @@ which offers them all the same (for this time only).
    offer it as an insert. Attacca put in an insert slot all the same (or its Audio Unit, which has
    no such mark) is connected but given no recording: its window says **Insert only** (the instance tells it whether the DAW bound it to ARA: the VST3's
    audio side by a message to its editing side, the Audio Unit by a property of its own), and
-   Follow DAW… says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
-2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
+   Connect Attacca… says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
+2. In Curator, open the score, then **File ▸ Attacca ▸ Connect Attacca…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 
@@ -133,12 +133,12 @@ which offers them all the same (for this time only).
 the DAW is open is still the old one there. Attacca's window then says it is outdated and to
 reopen the DAW (a newer Attacca is in its bundle on disk), or to update it in Curator's
 Settings (Curator, by the build in `daw-link.json`, is newer). Curator says so too, from the
-build in `hello`: once as the DAW connects, in Follow DAW…, and as "(outdated)" beside the
+build in `hello`: once as the DAW connects, in Connect Attacca…, and as "(outdated)" beside the
 DAW in File ▸ Attacca.
 
-A recording taken from the DAW (**Use this recording**) is the project's Attacca recording: its
+A recording taken from the DAW (**Load ARA Clip**) is the project's Attacca recording: its
 take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
-and in Project Info. A project has one for now. Once it has one, Follow DAW… offers only that
+and in Project Info. A project has one for now. Once it has one, Connect Attacca… offers only that
 recording, and taking it again puts it back into the same take, whichever take is picked. A
 file's recording loaded into that take takes the mark off; removing the take frees the project
 for another. Stems captured line up with the Attacca take.
@@ -172,7 +172,7 @@ by the DAW's process ID (`pid` in `hello`), lists the Capturers to Attacca (`ins
 one chosen (`link`), tells the Capturer it is linked (`linked`), and asks the document's Attacca
 to have the DAW play and stop.
 
-Follow DAW… always takes the recording through ARA (**Use this recording**), Capturer or not.
+Connect Attacca… always takes the recording through ARA (**Load ARA Clip**), Capturer or not.
 **File ▸ Attacca ▸ Record from DAW…**, while the project follows a DAW, captures the mix over the
 span the recording followed plays in the song (its region: the file is as long as the recording,
 lined up with it, silent outside the region, and done once the region was heard), and loads it

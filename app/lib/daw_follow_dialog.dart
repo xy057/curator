@@ -12,7 +12,7 @@ import 'l10n/l10n.dart';
 import 'menu_kit.dart';
 import 'ui_kit.dart';
 
-/// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW where Attacca is (see
+/// File ▸ Attacca ▸ Connect Attacca…: a recording in a DAW where Attacca is (see
 /// docs/daw-link.md), the DAW's bar the score's bar 1 is at, whether to take the recording itself
 /// (written out by the plug-in through ARA, an Attacca Capturer or not; Record from DAW… takes
 /// the mix instead: [recordFromDaw]) and whether the playhead follows the
@@ -157,7 +157,7 @@ class _FollowDialogState extends State<_FollowDialog> {
   bool _recording = true, _playhead = true;
 
   /// Whether DAWs Attacca doesn't support are offered too ([DawSession.supported]): the hidden
-  /// Follow Anyway, shown while ⌥ is held ([_option]).
+  /// Connect Anyway, shown while ⌥ is held ([_option]).
   bool _anyDaw = false, _option = HardwareKeyboard.instance.isAltPressed;
 
   bool _keys(KeyEvent _) {
@@ -203,12 +203,12 @@ class _FollowDialogState extends State<_FollowDialog> {
             for (final s in {for (final s in widget.link.sessions) if (s.outdated) s.host: s}.values)
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
           ];
-          // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Follow Anyway.
+          // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Connect Anyway.
           final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
           if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
             final name = unsupported.where((h) => h.isNotEmpty).join(', ');
             return AppDialog(
-              title: Text('Follow DAW'.tr),
+              title: Text('Connect Attacca'.tr),
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -218,7 +218,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                 ]),
               ),
               actions: [
-                if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Follow Anyway'.tr)),
+                if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr)),
                 FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr)),
               ],
             );
@@ -227,7 +227,7 @@ class _FollowDialogState extends State<_FollowDialog> {
           if (chosen == null && bound != null && widget.link.sessions.isNotEmpty) {
             // Its own Attacca recording isn't in the DAWs connected: no other is offered.
             return AppDialog(
-              title: Text('Follow DAW'.tr),
+              title: Text('Connect Attacca'.tr),
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -249,7 +249,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                     : (connected.isEmpty ? 'Attacca isn’t on a recording in the DAW.'.tr : 'Attacca isn’t on a recording in {daw}.'.fill({'daw': connected}),
                         'Add it to a track as an ARA extension, not as an insert.'.tr);
             return AppDialog(
-              title: Text('Follow DAW'.tr),
+              title: Text('Connect Attacca'.tr),
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -270,7 +270,7 @@ class _FollowDialogState extends State<_FollowDialog> {
           }
 
           return AppDialog(
-            title: Text('Follow DAW'.tr),
+            title: Text('Connect Attacca'.tr),
             content: SizedBox(
               width: dialogWidth(context, 360),
               child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -297,7 +297,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                   onChanged: (_) => setState(() {}),
                 ),
                 SizedBox(height: dialogGap(context)),
-                AppCheckRow(value: _recording, onChanged: (v) => setState(() => _recording = v ?? false), label: 'Use this recording'),
+                AppCheckRow(value: _recording, onChanged: (v) => setState(() => _recording = v ?? false), label: 'Load ARA Clip'),
                 AppCheckRow(value: _playhead, onChanged: (v) => setState(() => _playhead = v ?? false), label: 'Follow the DAW’s playhead'),
                 ...outdated,
               ]),

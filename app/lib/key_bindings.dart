@@ -137,7 +137,7 @@ enum KeyCommand {
   exportVideo('Export Video…', 'File', KeyPlace.menus, [_K(_L.keyE, command: true)], editable: true),
   exportWeb('Export to Web…', 'File', KeyPlace.menus, [], editable: true),
   // File ▸ Attacca.
-  followDaw('Follow DAW…', 'File', KeyPlace.menus, [], editable: true),
+  followDaw('Connect Attacca…', 'File', KeyPlace.menus, [], editable: true),
   recordFromDaw('Record from DAW…', 'File', KeyPlace.menus, [], editable: true),
   captureStems('Capture Stems…', 'File', KeyPlace.menus, [], editable: true),
   attaccaSettings('Attacca Settings…', 'File', KeyPlace.menus, [], editable: true),

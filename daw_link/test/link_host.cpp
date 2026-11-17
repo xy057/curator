@@ -584,7 +584,7 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
 }  // namespace
 
 // Attacca Capturer (a VST3 of its own, so no DAW offers it as an ARA extension), as a DAW runs it
-// on its output: its own connection to Curator; Attacca's own capture (Follow DAW…'s, by ARA)
+// on its output: its own connection to Curator; Attacca's own capture (Connect Attacca…'s, by ARA)
 // works beside it; asked to capture (Record from DAW…), with the document's Attacca asked to
 // have the DAW play from a second before, what it hears is kept by song time however the span is
 // played (here its end first); asked to stop, the DAW is asked to stop.
