@@ -46,7 +46,7 @@ struct Capture {
     std::atomic<uint64_t> head { 0 }, tail { 0 };
 
     std::vector<uint64_t> heard;
-    int64_t heardCount { 0 };
+    int64_t heardCount { 0 }, heardAtStart { 0 };
     std::atomic<bool> cancel { false };
     std::thread writer;
 
@@ -191,8 +191,13 @@ void Capturer::onMessage (const Message& message)
     if (*t == "capture" && field ("from") && field ("length"))
     {
         const double from = std::strtod (field ("from")->c_str (), nullptr), length = std::strtod (field ("length")->c_str (), nullptr);
+        // What the DAW plays of it (`start`, `end`; the whole of it when unsaid).
+        double played = field ("start") ? std::strtod (field ("start")->c_str (), nullptr) : from;
+        double playedEnd = field ("end") ? std::strtod (field ("end")->c_str (), nullptr) : from + length;
+        if (!std::isfinite (played) || !std::isfinite (playedEnd))
+            played = from, playedEnd = from + length;
         if (std::isfinite (from) && std::isfinite (length))
-            start (*document, from, length, field ("name") ? *field ("name") : std::string ());
+            start (*document, from, length, field ("name") ? *field ("name") : std::string (), played, playedEnd);
     }
     else if (*t == "cancel")
     {
@@ -200,7 +205,7 @@ void Capturer::onMessage (const Message& message)
     }
 }
 
-void Capturer::start (const std::string& document, double from, double length, const std::string& name)
+void Capturer::start (const std::string& document, double from, double length, const std::string& name, double played, double playedEnd)
 {
     std::lock_guard<std::mutex> lock (mutex_);
     const std::string me = id ();
@@ -254,6 +259,13 @@ void Capturer::start (const std::string& document, double from, double length, c
     capture->heard.assign (static_cast<size_t> ((capture->frames + 63) / 64), 0);
     if (capture->start < 0)
         capture->hear (0, std::min (capture->frames, -capture->start));
+    // Outside what the DAW plays (the recording's region), heard already: silence there, so the
+    // capture is done once the region was heard, the file still lined up with the recording.
+    const int64_t first = std::clamp<int64_t> (std::llround (played * capture->rate) - capture->start, 0, capture->frames);
+    const int64_t last = std::clamp<int64_t> (std::llround (playedEnd * capture->rate) - capture->start, first, capture->frames);
+    capture->hear (0, first);
+    capture->hear (last, capture->frames - last);
+    capture->heardAtStart = capture->heardCount;
 
     Capture* c = capture.get ();
     capturing.fetch_add (1);
@@ -286,7 +298,7 @@ void Capturer::start (const std::string& document, double from, double length, c
                     .field ("t", "progress")
                     .field ("document", c->document)
                     .field ("capturer", me)
-                    .field ("done", static_cast<double> (c->heardCount) / static_cast<double> (c->frames))
+                    .field ("done", static_cast<double> (c->heardCount - c->heardAtStart) / static_cast<double> (std::max<int64_t> (1, c->frames - c->heardAtStart)))
                     .endObject ();
                 client_.send (progress.text ());
             }

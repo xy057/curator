@@ -44,7 +44,8 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
   if (follow == null || found == null) return;
   final (session, document) = found;
   final source = document.sources.where((s) => s.id == follow.source).firstOrNull;
-  final region = document.regionsOf(follow.source).firstOrNull;
+  // The region followed: the DAW plays only it of the recording.
+  final region = document.region(follow.region) ?? document.regionsOf(follow.source).firstOrNull;
   // The one linked to the DAW's Attacca, in its window.
   final capturer = link.linkedCapturerOf(session);
   if (source == null || region == null || capturer == null) {
@@ -71,7 +72,12 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
     session,
     source,
     (progress) => link.capture(session, document.id, capturer,
-        from: region.songAt(0), length: source.seconds, name: source.name.isEmpty ? 'Recording'.tr : source.name, progress: progress),
+        from: region.songAt(0),
+        length: source.seconds,
+        // The whole recording's length, lined up with it; only the region played must be heard.
+        played: (start: region.start, end: region.start + region.length),
+        name: source.name.isEmpty ? 'Recording'.tr : source.name,
+        progress: progress),
     onCancel: () => link.cancelCapture(document.id, capturer),
   );
 }

@@ -170,11 +170,27 @@ class DawLink extends ChangeNotifier {
   /// [session]) is asked to have the DAW play from a second before (`play`, where the DAW lets
   /// it ask) and to stop once it is done (`stop`), whichever way: the Capturer is in a bundle of
   /// its own, so Curator says when. [progress] hears how much was, 0–1. As [recording] otherwise.
+  ///
+  /// [played] is the song time the DAW plays of it (a recording's region, its `start` and
+  /// `end`): only that is to be heard, the rest of the file silence, so the capture is done when
+  /// the DAW has played the region, however long the file; the whole of it when null.
   Future<String> capture(DawSession session, String document, DawCapturer capturer,
-      {required double from, required double length, required String name, void Function(double done)? progress}) async {
-    final captured = capturer.session._ask((document, 'capturer', capturer.id),
-        {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
-    drive(session, document, 'play', at: from - 1); // a second before (Attacca puts it no earlier than 0)
+      {required double from,
+      required double length,
+      required String name,
+      ({double start, double end})? played,
+      void Function(double done)? progress}) async {
+    final captured = capturer.session._ask((document, 'capturer', capturer.id), {
+      't': 'capture',
+      'document': document,
+      'capturer': capturer.id,
+      'from': from,
+      'length': length,
+      'name': name,
+      if (played != null) ...{'start': played.start, 'end': played.end},
+    }, progress);
+    // A second before what is to be heard (Attacca puts it no earlier than 0).
+    drive(session, document, 'play', at: (played?.start ?? from) - 1);
     try {
       return await captured;
     } finally {

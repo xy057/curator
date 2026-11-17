@@ -395,9 +395,12 @@ void main() {
       expect(await told(toMixer), {'t': 'linked', 'ids': 'cap'});
       expect(link.linkedCapturerOf(session)?.id, 'cap');
       final heardSoFar = <double>[];
-      final mix = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1', progress: heardSoFar.add);
-      expect(await told(toMixer), {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1'});
-      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': -0.5}, reason: 'a second before');
+      // The whole recording's length (lined up with it), only the region the DAW plays to be heard.
+      final mix = link.capture(session, 'doc', capturer,
+          from: 0.5, length: 60, played: (start: 1, end: 60), name: 'Take 1', progress: heardSoFar.add);
+      expect(await told(toMixer),
+          {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1', 'start': 1, 'end': 60});
+      expect(await told(heard), {'t': 'play', 'document': 'doc', 'at': 0}, reason: 'a second before the region');
       mixerSays({'t': 'progress', 'document': 'doc', 'capturer': 'cap', 'done': 0.25});
       mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'path': '/tmp/Mix.wav'});
       expect(await mix, '/tmp/Mix.wav');

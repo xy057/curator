@@ -174,7 +174,8 @@ to have the DAW play and stop.
 
 Follow DAW… always takes the recording through ARA (**Use this recording**), Capturer or not.
 **File ▸ Attacca ▸ Record from DAW…**, while the project follows a DAW, captures the mix over the
-span the recording followed plays in the song, and loads it into the project's Attacca take as
+span the recording followed plays in the song (its region: the file is as long as the recording,
+lined up with it, silent outside the region, and done once the region was heard), and loads it into the project's Attacca take as
 Use this recording would. Curator asks the DAW to play from a second before it and to stop once
 every moment of it was heard; a DAW that doesn't let a plug-in start it (or one that stops
 early) is played by hand, and the span may be played in pieces or out of order. The progress bar
@@ -229,7 +230,7 @@ project, because everything it knows the DAW sends again.
 | `capturers` | plug-in | `list`: each Attacca Capturer in the bundle (`id`, kept in its state; `name`, the DAW's channel it is on, if said; `channels`, `rate`); sent when one comes, goes or is set up, and on connecting |
 | `link` | plug-in | `capturer`: the Capturer linked to this DAW's Attacca (chosen in its window, kept in its instances' state; empty: none); sent when chosen or restored, and on connecting |
 | `inserts` | Curator | `ids`, `names` (one a line): the Capturers in the same DAW process, for Attacca's Capturer menu |
-| `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection) |
+| `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection); `start` and `end` (optional): the song time the DAW plays of it, the only part to be heard, the rest of the file silence (Record from DAW…: the whole recording's length, lined up with it, and its region) |
 | `play` | Curator | `document`, `at` (song seconds, optional): the document's Attacca asks the DAW to play (from `at`, no earlier than 0), at once, from the connection's thread (ARA lets a plug-in from any but a render thread): Curator's play while following, or a capture starting (a second before its span) |
 | `stop` | Curator | `document`: the DAW asked to stop (Curator's pause; a capture done, failed or cancelled) |
 | `seek` | Curator | `document`, `at`: the DAW asked to go there (Curator's playhead moved while following; at most one every 60 ms, the last where it ended) |

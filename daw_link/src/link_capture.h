@@ -39,8 +39,10 @@ public:
 
 private:
     void onMessage (const Message& message);
-    // Curator asks: song time [from] for [length] seconds, for [document], as [name].wav.
-    void start (const std::string& document, double from, double length, const std::string& name);
+    // Curator asks: song time [from] for [length] seconds, for [document], as [name].wav; only
+    // song time [played, playedEnd) is to be heard (what the DAW plays there: a recording's
+    // region), the rest of the file silence.
+    void start (const std::string& document, double from, double length, const std::string& name, double played, double playedEnd);
     // A capture under way ends (its file goes); one done is let go.
     void finish ();
     void publishAll ();

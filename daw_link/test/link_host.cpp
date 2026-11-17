@@ -730,6 +730,27 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     const auto stopped = waitForAsked (3, idle);
     check (stopped.size () == 3 && stopped.back () == "stop", "the DAW asked to stop once it is heard whole");
 
+    // A recording's region the DAW plays (song 0.75 s to 1 s) of a file as long as the recording
+    // (song 0.5 s for 1 s): done once the region was heard, the rest silence, the file lined up.
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer +
+                 "\",\"from\":0.5,\"length\":1,\"start\":0.75,\"end\":1,\"name\":\"Region\"}", capturerLine);
+    std::this_thread::sleep_for (std::chrono::milliseconds (300));  // (taken up on the Capturer's connection)
+    play (36000, 48000);
+    auto region = curator.next ("captured", 10, idle);
+    check (region["error"].empty () && contains (region["path"], "/Region.wav"), "a region: done once it is heard " + region["error"]);
+    {
+        std::ifstream wav (region["path"], std::ios::binary);
+        std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
+        bool right = bytes.size () == 56 + static_cast<size_t> (48000) * 2 * 4;
+        for (int64_t k = 0; right && k < 48000; k += 7)
+        {
+            float l;
+            std::memcpy (&l, bytes.data () + 56 + k * 8, 4);
+            right = l == (k >= 12000 && k < 24000 ? heard (24000 + k, 0) : 0.0f);
+        }
+        check (right, "as long as the recording, silent outside the region");
+    }
+
     processor->setProcessing (false);
     component->setActive (false);
     processor->release ();
