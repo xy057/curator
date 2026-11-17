@@ -19,7 +19,10 @@
 #
 # The description is what "What's new" was given: the changelog, as Markdown. The app shows it
 # in its update window, up to the `<!-- install -->` line this adds under it (how to install
-# follows, for GitHub's readers). The form's field keeps one line, so for a changelog of several:
+# follows, for GitHub's readers). The form's field keeps one line (GitHub has no multi-line
+# input), so in one line `\n` starts a new line and `\\n` is a `\n` kept as it is:
+#   ## New\n- Player map\n- Faster PDF import
+# Text that already has lines is taken as it is, as from
 #   gh workflow run release.yml -f notes="$(pbpaste)"        (add -f prerelease=true for one)
 # or tick "Draft" and paste it on the release's page, above `<!-- install -->`, before
 # publishing. Left empty, the description is GitHub's own list of what changed.
@@ -36,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       notes:
-        description: "What's new: the changelog, as Markdown (empty: GitHub's list of changes)"
+        description: "What's new: the changelog, as Markdown; \\n for a new line (empty: GitHub's list of changes)"
         type: string
         default: ''
       prerelease:
@@ -217,7 +220,16 @@ jobs:
         run: |
           # What's new: as pasted, else GitHub's list of what changed since the last release.
           if [ -n "${NOTES//[[:space:]]/}" ]; then
-            printf '%s\n' "$NOTES" > notes.md
+            # One line, as the form's field gives: \n starts a new line, \\n is a \n kept. Text
+            # with lines of its own (gh workflow run … -f notes="$(pbpaste)") is taken as it is.
+            python3 - <<'PY'
+          import os, re
+          notes = os.environ['NOTES']
+          if '\n' not in notes:
+              notes = re.sub(r'\\(\\?)n', lambda m: '\\n' if m[1] else '\n', notes)
+          with open('notes.md', 'w', encoding='utf-8') as f:
+              f.write(notes.rstrip('\n') + '\n')
+          PY
           else
             gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
               -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" --jq .body > notes.md

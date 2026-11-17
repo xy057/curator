@@ -2051,8 +2051,9 @@ which the Windows runner hasn't; macOS runs no test there, nor `make check` eith
 the release's (see *Versions* below). The run's form asks three things. **What's new** is the release's description,
 the changelog as Markdown, given to the script as an environment variable and never written into
 it; left empty, the description is GitHub's own list of what changed (`releases/generate-notes`).
-The form's field keeps one line, so a changelog of several goes in with
-`gh workflow run release.yml -f notes="$(pbpaste)"`, or onto a draft's page before it is published.
+The form's field keeps one line (GitHub has no multi-line input), so there `\n` starts a new line
+and `\\n` is a `\n` kept; text that has lines of its own is taken as it is, as from
+`gh workflow run release.yml -f notes="$(pbpaste)"`, or goes onto a draft's page before it is published.
 Under it the workflow writes `<!-- install -->` and how to install: the app shows a description
 up to that line (`Release.installMarker`), so keep it when editing one by hand. **Pre-release**
 marks the release a pre-release on GitHub and nothing else: it is versioned as any other (0.9.1),
