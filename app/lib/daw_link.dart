@@ -74,27 +74,49 @@ class DawLink extends ChangeNotifier {
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
   (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
 
-  /// Starts listening and writes the discovery file. Does nothing when listening already.
-  Future<void> start() async {
+  /// [start] and [stop], one after the other in the order asked: one asked while another is under
+  /// way waits for it, so the last asked holds (the switch flicked on and off ends off, and two
+  /// asked to start at once open one port).
+  Future<void> _turn = Future.value();
+
+  Future<void> _inTurn(Future<void> Function() job) {
+    final done = _turn.then((_) => job());
+    _turn = done.then<void>((_) {}, onError: (Object _) {});
+    return done;
+  }
+
+  /// Starts listening and writes the discovery file. Does nothing when listening already. Throws
+  /// when it can't (no port, or the file can't be written): it isn't listening then.
+  Future<void> start() => _inTurn(_start);
+
+  /// Stops listening, lets every DAW go and removes the discovery file (when it is still ours).
+  Future<void> stop() => _inTurn(_stop);
+
+  Future<void> _start() async {
     if (_server != null) return;
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    _server = server;
     final random = math.Random.secure();
     _token = [for (var i = 0; i < 16; i++) random.nextInt(256).toRadixString(16).padLeft(2, '0')].join();
     server.listen(_accept, onError: (_) {});
     final folder = _folder ?? AppFolders.data;
-    await folder.create(recursive: true);
     final file = File('${folder.path}${Platform.pathSeparator}daw-link.json');
-    final partial = File('${file.path}.part');
-    // Written whole, then put in place: a plug-in never reads half of it.
-    await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
-    await partial.rename(file.path);
+    try {
+      await folder.create(recursive: true);
+      final partial = File('${file.path}.part');
+      // Written whole, then put in place: a plug-in never reads half of it.
+      await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
+      await partial.rename(file.path);
+    } catch (_) {
+      // No plug-in can find a port no file names: not left open.
+      await server.close();
+      rethrow;
+    }
+    _server = server;
     _discovery = file;
     notifyListeners();
   }
 
-  /// Stops listening, lets every DAW go and removes the discovery file (when it is still ours).
-  Future<void> stop() async {
+  Future<void> _stop() async {
     final server = _server;
     if (server == null) return;
     _server = null;

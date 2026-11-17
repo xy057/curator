@@ -498,7 +498,9 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   /// left off: the plug-in waits for a Curator that can.
   void _listenForDaw() {
     final link = widget.dawLink;
-    if (link == null || link.listening == settings.dawLink) return;
+    if (link == null) return;
+    // (Either does nothing when it is so already, and waits for one under way: asked by what
+    // Settings say now, not by whether it listens yet.)
     unawaited((settings.dawLink ? link.start() : link.stop()).catchError((_) {}));
   }
 

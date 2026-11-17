@@ -435,6 +435,11 @@ void main() {
       await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
       await link.stop();
       expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
+      // Asked to listen and, before it does, to stop (the switch flicked on and off): it ends off.
+      unawaited(link.start());
+      await link.stop();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect((link.listening, File('${folder.path}/daw-link.json').existsSync()), (false, false), reason: 'the last asked holds');
 
       // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
       // what was there (and one by its former name, Curator Link), its program executable; nothing
