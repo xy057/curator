@@ -175,8 +175,9 @@ to have the DAW play and stop.
 Follow DAW… always takes the recording through ARA (**Use this recording**), Capturer or not.
 **File ▸ Attacca ▸ Record from DAW…**, while the project follows a DAW, captures the mix over the
 span the recording followed plays in the song (its region: the file is as long as the recording,
-lined up with it, silent outside the region, and done once the region was heard), and loads it into the project's Attacca take as
-Use this recording would. Curator asks the DAW to play from a second before it and to stop once
+lined up with it, silent outside the region, and done once the region was heard), and loads it
+in place of the project's Attacca take as an ordinary recording: the mix, no longer the DAW's
+recording, so no longer marked Attacca (the project still follows the DAW). Curator asks the DAW to play from a second before it and to stop once
 every moment of it was heard; a DAW that doesn't let a plug-in start it (or one that stops
 early) is played by hand, and the span may be played in pieces or out of order. The progress bar
 is how much of it was heard; Cancel stops. It captures with the Capturer linked: without one in

@@ -416,6 +416,10 @@ void main() {
       expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'cancelled, the DAW stops too');
       mixer.destroy();
       await until(() => link.capturersOf(session).isEmpty);
+      // The mix recorded goes in place of the Attacca take, an ordinary recording from then on.
+      final focused = c.focus;
+      await c.debugLoadTrack(track('Mix.wav'), intoAttacca: true);
+      expect((c.attaccaTake, c.takes.firstWhere((t) => t.id == attacca.id).label, c.focus), (null, 'Mix', focused));
 
       c.useMidiTempo(null);
       expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');

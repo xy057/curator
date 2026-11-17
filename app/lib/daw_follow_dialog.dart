@@ -36,8 +36,9 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
 }
 
 /// File ▸ Attacca ▸ Record from DAW…: the recording followed as the DAW plays it, its mix over the
-/// recording's span captured by Attacca Capturer (the DAW asked to play it), loaded into the
-/// project's Attacca take as Follow DAW…'s Use this recording would be.
+/// recording's span captured by Attacca Capturer (the DAW asked to play it), loaded in place of
+/// the project's Attacca take as an ordinary recording (no longer the DAW's: the mix, not the
+/// recording Attacca reads).
 Future<void> recordFromDaw(BuildContext context, EditorController c) async {
   final link = DawLink.shared;
   final follow = c.daw.following, found = c.daw.document;
@@ -79,14 +80,16 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
         name: source.name.isEmpty ? 'Recording'.tr : source.name,
         progress: progress),
     onCancel: () => link.cancelCapture(document.id, capturer),
+    linked: false,
   );
 }
 
 /// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got
 /// (a capture, [onCancel] given, can be cancelled), then loaded into the project's Attacca take;
-/// false when it couldn't be.
+/// false when it couldn't be. Not [linked] (the DAW's mix recorded), the take becomes an ordinary
+/// recording, no longer the DAW's.
 Future<bool> _take(BuildContext context, EditorController c, DawSession session, DawSource source,
-    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel}) async {
+    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel, bool linked = true}) async {
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
   final done = ValueNotifier<double>(0);
@@ -106,7 +109,7 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
   done.dispose();
   if (path == null) return false;
   try {
-    await c.loadAudio(path, daw: (host: session.host, source: source.id, name: source.name));
+    await c.loadAudio(path, daw: linked ? (host: session.host, source: source.id, name: source.name) : null, intoAttacca: true);
   } catch (e) {
     say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
     return false;

@@ -2142,7 +2142,9 @@ class EditorController extends ChangeNotifier {
   ///
   /// [daw] says Attacca took it from a DAW: it goes into the project's Attacca take if it has
   /// one (one a project, for now), marked so; else a file's recording leaves the take unmarked.
-  Future<void> loadAudio(String path, {TakeDaw? daw}) => inTurn(() => _loadAudio(path, daw: daw));
+  /// [intoAttacca] puts a file's there all the same, unmarked (a DAW's mix recorded: an ordinary
+  /// recording from then on).
+  Future<void> loadAudio(String path, {TakeDaw? daw, bool intoAttacca = false}) => inTurn(() => _loadAudio(path, daw: daw, intoAttacca: intoAttacca));
 
   /// Adds the recording at [path] as another take of the score, in a lane of its own (empty:
   /// draw where it is heard) with a sync of its own (none yet: Align it), picked. Not an Undo
@@ -2321,14 +2323,17 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadAudio(String path, {TakeDaw? daw}) => _reading(() async => _putTrack(await audio.read(path), daw: daw));
+
+  Future<void> _loadAudio(String path, {TakeDaw? daw, bool intoAttacca = false}) =>
+      _reading(() async => _putTrack(await audio.read(path), daw: daw, intoAttacca: intoAttacca));
 
   /// [track] loaded as [loadAudio] loads a file's, without reading one.
   @visibleForTesting
-  Future<void> debugLoadTrack(AudioTrack track, {TakeDaw? daw}) => _reading(() => _putTrack(track, daw: daw));
+  Future<void> debugLoadTrack(AudioTrack track, {TakeDaw? daw, bool intoAttacca = false}) =>
+      _reading(() => _putTrack(track, daw: daw, intoAttacca: intoAttacca));
 
-  Future<void> _putTrack(AudioTrack track, {TakeDaw? daw}) async {
-    final into = daw == null ? _doc.focus : _doc.attaccaTake?.id ?? _doc.focus;
+  Future<void> _putTrack(AudioTrack track, {TakeDaw? daw, bool intoAttacca = false}) async {
+    final into = daw == null && !intoAttacca ? _doc.focus : _doc.attaccaTake?.id ?? _doc.focus;
     if (into case final id?) {
       // In place of the focus's: a name still its file's follows the new file.
       final take = _doc.take(id)!;
