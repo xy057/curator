@@ -394,6 +394,14 @@ void main() {
       expect([await told(toMixer), await told(toMixer)], [listed, {'t': 'linked', 'ids': ''}]);
       expect(await told(heard), listed);
       expect(link.linkedCapturerOf(session), isNull, reason: 'not until chosen in Attacca’s window');
+      // An Attacca that connects after them and says nothing more (on an insert only: no document,
+      // no link kept) is told of them too, as it connects.
+      final insert = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      final toInsert = StreamIterator(insert.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
+      insert.write('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'pid': 4242})}\n');
+      expect(await told(toInsert), listed);
+      insert.destroy();
+      await until(() => link.sessions.length == 2);
       say({'t': 'link', 'capturer': 'cap'});
       expect(await told(toMixer), {'t': 'linked', 'ids': 'cap'});
       expect(link.linkedCapturerOf(session)?.id, 'cap');

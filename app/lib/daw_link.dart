@@ -391,6 +391,7 @@ class DawSession extends ChangeNotifier {
       _link._sessions.add(this);
       _link.notifyListeners();
       _link._tellFollowers();
+      _link._tellLinked(); // the Capturers already in its DAW, for its window's Capturer menu
       return;
     }
     switch (type) {
