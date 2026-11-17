@@ -27,6 +27,28 @@
 			<key>version</key>
 			<integer>@LINK_AU_VERSION@</integer>
 		</dict>
+		<dict>
+			<key>description</key>
+			<string>Attacca Capturer</string>
+			<key>factoryFunction</key>
+			<string>AttaccaCapturerFactory</string>
+			<key>manufacturer</key>
+			<string>Crtr</string>
+			<key>name</key>
+			<string>Curator: Attacca Capturer</string>
+			<key>sandboxSafe</key>
+			<false/>
+			<key>subtype</key>
+			<string>Atcp</string>
+			<key>tags</key>
+			<array>
+				<string>Effect</string>
+			</array>
+			<key>type</key>
+			<string>aufx</string>
+			<key>version</key>
+			<integer>@LINK_AU_VERSION@</integer>
+		</dict>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>

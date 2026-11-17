@@ -605,6 +605,7 @@ final class _Takes extends ProjectModule {
             'label': t.label,
             'regions': [for (final r in t.regions) _Curation.regionJson(r)],
             if (t.id != focus) ..._Sync.toJson(t.leadIn, t.anchors, t.midi),
+            if (t.daw case final daw?) 'daw': {'host': daw.host, 'source': daw.source, 'name': daw.name},
           },
       ],
     };
@@ -621,7 +622,12 @@ final class _Takes extends ProjectModule {
       final regions = [
         for (final (j, region) in t.list('regions').indexed) _Curation.readRegion(region, '${t.where}.regions[$j]'),
       ];
-      takes.add(Take(id, label, regions: regions, anchors: anchors, leadIn: leadIn, midi: midi));
+      final from = t.isAbsent('daw') ? null : t.child('daw');
+      final TakeDaw? daw =
+          from == null ? null : (host: from.string('host') ?? '', source: from.string('source', required: true)!, name: from.string('name') ?? '');
+      // One Attacca recording a project, for now: a second is kept as a recording of its own.
+      final attacca = daw != null && !takes.any((other) => other.daw != null) ? daw : null;
+      takes.add(Take(id, label, regions: regions, anchors: anchors, leadIn: leadIn, midi: midi, daw: attacca));
     }
     final focus = r.string('focus');
     if (focus != null && !takes.any((t) => t.id == focus)) throw _damaged('${r.where}.focus is not one of its takes.');

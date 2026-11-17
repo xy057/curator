@@ -10,7 +10,8 @@ namespace attacca {
 constexpr int statusViewWidth = 320, statusViewHeight = 92;
 
 // Puts the view in [parent] (an NSView), filling it; the handle lets it go again.
-void* attachStatusView (void* parent);
+// [capturer]: Attacca Capturer's window (link_capture.h), else Attacca's.
+void* attachStatusView (void* parent, bool capturer = false);
 void detachStatusView (void* handle);
 
 // The name of the Objective-C class that makes the Audio Unit's view (kAudioUnitProperty_CocoaUI).

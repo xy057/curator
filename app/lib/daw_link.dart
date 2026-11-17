@@ -151,10 +151,33 @@ class DawLink extends ChangeNotifier {
   Future<String> stem(DawSession session, String document, String track,
           {required double from, required double length, void Function(double done)? progress}) =>
       session._ask((document, 'track', track), {'t': 'stem', 'document': document, 'track': track, 'from': from, 'length': length}, progress);
+
+  /// Asks [capturer] of [session] for what it hears from song time [from] for [length] seconds,
+  /// as the DAW plays it (the DAW is asked to play from a second before, where it lets Attacca
+  /// ask), written in Curator's cache as [name].wav; completes with its path once every moment
+  /// of it was heard. [progress] hears how much was, 0–1. As [recording] otherwise.
+  Future<String> capture(DawSession session, String document, DawCapturer capturer,
+          {required double from, required double length, required String name, void Function(double done)? progress}) =>
+      session._ask((document, 'capturer', capturer.id),
+          {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
+
+  /// Ends [capture] of [capturer] under way: it fails as `cancelled`.
+  void cancelCapture(DawSession session, String document, DawCapturer capturer) =>
+      session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});
+}
+
+/// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate].
+@immutable
+class DawCapturer {
+  const DawCapturer(this.id, {this.channels = 2, this.rate = 0});
+  final String id;
+  final int channels;
+  final double rate;
 }
 
 /// What a DAW said went wrong: [reason] is the plug-in's word for it ("gone", "unreadable",
-/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected").
+/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected", "capturer":
+/// an Attacca Capturer captures in Attacca's place).
 class DawLinkException implements Exception {
   const DawLinkException(this.reason);
   final String reason;
@@ -187,6 +210,11 @@ class DawSession extends ChangeNotifier {
   /// Where it is playing, as it last said; null until it has.
   final transport = ValueNotifier<DawTransport?>(null);
 
+  /// The Attacca Capturers in it (inserts, usually last on its output): while it has one, a
+  /// recording is captured there as the DAW plays it ([DawLink.capture]), and Attacca's own
+  /// capture (a recording or a track as a file) is off.
+  List<DawCapturer> capturers = const [];
+
   /// Files asked for and not yet written, by document, kind ("source", "track") and id.
   final _recordings = <(String, String, String), ({Completer<String> completer, List<void Function(double)> progress})>{};
 
@@ -199,8 +227,9 @@ class DawSession extends ChangeNotifier {
     return pending.completer.future;
   }
 
-  /// The key of the file a `progress`, `exported` or `stemmed` message is about.
+  /// The key of the file a `progress`, `exported`, `stemmed` or `captured` message is about.
   static (String, String, String)? _keyOf(Map<String, Object?> message) => switch (message) {
+        {'document': final String d, 'capturer': final String c} => (d, 'capturer', c),
         {'document': final String d, 'track': final String t} => (d, 'track', t),
         {'document': final String d, 'source': final String s} => (d, 'source', s),
         _ => null,
@@ -232,6 +261,11 @@ class DawSession extends ChangeNotifier {
       case 'transport':
         transport.value = dawTransportOf(message);
         return;
+      case 'capturers':
+        capturers = [
+          for (final c in (message['list'] as List?) ?? const [])
+            if (c case {'id': final String id}) DawCapturer(id, channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
+        ];
       case 'progress':
         final pending = _recordings[_keyOf(message)];
         final done = message['done'];
@@ -241,7 +275,7 @@ class DawSession extends ChangeNotifier {
           }
         }
         return;
-      case 'exported' || 'stemmed':
+      case 'exported' || 'stemmed' || 'captured':
         final pending = _recordings.remove(_keyOf(message));
         if (pending == null) return;
         if (message['path'] case final String path) {

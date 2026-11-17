@@ -116,12 +116,40 @@ What stays behind, and how to remove it:
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 
+A recording taken from the DAW (**Use this recording**) is the project's Attacca recording: its
+take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
+and in Project Info. A project has one for now. Once it has one, Follow DAW… offers only that
+recording, and taking it again puts it back into the same take, whichever take is picked. A
+file's recording loaded into that take takes the mark off; removing the take frees the project
+for another. Stems captured line up with the Attacca take.
+
 While Curator follows a DAW, **File ▸ Attacca ▸ Capture Stems…** lists the DAW's tracks that
 have recordings; every one but the recording's own is picked at first. Each one captured is
 converted to FLAC and saved in the project (`media/stems/<id>/`), with the track's name and
 colour, the take it lines up with, and the part of the score it plays: found by the track's name
 when exactly one part's matches ("Violins 1" is "Violin I"). Capturing a track again replaces its
 stem. Project Settings ▸ Project Info ▸ **Stems ▸ Edit…** sets each stem's part, or removes it.
+
+### Attacca Capturer
+
+Attacca reads a recording as the DAW hands it over: the track's own audio, before its inserts,
+sends and the mix. To take the recording as you hear it instead, put **Attacca Capturer** (Curator
+▸ Attacca Capturer; installed with Attacca, in the same bundles) as an insert, usually in the
+last slot of the DAW's output (Stereo Out, the main bus). It passes everything through untouched.
+
+It works together with Attacca on a track, which still tells Curator the song. Its window says
+**Needs Attacca on a track** until there is one. While a Capturer is in the DAW:
+
+- **Use this recording** (Follow DAW…) captures the mix over the span the recording plays in the
+  song. Curator asks the DAW to play from a second before it and to stop once every moment of it
+  was heard; a DAW that doesn't let a plug-in start it (or one that stops early) is played by
+  hand, and the span may be played in pieces or out of order. The progress bar is how much of it
+  was heard; Cancel stops.
+- Attacca's own capture is off: Capture Stems… is greyed out, and the plug-in refuses to write a
+  recording or a track itself (`capturer`).
+
+Taking the Capturer out turns Attacca's own capture back on. If there are several Capturers,
+the first one placed is used.
 
 **Listen for Attacca** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
 this. The menu item is checked while Curator follows a DAW, and choosing it again stops. So does
@@ -167,6 +195,10 @@ project, because everything it knows the DAW sends again.
 | `progress` | plug-in | `document`, `source` or `track`, `done` (0–1) |
 | `exported` | plug-in | `document`, `source`, then `path` (a 32-bit float WAV in Curator's cache folder, under `DAW Link/`) or `error` |
 | `stemmed` | plug-in | `document`, `track`, then `path` (a 32-bit float WAV under `DAW Link/Stems/`) or `error` (`empty`: nothing plays there) |
+| `capturers` | plug-in | `list`: each Attacca Capturer in the process (`id`, `channels`, `rate`); sent when one comes, goes or is set up, and on connecting. While it isn't empty, `export` and `stem` answer `error`: `capturer` |
+| `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there; the document's Attacca asks the DAW to play from a second before `from`, and to stop once it is done |
+| `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
+| `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
 
 A stem has the most channels and the highest sample rate of the recordings on its track. Each
 region plays in it as it plays in the song, unstretched; one of another layout is averaged into

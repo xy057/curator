@@ -2886,6 +2886,7 @@ msgstr "64 分音符"
 msgid "Accent ([)"
 msgstr "重音（[）"
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr "小节与小节线"
 
@@ -5572,3 +5573,31 @@ msgstr "硬切"
 msgctxt "video"
 msgid "View"
 msgstr "画面"
+
+#: lib/daw_follow_dialog.dart
+msgid "This project’s Attacca recording isn’t open in a DAW."
+msgstr "本项目的 Attacca 录音未在 DAW 中打开。"
+
+#: lib/daw_follow_dialog.dart
+msgid "One Attacca recording per project."
+msgstr "每个项目一个 Attacca 录音。"
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
+msgstr "小节：{count}"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca Capturer captures in its place."
+msgstr "由 Attacca Capturer 代为捕获。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Captured by Attacca Capturer as the DAW plays it."
+msgstr "在 DAW 播放时由 Attacca Capturer 捕获。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Capturing the Recording"
+msgstr "正在捕获录音"
+
+#: lib/daw_follow_dialog.dart
+msgid "Play it in the DAW if it doesn’t start."
+msgstr "如果没有开始，请在 DAW 中播放。"

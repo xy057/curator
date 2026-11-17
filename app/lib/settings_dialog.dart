@@ -584,7 +584,12 @@ final _projectCategories = <_Category>[
     ),
     _Item(
       'Recording',
-      (c) => c.controller!.track?.name ?? 'None.'.tr,
+      // (Attacca's, taken from a DAW, says so.)
+      (c) => switch ((c.controller!.track?.name, c.controller!.takes.where((t) => t.id == c.controller!.focus).firstOrNull?.daw)) {
+        (null, _) => 'None.'.tr,
+        (final name?, null) => name,
+        (final name?, _) => '$name · Attacca',
+      },
       (c) => Builder(builder: (context) {
         final controller = c.controller!, busy = controller.isLoadingAudio;
         return Row(mainAxisSize: MainAxisSize.min, spacing: 8, children: [

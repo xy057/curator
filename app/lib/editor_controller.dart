@@ -2019,6 +2019,9 @@ class EditorController extends ChangeNotifier {
   /// Every recording of the score, a lane each, top to bottom ([EditState.takes]).
   List<Take> get takes => _doc.takes;
 
+  /// The take whose recording Attacca took from a DAW: one a project at most, for now.
+  Take? get attaccaTake => _doc.attaccaTake;
+
   /// The take whose sync is [sync]; null when there is no recording.
   String? get focus => _doc.focus;
 
@@ -2136,7 +2139,10 @@ class EditorController extends ChangeNotifier {
   /// sync and lane, in turn ([inTurn]); with none yet, the score's first.
   ///
   /// A video's soundtrack becomes the track (and so what a project embeds).
-  Future<void> loadAudio(String path) => inTurn(() => _loadAudio(path));
+  ///
+  /// [daw] says Attacca took it from a DAW: it goes into the project's Attacca take if it has
+  /// one (one a project, for now), marked so; else a file's recording leaves the take unmarked.
+  Future<void> loadAudio(String path, {TakeDaw? daw}) => inTurn(() => _loadAudio(path, daw: daw));
 
   /// Adds the recording at [path] as another take of the score, in a lane of its own (empty:
   /// draw where it is heard) with a sync of its own (none yet: Align it), picked. Not an Undo
@@ -2315,21 +2321,27 @@ class EditorController extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadAudio(String path) => _reading(() async {
-    final track = await audio.read(path);
-    if (_doc.focus case final id?) {
+  Future<void> _loadAudio(String path, {TakeDaw? daw}) => _reading(() async => _putTrack(await audio.read(path), daw: daw));
+
+  /// [track] loaded as [loadAudio] loads a file's, without reading one.
+  @visibleForTesting
+  Future<void> debugLoadTrack(AudioTrack track, {TakeDaw? daw}) => _reading(() => _putTrack(track, daw: daw));
+
+  Future<void> _putTrack(AudioTrack track, {TakeDaw? daw}) async {
+    final into = daw == null ? _doc.focus : _doc.attaccaTake?.id ?? _doc.focus;
+    if (into case final id?) {
       // In place of the focus's: a name still its file's follows the new file.
       final take = _doc.take(id)!;
       final before = audio.trackOf(id);
       await audio.put(id, track);
-      if (before == null || take.label == stemOf(before.name)) {
-        _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == id ? t.copyWith(label: stemOf(track.name)) : t]));
-      }
+      final label = before == null || take.label == stemOf(before.name) ? stemOf(track.name) : take.label;
+      _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == id ? t.copyWith(label: label, daw: daw) : t]));
       _performanceChanged();
     } else {
       await _addTake(track);
+      if (daw != null) _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == s.focus ? t.copyWith(daw: daw) : t]));
     }
-  });
+  }
 
   /// Loads the recordings of a project opened: the focus's at [focusPath], the others at
   /// [paths] (by take id). One that can't be read is reported and kept as it came, silent

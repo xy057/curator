@@ -1,4 +1,6 @@
 #include "link_document.h"
+#include "link_files.h"
+#include "link_capture.h"
 
 #include "json.h"
 #include "link_client.h"
@@ -29,14 +31,6 @@ std::string hexOf (const void* pointer)
     return buffer;
 }
 
-std::string randomId ()
-{
-    std::random_device device;
-    char buffer[24];
-    std::snprintf (buffer, sizeof buffer, "%08x%08x", device (), device ());
-    return buffer;
-}
-
 void color (JsonWriter& w, const char* key, const ARA::ARAColor* c)
 {
     w.key (key);
@@ -58,31 +52,6 @@ void name (JsonWriter& w, const char* key, const char* text)
         w.string (text);
     else
         w.null ();
-}
-
-// A file name of [text]: letters, digits, spaces and a few marks; at most 60 bytes.
-std::string safeName (const std::string& text)
-{
-    std::string out;
-    for (unsigned char c : text)
-    {
-        if (std::isalnum (c) || c == ' ' || c == '-' || c == '_' || c == '.' || c >= 0x80)
-            out += static_cast<char> (c);
-        if (out.size () >= 60)
-            break;
-    }
-    while (!out.empty () && (out.front () == '.' || out.front () == ' '))
-        out.erase (out.begin ());
-    return out.empty () ? std::string ("Recording") : out;
-}
-
-void makeFolders (const std::string& path)
-{
-    for (size_t i = 1; i <= path.size (); ++i)
-    {
-        if (i == path.size () || path[i] == '/')
-            ::mkdir (path.substr (0, i).c_str (), 0755);
-    }
 }
 
 void put16 (std::FILE* f, uint16_t v) { const unsigned char b[2] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8) }; std::fwrite (b, 1, 2, f); }
@@ -235,11 +204,13 @@ LinkDocumentController::LinkDocumentController (const ARA::PlugIn::PlugInEntry* 
   client_ (LinkClient::retain ())
 {
     listener_ = client_.listen ([this] (const Message& m) { onMessage (m); });
+    Capturer::countDocument (1);
 }
 
 LinkDocumentController::~LinkDocumentController ()
 {
     client_.unlisten (listener_);
+    Capturer::countDocument (-1);
     stopExport (nullptr);
     JsonWriter closed;
     closed.object ().field ("t", "closed").field ("id", id_).endObject ();
@@ -269,6 +240,36 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
+    followCapture ();
+}
+
+void LinkDocumentController::followCapture () noexcept
+{
+    // A Capturer hears only what the DAW plays: the DAW is asked to play from a second before
+    // the span, and to stop once it is heard whole (where the host lets a plug-in ask).
+    auto* playback = getHostPlaybackController ();
+    if (wantPlayback_.exchange (false))
+    {
+        if (playback)
+        {
+            playback->requestSetPlaybackPosition (std::max (0.0, playFrom_.load () - 1.0));
+            playback->requestStartPlayback ();
+        }
+        playing_ = true;
+        sawCapture_ = false;
+    }
+    if (!playing_)
+        return;
+    if (Capturer::busy ())
+    {
+        sawCapture_ = true;
+    }
+    else if (sawCapture_)
+    {
+        if (playback)
+            playback->requestStopPlayback ();
+        playing_ = false;
+    }
 }
 
 void LinkDocumentController::doUpdateMusicalContextContent (ARA::PlugIn::MusicalContext*, const ARA::ARAContentTimeRange*, ARA::ContentUpdateScopes) noexcept
@@ -556,14 +557,6 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
     return false;
 }
 
-// 16 hex digits naming [text] in a folder's name.
-std::string hashOf (const std::string& text)
-{
-    char hash[24];
-    std::snprintf (hash, sizeof hash, "%016llx", static_cast<unsigned long long> (std::hash<std::string> {} (text)));
-    return hash;
-}
-
 }  // namespace
 
 void LinkDocumentController::onMessage (const Message& message)
@@ -577,6 +570,17 @@ void LinkDocumentController::onMessage (const Message& message)
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;
+    if (*t == "capture" && field ("capturer") && field ("from"))
+    {
+        // A Capturer takes it (link_capture.cpp); the DAW is asked to play it from here.
+        const double from = std::strtod (field ("from")->c_str (), nullptr);
+        if (std::isfinite (from))
+        {
+            playFrom_.store (from);
+            wantPlayback_.store (true);
+        }
+        return;
+    }
     ExportJob job;
     if (*t == "export" && field ("source"))
     {
@@ -608,6 +612,14 @@ void LinkDocumentController::startPendingExport ()
             return;
         job = pending_.front ();
         pending_.erase (pending_.begin ());
+    }
+    // A Capturer in the DAW captures in Attacca's place (the mix as heard): its own capture is off.
+    if (Capturer::any ())
+    {
+        JsonWriter w;
+        w.object ().field ("t", job.stem ? "stemmed" : "exported").field ("document", id_).field (job.stem ? "track" : "source", job.id).field ("error", "capturer").endObject ();
+        client_.send (w.text ());
+        return;
     }
     if (job.stem)
         startStem (job);

@@ -2886,6 +2886,7 @@ msgstr "Semifusa"
 msgid "Accent ([)"
 msgstr "Acento ([)"
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr "Compases y barras de compás"
 
@@ -5571,4 +5572,32 @@ msgstr ""
 #: lib/video_panel.dart
 msgctxt "video"
 msgid "View"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "This project’s Attacca recording isn’t open in a DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "One Attacca recording per project."
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca Capturer captures in its place."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Captured by Attacca Capturer as the DAW plays it."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Capturing the Recording"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Play it in the DAW if it doesn’t start."
 msgstr ""

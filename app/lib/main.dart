@@ -764,7 +764,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'exportVideo': open && page._canExport.value ? page._exportVideo : null,
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
           'followDaw': open && free && (page._followsDaw.value || AttaccaPlugIns.supported) ? page._followDaw : null,
-          'captureStems': open && free && page.controller.daw.document != null ? page._captureStems : null,
+          // (Off while an Attacca Capturer is in the DAW: Attacca's own capture is.)
+          'captureStems': open && free && (page.controller.daw.document?.$1.capturers.isEmpty ?? false) ? page._captureStems : null,
           'attaccaSettings': free ? () => _settings(search: 'Attacca') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
           'redo': edit != null && edit.redo ? page!.controller.redo : null,

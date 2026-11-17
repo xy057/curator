@@ -69,6 +69,9 @@ add_library(link_core STATIC
     src/link_client.cpp
     src/link_document.h
     src/link_document.cpp
+    src/link_files.h
+    src/link_capture.h
+    src/link_capture.cpp
 )
 target_link_libraries(link_core PUBLIC ara_plugin)
 target_compile_definitions(link_core PUBLIC LINK_VERSION="${LINK_VERSION}" LINK_BUILD=${LINK_BUILD})
@@ -80,7 +83,7 @@ function(link_view target suffix)
     target_sources(${target} PRIVATE src/mac/link_view.mm)
     target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>")
     target_compile_definitions(${target} PRIVATE LINK_VIEW_SUFFIX=${suffix})
-    target_link_libraries(${target} PRIVATE "-framework Cocoa")
+    target_link_libraries(${target} PRIVATE "-framework Cocoa" "-framework AudioToolbox")
 endfunction()
 
 # A bundle of [target]: its Info.plist, the licences of the SDKs in it (the app's asset, one
@@ -165,7 +168,7 @@ target_link_libraries(audiounit_sdk PUBLIC
 add_library(AttaccaAU MODULE src/au/link_au.cpp)
 target_link_libraries(AttaccaAU PRIVATE link_core audiounit_sdk)
 link_view(AttaccaAU AU)
-target_link_options(AttaccaAU PRIVATE "-Wl,-exported_symbol,_AttaccaFactory")
+target_link_options(AttaccaAU PRIVATE "-Wl,-exported_symbol,_AttaccaFactory" "-Wl,-exported_symbol,_AttaccaCapturerFactory")
 link_bundle(AttaccaAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.in")
 
 # A DAW in miniature that loads the VST3 and the Audio Unit and checks what Curator is told (`make daw-link` runs it
