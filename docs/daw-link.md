@@ -116,8 +116,10 @@ which offers them all the same (for this time only).
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
    - **Studio One, REAPER**: as they add ARA plug-ins (VST3).
 
-   Attacca put in an insert slot instead is connected all the same but given no recording: Follow
-   DAW… then says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
+   Attacca put in an insert slot instead is connected all the same but given no recording: its
+   window says **Insert only** (the instance tells it whether the DAW bound it to ARA: the VST3's
+   audio side by a message to its editing side, the Audio Unit by a property of its own), and
+   Follow DAW… says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
 2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
@@ -152,7 +154,7 @@ sends and the mix. To take the recording as you hear it instead, put **Attacca C
 last slot of the DAW's output (Stereo Out, the main bus). It passes everything through untouched.
 
 It works together with Attacca on a track, which still tells Curator the song. Its window says
-**Needs Attacca on a track** until there is one. While a Capturer is in the DAW:
+**Not linked** until there is one (an Attacca bound to ARA in the same DAW). While a Capturer is in the DAW:
 
 - **Use this recording** (Follow DAW…) captures the mix over the span the recording plays in the
   song. Curator asks the DAW to play from a second before it and to stop once every moment of it

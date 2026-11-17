@@ -7,6 +7,7 @@
 #include "../link_client.h"
 #include "../link_config.h"
 
+#import <AudioToolbox/AudioToolbox.h>
 #import <AudioUnit/AUCocoaUIView.h>
 #import <Cocoa/Cocoa.h>
 
@@ -39,6 +40,7 @@ int installedBuild ()
 }  // namespace
 
 @interface LinkStatusView : NSView
+- (void)setBound:(std::function<int ()>)bound;
 - (instancetype)initWithFrame:(NSRect)frame capturer:(BOOL)capturer;
 @end
 
@@ -49,6 +51,13 @@ int installedBuild ()
     NSTimer* _timer;
     attacca::LinkClient* _client;
     BOOL _capturer;
+    std::function<int ()> _bound;
+}
+
+- (void)setBound:(std::function<int ()>)bound
+{
+    _bound = std::move (bound);
+    [self update];
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
@@ -110,12 +119,7 @@ int installedBuild ()
         NSArray<NSString*>* followers = names.length == 0 ? @[] : [names componentsSeparatedByString:@"\n"];
         detail = followers.count == 0 ? @"No project follows this DAW"
                                       : [@"Followed by " stringByAppendingString:[followers componentsJoinedByString:@", "]];
-        if (_capturer && attacca::Capturer::documents () == 0)
-        {
-            dot = NSColor.systemOrangeColor;
-            detail = @"Needs Attacca on a track";
-        }
-        else if (_capturer && attacca::Capturer::busy ())
+        if (_capturer && attacca::Capturer::busy ())
         {
             detail = @"Capturing for Curator\u2026";
         }
@@ -136,6 +140,13 @@ int installedBuild ()
         status = @"Curator isn\u2019t listening";
         dot = NSColor.systemOrangeColor;
         detail = @"Settings \u25B8 General \u25B8 DAW \u25B8 Listen for Attacca";
+    }
+    // Not linked: Attacca on an insert only, never bound to ARA; the Capturer with no Attacca on
+    // a track (an ARA document) in this DAW.
+    if (_capturer ? attacca::Capturer::documents () == 0 : (_bound && _bound () == 0))
+    {
+        dot = NSColor.systemOrangeColor;
+        detail = _capturer ? @"Not linked: no Attacca on a track as an ARA extension" : @"Insert only: add Attacca to a track as an ARA extension";
     }
     // Outdated: a newer Attacca is installed (the DAW keeps the one it loaded until it opens
     // again), or Curator bundles a newer one.
@@ -193,15 +204,26 @@ int installedBuild ()
         capturer = [(__bridge NSString*) name containsString:@"Capturer"];
         CFRelease (name);
     }
-    return [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, attacca::statusViewWidth, attacca::statusViewHeight) capturer:capturer];
+    LinkStatusView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, attacca::statusViewWidth, attacca::statusViewHeight) capturer:capturer];
+    // Attacca's own: bound to ARA or on an insert only, as the instance says.
+    if (!capturer && unit)
+    {
+        [view setBound:[unit] () -> int {
+            UInt32 bound = 0, size = sizeof bound;
+            return AudioUnitGetProperty (unit, attacca::audioUnitPropertyBoundToARA, kAudioUnitScope_Global, 0, &bound, &size) == noErr ? static_cast<int> (bound) : -1;
+        }];
+    }
+    return view;
 }
 @end
 
 namespace attacca {
 
-void* attachStatusView (void* parent, bool capturer)
+void* attachStatusView (void* parent, bool capturer, std::function<int ()> bound)
 {
-    NSView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, statusViewWidth, statusViewHeight) capturer:capturer];
+    LinkStatusView* view = [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, statusViewWidth, statusViewHeight) capturer:capturer];
+    if (bound)
+        [view setBound:std::move (bound)];
     view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [(__bridge NSView*) parent addSubview:view];
     return (__bridge_retained void*) view;

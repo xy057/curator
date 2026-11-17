@@ -15,7 +15,9 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 #include "public.sdk/source/vst/vsteditcontroller.h"
 ARA_DISABLE_VST3_WARNINGS_END
 
+#include <atomic>
 #include <cstring>
+#include <memory>
 
 using namespace Steinberg;
 
@@ -26,7 +28,10 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 // The window the DAW opens for the plug-in: its name, and whether Curator is connected.
 class LinkView : public CPluginView {
 public:
-    explicit LinkView (bool capturer = false) : CPluginView (nullptr), capturer_ (capturer) { rect = ViewRect (0, 0, statusViewWidth, statusViewHeight); }
+    LinkView (bool capturer, std::shared_ptr<std::atomic<int>> bound) : CPluginView (nullptr), capturer_ (capturer), bound_ (std::move (bound))
+    {
+        rect = ViewRect (0, 0, statusViewWidth, statusViewHeight);
+    }
     ~LinkView () override { removed (); }
 
     tresult PLUGIN_API isPlatformTypeSupported (FIDString type) override
@@ -38,7 +43,8 @@ public:
     {
         if (isPlatformTypeSupported (type) != kResultTrue || !parent)
             return kResultFalse;
-        handle_ = attachStatusView (parent, capturer_);
+        auto bound = bound_;
+        handle_ = attachStatusView (parent, capturer_, bound ? std::function<int ()> ([bound] { return bound->load (); }) : std::function<int ()> ());
         return CPluginView::attached (parent, type);
     }
 
@@ -53,7 +59,11 @@ public:
 private:
     void* handle_ = nullptr;
     bool capturer_;
+    std::shared_ptr<std::atomic<int>> bound_;
 };
+
+// What Attacca's audio side tells its editing side: whether it is bound to ARA ("bound": 1 or 0).
+constexpr const char* boundMessage = "attacca.bound";
 
 // The editing side: no parameters, only the window (Attacca's, or [capturer] its Capturer's).
 class LinkController : public Vst::EditController {
@@ -61,11 +71,26 @@ public:
     explicit LinkController (bool capturer = false) : capturer_ (capturer) {}
     IPlugView* PLUGIN_API createView (FIDString name) override
     {
-        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView (capturer_) : nullptr;
+        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView (capturer_, capturer_ ? nullptr : bound_) : nullptr;
+    }
+
+    // Attacca's audio side says whether it is bound to ARA: an instance never bound is on an
+    // insert only, and its window says so.
+    tresult PLUGIN_API notify (Vst::IMessage* message) override
+    {
+        int64 bound = 0;
+        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), boundMessage) == 0 && message->getAttributes () &&
+            message->getAttributes ()->getInt ("bound", bound) == kResultOk)
+        {
+            bound_->store (bound != 0 ? 1 : 0);
+            return kResultOk;
+        }
+        return EditController::notify (message);
     }
 
 private:
     bool capturer_;
+    std::shared_ptr<std::atomic<int>> bound_ = std::make_shared<std::atomic<int>> (-1);
 };
 
 // The audio side: plays the regions it is given (as an ARA playback renderer), else passes
@@ -157,7 +182,17 @@ public:
     const ARA::ARAPlugInExtensionInstance* PLUGIN_API bindToDocumentControllerWithRoles (ARA::ARADocumentControllerRef controller, ARA::ARAPlugInInstanceRoleFlags known,
                                                                                           ARA::ARAPlugInInstanceRoleFlags assigned) override
     {
-        return extension_.bindToARA (controller, known, assigned);
+        const auto* instance = extension_.bindToARA (controller, known, assigned);
+        tellBound ();
+        return instance;
+    }
+
+    // Connected to its editing side (by the DAW, once both are made): told whether it is bound.
+    tresult PLUGIN_API connect (Vst::IConnectionPoint* other) override
+    {
+        const tresult result = AudioEffect::connect (other);
+        tellBound ();
+        return result;
     }
 
     OBJ_METHODS (LinkProcessor, AudioEffect)
@@ -168,6 +203,17 @@ public:
     REFCOUNT_METHODS (AudioEffect)
 
 private:
+    // Its editing side told whether it is bound to ARA (for its window).
+    void tellBound ()
+    {
+        if (IPtr<Vst::IMessage> message = owned (allocateMessage ()))
+        {
+            message->setMessageID (boundMessage);
+            message->getAttributes ()->setInt ("bound", extension_.isBoundToARA () ? 1 : 0);
+            sendMessage (message);
+        }
+    }
+
     int outputChannels () const
     {
         auto* bus = FCast<Vst::AudioBus> (audioOutputs.at (0).get ());
