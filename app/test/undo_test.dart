@@ -242,7 +242,10 @@ void main() {
       // doesn't say its build isn't).
       expect((discovery['build'], session.outdated), (appBuild, false));
       final older = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
-      older.write('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
+      // (Its name not UTF-8, a byte astray: read as it can be, the connection kept.)
+      final hello = utf8.encode('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
+      final astray = utf8.decode(hello).indexOf('Cubase') + 6;
+      older.add([...hello.take(astray), 0xff, ...hello.skip(astray)]);
       await until(() => link.sessions.length == 2);
       expect([for (final s in link.sessions) s.outdated], [false, true]);
       older.destroy();

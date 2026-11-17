@@ -113,7 +113,9 @@ class DawLink extends ChangeNotifier {
 
   void _accept(Socket socket) {
     final session = DawSession._(this, socket);
-    final lines = const LineSplitter().bind(utf8.decoder.bind(_limited(socket)));
+    // (A name a DAW gives that isn't UTF-8 is read as it can be: refused, the connection would
+    // end, and the plug-in connect and say the same again each second.)
+    final lines = const LineSplitter().bind(const Utf8Decoder(allowMalformed: true).bind(_limited(socket)));
     lines.listen(
       (line) {
         try {
