@@ -789,11 +789,7 @@ class _SyncMenu extends StatelessWidget {
           if (midi != null)
             checkedMenuItem(context, value: c.convertToAnchors, checked: false, child: Text('Convert to Anchors'.tr))
           else
-            checkedMenuItem(context,
-                value: c.convertToTempoMap,
-                checked: false,
-                enabled: c.sync!.anchors.length > 1,
-                child: Text('Convert to Tempo Map'.tr)),
+            checkedMenuItem(context, value: c.convertToTempoMap, checked: false, child: Text('Convert to Tempo Map'.tr)),
           if (!c.usesMidiTempo) ...[
             checkedMenuItem(context,
                 value: () => c.anchors.snapToOnsets = !c.anchors.snapToOnsets,

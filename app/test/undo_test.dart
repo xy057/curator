@@ -100,6 +100,13 @@ void main() {
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.
     {
       await open();
+      // With no anchors (and no MIDI file), the score's own tempo, from where bar 1 sounds.
+      c.convertToTempoMap();
+      expect(c.midiTempo!.tempos, [(quarter: 0.0, quartersPerMinute: c.sync!.defaultTempo)]);
+      expect(c.sync!.secondsAtQuarter(12), closeTo(12 * 60 / c.sync!.defaultTempo, 1e-9));
+      c.undo();
+      expect(c.usesMidiTempo, isFalse);
+
       const hand = [SyncAnchor(0, 1), SyncAnchor(12, 6), SyncAnchor(24, 10.5), SyncAnchor(36, 16)];
       c.sync!.load(hand, leadIn: 1);
       c.convertToTempoMap();

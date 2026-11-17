@@ -1947,11 +1947,11 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Convert to Tempo Map: follows the tempo the anchors set by hand play by
-  /// ([MidiTempoMap.ofSync]), to edit as a tempo map; the anchors stay behind it, as
-  /// behind a file's. One Undo step.
+  /// ([MidiTempoMap.ofSync]; under two, the score's own), to edit as a tempo map; the anchors
+  /// stay behind it, as behind a file's. One Undo step.
   void convertToTempoMap() {
     final sync = _sync;
-    if (sync == null || _doc.midi != null || sync.anchors.length < 2) return;
+    if (sync == null || _doc.midi != null) return;
     useMidiTempo(MidiTempoMap.ofSync(sync, name: 'Tempo Map'.tr));
   }
 
