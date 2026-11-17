@@ -5617,3 +5617,35 @@ msgstr "Attacca は {daws} で使えます。"
 #: lib/daw_follow_dialog.dart
 msgid "Follow Anyway"
 msgstr "それでも追従"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in the DAW."
+msgstr "DAW の Attacca が録音に適用されていません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in {daw}."
+msgstr "{daw} の Attacca が録音に適用されていません。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Add it to a track as an ARA extension, not as an insert."
+msgstr "インサートではなく、ARA エクステンションとしてトラックに追加してください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: reopen the DAW."
+msgstr "DAW の Attacca が古くなっています。DAW を開き直してください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: update it in Settings ▸ General."
+msgstr "DAW の Attacca が古くなっています。「設定 ▸ 一般」でアップデートしてください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: reopen {daw}."
+msgstr "{daw} の Attacca が古くなっています。{daw} を開き直してください。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: update it in Settings ▸ General."
+msgstr "{daw} の Attacca が古くなっています。「設定 ▸ 一般」でアップデートしてください。"
+
+#: lib/main.dart
+msgid "{daw} (outdated)"
+msgstr "{daw}（古い Attacca）"

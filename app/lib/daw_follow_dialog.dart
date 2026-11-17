@@ -67,6 +67,15 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
   if (!taken) say('The DAW gives no tempo for this recording yet.'.tr);
 }
 
+/// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
+/// the newer one is installed already (a DAW keeps the one it loaded until then), else update it.
+String attaccaOutdated(DawSession session) {
+  final reopen = (AttaccaPlugIns.installedBuild() ?? 0) > session.build;
+  if (session.host.isEmpty) return reopen ? 'Attacca in the DAW is outdated: reopen the DAW.'.tr : 'Attacca in the DAW is outdated: update it in Settings ▸ General.'.tr;
+  final daw = {'daw': session.host};
+  return reopen ? 'Attacca in {daw} is outdated: reopen {daw}.'.fill(daw) : 'Attacca in {daw} is outdated: update it in Settings ▸ General.'.fill(daw);
+}
+
 /// What the plug-in said went wrong ([DawLinkException.reason]), in words.
 String dawProblem(String reason) => switch (reason) {
       'too long' => 'It is too long.'.tr,
@@ -140,6 +149,11 @@ class _FollowDialogState extends State<_FollowDialog> {
           final recordings = _recordings;
           final chosen = recordings.where((r) => (r.document.id, r.source.id) == _key).firstOrNull ?? recordings.firstOrNull;
           final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
+          // A DAW whose Attacca is older than Curator: said, whatever else is.
+          final outdated = [
+            for (final s in widget.link.sessions)
+              if (s.outdated) Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
+          ];
           // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Follow Anyway.
           final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
           if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
@@ -177,14 +191,23 @@ class _FollowDialogState extends State<_FollowDialog> {
             );
           }
           if (chosen == null) {
+            // Connected, yet no recording: Attacca is on an insert only (or on no track) there.
+            final connected = {for (final s in widget.link.sessions) if (s.host.isNotEmpty) s.host}.join(', ');
+            final (said, hint) = !widget.link.listening
+                ? ('Curator isn’t listening for Attacca.'.tr, 'Turn it on in Settings ▸ General.'.tr)
+                : widget.link.sessions.isEmpty
+                    ? ('No DAW connected.'.tr, 'Put Attacca on a track in your DAW.'.tr)
+                    : (connected.isEmpty ? 'Attacca isn’t on a recording in the DAW.'.tr : 'Attacca isn’t on a recording in {daw}.'.fill({'daw': connected}),
+                        'Add it to a track as an ARA extension, not as an insert.'.tr);
             return AppDialog(
               title: Text('Follow DAW'.tr),
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.link.listening ? 'No DAW connected.'.tr : 'Curator isn’t listening for Attacca.'.tr),
+                  Text(said),
                   const SizedBox(height: 6),
-                  Text(widget.link.listening ? 'Put Attacca on a track in your DAW.'.tr : 'Turn it on in Settings ▸ General.'.tr, style: muted),
+                  Text(hint, style: muted),
+                  ...outdated,
                 ]),
               ),
               actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
@@ -233,6 +256,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                     child: Text('Captured by Attacca Capturer as the DAW plays it.'.tr, style: muted),
                   ),
                 AppCheckRow(value: _playhead, onChanged: (v) => setState(() => _playhead = v ?? false), label: 'Follow the DAW’s playhead'),
+                ...outdated,
               ]),
             ),
             actions: [

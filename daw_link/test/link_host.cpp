@@ -383,10 +383,17 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
     dc->endEditing (controller);
     dc->enableAudioSourceSamplesAccess (controller, source, kARATrue);
 
+    // Whether it is bound to ARA, for its window: not yet (as on an insert only), then bound.
+    auto bound = [&] {
+        UInt32 value = 2, length = sizeof value;
+        return AudioUnitGetProperty (unit, 70001 /* audioUnitPropertyBoundToARA */, kAudioUnitScope_Global, 0, &value, &length) == noErr ? static_cast<int> (value) : -1;
+    };
+    check (bound () == 0, "unbound, it says so (an insert only)");
     ARAAudioUnitPlugInExtensionBinding binding { kARAAudioUnitMagic, controller, nullptr, kARAPlaybackRendererRole, kARAPlaybackRendererRole };
     size = sizeof binding;
     check (AudioUnitGetProperty (unit, kAudioUnitProperty_ARAPlugInExtensionBindingWithRoles, kAudioUnitScope_Global, 0, &binding, &size) == noErr &&
            binding.outPlugInExtension && binding.outPlugInExtension->playbackRendererInterface, "bound as playback renderer");
+    check (bound () == 1, "and says it is bound");
     binding.outPlugInExtension->playbackRendererInterface->addPlaybackRegion (binding.outPlugInExtension->playbackRendererRef, region);
 
     HostCallbackInfo callbacks {};
@@ -648,6 +655,10 @@ int main (int argc, const char* argv[])
 
     const ARAInterfaceConfiguration config = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAInterfaceConfiguration, assertFunctionAddress), kARAAPIGeneration_2_0_Final, nullptr };
     factory->initializeARAWithConfiguration (&config);
+
+    // Attacca on an insert first, never bound to ARA (as a DAW has it before the extension).
+    VST3Effect insert = VST3CreateEffect (binary, nullptr);
+    VST3StartRendering (insert, 2, 512, sourceRate);
 
     const ARADocumentControllerHostInstance hostInstance = {
         ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),

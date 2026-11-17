@@ -59,6 +59,10 @@ public:
                     writable = false;
                     size = sizeof (AudioUnitCocoaViewInfo);
                     return noErr;
+                case audioUnitPropertyBoundToARA:
+                    writable = false;
+                    size = sizeof (UInt32);
+                    return noErr;
                 default:
                     break;
             }
@@ -102,6 +106,10 @@ public:
                     info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
                     return noErr;
                 }
+                case audioUnitPropertyBoundToARA:
+                    // For its window: an instance never bound is on an insert only.
+                    *static_cast<UInt32*> (data) = extension_.isBoundToARA () ? 1 : 0;
+                    return noErr;
                 default:
                     break;
             }

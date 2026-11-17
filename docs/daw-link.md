@@ -115,9 +115,21 @@ which offers them all the same (for this time only).
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
    - **Studio One, REAPER**: as they add ARA plug-ins (VST3).
+
+   Attacca put in an insert slot instead is connected all the same but given no recording: its
+   window says **Insert only** (the instance tells it whether the DAW bound it to ARA: the VST3's
+   audio side by a message to its editing side, the Audio Unit by a property of its own), and
+   Follow DAW… says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
 2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
+
+**Outdated.** A DAW keeps the Attacca it loaded until it opens again, so one updated while
+the DAW is open is still the old one there. Attacca's window then says it is outdated and to
+reopen the DAW (a newer Attacca is in its bundle on disk), or to update it in Curator's
+Settings (Curator, by the build in `daw-link.json`, is newer). Curator says so too, from the
+build in `hello`: once as the DAW connects, in Follow DAW…, and as "(outdated)" beside the
+DAW in File ▸ Attacca.
 
 A recording taken from the DAW (**Use this recording**) is the project's Attacca recording: its
 take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
@@ -142,7 +154,7 @@ sends and the mix. To take the recording as you hear it instead, put **Attacca C
 last slot of the DAW's output (Stereo Out, the main bus). It passes everything through untouched.
 
 It works together with Attacca on a track, which still tells Curator the song. Its window says
-**Needs Attacca on a track** until there is one. While a Capturer is in the DAW:
+**Not linked** until there is one (an Attacca bound to ARA in the same DAW). While a Capturer is in the DAW:
 
 - **Use this recording** (Follow DAW…) captures the mix over the span the recording plays in the
   song. Curator asks the DAW to play from a second before it and to stop once every moment of it
@@ -177,8 +189,8 @@ project, because everything it knows the DAW sends again.
 ## How Curator and the plug-in talk
 
 - **Finding Curator.** Curator listens on the loopback address (127.0.0.1) at a port the system
-  picks. It writes the port and a random token to `daw-link.json` in its data folder
-  (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
+  picks. It writes the port, a random token and its own build to `daw-link.json` in its data
+  folder (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
   therefore connects as soon as Curator is up.
 - **One line per message.** Each message is a JSON object on its own line, in both directions.

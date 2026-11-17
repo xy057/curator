@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_folders.dart';
+import 'updater.dart' show appBuild;
 
 /// Curator's end of Attacca, the ARA plug-in a DAW loads (see docs/daw-link.md).
 ///
@@ -86,7 +87,7 @@ class DawLink extends ChangeNotifier {
     final file = File('${folder.path}${Platform.pathSeparator}daw-link.json');
     final partial = File('${file.path}.part');
     // Written whole, then put in place: a plug-in never reads half of it.
-    await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol}));
+    await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
     await partial.rename(file.path);
     _discovery = file;
     notifyListeners();
@@ -217,6 +218,14 @@ class DawSession extends ChangeNotifier {
   /// The plug-in's version (Curator's, when they came together).
   String plugin = '';
 
+  /// The plug-in's build (0: one that doesn't say).
+  int build = 0;
+
+  /// Whether its Attacca is older than this Curator ([appBuild]): Curator bundles a newer one,
+  /// installed already ([AttaccaPlugIns.installedBuild]: the DAW loads it once it opens again)
+  /// or not yet.
+  bool get outdated => build > 0 && build < appBuild;
+
   final _documents = <String, DawDocument>{};
 
   /// Its documents (most DAWs have one open).
@@ -258,6 +267,7 @@ class DawSession extends ChangeNotifier {
       _greeted = true;
       host = (message['host'] as String?) ?? '';
       plugin = (message['plugin'] as String?) ?? '';
+      build = (message['build'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);
       _link.notifyListeners();
       _link._tellFollowers();
@@ -381,6 +391,13 @@ abstract final class AttaccaPlugIns {
     final version = value('CFBundleShortVersionString'), build = value('CFBundleVersion');
     return version == null ? '' : build == null ? version : '$version ($build)';
   }
+
+  /// The build installed in [folder] ([plugInsFolder]): the VST3's CFBundleVersion; null when
+  /// there is none.
+  static int? installedBuild({String? folder}) => switch (installed(folder: folder)) {
+        final v? => int.tryParse(RegExp(r'\((\d+)\)$').firstMatch(v)?.group(1) ?? ''),
+        _ => null,
+      };
 
   /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there (and any by its
   /// former name). Throws a

@@ -502,19 +502,21 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     unawaited((settings.dawLink ? link.start() : link.stop()).catchError((_) {}));
   }
 
-  /// The DAWs connected that were told of: each one Attacca doesn't support ([DawSession.supported])
-  /// is said once, as it connects.
+  /// The DAWs connected that were told of: each one Attacca doesn't support ([DawSession.supported]),
+  /// or whose Attacca is outdated ([DawSession.outdated]), is said once, as it connects.
   final _dawsSeen = Expando<bool>();
 
   void _dawsChanged() {
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
-      if (_dawsSeen[session] == true || session.supported) continue;
+      if (_dawsSeen[session] == true) continue;
+      final said = !session.supported
+          ? (session.host.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host}))
+          : session.outdated
+              ? attaccaOutdated(session)
+              : null;
+      if (said == null) continue;
       _dawsSeen[session] = true;
-      _messenger?.showSnackBar(SnackBar(
-        content: Text(session.host.isEmpty
-            ? 'This DAW isn’t supported by Attacca.'.tr
-            : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host})),
-      ));
+      _messenger?.showSnackBar(SnackBar(content: Text(said)));
     }
   }
 
@@ -588,7 +590,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     if (!AttaccaPlugIns.supported) return 'OS not supported'.tr;
     final link = widget.dawLink;
     if (link == null || !link.listening) return 'Not Listening'.tr;
-    final hosts = {for (final s in link.sessions) if (s.host.isNotEmpty) s.host};
+    // (An outdated Attacca said so: [DawSession.outdated].)
+    final hosts = {for (final s in link.sessions) if (s.host.isNotEmpty) s.outdated ? '{daw} (outdated)'.fill({'daw': s.host}) : s.host};
     return hosts.isEmpty ? 'Not Connected'.tr : 'Connected: {daws}'.fill({'daws': hosts.join(', ')});
   }
 
