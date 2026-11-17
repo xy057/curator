@@ -50,6 +50,15 @@ void main() {
       expect(('${newest.version}', newest.prerelease, newest.notes), ('9.2.0', true, 'first'));
       expect(Release.newest([_release('v9.5.0', draft: true)]), isNull);
       expect(Release.newest({'tag_name': 'v9.0.0'}), isNull, reason: 'not a list');
+      // A release's patch may have letters: runs of digits compare as numbers, the rest as text.
+      final order = ['v9.2.1', 'v9.2.1a', 'v9.2.1b', 'v9.2.2-rc1', 'v9.2.10'].map((t) => Version.tryParse(t)!).toList();
+      for (var i = 1; i < order.length; i++) {
+        expect(order[i] > order[i - 1], isTrue, reason: '${order[i]} after ${order[i - 1]}');
+      }
+      expect('${Release.newest([_release('v9.2.1'), _release('v9.2.1a'), _release('v9.2.0')], platform: 'macos')!.version}', '9.2.1a');
+      expect([Version.tryParse('9.2'), Version.tryParse('v9.2.1+3'), Version.tryParse('9.2.1 b')], [null, null, null]);
+      expect((appVersion, '${Version.current}'), ('${appRelease.split('.').take(2).join('.')}.$appBuild', appRelease),
+          reason: "the version's patch is the build; the updater compares the release");
     }
 
     // Each channel asks GitHub its own question; a change of channel drops the answer still on its way.

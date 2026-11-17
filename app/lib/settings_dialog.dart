@@ -1029,7 +1029,7 @@ Future<void> showUpdate(BuildContext context, Updater updater, Release release) 
     showUpdateDialog(context, updater: updater, release: release, groupColor: _groupColor);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
-String get _versionText => '$appVersion ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
+String get _versionText => '$appRelease ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
 
 /// `macOS 15.6 (24G84) · arm64`.
 String get _systemText {
@@ -1296,7 +1296,7 @@ class _SettingsWindowState extends State<_SettingsWindow> {
         Padding(
           padding: const EdgeInsets.only(left: 8),
           child: Text(
-            widget.kind == _Window.project ? widget.controller?.fileName ?? '' : 'Curator $appVersion',
+            widget.kind == _Window.project ? widget.controller?.fileName ?? '' : 'Curator $appRelease',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 11, color: colors.textMuted),
@@ -2033,6 +2033,7 @@ class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
   bool _busy = false;
   String? _problem;
 
+  /// What the plug-ins' bundles say when they came with this build (major.minor.build and build).
   static String get _version => '$appVersion ($appBuild)';
 
   Future<void> _install() => _change(() async {
@@ -2690,7 +2691,7 @@ class _AboutPage extends StatelessWidget {
               Row(mainAxisAlignment: MainAxisAlignment.center, spacing: 6, children: [
                 // As wide as Copy, so the version sits under the name's middle.
                 const SizedBox(width: _CopyButton.size),
-                SelectableText('Version {version}'.fill({'version': '$appVersion ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                SelectableText('Version {version}'.fill({'version': '$appRelease ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
                 if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
                 const _CopyButton(),
               ]),

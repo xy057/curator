@@ -236,7 +236,8 @@ abstract final class PluginApi {
       ApiFunction('app.after', 'app.after(seconds, fn) → cancel', 'Calls fn once, seconds from now. cancel() stops it first.'),
       ApiFunction('app.copy', 'app.copy(text)', 'Puts text on the clipboard.'),
     ], values: [
-      ('version', 'Curator’s version ("0.9.0").'),
+      ('version', 'Curator’s version, major.minor.build ("0.9.480").'),
+      ('release', 'The release it is ("0.9.0", "0.9.1a").'),
       ('build', 'Its build (a number).'),
       ('platform', '"macos", "windows" or "linux".'),
     ]),
