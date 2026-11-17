@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -107,18 +108,19 @@ struct Capture {
         }
     }
 
-    // Marks frames [at, at + n) heard.
+    // Marks frames [at, at + n) heard: a word of 64 at a time (what is outside a recording's
+    // region is marked before it starts, an hour of it some 170 million frames).
     void hear (int64_t at, int64_t n)
     {
-        for (int64_t i = at; i < at + n; ++i)
+        for (int64_t i = at, end = at + n; i < end;)
         {
+            const int bit = static_cast<int> (i & 63);
+            const int64_t count = std::min<int64_t> (64 - bit, end - i);
+            const uint64_t mask = (count == 64 ? ~uint64_t { 0 } : (uint64_t { 1 } << count) - 1) << bit;
             uint64_t& word = heard[static_cast<size_t> (i >> 6)];
-            const uint64_t bit = uint64_t { 1 } << (i & 63);
-            if (!(word & bit))
-            {
-                word |= bit;
-                ++heardCount;
-            }
+            heardCount += std::popcount (mask & ~word);
+            word |= mask;
+            i += count;
         }
     }
 };
