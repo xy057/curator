@@ -5663,3 +5663,7 @@ msgstr ""
 #: lib/daw_follow_dialog.dart
 msgid "The recording followed isn’t in the DAW."
 msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Choose the Capturer in Attacca’s window in the DAW."
+msgstr ""

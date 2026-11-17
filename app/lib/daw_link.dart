@@ -198,23 +198,42 @@ class DawLink extends ChangeNotifier {
           if (s == session || (session.pid > 0 && s.pid == session.pid)) ...s.capturers,
       ];
 
-  /// Each connection with an Attacca Capturer told whether an Attacca in its DAW (the same
-  /// process) has a document, as ARA gives it one (`linked`): its window says Not linked while not.
+  /// The Attacca Capturer linked to the Attacca of [session]'s DAW (chosen in Attacca's window:
+  /// [DawSession.linkedCapturer]), if it is there: Record from DAW… captures with it.
+  DawCapturer? linkedCapturerOf(DawSession session) {
+    final daw = _sameDaw(session);
+    final linked = {for (final s in daw) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
+    return [for (final s in daw) ...s.capturers].where((c) => linked.contains(c.id)).firstOrNull;
+  }
+
+  /// The connections from [session]'s DAW: itself, and the others from its process.
+  List<DawSession> _sameDaw(DawSession session) => [for (final s in _sessions) if (s == session || (session.pid > 0 && s.pid == session.pid)) s];
+
+  /// Each connection told, from what its DAW's connections say: Attacca's, the Capturers there
+  /// for its window's Capturer menu (`inserts`); a Capturer's, which of its Capturers are linked to
+  /// an Attacca there with a document (`linked`: its window says Linked, or Not linked).
   void _tellLinked() {
     for (final s in _sessions) {
+      final daw = _sameDaw(s);
+      final capturers = [for (final o in daw) ...o.capturers];
+      s._tellInserts([for (final c in capturers) c.id], [
+        for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
+      ]);
       if (s.capturers.isEmpty) continue;
-      s._tellLinked(_sessions.any((o) => (o == s || (s.pid > 0 && o.pid == s.pid)) && o._documents.isNotEmpty));
+      final linked = {for (final o in daw) if (o._documents.isNotEmpty && o.linkedCapturer.isNotEmpty) o.linkedCapturer};
+      s._tellLinked([for (final c in s.capturers) if (linked.contains(c.id)) c.id]);
     }
   }
 }
 
 /// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate];
-/// [session] the connection it is on.
+/// [session] the connection it is on; [name] the DAW's channel it is on ('' unsaid).
 @immutable
 class DawCapturer {
-  const DawCapturer(this.session, this.id, {this.channels = 2, this.rate = 0});
+  const DawCapturer(this.session, this.id, {this.name = '', this.channels = 2, this.rate = 0});
   final DawSession session;
   final String id;
+  final String name;
   final int channels;
   final double rate;
 }
@@ -251,6 +270,10 @@ class DawSession extends ChangeNotifier {
 
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;
+
+  /// The Attacca Capturer its Attacca is linked to (`link`, chosen in Attacca's window; ''
+  /// none): [DawLink.linkedCapturerOf].
+  String linkedCapturer = '';
 
   /// The DAW's process (0: unsaid): Attacca's and Attacca Capturer's connections from one DAW
   /// share it.
@@ -322,10 +345,12 @@ class DawSession extends ChangeNotifier {
       case 'transport':
         transport.value = dawTransportOf(message);
         return;
+      case 'link':
+        linkedCapturer = (message['capturer'] as String?) ?? '';
       case 'capturers':
         capturers = [
           for (final c in (message['list'] as List?) ?? const [])
-            if (c case {'id': final String id}) DawCapturer(this, id, channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
+            if (c case {'id': final String id}) DawCapturer(this, id, name: (c['name'] as String?) ?? '', channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
         ];
       case 'progress':
         final pending = _recordings[_keyOf(message)];
@@ -357,13 +382,22 @@ class DawSession extends ChangeNotifier {
   /// What this DAW was last told follows it: the projects' names, one a line.
   String _followers = '';
 
-  /// Whether this connection's Capturers were last told an Attacca in their DAW has a document.
-  bool? _linked;
+  /// What this connection was last told: its Capturers linked, its DAW's Capturers.
+  String? _linked;
+  String _inserts = '';
 
-  void _tellLinked(bool linked) {
-    if (linked == _linked) return;
-    _linked = linked;
-    _send({'t': 'linked', 'value': linked});
+  void _tellLinked(List<String> ids) {
+    final said = ids.join('\n');
+    if (said == _linked) return;
+    _linked = said;
+    _send({'t': 'linked', 'ids': said});
+  }
+
+  void _tellInserts(List<String> ids, List<String> names) {
+    final said = '${ids.join('\n')}\u0000${names.join('\n')}';
+    if (said == _inserts || (_inserts.isEmpty && ids.isEmpty)) return;
+    _inserts = said;
+    _send({'t': 'inserts', 'ids': ids.join('\n'), 'names': names.join('\n')});
   }
 
   void _tellFollowers(String names) {

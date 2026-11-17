@@ -10,6 +10,8 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace attacca {
 
@@ -57,10 +59,20 @@ public:
     // than it is outdated: Curator bundles a newer one.
     int curatorBuild () const noexcept { return curatorBuild_.load (); }
 
-    // Whether an Attacca in this DAW is bound to ARA, as Curator last said (`linked`, to a DAW
-    // with an Attacca Capturer in it; the two may be in bundles of their own): 1 or 0; -1 while
-    // it hasn't said or isn't connected.
-    int linked () const noexcept { return linked_.load (); }
+    // Attacca's side: the Attacca Capturer linked to this DAW's Attacca (its ID; empty: none),
+    // chosen in Attacca's window and kept in its instances' state. Published as `link`, and so
+    // told Curator again on each connection.
+    std::string linkedCapturer ();
+    void setLinkedCapturer (const std::string& id);
+
+    // Attacca's side: the Attacca Capturers in this DAW, as Curator last said (`inserts`: their
+    // IDs and names), for its window's Capturer menu; empty while Curator isn't connected.
+    std::vector<std::pair<std::string, std::string>> inserts ();
+
+    // A Capturer's side: whether the Capturer [id] is linked to an Attacca in this DAW with a
+    // document, as Curator last said (`linked`): 1 or 0; -1 while it hasn't said or isn't
+    // connected. (The two may be in bundles of their own: Curator matches them.)
+    int linked (const std::string& id);
 
 private:
     LinkClient ();
@@ -79,7 +91,10 @@ private:
 
     std::atomic<int> fd_ { -1 };
     std::atomic<int> curatorBuild_ { 0 };
-    std::atomic<int> linked_ { -1 };
+    std::string linkedCapturer_;
+    std::string insertIds_, insertNames_;
+    bool linkedSaid_ { false };
+    std::string linkedIds_;
     std::string token_;
     bool sendAll_ { false };
     std::map<std::string, std::string> states_;

@@ -161,6 +161,65 @@ void LinkClient::setTransport (bool playing, double seconds, double quarters, do
     transportStamp_.fetch_add (1, std::memory_order_release);
 }
 
+namespace {
+
+std::vector<std::string> linesOf (const std::string& text)
+{
+    std::vector<std::string> lines;
+    size_t at = 0;
+    while (!text.empty () && at <= text.size ())
+    {
+        const size_t end = text.find ('\n', at);
+        lines.push_back (text.substr (at, end == std::string::npos ? std::string::npos : end - at));
+        if (end == std::string::npos)
+            break;
+        at = end + 1;
+    }
+    return lines;
+}
+
+}  // namespace
+
+std::string LinkClient::linkedCapturer ()
+{
+    std::lock_guard<std::mutex> lock (mutex_);
+    return linkedCapturer_;
+}
+
+void LinkClient::setLinkedCapturer (const std::string& id)
+{
+    {
+        std::lock_guard<std::mutex> lock (mutex_);
+        linkedCapturer_ = id;
+    }
+    JsonWriter w;
+    w.object ().field ("t", "link").field ("capturer", id).endObject ();
+    publish ("link", w.text ());
+}
+
+std::vector<std::pair<std::string, std::string>> LinkClient::inserts ()
+{
+    std::lock_guard<std::mutex> lock (mutex_);
+    const auto ids = linesOf (insertIds_), names = linesOf (insertNames_);
+    std::vector<std::pair<std::string, std::string>> out;
+    for (size_t i = 0; i < ids.size (); ++i)
+        out.emplace_back (ids[i], i < names.size () ? names[i] : ids[i]);
+    return out;
+}
+
+int LinkClient::linked (const std::string& id)
+{
+    std::lock_guard<std::mutex> lock (mutex_);
+    if (!linkedSaid_ || fd_.load () < 0)
+        return -1;
+    for (const auto& linked : linesOf (linkedIds_))
+    {
+        if (linked == id)
+            return 1;
+    }
+    return 0;
+}
+
 std::string LinkClient::followers ()
 {
     std::lock_guard<std::mutex> lock (mutex_);
@@ -248,7 +307,13 @@ void LinkClient::disconnect ()
     const int fd = fd_.exchange (-1);
     if (fd >= 0)
         ::close (fd);
-    linked_.store (-1);
+    {
+        std::lock_guard<std::mutex> lock (mutex_);
+        linkedSaid_ = false;
+        linkedIds_.clear ();
+        insertIds_.clear ();
+        insertNames_.clear ();
+    }
     std::lock_guard<std::mutex> lock (mutex_);
     outbox_.clear ();
     followers_.clear ();
@@ -307,7 +372,16 @@ void LinkClient::receive ()
         }
         if (message["t"] == "linked")
         {
-            linked_.store (message["value"] == "true" ? 1 : 0);
+            std::lock_guard<std::mutex> lock (mutex_);
+            linkedSaid_ = true;
+            linkedIds_ = message["ids"];
+            continue;
+        }
+        if (message["t"] == "inserts")
+        {
+            std::lock_guard<std::mutex> lock (mutex_);
+            insertIds_ = message["ids"];
+            insertNames_ = message["names"];
             continue;
         }
         std::lock_guard<std::mutex> lock (handlersMutex_);

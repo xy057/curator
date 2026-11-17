@@ -27,7 +27,12 @@ public:
     // (the first heard), kept while a capture is under way and the DAW is [playing].
     void process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept;
 
-    const std::string& id () const noexcept { return id_; }
+    // Its ID: a new one, until the DAW gives back the one it had ([setId], from its saved state,
+    // so the Attacca it was linked to finds it again).
+    std::string id () const;
+    void setId (const std::string& id);
+    // Its name in Attacca's Capturer menu: the DAW's channel it is on ("Stereo Out"), if said.
+    void setName (const std::string& name);
 
     // Whether one in this bundle is capturing now.
     static bool busy () noexcept;
@@ -40,7 +45,7 @@ private:
     void finish ();
     void publishAll ();
 
-    std::string id_;
+    std::string id_, name_;  // under the registry's lock
     LinkClient& client_;
     int listener_ { 0 };
 

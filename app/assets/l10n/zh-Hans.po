@@ -5663,3 +5663,7 @@ msgstr "请将 Attacca Capturer 放在 DAW 的输出上。"
 #: lib/daw_follow_dialog.dart
 msgid "The recording followed isn’t in the DAW."
 msgstr "跟随的录音不在 DAW 中。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Choose the Capturer in Attacca’s window in the DAW."
+msgstr "请在 DAW 中 Attacca 的窗口里选择 Capturer。"

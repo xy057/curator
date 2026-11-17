@@ -193,6 +193,7 @@ link_bundle(AttaccaAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.i
 add_executable(link_host
     test/link_host.cpp
     "${ARA_SDK}/ARA_Examples/ExamplesCommon/PlugInHosting/VST3Loader.cpp"
+    "${VST3_SDK}/public.sdk/source/common/memorystream.cpp"
 )
 target_include_directories(link_host PRIVATE "${ARA_SDK}/ARA_Examples")
 target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk "-framework AudioToolbox" "-framework AudioUnit" "-framework AppKit")

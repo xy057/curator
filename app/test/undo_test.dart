@@ -375,19 +375,25 @@ void main() {
       expect(c.stems.list.map((s) => s.id), ['stem-1']);
 
       // An Attacca Capturer in the DAW, on a connection of its own (a bundle of its own, the same
-      // process): told an Attacca there has a document (linked); the mix asked of it over the
-      // span the recording plays, the document's Attacca asked to have the DAW play and stop;
-      // a capture under way cancelled.
+      // process): listed to the DAW's Attacca (its window's Capturer menu), linked once chosen
+      // there and told so; the mix asked of it over the span the recording plays, the document's
+      // Attacca asked to have the DAW play and stop; a capture under way cancelled.
       final mixer = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
       final toMixer = StreamIterator(mixer.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
       void mixerSays(Map<String, Object?> message) => mixer.write('${jsonEncode(message)}\n');
       Future<Object?> told(StreamIterator<String> lines) async => (await lines.moveNext()) ? jsonDecode(lines.current) : null;
       mixerSays({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'pid': 4242});
-      mixerSays({'t': 'capturers', 'list': [{'id': 'cap', 'channels': 2, 'rate': 48000}]});
+      mixerSays({'t': 'capturers', 'list': [{'id': 'cap', 'name': 'Stereo Out', 'channels': 2, 'rate': 48000}]});
       await until(() => link.capturersOf(session).isNotEmpty);
       final capturer = link.capturersOf(session).single;
-      expect((capturer.id, capturer.channels, capturer.rate, capturer.session != session), ('cap', 2, 48000, true));
-      expect(await told(toMixer), {'t': 'linked', 'value': true});
+      expect((capturer.id, capturer.name, capturer.channels, capturer.rate, capturer.session != session), ('cap', 'Stereo Out', 2, 48000, true));
+      final listed = {'t': 'inserts', 'ids': 'cap', 'names': 'Stereo Out'};
+      expect([await told(toMixer), await told(toMixer)], [listed, {'t': 'linked', 'ids': ''}]);
+      expect(await told(heard), listed);
+      expect(link.linkedCapturerOf(session), isNull, reason: 'not until chosen in Attacca’s window');
+      say({'t': 'link', 'capturer': 'cap'});
+      expect(await told(toMixer), {'t': 'linked', 'ids': 'cap'});
+      expect(link.linkedCapturerOf(session)?.id, 'cap');
       final heardSoFar = <double>[];
       final mix = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1', progress: heardSoFar.add);
       expect(await told(toMixer), {'t': 'capture', 'document': 'doc', 'capturer': 'cap', 'from': 0.5, 'length': 60, 'name': 'Take 1'});

@@ -29,6 +29,8 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 ARA_DISABLE_VST3_WARNINGS_END
 
 #include "../src/json.h"
+#include "../src/link_files.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -343,7 +345,7 @@ void releaseObject (id object)
 }
 
 // The VST3's window, as a DAW opens it: the controller's editor view, put in an NSView and taken out.
-void checkVst3View (const char* path)
+void checkVst3View (const char* path, Curator& curator)
 {
     using namespace Steinberg;
     CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
@@ -401,6 +403,30 @@ void checkVst3View (const char* path)
     releaseObject (parent);
     controller->terminate ();
     controller->release ();
+
+    // The Attacca Capturer linked (its window's Capturer menu) kept in an instance's state: given
+    // back by the DAW, Curator is told the link; and saved again as it is.
+    TUID attaccaID {};
+    for (int32 i = 0; i < factory->countClasses (); ++i)
+    {
+        PClassInfo info;
+        if (factory->getClassInfo (i, &info) == kResultOk && std::strcmp (info.category, kVstAudioEffectClass) == 0)
+            std::memcpy (attaccaID, info.cid, sizeof (TUID));
+    }
+    Vst::IComponent* component = nullptr;
+    check (factory->createInstance (attaccaID, Vst::IComponent::iid, reinterpret_cast<void**> (&component)) == kResultOk && component, "an instance made");
+    component->initialize (nullptr);
+    const std::string kept = attacca::stateOf ("cap-kept");
+    auto* given = new MemoryStream (const_cast<char*> (kept.data ()), static_cast<TSize> (kept.size ()));
+    check (component->setState (given) == kResultOk, "its state given back");
+    given->release ();
+    auto link = curator.next ("link", 5);
+    check (link["capturer"] == "cap-kept", "Curator told the Capturer linked");
+    auto* saved = new MemoryStream ();
+    check (component->getState (saved) == kResultOk && std::string (saved->getData (), static_cast<size_t> (saved->getSize ())) == kept, "and saved as it is");
+    saved->release ();
+    component->terminate ();
+    component->release ();
     factory->release ();
     CFRelease (bundle);
 }
@@ -613,6 +639,27 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     const std::string capturer = line.substr (at + key.size (), line.find ('"', at + key.size ()) - at - key.size ());
     check (contains (line, "\"channels\":2,\"rate\":48000"), "with its channels and rate");
 
+    // Its ID kept in the DAW's project: saved, then given back (as the project opens again), it is
+    // that one again, so the Attacca linked to it finds it.
+    {
+        auto* saved = new MemoryStream ();
+        check (component->getState (saved) == kResultOk && std::string (saved->getData (), static_cast<size_t> (saved->getSize ())) == attacca::stateOf (capturer),
+               "its ID saved in its state");
+        saved->release ();
+        const std::string kept = attacca::stateOf ("cap-saved");
+        auto* given = new MemoryStream (const_cast<char*> (kept.data ()), static_cast<TSize> (kept.size ()));
+        component->setState (given);
+        given->release ();
+        std::string again;
+        for (int i = 0; i < 3 && !contains (again, "\"id\":\"cap-saved\""); ++i)
+        {
+            curator.next ("capturers", 5);
+            again = curator.lines.back ();
+        }
+        check (contains (again, "\"id\":\"cap-saved\""), "given back, that one again");
+    }
+    const std::string savedCapturer = "cap-saved";
+
     curator.say ("{\"t\":\"export\",\"document\":\"" + document + "\",\"source\":\"take-1\"}");
     auto beside = curator.next ("exported", 10, idle);
     check (beside["error"].empty (), "Attacca's own capture works beside it");
@@ -620,7 +667,7 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     // Song 0.5 s for 1 s: frames 24000 to 72000; the input a ramp telling song samples apart.
     auto heard = [] (int64_t song, int c) { return static_cast<float> ((song % 9973) / 9973.0) * (c == 0 ? 1.0f : -1.0f); };
     clearPlaybackAsked ();
-    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + capturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
+    curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Mix\"}", capturerLine);
     curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":-0.5}");  // a second before, by Curator
     const auto started = waitForAsked (2, idle);
     check (started.size () >= 2 && started[0] == "at 0.000000" && started[1] == "start", "the DAW asked to play from a second before");
@@ -662,7 +709,7 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     play (0, 48000);
     check (through, "what it hears passed through untouched");
     auto captured = curator.next ("captured", 10, idle);
-    check (captured["error"].empty () && captured["capturer"] == capturer, "captured without an error " + captured["error"]);
+    check (captured["error"].empty () && captured["capturer"] == savedCapturer, "captured without an error " + captured["error"]);
     const std::string file = captured["path"];
     check (contains (file, "/Library/Caches/Curator/DAW Link/Captures/") && contains (file, "/Mix.wav"), "into Curator's cache, by the name asked");
     {
@@ -890,7 +937,7 @@ int main (int argc, const char* argv[])
 
     factory->uninitializeARA ();
     std::printf ("The VST3's window\n");
-    checkVst3View (argv[1]);
+    checkVst3View (argv[1], curator);
     VST3UnloadBinary (binary);
 
     checkAudioUnit (argv[2], hostInstance);

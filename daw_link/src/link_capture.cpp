@@ -118,6 +118,36 @@ Capturer::~Capturer ()
 
 bool Capturer::busy () noexcept { return capturing.load () > 0; }
 
+std::string Capturer::id () const
+{
+    std::lock_guard<std::mutex> lock (registryMutex);
+    return id_;
+}
+
+void Capturer::setId (const std::string& id)
+{
+    if (id.empty ())
+        return;
+    {
+        std::lock_guard<std::mutex> lock (registryMutex);
+        if (id == id_)
+            return;
+        id_ = id;
+    }
+    publishAll ();
+}
+
+void Capturer::setName (const std::string& name)
+{
+    {
+        std::lock_guard<std::mutex> lock (registryMutex);
+        if (name == name_)
+            return;
+        name_ = name;
+    }
+    publishAll ();
+}
+
 void Capturer::prepare (double sampleRate, int channels)
 {
     if (sampleRate > 0)
@@ -135,7 +165,7 @@ void Capturer::publishAll ()
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         for (const auto* c : registry)
-            w.object ().field ("id", c->id_).field ("channels", static_cast<double> (c->channels_.load ())).field ("rate", c->sampleRate_.load ()).endObject ();
+            w.object ().field ("id", c->id_).field ("name", c->name_).field ("channels", static_cast<double> (c->channels_.load ())).field ("rate", c->sampleRate_.load ()).endObject ();
     }
     w.endArray ().endObject ();
     client_.publish ("capturers", w.text ());
@@ -156,7 +186,7 @@ void Capturer::onMessage (const Message& message)
         return found == message.end () ? nullptr : &found->second;
     };
     const std::string *t = field ("t"), *capturer = field ("capturer"), *document = field ("document");
-    if (!t || !capturer || *capturer != id_ || !document)
+    if (!t || !capturer || *capturer != id () || !document)
         return;
     if (*t == "capture" && field ("from") && field ("length"))
     {
@@ -173,9 +203,10 @@ void Capturer::onMessage (const Message& message)
 void Capturer::start (const std::string& document, double from, double length, const std::string& name)
 {
     std::lock_guard<std::mutex> lock (mutex_);
-    auto reply = [this, document] (const std::string& key, const std::string& value) {
+    const std::string me = id ();
+    auto reply = [this, document, me] (const std::string& key, const std::string& value) {
         JsonWriter w;
-        w.object ().field ("t", "captured").field ("document", document).field ("capturer", id_).field (key.c_str (), value).endObject ();
+        w.object ().field ("t", "captured").field ("document", document).field ("capturer", me).field (key.c_str (), value).endObject ();
         client_.send (w.text ());
     };
 
@@ -227,7 +258,7 @@ void Capturer::start (const std::string& document, double from, double length, c
     Capture* c = capture.get ();
     capturing.fetch_add (1);
     live_.store (c, std::memory_order_release);
-    c->writer = std::thread ([this, c, reply, partial] {
+    c->writer = std::thread ([this, c, reply, partial, me] {
         bool ok = true;
         auto said = std::chrono::steady_clock::now ();
         while (!c->cancel.load () && ok && c->heardCount < c->frames)
@@ -254,7 +285,7 @@ void Capturer::start (const std::string& document, double from, double length, c
                 progress.object ()
                     .field ("t", "progress")
                     .field ("document", c->document)
-                    .field ("capturer", id_)
+                    .field ("capturer", me)
                     .field ("done", static_cast<double> (c->heardCount) / static_cast<double> (c->frames))
                     .endObject ();
                 client_.send (progress.text ());
