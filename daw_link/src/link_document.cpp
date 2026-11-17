@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <new>
 #include <random>
 #include <sys/stat.h>
 #include <utility>
@@ -96,16 +97,19 @@ void LinkAudioSource::startReading ()
         frames_ = 0;
         return;
     }
-    try
+    // Room for it, left as it comes: the DAW's main thread isn't held while gigabytes are
+    // cleared, and memory is taken up only as far as the recording is read.
+    for (int c = 0; c < channels; ++c)
     {
-        samples_.assign (static_cast<size_t> (channels), std::vector<float> (static_cast<size_t> (frames_)));
-    }
-    catch (...)
-    {
-        samples_.clear ();
-        frames_ = 0;
-        problem_ = "out of memory";
-        return;
+        std::unique_ptr<float[]> room (new (std::nothrow) float[static_cast<size_t> (frames_)]);
+        if (!room)
+        {
+            samples_.clear ();
+            frames_ = 0;
+            problem_ = "out of memory";
+            return;
+        }
+        samples_.push_back (std::move (room));
     }
     // ARA lets a reader be made only in calls about this source (or in endEditing); it may be
     // used from any thread after that.
@@ -117,7 +121,7 @@ void LinkAudioSource::startReading ()
         {
             const int64_t n = std::min (chunkFrames, frames_ - at);
             for (int c = 0; c < channels; ++c)
-                buffers[static_cast<size_t> (c)] = samples_[static_cast<size_t> (c)].data () + at;
+                buffers[static_cast<size_t> (c)] = samples_[static_cast<size_t> (c)].get () + at;
             // The host clears the buffers when it can't read, and tells the user why.
             hostReader_->readAudioSamples (at, n, buffers.data ());
             read_.store (at + n, std::memory_order_release);

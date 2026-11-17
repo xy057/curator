@@ -29,14 +29,15 @@ public:
 
     // How many frames are read and may be played or written: below it, [channel] holds them.
     int64_t framesRead () const noexcept { return read_.load (std::memory_order_acquire); }
-    const float* channel (int c) const noexcept { return samples_[static_cast<size_t> (c)].data (); }
+    const float* channel (int c) const noexcept { return samples_[static_cast<size_t> (c)].get (); }
     int channels () const noexcept { return static_cast<int> (samples_.size ()); }
     int64_t frames () const noexcept { return frames_; }
     // Why the samples can't be had (too long to hold), or empty.
     const std::string& problem () const noexcept { return problem_; }
 
 private:
-    std::vector<std::vector<float>> samples_;
+    // Each channel's [frames_] samples; only those below [read_] are set (and looked at).
+    std::vector<std::unique_ptr<float[]>> samples_;
     int64_t frames_ { 0 };
     std::atomic<int64_t> read_ { 0 };
     std::atomic<bool> cancel_ { false };
