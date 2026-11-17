@@ -106,12 +106,15 @@ What stays behind, and how to remove it:
 
 ## Using it
 
+Attacca supports **Cubase, Nuendo, Studio One (Studio Pro) and REAPER**, told by the DAW's
+process name. Any other DAW is not supported: Logic Pro, and DAWs without ARA such as Ableton
+Live and Bitwig Studio. When one connects, Curator says it isn't supported, and Follow DAW…
+doesn't offer its recordings. Holding **⌥ (Option)** in that notice shows **Follow Anyway**,
+which offers them all the same (for this time only).
+
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
-   - **Logic Pro**: insert Attacca (Audio Units ▸ Curator) on the track. Logic hands ARA
-     plug-ins the regions on the track.
-   - **Studio One, REAPER** and other ARA hosts: as they add ARA plug-ins
-     (VST3).
+   - **Studio One, REAPER**: as they add ARA plug-ins (VST3).
 2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
@@ -123,7 +126,8 @@ recording, and taking it again puts it back into the same take, whichever take i
 file's recording loaded into that take takes the mark off; removing the take frees the project
 for another. Stems captured line up with the Attacca take.
 
-While Curator follows a DAW, **File ▸ Attacca ▸ Capture Stems…** lists the DAW's tracks that
+**File ▸ Attacca ▸ Capture Stems…** is greyed out for now; what follows is how it works once it
+is back. While Curator follows a DAW, it lists the DAW's tracks that
 have recordings; every one but the recording's own is picked at first. Each one captured is
 converted to FLAC and saved in the project (`media/stems/<id>/`), with the track's name and
 colour, the take it lines up with, and the part of the score it plays: found by the track's name
@@ -145,7 +149,7 @@ It works together with Attacca on a track, which still tells Curator the song. I
   was heard; a DAW that doesn't let a plug-in start it (or one that stops early) is played by
   hand, and the span may be played in pieces or out of order. The progress bar is how much of it
   was heard; Cancel stops.
-- Attacca's own capture is off: Capture Stems… is greyed out, and the plug-in refuses to write a
+- Attacca's own capture is off: the plug-in refuses to write a
   recording or a track itself (`capturer`).
 
 Taking the Capturer out turns Attacca's own capture back on. If there are several Capturers,

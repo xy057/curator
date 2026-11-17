@@ -139,6 +139,17 @@ class DawLink extends ChangeNotifier {
     }
   }
 
+  /// The DAWs Attacca supports, as their process is named: those whose ARA hands it the song
+  /// and the recordings. Any other is not (Logic Pro, Ableton Live, Bitwig Studio and the
+  /// DAWs without ARA among them).
+  static const supportedDaws = ['Cubase', 'Nuendo', 'Studio One', 'Studio Pro', 'REAPER'];
+
+  /// Whether the DAW whose process is named [host] ("Cubase 15") is one of [supportedDaws].
+  static bool supports(String host) {
+    final name = host.toLowerCase();
+    return supportedDaws.any((d) => name.contains(d.toLowerCase()));
+  }
+
   /// Asks the DAW of [session] for [source] of [document] as a file, written in Curator's
   /// cache; completes with its path. [progress] hears how far it has got, 0–1. Throws a
   /// [DawLinkException] when the DAW can't (or is gone).
@@ -198,6 +209,10 @@ class DawSession extends ChangeNotifier {
   bool _greeted = false, _closed = false;
 
   String host = '';
+
+  /// Whether Attacca supports this DAW ([DawLink.supports]); one that isn't is told of, and
+  /// Follow DAW… refuses its recordings unless ⌥ is held.
+  bool get supported => DawLink.supports(host);
 
   /// The plug-in's version (Curator's, when they came together).
   String plugin = '';

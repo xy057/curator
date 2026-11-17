@@ -5587,3 +5587,19 @@ msgstr ""
 #: lib/daw_follow_dialog.dart
 msgid "Play it in the DAW if it doesn’t start."
 msgstr ""
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "This DAW isn’t supported by Attacca."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "{daw} isn’t supported by Attacca."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca works in {daws}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow Anyway"
+msgstr ""

@@ -55,7 +55,6 @@ import 'score_replacement.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
-import 'stems_dialog.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'video_export.dart';
@@ -430,6 +429,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     settings.addListener(_settingsChanged);
     _lifecycle; // start listening for Quit
     _listenForDaw();
+    widget.dawLink?.addListener(_dawsChanged);
     updater.addListener(_launchCheckAnswered);
     WindowChrome.listenForOpenedFiles((paths) => paths.forEach(_openFromSystem));
     WindowChrome.showAppIcon(mascot: settings.mascotIcon);
@@ -448,6 +448,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   void dispose() {
     FocusManager.instance.removeListener(_focusChanged);
     settings.removeListener(_settingsChanged);
+    widget.dawLink?.removeListener(_dawsChanged);
     updater.removeListener(_launchCheckAnswered);
     plugins.detach(this);
     _lifecycle.dispose();
@@ -499,6 +500,22 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     final link = widget.dawLink;
     if (link == null || link.listening == settings.dawLink) return;
     unawaited((settings.dawLink ? link.start() : link.stop()).catchError((_) {}));
+  }
+
+  /// The DAWs connected that were told of: each one Attacca doesn't support ([DawSession.supported])
+  /// is said once, as it connects.
+  final _dawsSeen = Expando<bool>();
+
+  void _dawsChanged() {
+    for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
+      if (_dawsSeen[session] == true || session.supported) continue;
+      _dawsSeen[session] = true;
+      _messenger?.showSnackBar(SnackBar(
+        content: Text(session.host.isEmpty
+            ? 'This DAW isn’t supported by Attacca.'.tr
+            : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host})),
+      ));
+    }
   }
 
   /// View ▸ Show / Hide Tab Bar ([AppSettings.tabBar]).
@@ -764,8 +781,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'exportVideo': open && page._canExport.value ? page._exportVideo : null,
           'exportWeb': open && page._canExport.value ? page._exportWeb : null,
           'followDaw': open && free && (page._followsDaw.value || AttaccaPlugIns.supported) ? page._followDaw : null,
-          // (Off while an Attacca Capturer is in the DAW: Attacca's own capture is.)
-          'captureStems': open && free && (page.controller.daw.document?.$1.capturers.isEmpty ?? false) ? page._captureStems : null,
+          // Off for now, always (StemEditing stays for Solo / Spotlight).
+          'captureStems': null,
           'attaccaSettings': free ? () => _settings(search: 'Attacca') : null,
           'undo': edit != null && edit.undo ? page!.controller.undo : null,
           'redo': edit != null && edit.redo ? page!.controller.redo : null,
@@ -1703,12 +1720,6 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _followDaw() {
     if (controller.score == null) return;
     controller.daw.following != null ? controller.daw.stop() : showDawFollowDialog(context, controller);
-  }
-
-  /// File ▸ Attacca ▸ Capture Stems…: the DAW followed's tracks, kept as stems.
-  void _captureStems() {
-    if (controller.daw.document == null) return;
-    showStemCaptureDialog(context, controller);
   }
 
   // MARK: View
