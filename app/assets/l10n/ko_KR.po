@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-16 06:20\n"
+"PO-Revision-Date: 2026-11-17 22:16\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -133,7 +133,7 @@ msgstr ""
 msgid "Export to Web…"
 msgstr ""
 
-msgid "Curator Link Settings…"
+msgid "Attacca Settings…"
 msgstr ""
 
 msgid "Frame"
@@ -2883,6 +2883,7 @@ msgstr ""
 msgid "Accent ([)"
 msgstr ""
 
+#: lib/score_editor.dart
 msgid "Bars and Barlines"
 msgstr ""
 
@@ -3504,10 +3505,10 @@ msgstr ""
 msgid "DAW"
 msgstr ""
 
-msgid "Listen for Curator Link"
+msgid "Listen for Attacca"
 msgstr ""
 
-msgid "Curator Link plug-in"
+msgid "Attacca plug-in"
 msgstr ""
 
 msgid "Use this recording"
@@ -5371,11 +5372,11 @@ msgid "No DAW connected."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Curator isn’t listening for Curator Link."
+msgid "Curator isn’t listening for Attacca."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Put Curator Link on a track in your DAW."
+msgid "Put Attacca on a track in your DAW."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
@@ -5391,7 +5392,7 @@ msgid "Getting the Recording"
 msgstr ""
 
 #: lib/settings_dialog.dart
-msgid "This build of Curator has no Curator Link."
+msgid "This build of Curator has no Attacca."
 msgstr ""
 
 #: lib/main.dart lib/settings_dialog.dart
@@ -5467,7 +5468,7 @@ msgstr ""
 msgid "OS not supported"
 msgstr ""
 
-msgid "Curator Link is not available for this operating system."
+msgid "Attacca is not available for this operating system."
 msgstr ""
 
 #: lib/main.dart
@@ -5550,5 +5551,81 @@ msgstr ""
 #: lib/video_panel.dart
 msgctxt "video"
 msgid "View"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "This project’s Attacca recording isn’t open in a DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "One Attacca recording per project."
+msgstr ""
+
+#: lib/score_editor.dart
+msgid "Bars: {count}"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca Capturer captures in its place."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Captured by Attacca Capturer as the DAW plays it."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Capturing the Recording"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Play it in the DAW if it doesn’t start."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "This DAW isn’t supported by Attacca."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart lib/main.dart
+msgid "{daw} isn’t supported by Attacca."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca works in {daws}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Follow Anyway"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in {daw}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Add it to a track as an ARA extension, not as an insert."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: reopen the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: update it in Settings ▸ General."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: reopen {daw}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: update it in Settings ▸ General."
+msgstr ""
+
+#: lib/main.dart
+msgid "{daw} (outdated)"
 msgstr ""
 
