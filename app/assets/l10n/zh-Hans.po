@@ -5617,3 +5617,15 @@ msgstr "Attacca 可用于 {daws}。"
 #: lib/daw_follow_dialog.dart
 msgid "Follow Anyway"
 msgstr "仍然跟随"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in the DAW."
+msgstr "DAW 中的 Attacca 没有用在录音上。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in {daw}."
+msgstr "{daw} 中的 Attacca 没有用在录音上。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Add it to a track as an ARA extension, not as an insert."
+msgstr "请以 ARA 扩展的方式添加到轨道上，而不是作为插入效果。"

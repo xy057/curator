@@ -5617,3 +5617,15 @@ msgstr ""
 #: lib/daw_follow_dialog.dart
 msgid "Follow Anyway"
 msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca isn’t on a recording in {daw}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Add it to a track as an ARA extension, not as an insert."
+msgstr ""

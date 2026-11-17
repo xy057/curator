@@ -177,14 +177,22 @@ class _FollowDialogState extends State<_FollowDialog> {
             );
           }
           if (chosen == null) {
+            // Connected, yet no recording: Attacca is on an insert only (or on no track) there.
+            final connected = {for (final s in widget.link.sessions) if (s.host.isNotEmpty) s.host}.join(', ');
+            final (said, hint) = !widget.link.listening
+                ? ('Curator isn’t listening for Attacca.'.tr, 'Turn it on in Settings ▸ General.'.tr)
+                : widget.link.sessions.isEmpty
+                    ? ('No DAW connected.'.tr, 'Put Attacca on a track in your DAW.'.tr)
+                    : (connected.isEmpty ? 'Attacca isn’t on a recording in the DAW.'.tr : 'Attacca isn’t on a recording in {daw}.'.fill({'daw': connected}),
+                        'Add it to a track as an ARA extension, not as an insert.'.tr);
             return AppDialog(
               title: Text('Follow DAW'.tr),
               content: SizedBox(
                 width: dialogWidth(context, 360),
                 child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.link.listening ? 'No DAW connected.'.tr : 'Curator isn’t listening for Attacca.'.tr),
+                  Text(said),
                   const SizedBox(height: 6),
-                  Text(widget.link.listening ? 'Put Attacca on a track in your DAW.'.tr : 'Turn it on in Settings ▸ General.'.tr, style: muted),
+                  Text(hint, style: muted),
                 ]),
               ),
               actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],

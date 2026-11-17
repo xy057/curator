@@ -649,6 +649,10 @@ int main (int argc, const char* argv[])
     const ARAInterfaceConfiguration config = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAInterfaceConfiguration, assertFunctionAddress), kARAAPIGeneration_2_0_Final, nullptr };
     factory->initializeARAWithConfiguration (&config);
 
+    // Attacca on an insert first, never bound to ARA (as a DAW has it before the extension).
+    VST3Effect insert = VST3CreateEffect (binary, nullptr);
+    VST3StartRendering (insert, 2, 512, sourceRate);
+
     const ARADocumentControllerHostInstance hostInstance = {
         ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
         reinterpret_cast<ARAAudioAccessControllerHostRef> (10), &audioAccess,

@@ -115,6 +115,9 @@ which offers them all the same (for this time only).
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
    - **Studio One, REAPER**: as they add ARA plug-ins (VST3).
+
+   Attacca put in an insert slot instead is connected all the same but given no recording: Follow
+   DAW… then says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
 2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
