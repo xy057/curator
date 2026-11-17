@@ -5,13 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>Curator Link</string>
+	<string>Attacca</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.curatedscore.link.vst3</string>
+	<string>com.curatedscore.attacca.vst3</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Curator Link</string>
+	<string>Attacca</string>
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleSignature</key>
@@ -21,6 +21,6 @@
 	<key>CFBundleVersion</key>
 	<string>@LINK_BUILD@</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Curator Link is part of Curator (GPL-3.0). ARA by Celemony; VST is a trademark of Steinberg Media Technologies GmbH.</string>
+	<string>Attacca is part of Curator (GPL-3.0). ARA by Celemony; VST is a trademark of Steinberg Media Technologies GmbH.</string>
 </dict>
 </plist>

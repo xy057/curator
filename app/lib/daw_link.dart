@@ -9,7 +9,7 @@ import 'package:score_engine/score_engine.dart';
 
 import 'app_folders.dart';
 
-/// Curator's end of Curator Link, the ARA plug-in a DAW loads (see docs/daw-link.md).
+/// Curator's end of Attacca, the ARA plug-in a DAW loads (see docs/daw-link.md).
 ///
 /// Curator listens on the loopback address at a port the system picks and says where in its
 /// discovery file (`daw-link.json` in [AppFolders.data]: the port and a token), which the
@@ -22,7 +22,7 @@ class DawLink extends ChangeNotifier {
   /// [_folder]: where the discovery file goes ([AppFolders.data]; a test gives its own).
   DawLink([this._folder]);
 
-  /// The app’s one link, started while Settings ▸ General ▸ Listen for Curator Link is on.
+  /// The app’s one link, started while Settings ▸ General ▸ Listen for Attacca is on.
   static final shared = DawLink();
 
   final Directory? _folder;
@@ -52,7 +52,7 @@ class DawLink extends ChangeNotifier {
   }
 
   /// Who follows which document ([DawEditing]): each DAW is told the projects following one of
-  /// its documents (`followers`), for its Curator Link window.
+  /// its documents (`followers`), for its Attacca window.
   final _followers = <Object, ({String document, String name})>{};
 
   /// [who] follows [document] as the project [name]; null: [who] follows nothing.
@@ -119,7 +119,7 @@ class DawLink extends ChangeNotifier {
           final message = jsonDecode(line);
           if (message is Map<String, Object?>) session._receive(message);
         } on FormatException {
-          // A line that isn't JSON is passed over (what speaks no Curator Link is let go at hello).
+          // A line that isn't JSON is passed over (what speaks no Attacca is let go at hello).
         }
       },
       onDone: session._close,
@@ -292,12 +292,19 @@ class DawSession extends ChangeNotifier {
   }
 }
 
-/// Curator Link's VST3 and Audio Unit as this Curator bundles them (`make daw-link` zips them
+/// Attacca's VST3 and Audio Unit as this Curator bundles them (`make daw-link` zips them
 /// into [asset]), put where DAWs look for plug-ins: `~/Library/Audio/Plug-Ins/VST3` and
 /// `…/Components`. macOS only; a build made without them has none to install ([bundled]).
-abstract final class CuratorLinkPlugIns {
-  static const asset = 'assets/daw_link/CuratorLink.zip';
-  static const vst3 = 'Curator Link.vst3', component = 'Curator Link.component';
+abstract final class AttaccaPlugIns {
+  static const asset = 'assets/daw_link/Attacca.zip';
+  static const vst3 = 'Attacca.vst3', component = 'Attacca.component';
+
+  /// The bundles as they were named before (Curator Link): the same plug-in to a DAW, so they
+  /// go wherever these come or go.
+  static const _formerly = ['VST3/Curator Link.vst3', 'Components/Curator Link.component'];
+
+  /// Every bundle of it in [folder], under either name.
+  static List<String> _bundlesIn(String folder) => ['$folder/VST3/$vst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
 
   /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
   /// Follow DAW… is greyed out; Curator doesn't listen.
@@ -326,18 +333,19 @@ abstract final class CuratorLinkPlugIns {
     return version == null ? '' : build == null ? version : '$version ($build)';
   }
 
-  /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there. Throws a
+  /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there (and any by its
+  /// former name). Throws a
   /// [FileSystemException] when it can't.
   static Future<void> uninstall({String? folder}) async {
     folder ??= plugInsFolder;
     if (folder == null) return;
-    for (final bundle in ['$folder/VST3/$vst3', '$folder/Components/$component']) {
+    for (final bundle in _bundlesIn(folder)) {
       final dir = Directory(bundle);
       if (dir.existsSync()) await dir.delete(recursive: true);
     }
   }
 
-  /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle removed whole,
+  /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle (and any by its former name) removed whole,
   /// then written anew, its program made executable. Throws a [FileSystemException] when it
   /// can't write there.
   static Future<void> install(Uint8List bytes, {String? folder}) async {
@@ -349,7 +357,7 @@ abstract final class CuratorLinkPlugIns {
         : name.startsWith('$component/')
             ? '$folder/Components/$name'
             : null;
-    for (final bundle in ['$folder/VST3/$vst3', '$folder/Components/$component']) {
+    for (final bundle in _bundlesIn(folder)) {
       final dir = Directory(bundle);
       if (dir.existsSync()) await dir.delete(recursive: true);
     }

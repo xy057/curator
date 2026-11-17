@@ -364,19 +364,19 @@ final _categories = <_Category>[
       keywords: 'anchor nudge step arrow keyboard sync time move precise fine milliseconds',
     ),
     _Item(
-      'Listen for Curator Link',
-      (_) => CuratorLinkPlugIns.supported ? null : 'Curator Link is not available for this operating system.',
-      (c) => CuratorLinkPlugIns.supported
+      'Listen for Attacca',
+      (_) => AttaccaPlugIns.supported ? null : 'Attacca is not available for this operating system.',
+      (c) => AttaccaPlugIns.supported
           ? AppSwitch(value: c.settings.dawLink, onChanged: (v) => c.settings.dawLink = v)
           : const AppSwitch(value: false, onChanged: null),
       group: 'DAW',
       keywords: 'daw ara plugin plug-in link cubase logic studio one reaper nuendo tempo map transport playhead recording',
     ),
     _Item(
-      'Curator Link plug-in',
+      'Attacca plug-in',
       null,
-      (c) => CuratorLinkPlugIns.supported
-          ? const _CuratorLinkPlugIns()
+      (c) => AttaccaPlugIns.supported
+          ? const _AttaccaPlugIns()
           : Builder(builder: (context) => Text('OS not supported'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
       group: 'DAW',
       keywords: 'install update daw ara plugin plug-in vst3 audio unit component cubase logic studio one reaper',
@@ -611,7 +611,7 @@ final _projectCategories = <_Category>[
           child: Text('Edit…'.tr),
         ),
       ),
-      keywords: 'stems stem tracks track daw solo spotlight instrument separate isolate parts curator link capture',
+      keywords: 'stems stem tracks track daw solo spotlight instrument separate isolate parts attacca capture',
     ),
   ]),
   // How the score shows as it plays; how each of those moves is Animation's.
@@ -1076,7 +1076,7 @@ class _SettingsWindow extends StatefulWidget {
       this.downloadHub});
   final _Window kind;
 
-  /// Searched for when it opens (File ▸ Curator Link ▸ Settings…: its rows); null: nothing.
+  /// Searched for when it opens (File ▸ Attacca ▸ Settings…: its rows); null: nothing.
   final String? search;
   final Future<void> Function()? editScore;
   final Future<void> Function(VoidCallback leave)? replaceScore;
@@ -2019,17 +2019,17 @@ class _Dropdown<T> extends StatelessWidget {
 
 /// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
 /// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
-/// Curator Link's VST3 and Audio Unit installed for DAWs ([CuratorLinkPlugIns]): the DAWs
+/// Attacca's VST3 and Audio Unit installed for DAWs ([AttaccaPlugIns]): the DAWs
 /// connected now, then Install (Update when another version is there, Reinstall when this one).
-class _CuratorLinkPlugIns extends StatefulWidget {
-  const _CuratorLinkPlugIns();
+class _AttaccaPlugIns extends StatefulWidget {
+  const _AttaccaPlugIns();
 
   @override
-  State<_CuratorLinkPlugIns> createState() => _CuratorLinkPlugInsState();
+  State<_AttaccaPlugIns> createState() => _AttaccaPlugInsState();
 }
 
-class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
-  String? _installed = CuratorLinkPlugIns.installed();
+class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
+  String? _installed = AttaccaPlugIns.installed();
   bool _busy = false;
   String? _problem;
 
@@ -2039,15 +2039,15 @@ class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
   Future<void> _install() => _change(() async {
         final ByteData data;
         try {
-          data = await rootBundle.load(CuratorLinkPlugIns.asset);
+          data = await rootBundle.load(AttaccaPlugIns.asset);
         } catch (_) {
-          throw StateError('This build of Curator has no Curator Link.'.tr);
+          throw StateError('This build of Curator has no Attacca.'.tr);
         }
-        await CuratorLinkPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+        await AttaccaPlugIns.install(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
       });
 
   /// Both bundles removed from where DAWs look (docs/daw-link.md says what a DAW keeps).
-  Future<void> _uninstall() => _change(CuratorLinkPlugIns.uninstall);
+  Future<void> _uninstall() => _change(AttaccaPlugIns.uninstall);
 
   Future<void> _change(Future<void> Function() job) async {
     setState(() {
@@ -2062,7 +2062,7 @@ class _CuratorLinkPlugInsState extends State<_CuratorLinkPlugIns> {
     if (mounted) {
       setState(() {
         _busy = false;
-        _installed = CuratorLinkPlugIns.installed();
+        _installed = AttaccaPlugIns.installed();
       });
     }
   }

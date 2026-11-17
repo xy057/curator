@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.9.483+483
+version: 0.9.484+484
 
 environment:
   sdk: ^3.13.4
@@ -42,7 +42,7 @@ flutter:
     - assets/l10n/ # the interface's translations, one gettext file a language (Crowdin's; see docs/translating.md)
     - assets/exam/ # the exam a model takes before the PDF import's Read with AI asks it (two pages of a scan; PdfAiExam)
     - assets/basic_pitch/ # Spotify's Basic Pitch, which Align hears a recording with (Apache 2.0, with its licence; Tools/make_basic_pitch_weights.py)
-    - assets/daw_link/ # Curator Link, the ARA plug-in for DAWs: its VST3 and Audio Unit zipped (made by `make daw-link`, not in git) and the licences of the SDKs it is built on
+    - assets/daw_link/ # Attacca, the ARA plug-in for DAWs: its VST3 and Audio Unit zipped (made by `make daw-link`, not in git) and the licences of the SDKs it is built on
     - assets/lilypond/ # Curator's settings for LilyPond: the piece on one line, what it is written beside it (lilypond.dart)
     # Curator's own extensions, each a folder holding what a .cpe does (extension.json, connect.json, src/…; BundledExtensions).
     - assets/extensions/attachImage/

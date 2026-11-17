@@ -1,13 +1,13 @@
-# Curator Link: the ARA plug-in (VST3 and Audio Unit) that hands a DAW's tempo map, bars, keys,
+# Attacca: the ARA plug-in (VST3 and Audio Unit) that hands a DAW's tempo map, bars, keys,
 # tracks, recordings and transport to Curator (docs/daw-link.md). `make daw-link` fetches the
 # SDKs it is built on into third_party/ (pinned in the Makefile) and builds it here.
 #
 # The SDKs' sources are compiled as listed below; none of their own build scripts are run.
 cmake_minimum_required(VERSION 3.21)
-project(CuratorLink LANGUAGES C CXX OBJCXX)
+project(Attacca LANGUAGES C CXX OBJCXX)
 
 if(NOT APPLE)
-    message(FATAL_ERROR "Curator Link is built for macOS.")
+    message(FATAL_ERROR "Attacca is built for macOS.")
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -93,7 +93,7 @@ function(link_bundle target extension plist)
     set_target_properties(${target} PROPERTIES
         BUNDLE ON
         BUNDLE_EXTENSION ${extension}
-        OUTPUT_NAME "Curator Link"
+        OUTPUT_NAME "Attacca"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/out"
     )
@@ -136,14 +136,14 @@ target_compile_definitions(vst3_sdk PUBLIC RELEASE=1)
 target_compile_options(vst3_sdk PRIVATE ${sdk_quiet})
 target_link_libraries(vst3_sdk PUBLIC "-framework CoreFoundation")
 
-add_library(CuratorLinkVST3 MODULE
+add_library(AttaccaVST3 MODULE
     src/vst3/link_vst3.cpp
     "${VST3_SDK}/public.sdk/source/main/macmain.cpp"
 )
-target_link_libraries(CuratorLinkVST3 PRIVATE link_core vst3_sdk)
-link_view(CuratorLinkVST3 VST3)
-target_link_options(CuratorLinkVST3 PRIVATE "-Wl,-exported_symbols_list,${VST3_SDK}/public.sdk/source/main/macexport.exp")
-link_bundle(CuratorLinkVST3 vst3 "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-VST3.plist.in")
+target_link_libraries(AttaccaVST3 PRIVATE link_core vst3_sdk)
+link_view(AttaccaVST3 VST3)
+target_link_options(AttaccaVST3 PRIVATE "-Wl,-exported_symbols_list,${VST3_SDK}/public.sdk/source/main/macexport.exp")
+link_bundle(AttaccaVST3 vst3 "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-VST3.plist.in")
 
 # Audio Unit (Apple's AudioUnitSDK, Apache 2.0): the effect base class.
 add_library(audiounit_sdk STATIC
@@ -162,11 +162,11 @@ target_compile_options(audiounit_sdk PRIVATE ${sdk_quiet})
 target_link_libraries(audiounit_sdk PUBLIC
     "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox" "-framework AudioUnit")
 
-add_library(CuratorLinkAU MODULE src/au/link_au.cpp)
-target_link_libraries(CuratorLinkAU PRIVATE link_core audiounit_sdk)
-link_view(CuratorLinkAU AU)
-target_link_options(CuratorLinkAU PRIVATE "-Wl,-exported_symbol,_CuratorLinkFactory")
-link_bundle(CuratorLinkAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.in")
+add_library(AttaccaAU MODULE src/au/link_au.cpp)
+target_link_libraries(AttaccaAU PRIVATE link_core audiounit_sdk)
+link_view(AttaccaAU AU)
+target_link_options(AttaccaAU PRIVATE "-Wl,-exported_symbol,_AttaccaFactory")
+link_bundle(AttaccaAU component "${CMAKE_CURRENT_SOURCE_DIR}/mac/Info-AU.plist.in")
 
 # A DAW in miniature that loads the VST3 and the Audio Unit and checks what Curator is told (`make daw-link` runs it
 # before zipping the bundles): test/link_host.cpp, on the ARA examples' VST3 loader.
@@ -176,4 +176,4 @@ add_executable(link_host
 )
 target_include_directories(link_host PRIVATE "${ARA_SDK}/ARA_Examples")
 target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk "-framework AudioToolbox" "-framework AudioUnit" "-framework AppKit")
-add_dependencies(link_host CuratorLinkVST3 CuratorLinkAU)
+add_dependencies(link_host AttaccaVST3 AttaccaAU)

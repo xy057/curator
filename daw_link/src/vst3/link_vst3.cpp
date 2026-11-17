@@ -1,4 +1,4 @@
-// Curator Link as a VST3 plug-in with ARA (Cubase, Nuendo, Studio One, REAPER, …).
+// Attacca as a VST3 plug-in with ARA (Cubase, Nuendo, Studio One, REAPER, …).
 #include "../link_client.h"
 #include "../link_config.h"
 #include "../link_document.h"
@@ -18,7 +18,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 
 using namespace Steinberg;
 
-namespace curator_link {
+namespace attacca {
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 
@@ -187,7 +187,7 @@ IMPLEMENT_FUNKNOWN_METHODS (LinkMainFactory, ARA::IMainFactory, ARA::IMainFactor
 
 ARA_DISABLE_VST3_WARNINGS_END
 
-}  // namespace curator_link
+}  // namespace attacca
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 
@@ -202,14 +202,14 @@ DEF_CLASS_IID (ARA::IPlugInEntryPoint2)
 
 BEGIN_FACTORY_DEF (LINK_VENDOR, LINK_URL, LINK_EMAIL)
 
-    DEF_CLASS2 (INLINE_UID_FROM_FUID (curator_link::LinkProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_NAME,
-                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, curator_link::LinkProcessor::create)
+    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_NAME,
+                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::create)
 
-    DEF_CLASS2 (INLINE_UID_FROM_FUID (curator_link::LinkProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, curator_link::LinkProcessor::createController)
+    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_NAME,
+                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::createController)
 
-    DEF_CLASS2 (INLINE_UID_FROM_FUID (curator_link::LinkMainFactory::classID ()), PClassInfo::kManyInstances, kARAMainFactoryClass, LINK_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, curator_link::LinkMainFactory::create)
+    DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkMainFactory::classID ()), PClassInfo::kManyInstances, kARAMainFactoryClass, LINK_NAME,
+                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkMainFactory::create)
 
 END_FACTORY
 

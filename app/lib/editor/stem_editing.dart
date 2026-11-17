@@ -2,7 +2,7 @@ part of '../editor_controller.dart';
 
 /// The project's stems ([EditState.stems]): what single tracks of a DAW play, each kept apart
 /// in a file of its own (FLAC) in time with a take, for hearing one instrument alone or
-/// bringing it forward. Captured from the DAW followed through Curator Link ([capture]): each
+/// bringing it forward. Captured from the DAW followed through Attacca ([capture]): each
 /// track as the song plays it, over the followed recording's length, so its first sample is
 /// the recording's first. Adding and removing stems, and naming their parts, are no Undo steps,
 /// as with recordings.

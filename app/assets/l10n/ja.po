@@ -133,8 +133,8 @@ msgstr "Web に書き出す"
 msgid "Export to Web…"
 msgstr "Web に書き出す…"
 
-msgid "Curator Link Settings…"
-msgstr "Curator Link 設定…"
+msgid "Attacca Settings…"
+msgstr "Attacca 設定…"
 
 msgid "Frame"
 msgstr "フレーム"
@@ -3525,11 +3525,11 @@ msgstr "キーボード"
 msgid "DAW"
 msgstr ""
 
-msgid "Listen for Curator Link"
-msgstr "Curator Link を待ち受ける"
+msgid "Listen for Attacca"
+msgstr "Attacca を待ち受ける"
 
-msgid "Curator Link plug-in"
-msgstr "Curator Link プラグイン"
+msgid "Attacca plug-in"
+msgstr "Attacca プラグイン"
 
 msgid "Use this recording"
 msgstr "この録音を使う"
@@ -5392,12 +5392,12 @@ msgid "No DAW connected."
 msgstr "接続中の DAW はありません。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Curator isn’t listening for Curator Link."
-msgstr "Curator は Curator Link を待ち受けていません。"
+msgid "Curator isn’t listening for Attacca."
+msgstr "Curator は Attacca を待ち受けていません。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Put Curator Link on a track in your DAW."
-msgstr "DAW のトラックに Curator Link を挿してください。"
+msgid "Put Attacca on a track in your DAW."
+msgstr "DAW のトラックに Attacca を挿してください。"
 
 #: lib/daw_follow_dialog.dart
 msgid "Turn it on in Settings ▸ General."
@@ -5412,8 +5412,8 @@ msgid "Getting the Recording"
 msgstr "録音を取得中"
 
 #: lib/settings_dialog.dart
-msgid "This build of Curator has no Curator Link."
-msgstr "この Curator のビルドには Curator Link が含まれていません。"
+msgid "This build of Curator has no Attacca."
+msgstr "この Curator のビルドには Attacca が含まれていません。"
 
 #: lib/main.dart lib/settings_dialog.dart
 msgid "Connected: {daws}"
@@ -5488,8 +5488,8 @@ msgstr "アンインストール"
 msgid "OS not supported"
 msgstr "このOSには非対応"
 
-msgid "Curator Link is not available for this operating system."
-msgstr "Curator Link はこのオペレーティングシステムでは使用できません。"
+msgid "Attacca is not available for this operating system."
+msgstr "Attacca はこのオペレーティングシステムでは使用できません。"
 
 #: lib/main.dart
 msgid "Not Listening"

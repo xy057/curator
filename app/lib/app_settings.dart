@@ -273,7 +273,7 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether Curator listens for Curator Link, the plug-in in a DAW (Settings ▸ General ▸ DAW;
+  /// Whether Curator listens for Attacca, the plug-in in a DAW (Settings ▸ General ▸ DAW;
   /// see `DawLink`). On unless turned off.
   bool get dawLink => _dawLink;
   bool _dawLink;

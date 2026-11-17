@@ -111,7 +111,7 @@ abstract final class PluginApi {
     ApiCommand('exportWeb', 'Export to Web…', 'File'),
     ApiCommand('followDaw', 'Follow DAW…', 'File'),
     ApiCommand('captureStems', 'Capture Stems…', 'File'),
-    ApiCommand('curatorLinkSettings', 'Curator Link Settings…', 'File'),
+    ApiCommand('attaccaSettings', 'Attacca Settings…', 'File'),
     ApiCommand('undo', 'Undo', 'Edit', rebind: false),
     ApiCommand('redo', 'Redo', 'Edit', rebind: false),
     ApiCommand('cut', 'Cut', 'Edit', rebind: false),

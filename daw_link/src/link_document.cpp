@@ -14,7 +14,7 @@
 #include <random>
 #include <sys/stat.h>
 
-namespace curator_link {
+namespace attacca {
 
 namespace {
 
@@ -316,7 +316,7 @@ void LinkDocumentController::willDestroyAudioSource (ARA::PlugIn::AudioSource* s
 
 bool LinkDocumentController::doRestoreObjectsFromArchive (ARA::PlugIn::HostArchiveReader*, const ARA::PlugIn::RestoreObjectsFilter*) noexcept
 {
-    // Curator Link keeps nothing in the DAW's project: all it knows, the DAW tells it again.
+    // Attacca keeps nothing in the DAW's project: all it knows, the DAW tells it again.
     return true;
 }
 
@@ -833,4 +833,4 @@ const ARA::ARAFactory* LinkDocumentController::getARAFactory () noexcept
     return ARA::PlugIn::PlugInEntry::getPlugInEntry<LinkFactoryConfig, LinkDocumentController> ()->getFactory ();
 }
 
-}  // namespace curator_link
+}  // namespace attacca

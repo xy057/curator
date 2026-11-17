@@ -1,4 +1,4 @@
-// Curator Link as an Audio Unit with ARA (Logic Pro).
+// Attacca as an Audio Unit with ARA (Logic Pro).
 #include "../link_client.h"
 #include "../link_document.h"
 #include "../mac/link_view.h"
@@ -15,7 +15,7 @@ _Pragma ("GCC diagnostic pop")
 #include <cstring>
 #include <vector>
 
-namespace curator_link {
+namespace attacca {
 
 // The audio side: plays the regions it is given (as an ARA playback renderer), else passes
 // what comes in; tells Curator where the DAW is playing.
@@ -93,7 +93,7 @@ public:
                 case kAudioUnitProperty_CocoaUI:
                 {
                     // The window: a class in this bundle that makes it (the host releases both).
-                    CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.link.component"));
+                    CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.attacca.component"));
                     if (!bundle)
                         return kAudioUnitErr_InvalidProperty;
                     auto* info = static_cast<AudioUnitCocoaViewInfo*> (data);
@@ -163,8 +163,8 @@ private:
     ARA::PlugIn::PlugInExtension extension_;
 };
 
-}  // namespace curator_link
+}  // namespace attacca
 
-// The factory function Info.plist names: CuratorLinkFactory.
-using CuratorLink = curator_link::LinkAudioUnit;
-AUSDK_COMPONENT_ENTRY (ausdk::AUBaseFactory, CuratorLink)
+// The factory function Info.plist names: AttaccaFactory.
+using Attacca = attacca::LinkAudioUnit;
+AUSDK_COMPONENT_ENTRY (ausdk::AUBaseFactory, Attacca)

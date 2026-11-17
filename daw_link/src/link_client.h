@@ -1,4 +1,4 @@
-// Curator Link's line to Curator: one per process, shared by every document and instance in it.
+// Attacca's line to Curator: one per process, shared by every document and instance in it.
 #pragma once
 
 #include <atomic>
@@ -11,7 +11,7 @@
 #include <string>
 #include <thread>
 
-namespace curator_link {
+namespace attacca {
 
 // What Curator says, a message's top-level fields (see readFlatObject).
 using Message = std::map<std::string, std::string>;
@@ -92,4 +92,4 @@ private:
 std::string curatorDataFolder ();
 std::string curatorCacheFolder ();
 
-}  // namespace curator_link
+}  // namespace attacca

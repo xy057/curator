@@ -1,4 +1,4 @@
-// Curator Link: what the plug-in is called and who it says it is, in one place.
+// Attacca: what the plug-in is called and who it says it is, in one place.
 #pragma once
 
 #define LINK_QUOTE_(x) #x
@@ -12,10 +12,12 @@
 #define LINK_BUILD 0
 #endif
 
-#define LINK_NAME "Curator Link"
+#define LINK_NAME "Attacca"
 #define LINK_VENDOR "Curator"
 #define LINK_URL "https://github.com/xy057/curator"
 #define LINK_EMAIL "mailto:"
+// The ARA factory and archive IDs, the VST3 class IDs and the Audio Unit's codes are still
+// those it had as Curator Link: a DAW project made with it finds Attacca in its place.
 #define LINK_FACTORY_ID "com.curatedscore.link.arafactory"
 // Curator's own bundle (app/macos/Runner/Configs/AppInfo.xcconfig): whether it is open.
 #define LINK_CURATOR_BUNDLE_ID "com.curatedscore.curatedScore"

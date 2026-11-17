@@ -1,5 +1,5 @@
-// A DAW in miniature that checks Curator Link as built:
-// `link_host "<path>/Curator Link.vst3" "<path>/Curator Link.component"`.
+// A DAW in miniature that checks Attacca as built:
+// `link_host "<path>/Attacca.vst3" "<path>/Attacca.component"`.
 //
 // It stands in for both ends the plug-in talks to. As Curator, it listens where a discovery file
 // in a home of its own says (HOME is pointed at a temporary folder, so the real Curator is never
@@ -47,7 +47,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <vector>
 
 using namespace ARA;
-using curator_link::readFlatObject;
+using attacca::readFlatObject;
 
 namespace {
 
@@ -212,7 +212,7 @@ struct Curator {
                     char buffer[65536];
                     const ssize_t n = ::recv (connection, buffer, sizeof buffer, 0);
                     if (n <= 0)
-                        fail ("Curator Link hung up");
+                        fail ("Attacca hung up");
                     pending.append (buffer, static_cast<size_t> (n));
                 }
             }
@@ -226,7 +226,7 @@ struct Curator {
     {
         const std::string data = line + "\n";
         if (::send (connection, data.data (), data.size (), 0) != static_cast<ssize_t> (data.size ()))
-            fail ("can't write to Curator Link");
+            fail ("can't write to Attacca");
     }
 
     std::vector<std::string> lines;
@@ -323,17 +323,17 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
     CFRelease (url);
     if (!bundle || !CFBundleLoadExecutable (bundle))
         fail (std::string ("can't load ") + path);
-    auto factoryFunction = reinterpret_cast<AudioComponentFactoryFunction> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("CuratorLinkFactory")));
-    check (factoryFunction != nullptr, "the component exports CuratorLinkFactory");
+    auto factoryFunction = reinterpret_cast<AudioComponentFactoryFunction> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("AttaccaFactory")));
+    check (factoryFunction != nullptr, "the component exports AttaccaFactory");
     const AudioComponentDescription description { kAudioUnitType_Effect, 'CrLk', 'Crtr', 0, 0 };
-    AudioComponent component = AudioComponentRegister (&description, CFSTR ("Curator: Curator Link (test)"), 1, factoryFunction);
+    AudioComponent component = AudioComponentRegister (&description, CFSTR ("Curator: Attacca (test)"), 1, factoryFunction);
     AudioComponentInstance unit = nullptr;
     check (component && AudioComponentInstanceNew (component, &unit) == noErr, "an instance made");
 
     ARAAudioUnitFactory araFactory { kARAAudioUnitMagic, nullptr };
     UInt32 size = sizeof araFactory;
     check (AudioUnitGetProperty (unit, kAudioUnitProperty_ARAFactory, kAudioUnitScope_Global, 0, &araFactory, &size) == noErr && araFactory.outFactory &&
-           std::strcmp (araFactory.outFactory->plugInName, "Curator Link") == 0, "it gives the ARA factory");
+           std::strcmp (araFactory.outFactory->plugInName, "Attacca") == 0, "it gives the ARA factory");
     const ARAFactory* factory = araFactory.outFactory;
     const ARAInterfaceConfiguration config = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAInterfaceConfiguration, assertFunctionAddress), kARAAPIGeneration_2_0_Final, nullptr };
     factory->initializeARAWithConfiguration (&config);
@@ -444,15 +444,15 @@ int main (int argc, const char* argv[])
 {
     if (argc != 3)
     {
-        std::fprintf (stderr, "usage: link_host \"<path>/Curator Link.vst3\" \"<path>/Curator Link.component\"\n");
+        std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\"\n");
         return 2;
     }
-    char homeTemplate[] = "/tmp/curator-link-host.XXXXXX";
+    char homeTemplate[] = "/tmp/attacca-host.XXXXXX";
     const char* home = ::mkdtemp (homeTemplate);
     if (!home)
         fail ("no temporary folder");
     ::setenv ("HOME", home, 1);
-    std::printf ("Curator Link host test (home %s)\n", home);
+    std::printf ("Attacca host test (home %s)\n", home);
 
     Curator curator;
     curator.listen (home);
@@ -462,7 +462,7 @@ int main (int argc, const char* argv[])
         fail (std::string ("can't load ") + argv[1]);
     const ARAFactory* factory = VST3GetARAFactory (binary, nullptr);
     check (factory != nullptr, "the VST3 gives an ARA factory");
-    check (std::strcmp (factory->plugInName, "Curator Link") == 0, "named Curator Link");
+    check (std::strcmp (factory->plugInName, "Attacca") == 0, "named Attacca");
     check (factory->lowestSupportedApiGeneration <= kARAAPIGeneration_2_0_Final && factory->highestSupportedApiGeneration >= kARAAPIGeneration_2_0_Final, "speaks ARA 2");
 
     const ARAInterfaceConfiguration config = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAInterfaceConfiguration, assertFunctionAddress), kARAAPIGeneration_2_0_Final, nullptr };
@@ -627,6 +627,6 @@ int main (int argc, const char* argv[])
 
     std::string clean = std::string ("rm -rf '") + home + "'";
     std::system (clean.c_str ());
-    std::printf ("Curator Link host test passed\n");
+    std::printf ("Attacca host test passed\n");
     return 0;
 }

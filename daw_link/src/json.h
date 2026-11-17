@@ -1,4 +1,4 @@
-// The JSON Curator Link writes and the little of it it reads: one object a line each way.
+// The JSON Attacca writes and the little of it it reads: one object a line each way.
 #pragma once
 
 #include <cmath>
@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace curator_link {
+namespace attacca {
 
 // Writes one JSON value, commas placed as values are added.
 class JsonWriter {
@@ -240,4 +240,4 @@ inline bool readFlatObject (const std::string& text, std::map<std::string, std::
     return false;
 }
 
-}  // namespace curator_link
+}  // namespace attacca

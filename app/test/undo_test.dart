@@ -34,7 +34,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Curator Link, its tracks kept as stems', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its tracks kept as stems', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -192,7 +192,7 @@ void main() {
       expect(c.sync!.anchors, const [SyncAnchor(0, 2), SyncAnchor(8, 6)]);
     }
 
-    // A DAW followed through Curator Link, the plug-in's end played here over a socket: only one
+    // A DAW followed through Attacca, the plug-in's end played here over a socket: only one
     // saying the token back is heard; its tempo where the recording is placed becomes the sync's
     // (one Undo step), again as the DAW changes it; its transport moves the playhead; a recording
     // is asked for; a tempo map chosen here ends it, as the DAW going does.
@@ -335,23 +335,26 @@ void main() {
       expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
 
       // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
-      // what was there, its program executable; nothing outside them; uninstalled, both removed.
+      // what was there (and one by its former name, Curator Link), its program executable; nothing
+      // outside them; uninstalled, both removed.
       final plugIns = '${folder.path}/Plug-Ins';
-      File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').createSync(recursive: true);
+      File('$plugIns/VST3/Attacca.vst3/Contents/old.txt').createSync(recursive: true);
+      File('$plugIns/Components/Curator Link.component/Contents/Info.plist').createSync(recursive: true);
       final zip = Archive()
-        ..add(ArchiveFile.string('Curator Link.vst3/Contents/Info.plist',
+        ..add(ArchiveFile.string('Attacca.vst3/Contents/Info.plist',
             '<key>CFBundleShortVersionString</key>\n\t<string>0.9.0</string>\n<key>CFBundleVersion</key><string>468</string>'))
-        ..add(ArchiveFile.string('Curator Link.vst3/Contents/MacOS/Curator Link', 'program'))
-        ..add(ArchiveFile.string('Curator Link.component/Contents/MacOS/Curator Link', 'program'))
+        ..add(ArchiveFile.string('Attacca.vst3/Contents/MacOS/Attacca', 'program'))
+        ..add(ArchiveFile.string('Attacca.component/Contents/MacOS/Attacca', 'program'))
         ..add(ArchiveFile.string('Elsewhere/stray.txt', 'no'));
-      await CuratorLinkPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
-      expect(CuratorLinkPlugIns.installed(folder: plugIns), '0.9.0 (468)');
-      expect(File('$plugIns/VST3/Curator Link.vst3/Contents/old.txt').existsSync(), isFalse);
-      expect(File('$plugIns/Components/Curator Link.component/Contents/MacOS/Curator Link').statSync().modeString(), 'rwxr-xr-x');
+      await AttaccaPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
+      expect(AttaccaPlugIns.installed(folder: plugIns), '0.9.0 (468)');
+      expect(File('$plugIns/VST3/Attacca.vst3/Contents/old.txt').existsSync(), isFalse);
+      expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'its former name goes');
+      expect(File('$plugIns/Components/Attacca.component/Contents/MacOS/Attacca').statSync().modeString(), 'rwxr-xr-x');
       expect(Directory('$plugIns/Elsewhere').existsSync() || File('${folder.path}/Elsewhere/stray.txt').existsSync(), isFalse);
-      await CuratorLinkPlugIns.uninstall(folder: plugIns);
-      expect(CuratorLinkPlugIns.installed(folder: plugIns), isNull);
-      expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'uninstalled, both go');
+      await AttaccaPlugIns.uninstall(folder: plugIns);
+      expect(AttaccaPlugIns.installed(folder: plugIns), isNull);
+      expect(Directory('$plugIns/Components/Attacca.component').existsSync(), isFalse, reason: 'uninstalled, both go');
       await folder.delete(recursive: true);
     }
   });

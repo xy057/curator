@@ -133,8 +133,8 @@ msgstr "导出为网页"
 msgid "Export to Web…"
 msgstr "导出为网页…"
 
-msgid "Curator Link Settings…"
-msgstr "Curator Link 设置…"
+msgid "Attacca Settings…"
+msgstr "Attacca 设置…"
 
 msgid "Frame"
 msgstr "画面"
@@ -3525,11 +3525,11 @@ msgstr "键盘"
 msgid "DAW"
 msgstr ""
 
-msgid "Listen for Curator Link"
-msgstr "监听 Curator Link"
+msgid "Listen for Attacca"
+msgstr "监听 Attacca"
 
-msgid "Curator Link plug-in"
-msgstr "Curator Link 插件"
+msgid "Attacca plug-in"
+msgstr "Attacca 插件"
 
 msgid "Use this recording"
 msgstr "使用此录音"
@@ -5392,12 +5392,12 @@ msgid "No DAW connected."
 msgstr "没有连接的 DAW。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Curator isn’t listening for Curator Link."
-msgstr "Curator 未在监听 Curator Link。"
+msgid "Curator isn’t listening for Attacca."
+msgstr "Curator 未在监听 Attacca。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Put Curator Link on a track in your DAW."
-msgstr "请在 DAW 的轨道上加载 Curator Link。"
+msgid "Put Attacca on a track in your DAW."
+msgstr "请在 DAW 的轨道上加载 Attacca。"
 
 #: lib/daw_follow_dialog.dart
 msgid "Turn it on in Settings ▸ General."
@@ -5412,8 +5412,8 @@ msgid "Getting the Recording"
 msgstr "正在获取录音"
 
 #: lib/settings_dialog.dart
-msgid "This build of Curator has no Curator Link."
-msgstr "此版本的 Curator 未包含 Curator Link。"
+msgid "This build of Curator has no Attacca."
+msgstr "此版本的 Curator 未包含 Attacca。"
 
 #: lib/main.dart lib/settings_dialog.dart
 msgid "Connected: {daws}"
@@ -5488,8 +5488,8 @@ msgstr "卸载"
 msgid "OS not supported"
 msgstr "不支持此系统"
 
-msgid "Curator Link is not available for this operating system."
-msgstr "Curator Link 不适用于此操作系统。"
+msgid "Attacca is not available for this operating system."
+msgstr "Attacca 不适用于此操作系统。"
 
 #: lib/main.dart
 msgid "Not Listening"

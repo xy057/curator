@@ -1,4 +1,4 @@
-// Curator Link's window in the DAW: its name, whether Curator is connected (or why not), and
+// Attacca's window in the DAW: its name, whether Curator is connected (or why not), and
 // the Curator projects following this DAW.
 #include "link_view.h"
 
@@ -12,8 +12,8 @@
 // Audio Unit at once, and Objective-C classes are one namespace for the whole process.
 #define LINK_JOIN_(a, b) a##b
 #define LINK_JOIN(a, b) LINK_JOIN_(a, b)
-#define LinkStatusView LINK_JOIN(CuratorLinkStatusView_, LINK_VIEW_SUFFIX)
-#define LinkViewFactory LINK_JOIN(CuratorLinkViewFactory_, LINK_VIEW_SUFFIX)
+#define LinkStatusView LINK_JOIN(AttaccaStatusView_, LINK_VIEW_SUFFIX)
+#define LinkViewFactory LINK_JOIN(AttaccaViewFactory_, LINK_VIEW_SUFFIX)
 
 @interface LinkStatusView : NSView
 @end
@@ -23,18 +23,18 @@
     NSTextField* _status;
     NSTextField* _detail;
     NSTimer* _timer;
-    curator_link::LinkClient* _client;
+    attacca::LinkClient* _client;
 }
 
 - (instancetype)initWithFrame:(NSRect)frame
 {
     if (!(self = [super initWithFrame:frame]))
         return nil;
-    _client = &curator_link::LinkClient::retain ();
+    _client = &attacca::LinkClient::retain ();
     self.wantsLayer = YES;
     self.layer.backgroundColor = NSColor.windowBackgroundColor.CGColor;
 
-    NSTextField* title = [NSTextField labelWithString:@"Curator Link"];
+    NSTextField* title = [NSTextField labelWithString:@"Attacca"];
     title.font = [NSFont boldSystemFontOfSize:15];
     _dot = [NSTextField labelWithString:@"\u25CF"];
     _dot.font = [NSFont systemFontOfSize:10];
@@ -86,7 +86,7 @@
         dot = NSColor.tertiaryLabelColor;
         detail = @"Connects when Curator opens";
     }
-    else if ([NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithUTF8String:(curator_link::curatorDataFolder () + "/daw-link.json").c_str ()]])
+    else if ([NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithUTF8String:(attacca::curatorDataFolder () + "/daw-link.json").c_str ()]])
     {
         status = @"Connecting to Curator\u2026";
         dot = NSColor.systemOrangeColor;
@@ -95,7 +95,7 @@
     {
         status = @"Curator isn\u2019t listening";
         dot = NSColor.systemOrangeColor;
-        detail = @"Settings \u25B8 General \u25B8 DAW \u25B8 Listen for Curator Link";
+        detail = @"Settings \u25B8 General \u25B8 DAW \u25B8 Listen for Attacca";
     }
     _status.stringValue = status;
     _dot.textColor = dot;
@@ -116,7 +116,7 @@
 - (void)dealloc
 {
     [_timer invalidate];
-    curator_link::LinkClient::release ();
+    attacca::LinkClient::release ();
 }
 @end
 
@@ -132,11 +132,11 @@
 
 - (NSView*)uiViewForAudioUnit:(AudioUnit)unit withSize:(NSSize)size
 {
-    return [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, curator_link::statusViewWidth, curator_link::statusViewHeight)];
+    return [[LinkStatusView alloc] initWithFrame:NSMakeRect (0, 0, attacca::statusViewWidth, attacca::statusViewHeight)];
 }
 @end
 
-namespace curator_link {
+namespace attacca {
 
 void* attachStatusView (void* parent)
 {
@@ -157,4 +157,4 @@ const char* statusViewFactoryClass ()
     return LINK_QUOTE_NAME (LinkViewFactory);
 }
 
-}  // namespace curator_link
+}  // namespace attacca

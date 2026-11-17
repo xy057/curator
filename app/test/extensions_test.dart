@@ -319,7 +319,7 @@ void main() {
       ]);
       expect([for (final i in flat(midi.firstWhere((m) => m.label == 'View').menus)) i.label], contains('Show MIDI View'));
 
-      // File ▸ Curator Link: how it stands (greyed out), Follow DAW… ticked while followed,
+      // File ▸ Attacca: how it stands (greyed out), Follow DAW… ticked while followed,
       // Capture Stems… only with the DAW there, its Settings….
       final link = AppMenus(
         onOpen: () {},
@@ -327,11 +327,11 @@ void main() {
         onSave: () {},
         onSaveAs: () {},
         onSettings: () {},
-        curatorLink: (state: 'Connected: Logic Pro', following: true, onFollow: () {}, onCaptureStems: null, onSettings: () {}),
+        attacca: (state: 'Connected: Logic Pro', following: true, onFollow: () {}, onCaptureStems: null, onSettings: () {}),
         child: const SizedBox(),
       ).menus.whereType<PlatformMenu>().toList();
       final fileMenu = flat(link.firstWhere((m) => m.label == 'File').menus);
-      expect([for (final i in flat(fileMenu.whereType<PlatformMenu>().firstWhere((m) => m.label == 'Curator Link').menus)) (i.label, i.onSelected != null)], [
+      expect([for (final i in flat(fileMenu.whereType<PlatformMenu>().firstWhere((m) => m.label == 'Attacca').menus)) (i.label, i.onSelected != null)], [
         ('Connected: Logic Pro', false),
         ('✓ Follow DAW…', true),
         ('Capture Stems…', false),
