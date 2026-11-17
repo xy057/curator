@@ -29,26 +29,36 @@ class DawDocument {
   /// controller): Curator's own then drives it while following.
   final bool playback;
 
-  /// Reads a `document` message. Throws a [FormatException] saying what isn't right; what a
-  /// later plug-in may add is passed over.
+  /// Reads a `document` message. Throws a [FormatException] saying what isn't right when it
+  /// isn't one (no id, a list that is none); what a later plug-in may add is passed over, and so
+  /// is a single entry that can't be read (a tempo entry not after the one before, a bar
+  /// signature, a region): the rest of the DAW's song is still there to follow.
   factory DawDocument.fromJson(Map<String, Object?> json) {
     final id = _string(json, 'id');
     if (id == null || id.isEmpty) throw const FormatException('A DAW document without an id.');
     List<T> each<T>(String key, T Function(Map<String, Object?> json) read) => switch (json[key]) {
-          null => const [],
+          null => [], // (one that can be sorted: a document may leave a list out)
           final List<Object?> list => [
               for (final e in list)
                 if (e is Map<String, Object?>) read(e) else throw FormatException('$key holds something not an object.'),
             ],
           _ => throw FormatException('$key is not a list.'),
         };
+    DawRegion? region(Map<String, Object?> json) {
+      try {
+        return DawRegion.fromJson(json);
+      } on FormatException {
+        return null;
+      }
+    }
+
     return DawDocument(
       id: id,
       name: _string(json, 'name') ?? '',
       contexts: each('contexts', DawContext.fromJson),
       tracks: each('tracks', DawTrack.fromJson)..sort((a, b) => a.order.compareTo(b.order)),
       sources: each('sources', DawSource.fromJson),
-      regions: each('regions', DawRegion.fromJson)..sort((a, b) => a.start.compareTo(b.start)),
+      regions: each('regions', region).nonNulls.toList()..sort((a, b) => a.start.compareTo(b.start)),
       playback: json['playback'] == true,
     );
   }
@@ -93,28 +103,21 @@ class DawContext {
   final List<DawKey> keys;
 
   factory DawContext.fromJson(Map<String, Object?> json) {
-    final tempo = <DawTempo>[
-      for (final e in _list(json, 'tempo'))
-        switch (e) {
-          [final num s, final num q] when s.isFinite && q.isFinite => (seconds: s.toDouble(), quarter: q.toDouble()),
-          _ => throw const FormatException('A tempo entry that is not seconds and quarters.'),
-        },
-    ];
-    for (var i = 1; i < tempo.length; i++) {
-      if (!(tempo[i].seconds > tempo[i - 1].seconds && tempo[i].quarter > tempo[i - 1].quarter)) {
-        throw const FormatException('The tempo map goes back.');
+    // ARA has a DAW give its tempo entries in order of time, which lets two be at one moment:
+    // one that doesn't go on from the one before (in seconds and in quarters) is passed over.
+    final tempo = <DawTempo>[];
+    for (final e in _list(json, 'tempo')) {
+      if (e case [final num s, final num q] when s.isFinite && q.isFinite && (tempo.isEmpty || (s > tempo.last.seconds && q > tempo.last.quarter))) {
+        tempo.add((seconds: s.toDouble(), quarter: q.toDouble()));
       }
     }
     return DawContext(
       id: _string(json, 'id') ?? '',
       name: _string(json, 'name') ?? '',
       tempo: tempo,
-      bars: [
+      bars: <DawBar>[
         for (final e in _list(json, 'bars'))
-          switch (e) {
-            [final num n, final num d, final num q] when n > 0 && d > 0 && q.isFinite => (numerator: n.toInt(), denominator: d.toInt(), quarter: q.toDouble()),
-            _ => throw const FormatException('A bar signature that is not a numerator, a denominator and a position.'),
-          },
+          if (e case [final num n, final num d, final num q] when n >= 1 && d >= 1 && q.isFinite) (numerator: n.toInt(), denominator: d.toInt(), quarter: q.toDouble()),
       ]..sort((a, b) => a.quarter.compareTo(b.quarter)),
       keys: [
         for (final e in _list(json, 'keys'))

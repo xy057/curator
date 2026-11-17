@@ -114,7 +114,18 @@ void main() {
     for (final q in [0.0, 1.0, 5.0, 9.0]) {
       expect(dawSync.secondsAtQuarter(q), closeTo(region.sourceAt(song.secondsAt(q + 3)), 1e-9), reason: 'score quarter $q');
     }
-    expect(() => DawDocument.fromJson({'id': 'x', 'contexts': [{'tempo': [[1, 1], [0, 2]]}]}), throwsFormatException);
+    // What isn't a document is refused; in one, an entry that can't be read is passed over and
+    // the rest kept: a tempo entry not after the one before (two at one moment, as ARA lets a
+    // DAW give them), a bar signature of no beats, a region placed nowhere.
+    expect(() => DawDocument.fromJson({'contexts': <Object>[]}), throwsFormatException);
+    expect(() => DawDocument.fromJson({'id': 'x', 'contexts': 'none'}), throwsFormatException);
+    final rough = DawDocument.fromJson({
+      'id': 'x',
+      'contexts': [{'tempo': [[0, 0], [2, 4], [2, 4], [1, 5], [6, 10]], 'bars': [[4, 4, 0], [0, 4, 8]]}],
+      'regions': [{'id': 'r', 'source': 's', 'start': 1, 'length': 2, 'from': 0, 'span': 2}, {'id': 'nowhere', 'source': 's', 'start': null}],
+    });
+    expect(rough.contexts.single.tempo, [(seconds: 0.0, quarter: 0.0), (seconds: 2.0, quarter: 4.0), (seconds: 6.0, quarter: 10.0)]);
+    expect((rough.contexts.single.bars.length, rough.regions.single.id), (1, 'r'));
     expect(dawTransportOf({'playing': true, 'seconds': 2.5, 'quarters': -1, 'tempo': 0}), (playing: true, seconds: 2.5, quarters: null, tempo: 0.0));
   });
 }
