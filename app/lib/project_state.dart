@@ -389,6 +389,9 @@ class EditState {
   /// The take [id]; null when there is none.
   Take? take(String id) => takes.where((t) => t.id == id).firstOrNull;
 
+  /// The take whose recording Attacca took from a DAW, if any: one at most, for now.
+  Take? get attaccaTake => takes.where((t) => t.daw != null).firstOrNull;
+
   /// This state with [id]'s sync its own: the sync until now goes into its take ([focus]'s), and
   /// [id]'s comes out of its own. As it is when [id] has it already, or isn't a take.
   EditState focusing(String id) {
@@ -433,7 +436,7 @@ class EditState {
 /// state's own sync is its).
 @immutable
 class Take {
-  const Take(this.id, this.label, {this.regions = const [], this.anchors = const [], this.leadIn = 0, this.midi});
+  const Take(this.id, this.label, {this.regions = const [], this.anchors = const [], this.leadIn = 0, this.midi, this.daw});
 
   /// `take-1`, `take-2`…, the same as long as the project keeps it.
   final String id;
@@ -448,13 +451,18 @@ class Take {
   final double leadIn;
   final MidiTempoMap? midi;
 
-  Take copyWith({String? label, List<Region>? regions, List<SyncAnchor>? anchors, double? leadIn, Object? midi = _kept}) => Take(
+  /// Where its recording came from when Attacca wrote it out of a DAW (Follow DAW…), else null:
+  /// a project has one such take at most ([EditState.attaccaTake]).
+  final TakeDaw? daw;
+
+  Take copyWith({String? label, List<Region>? regions, List<SyncAnchor>? anchors, double? leadIn, Object? midi = _kept, Object? daw = _kept}) => Take(
         id,
         label ?? this.label,
         regions: regions ?? this.regions,
         anchors: anchors ?? this.anchors,
         leadIn: leadIn ?? this.leadIn,
         midi: identical(midi, _kept) ? this.midi : midi as MidiTempoMap?,
+        daw: identical(daw, _kept) ? this.daw : daw as TakeDaw?,
       );
 
   /// [regions] with the stretches [cut] covers taken out (cut back, split).
@@ -481,12 +489,17 @@ class Take {
       other.label == label &&
       other.leadIn == leadIn &&
       other.midi == midi &&
+      other.daw == daw &&
       listEquals(other.regions, regions) &&
       listEquals(other.anchors, anchors);
 
   @override
   int get hashCode => Object.hash(id, label, leadIn, regions.length, anchors.length);
 }
+
+/// A take's recording as Attacca took it from a DAW: the DAW's name ([host], "Cubase"), the
+/// recording's id there ([source], the same each time the song is opened) and its name.
+typedef TakeDaw = ({String host, String source, String name});
 
 /// A stem: what one track of a DAW plays (an instrument or a group of them), on its own, in
 /// time with a take's recording ([take]: its first sample at [offset] seconds in it), so it can

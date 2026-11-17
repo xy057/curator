@@ -45,8 +45,10 @@ class StemEditing {
     if (found == null || region == null) return {for (final t in tracks) t.name: const DawLinkException('gone')};
     final (session, document) = found;
     // The recording followed: where it starts in the song, and as long as it is here (else there).
-    final length = _editor.audio.track?.length ?? document.source(follow!.source)?.seconds ?? region.span;
-    final from = region.songAt(0), take = _editor._doc.focus;
+    // (In time with the project's Attacca take, which has the recording followed; else the focus.)
+    final take = _editor._doc.attaccaTake?.id ?? _editor._doc.focus;
+    final length = (take == null ? null : _editor.audio.trackOf(take)?.length) ?? document.source(follow!.source)?.seconds ?? region.span;
+    final from = region.songAt(0);
     final failed = <String, Object>{};
     for (final (i, track) in tracks.indexed) {
       final name = track.name.isEmpty ? 'Track'.tr : track.name;

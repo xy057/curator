@@ -84,12 +84,18 @@ class _TakeHeader extends StatelessWidget {
           ),
         ),
       ),
-      child: Text(take.label,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontWeight: picked ? FontWeight.w600 : FontWeight.w500,
-            color: picked ? colors.accent : null,
-          )),
+      child: Row(children: [
+        // Attacca's recording, taken from a DAW: marked apart from a file's.
+        if (take.daw case final daw?) ...[AttaccaMark(daw: daw), const SizedBox(width: 4)],
+        Flexible(
+          child: Text(take.label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: picked ? FontWeight.w600 : FontWeight.w500,
+                color: picked ? colors.accent : null,
+              )),
+        ),
+      ]),
     );
     if (!many) return label;
     return Tip(
@@ -156,4 +162,21 @@ class _TakeRegions extends SpanLaneModel {
 
   @override
   InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
+}
+
+/// The sign of a recording Attacca took from a DAW ([Take.daw]), beside its name: a link, and
+/// where it came from as its tip.
+class AttaccaMark extends StatelessWidget {
+  const AttaccaMark({super.key, required this.daw, this.size = 12});
+  final TakeDaw daw;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Tip(
+        message: ['Attacca', if (daw.host.isNotEmpty) daw.host, if (daw.name.isNotEmpty) daw.name].join(' · '),
+        child: Semantics(
+          label: 'Attacca',
+          child: Icon(AppIcon.link.of(context), size: size, color: context.colors.accent),
+        ),
+      );
 }

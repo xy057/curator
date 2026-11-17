@@ -116,6 +116,13 @@ What stays behind, and how to remove it:
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 
+A recording taken from the DAW (**Use this recording**) is the project's Attacca recording: its
+take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
+and in Project Info. A project has one for now. Once it has one, Follow DAW… offers only that
+recording, and taking it again puts it back into the same take, whichever take is picked. A
+file's recording loaded into that take takes the mark off; removing the take frees the project
+for another. Stems captured line up with the Attacca take.
+
 While Curator follows a DAW, **File ▸ Attacca ▸ Capture Stems…** lists the DAW's tracks that
 have recordings; every one but the recording's own is picked at first. Each one captured is
 converted to FLAC and saved in the project (`media/stems/<id>/`), with the track's name and

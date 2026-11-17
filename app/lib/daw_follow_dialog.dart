@@ -6,6 +6,7 @@ import 'app_colors.dart';
 import 'daw_link.dart';
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
+import 'project_state.dart' show TakeDaw;
 import 'error_text.dart';
 import 'l10n/l10n.dart';
 import 'menu_kit.dart';
@@ -14,10 +15,12 @@ import 'ui_kit.dart';
 /// File ▸ Attacca ▸ Follow DAW…: a recording in a DAW where Attacca is (see
 /// docs/daw-link.md), the DAW's bar the score's bar 1 is at, whether to take the recording itself
 /// (written out by the plug-in, then loaded as the focus's) and whether the playhead follows the
-/// DAW's; then the sync follows the DAW's tempo there ([DawEditing.follow]).
+/// DAW's; then the sync follows the DAW's tempo there ([DawEditing.follow]). A project takes one
+/// Attacca recording, for now: once it has one ([EditorController.attaccaTake]), only that one
+/// is offered, and taken again it goes back into its take.
 Future<void> showDawFollowDialog(BuildContext context, EditorController c) async {
   final link = DawLink.shared;
-  final choice = await showAppDialog<_Choice>(context: context, builder: (_) => _FollowDialog(link: link));
+  final choice = await showAppDialog<_Choice>(context: context, builder: (_) => _FollowDialog(link: link, bound: c.attaccaTake?.daw));
   if (choice == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
@@ -35,7 +38,8 @@ Future<void> showDawFollowDialog(BuildContext context, EditorController c) async
     done.dispose();
     if (path == null) return;
     try {
-      await c.loadAudio(path);
+      final source = choice.source;
+      await c.loadAudio(path, daw: (host: choice.session.host, source: source.id, name: source.name));
     } catch (e) {
       say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
       return;
@@ -59,8 +63,11 @@ String dawProblem(String reason) => switch (reason) {
 typedef _Choice = ({DawSession session, DawDocument document, DawSource source, int bar, bool recording, bool playhead});
 
 class _FollowDialog extends StatefulWidget {
-  const _FollowDialog({required this.link});
+  const _FollowDialog({required this.link, this.bound});
   final DawLink link;
+
+  /// The project's Attacca recording, if it has one: the only one offered.
+  final TakeDaw? bound;
 
   @override
   State<_FollowDialog> createState() => _FollowDialogState();
@@ -82,7 +89,8 @@ class _FollowDialogState extends State<_FollowDialog> {
   List<({DawSession session, DawDocument document, DawSource source})> get _recordings => [
         for (final (session, document) in widget.link.documents)
           for (final source in document.sources)
-            if (document.regionsOf(source.id).isNotEmpty) (session: session, document: document, source: source),
+            if (document.regionsOf(source.id).isNotEmpty && (widget.bound == null || widget.bound!.source == source.id))
+              (session: session, document: document, source: source),
       ];
 
   int? get _barValue => switch (int.tryParse(_bar.text.trim())) { final n? when n >= 1 && n <= 9999 => n, _ => null };
@@ -93,8 +101,24 @@ class _FollowDialogState extends State<_FollowDialog> {
         builder: (context, _) {
           final recordings = _recordings;
           final chosen = recordings.where((r) => (r.document.id, r.source.id) == _key).firstOrNull ?? recordings.firstOrNull;
+          final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
+          final bound = widget.bound;
+          if (chosen == null && bound != null && widget.link.sessions.isNotEmpty) {
+            // Its own Attacca recording isn't in the DAWs connected: no other is offered.
+            return AppDialog(
+              title: Text('Follow DAW'.tr),
+              content: SizedBox(
+                width: dialogWidth(context, 360),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('This project’s Attacca recording isn’t open in a DAW.'.tr),
+                  const SizedBox(height: 6),
+                  Text([bound.name, if (bound.host.isNotEmpty) bound.host].join(' · '), style: muted),
+                ]),
+              ),
+              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
+            );
+          }
           if (chosen == null) {
-            final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
             return AppDialog(
               title: Text('Follow DAW'.tr),
               content: SizedBox(
@@ -127,8 +151,12 @@ class _FollowDialogState extends State<_FollowDialog> {
                   items: [
                     for (final r in recordings) DropdownMenuItem(value: (r.document.id, r.source.id), child: Text(label(r), overflow: TextOverflow.ellipsis)),
                   ],
-                  onChanged: (k) => setState(() => _key = k),
+                  onChanged: widget.bound != null ? null : (k) => setState(() => _key = k),
                 ),
+                if (widget.bound != null) ...[
+                  const SizedBox(height: 4),
+                  Text('One Attacca recording per project.'.tr, style: muted),
+                ],
                 SizedBox(height: dialogGap(context)),
                 AppTextField(
                   controller: _bar,

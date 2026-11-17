@@ -34,7 +34,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its tracks kept as stems', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -262,6 +262,22 @@ void main() {
       say({'t': 'exported', 'document': 'doc', 'source': 'take-1', 'path': '/tmp/Take 1.wav'});
       expect(await asked, '/tmp/Take 1.wav');
 
+      // Attacca's recording, loaded: its take marked as Attacca's, one a project: taken again
+      // (another take picked by then) it goes back into that take; a file's goes into the
+      // focus, unmarked.
+      final silence = await Waveform.analyze(Float32List(100), 100);
+      AudioTrack track(String name) => AudioTrack.forTesting(name: name, length: 60, waveform: silence);
+      const fromDaw = (host: 'Cubase 15', source: 'take-1', name: 'Take 1');
+      await c.debugLoadTrack(track('Take 1.wav'), daw: fromDaw);
+      final attacca = c.attaccaTake!;
+      expect((attacca.daw, attacca.label, c.focus), (fromDaw, 'Take 1', attacca.id));
+      await c.debugAddTake(track('Karajan.flac'));
+      await c.debugLoadTrack(track('Take 1.wav'), daw: fromDaw);
+      expect([for (final t in c.takes) if (t.daw != null) t.id], [attacca.id], reason: 'one Attacca recording a project');
+      expect(c.focus, isNot(attacca.id));
+      await c.debugLoadTrack(track('Bernstein.flac'));
+      expect([for (final t in c.takes) (t.label, t.daw != null)], [('Take 1', true), ('Bernstein', false)]);
+
       // Its tracks kept as stems: each asked for from where the recording starts in the song for
       // as long as it lasts; the file the plug-in writes kept as FLAC, named by the track, in its
       // colour, its part found by name (a track named after one); saved in the project, each in
@@ -299,7 +315,8 @@ void main() {
       expect(await capturing, isEmpty);
       expect(progress.last, 1);
       final [strings, played] = c.stems.list;
-      expect((strings.id, strings.name, strings.color, strings.take, strings.part), ('stem-1', 'Strings', 0xffff8000, c.focus, null));
+      expect((strings.id, strings.name, strings.color, strings.take, strings.part), ('stem-1', 'Strings', 0xffff8000, attacca.id, null),
+          reason: 'in time with the Attacca take, not the focus');
       expect((played.name, played.part), (partName.toUpperCase(), part.id));
       expect(c.stems.fileOf('stem-1'), endsWith('.flac'));
       expect(File('${folder.path}/Strings.wav').existsSync(), isFalse, reason: 'the plug-in’s file is let go');
@@ -317,6 +334,7 @@ void main() {
       final media = await Directory.systemTemp.createTemp('stems-media');
       final opened = await ProjectFile.read(saved, mediaDirectory: media.path);
       expect(opened.state.edits.stems, c.stems.list);
+      expect(opened.state.edits.attaccaTake?.daw, fromDaw, reason: 'the mark saved');
       expect(opened.stems.keys, ['stem-1', 'stem-2']);
       expect(opened.stems['stem-1'], '${media.path}/stems/stem-1/Strings.flac');
       expect(File(opened.stems['stem-1']!).lengthSync(), File(c.stems.fileOf('stem-1')!).lengthSync());

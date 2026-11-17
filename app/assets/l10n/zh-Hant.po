@@ -5574,6 +5574,14 @@ msgctxt "video"
 msgid "View"
 msgstr "畫面"
 
+#: lib/daw_follow_dialog.dart
+msgid "This project’s Attacca recording isn’t open in a DAW."
+msgstr "本專案的 Attacca 錄音未在 DAW 中開啟。"
+
+#: lib/daw_follow_dialog.dart
+msgid "One Attacca recording per project."
+msgstr "每個專案一個 Attacca 錄音。"
+
 #: lib/score_editor.dart
 msgid "Bars: {count}"
 msgstr "小節：{count}"
