@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <csignal>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -266,6 +267,11 @@ bool LinkClient::tryConnect ()
         return false;
     const long port = std::strtol (found["port"].c_str (), nullptr, 10);
     if (port <= 0 || port > 65535 || found["token"].empty ())
+        return false;
+    // A Curator that went without removing its file (it crashed): its port may be another
+    // program's by now, which would be told the token and held as Curator for good.
+    const long curator = std::strtol (found["pid"].c_str (), nullptr, 10);
+    if (curator > 0 && ::kill (static_cast<pid_t> (curator), 0) != 0 && errno == ESRCH)
         return false;
 
     const int fd = ::socket (AF_INET, SOCK_STREAM, 0);

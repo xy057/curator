@@ -213,7 +213,9 @@ project, because everything it knows the DAW sends again.
   picks. It writes the port, a random token and its own build to `daw-link.json` in its data
   folder (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
-  therefore connects as soon as Curator is up.
+  therefore connects as soon as Curator is up. The file also names Curator's process (`pid`): one
+  left behind by a Curator that is gone (it crashed) is not followed, since its port may be
+  another program's by then.
 - **One line per message.** Each message is a JSON object on its own line, in both directions.
   The plug-in's first message is `hello`, carrying the token. Curator closes any connection
   whose first message doesn't carry it, so nothing else that reaches the port is heard.
