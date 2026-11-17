@@ -5606,3 +5606,23 @@ msgstr ""
 #: lib/daw_follow_dialog.dart
 msgid "Add it to a track as an ARA extension, not as an insert."
 msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: reopen the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: update it in Settings ▸ General."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: reopen {daw}."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: update it in Settings ▸ General."
+msgstr ""
+
+#: lib/main.dart
+msgid "{daw} (outdated)"
+msgstr ""

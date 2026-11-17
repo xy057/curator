@@ -53,6 +53,10 @@ public:
     // line); empty while none is or Curator isn't connected.
     std::string followers ();
 
+    // Curator's build, as its discovery file says (0: one that doesn't say). A plug-in older
+    // than it is outdated: Curator bundles a newer one.
+    int curatorBuild () const noexcept { return curatorBuild_.load (); }
+
 private:
     LinkClient ();
     ~LinkClient ();
@@ -69,6 +73,7 @@ private:
     bool stop_ { false };
 
     std::atomic<int> fd_ { -1 };
+    std::atomic<int> curatorBuild_ { 0 };
     std::string token_;
     bool sendAll_ { false };
     std::map<std::string, std::string> states_;

@@ -5629,3 +5629,23 @@ msgstr "{daw} 中的 Attacca 没有用在录音上。"
 #: lib/daw_follow_dialog.dart
 msgid "Add it to a track as an ARA extension, not as an insert."
 msgstr "请以 ARA 扩展的方式添加到轨道上，而不是作为插入效果。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: reopen the DAW."
+msgstr "DAW 中的 Attacca 已过时：请重新打开 DAW。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in the DAW is outdated: update it in Settings ▸ General."
+msgstr "DAW 中的 Attacca 已过时：请在“设置 ▸ 通用”中更新。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: reopen {daw}."
+msgstr "{daw} 中的 Attacca 已过时：请重新打开 {daw}。"
+
+#: lib/daw_follow_dialog.dart
+msgid "Attacca in {daw} is outdated: update it in Settings ▸ General."
+msgstr "{daw} 中的 Attacca 已过时：请在“设置 ▸ 通用”中更新。"
+
+#: lib/main.dart
+msgid "{daw} (outdated)"
+msgstr "{daw}（已过时）"

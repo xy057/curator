@@ -12,6 +12,7 @@ import 'package:curated_score/file_names.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/updater.dart' show appBuild;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -237,6 +238,15 @@ void main() {
       expect(session.supported, isTrue);
       expect([for (final h in ['Nuendo 14', 'Studio One 6', 'REAPER', 'Logic Pro', 'Live', 'Bitwig Studio', '']) DawLink.supports(h)],
           [true, true, true, false, false, false, false]);
+      // Curator's build in its discovery file; a plug-in older than it is outdated (one that
+      // doesn't say its build isn't).
+      expect((discovery['build'], session.outdated), (appBuild, false));
+      final older = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      older.write('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
+      await until(() => link.sessions.length == 2);
+      expect([for (final s in link.sessions) s.outdated], [false, true]);
+      older.destroy();
+      await until(() => link.sessions.length == 1);
 
       final region = document.regions.single, context = document.contexts.single;
       c.daw.name = 'Ode';

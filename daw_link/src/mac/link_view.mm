@@ -10,12 +10,33 @@
 #import <AudioUnit/AUCocoaUIView.h>
 #import <Cocoa/Cocoa.h>
 
+#include <dlfcn.h>
+
 // Each bundle names its classes for itself (LINK_VIEW_SUFFIX): a DAW can load the VST3 and the
 // Audio Unit at once, and Objective-C classes are one namespace for the whole process.
 #define LINK_JOIN_(a, b) a##b
 #define LINK_JOIN(a, b) LINK_JOIN_(a, b)
 #define LinkStatusView LINK_JOIN(AttaccaStatusView_, LINK_VIEW_SUFFIX)
 #define LinkViewFactory LINK_JOIN(AttaccaViewFactory_, LINK_VIEW_SUFFIX)
+
+namespace {
+
+// The build of the Attacca installed where this one was loaded from (its bundle's
+// CFBundleVersion, as it is on disk now; 0 when it can't be read): newer than LINK_BUILD once
+// Curator has put a newer one there, which the DAW loads only when it opens again.
+int installedBuild ()
+{
+    Dl_info info {};
+    if (!::dladdr (reinterpret_cast<const void*> (&installedBuild), &info) || !info.dli_fname)
+        return 0;
+    // .../Attacca.vst3/Contents/MacOS/Attacca → .../Attacca.vst3/Contents/Info.plist
+    NSString* contents = [[NSString stringWithUTF8String:info.dli_fname].stringByDeletingLastPathComponent stringByDeletingLastPathComponent];
+    NSDictionary* plist = [NSDictionary dictionaryWithContentsOfFile:[contents stringByAppendingPathComponent:@"Info.plist"]];
+    id build = plist[@"CFBundleVersion"];
+    return [build isKindOfClass:NSString.class] ? [(NSString*) build intValue] : 0;
+}
+
+}  // namespace
 
 @interface LinkStatusView : NSView
 - (instancetype)initWithFrame:(NSRect)frame capturer:(BOOL)capturer;
@@ -115,6 +136,19 @@
         status = @"Curator isn\u2019t listening";
         dot = NSColor.systemOrangeColor;
         detail = @"Settings \u25B8 General \u25B8 DAW \u25B8 Listen for Attacca";
+    }
+    // Outdated: a newer Attacca is installed (the DAW keeps the one it loaded until it opens
+    // again), or Curator bundles a newer one.
+    const int loaded = LINK_BUILD, installed = installedBuild (), curator = _client->curatorBuild ();
+    if (loaded > 0 && installed > loaded)
+    {
+        dot = NSColor.systemOrangeColor;
+        detail = @"Outdated: reopen the DAW to load the new Attacca";
+    }
+    else if (loaded > 0 && curator > loaded)
+    {
+        dot = NSColor.systemOrangeColor;
+        detail = @"Outdated: update it in Curator\u2019s Settings";
     }
     _status.stringValue = status;
     _dot.textColor = dot;

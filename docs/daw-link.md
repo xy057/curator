@@ -122,6 +122,13 @@ which offers them all the same (for this time only).
    the DAW bar where the score's bar 1 is (an upbeat comes before it), and whether to use the
    recording and follow the playhead.
 
+**Outdated.** A DAW keeps the Attacca it loaded until it opens again, so one updated while
+the DAW is open is still the old one there. Attacca's window then says it is outdated and to
+reopen the DAW (a newer Attacca is in its bundle on disk), or to update it in Curator's
+Settings (Curator, by the build in `daw-link.json`, is newer). Curator says so too, from the
+build in `hello`: once as the DAW connects, in Follow DAW…, and as "(outdated)" beside the
+DAW in File ▸ Attacca.
+
 A recording taken from the DAW (**Use this recording**) is the project's Attacca recording: its
 take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
 and in Project Info. A project has one for now. Once it has one, Follow DAW… offers only that
@@ -180,8 +187,8 @@ project, because everything it knows the DAW sends again.
 ## How Curator and the plug-in talk
 
 - **Finding Curator.** Curator listens on the loopback address (127.0.0.1) at a port the system
-  picks. It writes the port and a random token to `daw-link.json` in its data folder
-  (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
+  picks. It writes the port, a random token and its own build to `daw-link.json` in its data
+  folder (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
   therefore connects as soon as Curator is up.
 - **One line per message.** Each message is a JSON object on its own line, in both directions.
