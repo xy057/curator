@@ -50,6 +50,23 @@ void main() {
       expect(('${newest.version}', newest.prerelease, newest.notes), ('9.2.0', true, 'first'));
       expect(Release.newest([_release('v9.5.0', draft: true)]), isNull);
       expect(Release.newest({'tag_name': 'v9.0.0'}), isNull, reason: 'not a list');
+      // A release's patch may have letters: runs of digits compare as numbers, the rest as text.
+      final order = ['v9.2.1', 'v9.2.1a', 'v9.2.1b', 'v9.2.2-rc1', 'v9.2.10'].map((t) => Version.tryParse(t)!).toList();
+      for (var i = 1; i < order.length; i++) {
+        expect(order[i] > order[i - 1], isTrue, reason: '${order[i]} after ${order[i - 1]}');
+      }
+      expect('${Release.newest([_release('v9.2.1'), _release('v9.2.1a'), _release('v9.2.0')], platform: 'macos')!.version}', '9.2.1a');
+      // The build under the install line decides when both have one: an rc's letters sort after, its build before.
+      String built(int n) => '${Release.installMarker}\n<!-- build: $n -->\n## Install';
+      final rc = Release.fromJson(_release('v9.3.0-rc1', body: built(490)))!, last = Release.fromJson(_release('v9.3.0', body: built(495)))!;
+      expect((rc.build, rc.label, last.isNewerThan(rc.version, rc.build)), (490, '9.3.0-rc1 (490)', true));
+      expect(Release.newest([_release('v9.3.0', body: built(495)), _release('v9.3.0-rc1', body: built(490))])!.build, 495);
+      expect(Release.fromJson(_release('v9.3.0', body: '<!-- build: 9 -->'))!.build, isNull, reason: 'only under the install line');
+      expect(Release.fromJson(_release('v0.0.1', body: built(appBuild + 1)))!.isNewerThanThisApp, isTrue, reason: 'a later build, whatever its version');
+      expect(Release.fromJson(_release('v99.0.0'))!.isNewerThanThisApp, isTrue, reason: 'no build: by version');
+      expect([Version.tryParse('9.2'), Version.tryParse('v9.2.1+3'), Version.tryParse('9.2.1 b')], [null, null, null]);
+      expect((appVersion, '${Version.current}'), ('${appRelease.split('.').take(2).join('.')}.$appBuild', appRelease),
+          reason: "the version's patch is the build; the updater compares the release");
     }
 
     // Each channel asks GitHub its own question; a change of channel drops the answer still on its way.

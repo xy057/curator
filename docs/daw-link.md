@@ -38,7 +38,7 @@ DAW…, Capture Stems…, and Settings… (Listen for Curator Link, Install, Upd
    | `Curator Link.vst3` | `~/Library/Audio/Plug-Ins/VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
    | `Curator Link.component` | `~/Library/Audio/Plug-Ins/Components` | Logic Pro and other Audio Unit hosts |
 
-   The row then shows the version installed, for example `0.9.0 (471)`.
+   The row then shows the version installed, for example `0.9.480 (480)`.
 3. Leave **Listen for Curator Link** on, in the same group. It is on unless you turned it off.
 4. **Start your DAW.** Most DAWs find a new plug-in on their own. If Curator Link isn't listed:
    - **Logic Pro** checks every new Audio Unit when it starts. If the check failed, open
@@ -186,7 +186,7 @@ Fields are only added over time. A message type or field that one side doesn't k
    - Steinberg's VST3 SDK 3.8.0 (MIT)
    - Apple's AudioUnitSDK 1.4.0 (Apache 2.0)
 2. **Builds the plug-in** as a universal binary, ad-hoc signed, with the version from
-   `app/pubspec.yaml`. `daw_link/CMakeLists.txt` compiles the SDKs' sources directly and runs
+   `app/pubspec.yaml` (major.minor.build; the Audio Unit's patch is the release's). `daw_link/CMakeLists.txt` compiles the SDKs' sources directly and runs
    none of their build scripts.
 3. **Runs `daw_link/test/link_host`**, a DAW in miniature, before zipping both bundles into
    `app/assets/daw_link/CuratorLink.zip`. That is the zip Settings installs from, and

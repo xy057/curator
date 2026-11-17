@@ -7,7 +7,7 @@ import 'package:score_engine/score_engine.dart' show ZipEntries;
 import 'legacy_project.dart';
 import 'project_modules.dart';
 import 'project_state.dart';
-import 'updater.dart' show appBuild, appVersion;
+import 'updater.dart' show appBuild, appRelease;
 
 /// The layout projects (.ccs, [ProjectFile]) and settings files (.ccf, [SettingsFile]) share: a
 /// zip archive holding
@@ -37,7 +37,7 @@ abstract final class ProjectArchive {
   static const maxJsonBytes = 64 << 20, maxForeignBytes = 256 << 20;
 
   /// Which Curator wrote a file: for a later one to tell, should a build ever save something wrong.
-  static const writer = 'Curator $appVersion ($appBuild)';
+  static const writer = 'Curator $appRelease ($appBuild)';
 
   /// Ids a module may have: not a folder the archive keeps for itself.
   static bool _isModuleId(String id) =>

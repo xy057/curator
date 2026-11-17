@@ -17,6 +17,8 @@ DAW_LINK_SDKS := daw_link/third_party
 DAW_LINK_ZIP := app/assets/daw_link/CuratorLink.zip
 APP_VERSION = $(shell sed -n 's/^version: *\([0-9.]*\)+.*/\1/p' app/pubspec.yaml)
 APP_BUILD = $(shell sed -n 's/^version: *[0-9.]*+\([0-9]*\).*/\1/p' app/pubspec.yaml)
+# The release's patch, kept apart from the build (the version's patch): updater.dart's appReleasePatch.
+APP_RELEASE_PATCH = $(shell sed -n "s/^const appReleasePatch = '\(.*\)';/\1/p" app/lib/updater.dart)
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
@@ -33,7 +35,7 @@ help:
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
-	@echo "make versions – check that updater.dart says the version pubspec.yaml does"
+	@echo "make versions – check that updater.dart says the version pubspec.yaml does (patch = build), and the release patch"
 	@echo "make smoke   – build the app and run it: open the sample, engrave, draw, export (opens a window)"
 	@echo "make doctor  – check that the required tools are installed"
 	@echo "make clean   – remove build outputs"
@@ -87,7 +89,7 @@ DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DA
 	$(DAW_LINK_SDKS)/AudioUnitSDK/src/AudioUnitSDK/AUBase.cpp
 
 $(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
-	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
 	daw_link/build/link_host "daw_link/build/out/Curator Link.vst3" "daw_link/build/out/Curator Link.component"
 	rm -f $@
@@ -126,10 +128,13 @@ check: setup versions
 # (one left behind would offer the app its own release). The Release workflow runs this too.
 versions:
 	@v=$$(sed -n 's/^version: *\([0-9.]*+[0-9]*\).*/\1/p' app/pubspec.yaml); \
-	u=$$(sed -n "s/^const appVersion = '\([0-9.]*\)';/\1/p" app/lib/updater.dart); \
+	mm=$$(sed -n "s/^const _majorMinor = '\([0-9]*\.[0-9]*\)';/\1/p" app/lib/updater.dart); \
 	b=$$(sed -n 's/^const appBuild = \([0-9]*\);/\1/p' app/lib/updater.dart); \
-	[ -n "$$v" ] && [ "$$v" = "$$u+$$b" ] && echo "✓ version $$v" \
-		|| { echo "✗ app/pubspec.yaml says $${v:-no version}, app/lib/updater.dart $$u+$$b: make them the same"; exit 1; }
+	r=$$(sed -n "s/^const appReleasePatch = '\([0-9A-Za-z-]*\)';/\1/p" app/lib/updater.dart); \
+	[ -n "$$v" ] && [ "$$v" = "$$mm.$$b+$$b" ] \
+		|| { echo "✗ app/pubspec.yaml says $${v:-no version}, app/lib/updater.dart $$mm.$$b+$$b: make them the same (the patch is the build)"; exit 1; }; \
+	[ -n "$$r" ] || { echo "✗ app/lib/updater.dart's appReleasePatch is empty, or not letters, digits and -"; exit 1; }; \
+	echo "✓ version $$v, release $$mm.$$r"
 
 # The app as built, not the test runner: integration_test/app_smoke_test.dart.
 smoke: setup

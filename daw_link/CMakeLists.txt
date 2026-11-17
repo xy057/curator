@@ -22,11 +22,18 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 set(LINK_VERSION "0.0.0" CACHE STRING "Curator's version (app/pubspec.yaml)")
 set(LINK_BUILD "0" CACHE STRING "Curator's build number (app/pubspec.yaml)")
-# An Audio Unit's version as Logic compares it: 0xMMMMmmbb.
+set(LINK_RELEASE_PATCH "0" CACHE STRING "The patch of Curator's release (app/lib/updater.dart's appReleasePatch)")
+# An Audio Unit's version as Logic compares it: 0xMMMMmmbb. Its patch byte is the release's (its
+# leading digits, at most 255): LINK_VERSION's patch is the build, too big for a byte.
 string(REPLACE "." ";" version_parts "${LINK_VERSION}")
 list(GET version_parts 0 version_major)
 list(GET version_parts 1 version_minor)
-list(GET version_parts 2 version_patch)
+string(REGEX MATCH "^[0-9]*" version_patch "${LINK_RELEASE_PATCH}")
+if(version_patch STREQUAL "")
+    set(version_patch 0)
+elseif(version_patch GREATER 255)
+    set(version_patch 255)
+endif()
 math(EXPR LINK_AU_VERSION "(${version_major} << 16) | (${version_minor} << 8) | ${version_patch}")
 
 set(SDKS "${CMAKE_CURRENT_SOURCE_DIR}/third_party")

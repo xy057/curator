@@ -125,7 +125,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
 | `app_folders.dart`, `downloader.dart` | Where files the app keeps go (see *Kept files and downloads*); fetching one over https, from an address or a Git Xet repository on Hugging Face (`Downloader`, `XetSource`) |
 | `file_names.dart`, `latest.dart` | A path's file name and stem (`fileNameOf`, `stemOf`); overlapping work where the latest call wins (`Latest`, `Turn`) |
-| `updater.dart` | Settings ▸ About: `appVersion`, `appBuild`, `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
+| `updater.dart` | Settings ▸ About: `appVersion` (major.minor.build), `appBuild`, `appRelease` (major.minor.`appReleasePatch`), `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
 | `update_dialog.dart` | The update window (`showUpdateDialog`; About's Update… and the launch notice's): a release's version, its notes, Download, then how far that has got; `updateHelp`, where the updates stand in a line |
 | `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
 | `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score); MIDI, only while a MIDI project shows (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
@@ -1631,7 +1631,7 @@ re-engraving after an edit, doesn't show them again.
 (stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
 Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
 update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` (`ProjectArchive.writer`: "Curator <version> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf`, `lilypond` or `midi`;
+`writer` (`ProjectArchive.writer`: "Curator <release> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf`, `lilypond` or `midi`;
 absent or unknown, what its score is), the score's and recording's names and entries, and each module's
 `version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
 under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
@@ -2048,20 +2048,34 @@ Visual C++ runtime DLLs) and publishes release `v<version>` only when both have 
 has run the smoke test (`app/integration_test/app_smoke_test.dart`, `make smoke` on macOS: the app
 as built opens the sample, engraves, draws, and where FFmpeg is installed exports a second of video,
 which the Windows runner hasn't; macOS runs no test there, nor `make check` either), where the version is
-`app/pubspec.yaml`'s. The run's form asks three things. **What's new** is the release's description,
+the release's (see *Versions* below). The run's form asks three things. **What's new** is the release's description,
 the changelog as Markdown, given to the script as an environment variable and never written into
 it; left empty, the description is GitHub's own list of what changed (`releases/generate-notes`).
-The form's field keeps one line, so a changelog of several goes in with
-`gh workflow run release.yml -f notes="$(pbpaste)"`, or onto a draft's page before it is published.
+The form's field keeps one line (GitHub has no multi-line input), so there `\n` starts a new line
+and `\\n` is a `\n` kept; text that has lines of its own is taken as it is, as from
+`gh workflow run release.yml -f notes="$(pbpaste)"`, or goes onto a draft's page before it is published.
 Under it the workflow writes `<!-- install -->` and how to install: the app shows a description
 up to that line (`Release.installMarker`), so keep it when editing one by hand. **Pre-release**
 marks the release a pre-release on GitHub and nothing else: it is versioned as any other (0.9.1),
 and unticking "Set as a pre-release" on its page later makes it the release without building again.
 **Draft** keeps it to the repository's owner until published. Its actions are pinned to commits, not tags; only the job that publishes
-may write to the repository. To release again, bump that version and `appVersion` / `appBuild`
-in `updater.dart` together (`make versions` checks they match, from `make check` and as the
-workflow's first step: one left behind would offer the app its own release); a version already
-released stops the run before it builds. The app asks on the channel chosen in Settings ▸ About ▸
+may write to the repository. To release again, bump `appReleasePatch` in `updater.dart`; a
+version already released stops the run before it builds.
+
+**Versions.** Every build's version is major.minor.build: `app/pubspec.yaml` says `0.9.480+480`,
+the patch and the build always the same number, so macOS and Windows show 0.9.480 and a bump of
+the build bumps both (and `appBuild` in `updater.dart`; `appVersion` is made from it). A release
+is major.minor and a patch kept apart: `appReleasePatch` (`appRelease`), text that may have letters
+and `-` (`0`, `1a`, `2-rc1`). It names the tag (`v0.9.1a`), the downloads and the release, is what
+the updater compares when a release has no build (`Version`: digits as numbers, the rest as text,
+so 0.9.1 < 0.9.1a < 0.9.2), and is what the app shows, with the build: "0.9.0 (480)". The workflow
+titles a release with its build too ("Curator 0.9.1a (490)") and writes it under
+`<!-- install -->` as `<!-- build: 490 -->` (`Release.build`); the updater compares by builds
+when both are known (`Release.isNewerThan`), since a build only goes up while a patch's letters
+needn't (0.9.2-rc1 sorts after 0.9.2). `make versions` (from `make check`, and
+the workflow's first step) checks pubspec.yaml's major.minor and both its numbers against
+`updater.dart`, and that the release patch is there. The Curator Link plug-ins carry the version
+and build; an Audio Unit's patch byte is the release's leading digits (the build doesn't fit). The app asks on the channel chosen in Settings ▸ About ▸
 Update channel (`AppSettings.updateChannel`, `Updater.channel`): Release asks GitHub's
 `releases/latest`, which is never a pre-release or a draft; Pre-release asks the list of releases
 and takes the highest version that is no draft, a pre-release or not (`Release.newest`). Changing

@@ -18,7 +18,7 @@ import 'project_file.dart';
 import 'project_modules.dart';
 import 'project_archive.dart';
 import 'project_state.dart';
-import 'updater.dart' show appBuild, appCommit, appVersion, openInBrowser, repositoryUrl;
+import 'updater.dart' show appBuild, appCommit, appRelease, openInBrowser, repositoryUrl;
 import 'video_export.dart';
 import 'web_page.dart';
 
@@ -231,8 +231,8 @@ abstract final class WebExport {
   static const sourceFile = 'SOURCE.txt';
 
   static String get source {
-    final at = appCommit.isEmpty ? 'v$appVersion' : appCommit;
-    return 'This page plays in the web player of Curator $appVersion ($appBuild${appCommit.isEmpty ? '' : ', $appCommit'}),\n'
+    final at = appCommit.isEmpty ? 'v$appRelease' : appCommit;
+    return 'This page plays in the web player of Curator $appRelease ($appBuild${appCommit.isEmpty ? '' : ', $appCommit'}),\n'
         'free software under the GNU General Public License, version 3 (LICENSE.txt).\n'
         'Its source code: $repositoryUrl/tree/$at\n'
         '\n'

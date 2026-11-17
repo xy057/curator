@@ -7,13 +7,23 @@ import 'file_names.dart';
 import 'latest.dart';
 import 'l10n/l10n.dart';
 
-/// This build's version: `version` in pubspec.yaml without the build number (`make versions`
-/// checks they agree; `make check` and the Release workflow run it). The Release workflow tags
-/// each release `v` + this.
-const appVersion = '0.9.0';
+/// This build's major.minor: `version` in pubspec.yaml starts with it (`make versions` checks).
+const _majorMinor = '0.9';
 
-/// This build's number: what follows `+` in pubspec.yaml's `version` (`make versions` checks).
-const appBuild = 480;
+/// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
+const appBuild = 482;
+
+/// The patch of the release this build is (or comes after): kept apart from the build, and
+/// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
+const appReleasePatch = '0';
+
+/// This build's version: major.minor.build, as pubspec.yaml says (`0.9.480+480`) and macOS and
+/// Windows show it.
+const appVersion = '$_majorMinor.$appBuild';
+
+/// The release this build is: major.minor.[appReleasePatch]. The Release workflow tags it `v` +
+/// this and names the downloads with it; the updater compares releases with it.
+const appRelease = '$_majorMinor.$appReleasePatch';
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.
@@ -28,29 +38,41 @@ const repositoryUrl = 'https://github.com/xy057/curator';
 /// What changed in each version.
 const changelogUrl = 'https://0x57.cc/xylabs-changelog#curator';
 
-/// A released version: `v1.2.3` or `1.2.3`, compared number by number.
+/// A released version: `v1.2.3` or `1.2.3`, its patch letters too (`1.2.3a`, `1.2.3-rc1`);
+/// compared number by number, a patch in runs of digits (as numbers) and of the rest (as text),
+/// so 1.2.3 < 1.2.3a < 1.2.3b < 1.2.4 < 1.2.10.
 @immutable
 class Version implements Comparable<Version> {
   const Version(this.major, this.minor, this.patch);
 
-  /// Null when [text] isn't major.minor.patch (a suffix such as `-beta` is ignored).
+  static final _pattern = RegExp(r'^v?(\d+)\.(\d+)\.([0-9A-Za-z-]+)$');
+  static final _runs = RegExp(r'\d+|\D+');
+
+  /// Null when [text] isn't major.minor.patch.
   static Version? tryParse(String text) {
-    final m = RegExp(r'^v?(\d+)\.(\d+)\.(\d+)').firstMatch(text.trim());
-    final [major, minor, patch] = [for (var i = 1; i <= 3; i++) m == null ? null : int.tryParse(m[i]!)];
-    if (major == null || minor == null || patch == null) return null; // or a number too long for an int
-    return Version(major, minor, patch);
+    final m = _pattern.firstMatch(text.trim());
+    final major = m == null ? null : int.tryParse(m[1]!), minor = m == null ? null : int.tryParse(m[2]!);
+    if (major == null || minor == null) return null; // or a number too long for an int
+    return Version(major, minor, m![3]!);
   }
 
-  static final current = tryParse(appVersion)!;
+  static final current = tryParse(appRelease)!;
 
-  final int major, minor, patch;
+  final int major, minor;
+  final String patch;
 
   @override
-  int compareTo(Version other) => switch ((major - other.major, minor - other.minor, patch - other.patch)) {
-        (final d, _, _) when d != 0 => d,
-        (_, final d, _) when d != 0 => d,
-        (_, _, final d) => d,
-      };
+  int compareTo(Version other) {
+    if (major != other.major) return major - other.major;
+    if (minor != other.minor) return minor - other.minor;
+    final a = _runs.allMatches(patch).map((m) => m[0]!).toList(), b = _runs.allMatches(other.patch).map((m) => m[0]!).toList();
+    for (var i = 0; i < a.length && i < b.length; i++) {
+      final x = BigInt.tryParse(a[i]), y = BigInt.tryParse(b[i]);
+      final d = x != null && y != null ? x.compareTo(y) : x != null ? -1 : y != null ? 1 : a[i].compareTo(b[i]);
+      if (d != 0) return d;
+    }
+    return a.length - b.length;
+  }
 
   bool operator >(Version other) => compareTo(other) > 0;
 
@@ -58,7 +80,7 @@ class Version implements Comparable<Version> {
   bool operator ==(Object other) => other is Version && compareTo(other) == 0;
 
   @override
-  int get hashCode => Object.hash(major, minor, patch);
+  int get hashCode => Object.hash(major, minor); // 1.2.01 == 1.2.1
 
   @override
   String toString() => '$major.$minor.$patch';
@@ -86,27 +108,46 @@ class Release {
     this.notes = '',
     this.prerelease = false,
     this.published,
+    this.build,
   });
 
   /// The line the Release workflow writes under what is new, before how to install: the app
   /// shows a description up to it.
   static const installMarker = '<!-- install -->';
 
+  /// The line the Release workflow writes under [installMarker]: the build released
+  /// (`<!-- build: 481 -->`). Releases from before builds were written there have none.
+  static final _buildLine = RegExp(r'<!--\s*build:?\s*(\d+)\s*-->');
+
   /// The most of a description that is kept (GitHub's own limit is 125 000).
   static const _notesLimit = 60000;
 
   /// The newest of a GitHub API list of releases (`GET /repos/…/releases`), pre-releases among
-  /// them: the highest version that is no draft, the first listed of two with the same; null
+  /// them: the newest ([isNewerThan]) that is no draft, the first listed of two alike; null
   /// when there is none.
   static Release? newest(Object? json, {String platform = '', Uri? origin}) {
     Release? newest;
     for (final entry in json is List ? json : const []) {
       if (entry is! Map || entry['draft'] == true) continue;
       final release = fromJson(entry, platform: platform, origin: origin);
-      if (release != null && (newest == null || release.version > newest.version)) newest = release;
+      if (release != null && (newest == null || release.isNewerThan(newest.version, newest.build))) newest = release;
     }
     return newest;
   }
+
+  /// Whether this comes after [version] built as [build]: by build when both are known (a
+  /// build only ever goes up, whatever letters a release's patch has: 0.9.2-rc1 before 0.9.2),
+  /// else by version.
+  bool isNewerThan(Version version, int? build) {
+    final mine = this.build;
+    return mine != null && build != null ? mine > build : this.version > version;
+  }
+
+  /// Whether this comes after the app as it is ([appRelease], [appBuild]).
+  bool get isNewerThanThisApp => isNewerThan(Version.current, appBuild);
+
+  /// Its version, and its build when known: "0.9.1a (490)", as the app shows its own.
+  String get label => build == null ? '$version' : '$version ($build)';
 
   /// Reads a GitHub API release (`GET /repos/…/releases/latest`); null when it has no version.
   /// Its addresses are taken only when they are https on github.com, or on [origin] (the
@@ -131,6 +172,9 @@ class Release {
     final size = asset?['size'];
     final body = json['body'];
     final published = json['published_at'];
+    // Only under the install line: what is new above it is anyone's text.
+    final cut = body is String ? body.indexOf(installMarker) : -1;
+    final build = cut < 0 ? null : int.tryParse(_buildLine.firstMatch((body as String).substring(cut))?[1] ?? '');
     return Release(
       version: version,
       pageUrl: '${trusted(json['html_url']) ?? '$repositoryUrl/releases'}',
@@ -140,6 +184,7 @@ class Release {
       notes: body is String ? _notesOf(body) : '',
       prerelease: json['prerelease'] == true,
       published: published is String ? DateTime.tryParse(published) : null,
+      build: build,
     );
   }
 
@@ -165,6 +210,9 @@ class Release {
 
   /// When it was published.
   final DateTime? published;
+
+  /// The build released, as the description says under [installMarker]; null when it doesn't.
+  final int? build;
 
   /// The download's own name when it is a plain one (`Curator-1.2.3-macos.zip`); otherwise
   /// (a folder in it, `..`, a name for another kind of file) the name the workflow gives it.
@@ -301,7 +349,7 @@ class Updater extends ChangeNotifier {
           if (json is! List) throw const FormatException('No list of releases');
           release = Release.newest(json, platform: platform, origin: api); // null: nothing released yet
       }
-      if (release != null && release.version > Version.current) {
+      if (release != null && release.isNewerThanThisApp) {
         _set = UpdateAvailable(release);
         return release;
       }

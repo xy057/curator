@@ -3,9 +3,13 @@
 # Runs only when started by hand: GitHub ▸ Actions ▸ Release ▸ Run workflow
 # (or `gh workflow run release.yml`). Nothing runs on push.
 #
-# The version is app/pubspec.yaml's (`version: 0.1.1+2` → tag v0.1.1). To release again, bump it
-# there and in app/lib/updater.dart (`appVersion`, `appBuild`; `make versions` checks they agree,
-# and so does this) and run this again.
+# The version's patch is the build (app/pubspec.yaml's `version: 0.9.480+480`); a release is
+# major.minor and the patch kept apart for it, which may have letters: app/lib/updater.dart's
+# `appReleasePatch` (`'1a'` → tag v0.9.1a). To release again, bump that and run this again
+# (`make versions` checks pubspec.yaml and updater.dart agree, and so does this).
+# The release is titled with its build too ("Curator 0.9.1a (490)"), and its description carries
+# it under `<!-- install -->` as `<!-- build: 490 -->`: the app compares releases by that build
+# (a release's patch may have letters; a build only goes up), so keep that line.
 # A version that is already released stops the run before anything is built.
 #
 # A pre-release (the "Pre-release" box) is versioned as any other (0.9.1): only GitHub's mark on
@@ -15,7 +19,10 @@
 #
 # The description is what "What's new" was given: the changelog, as Markdown. The app shows it
 # in its update window, up to the `<!-- install -->` line this adds under it (how to install
-# follows, for GitHub's readers). The form's field keeps one line, so for a changelog of several:
+# follows, for GitHub's readers). The form's field keeps one line (GitHub has no multi-line
+# input), so in one line `\n` starts a new line and `\\n` is a `\n` kept as it is:
+#   ## New\n- Player map\n- Faster PDF import
+# Text that already has lines is taken as it is, as from
 #   gh workflow run release.yml -f notes="$(pbpaste)"        (add -f prerelease=true for one)
 # or tick "Draft" and paste it on the release's page, above `<!-- install -->`, before
 # publishing. Left empty, the description is GitHub's own list of what changed.
@@ -32,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       notes:
-        description: "What's new: the changelog, as Markdown (empty: GitHub's list of changes)"
+        description: "What's new: the changelog, as Markdown; \\n for a new line (empty: GitHub's list of changes)"
         type: string
         default: ''
       prerelease:
@@ -59,6 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -68,14 +76,19 @@ jobs:
       - name: Read the version
         id: version
         run: |
-          version=$(sed -n 's/^version: *\([0-9][0-9.]*\).*/\1/p' app/pubspec.yaml)
-          [ -n "$version" ] || { echo "::error::No version in app/pubspec.yaml"; exit 1; }
+          majorMinor=$(sed -n "s/^const _majorMinor = '\([0-9]*\.[0-9]*\)';/\1/p" app/lib/updater.dart)
+          patch=$(sed -n "s/^const appReleasePatch = '\([0-9A-Za-z-]*\)';/\1/p" app/lib/updater.dart)
+          [ -n "$majorMinor" ] && [ -n "$patch" ] || { echo "::error::No release version in app/lib/updater.dart"; exit 1; }
+          version="$majorMinor.$patch"
+          build=$(sed -n 's/^const appBuild = \([0-9]*\);/\1/p' app/lib/updater.dart)
+          [ -n "$build" ] || { echo "::error::No appBuild in app/lib/updater.dart"; exit 1; }
           if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
-            echo "::error::v$version is already released. Bump the version in app/pubspec.yaml first."
+            echo "::error::v$version is already released. Bump appReleasePatch in app/lib/updater.dart first."
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Releasing v$version"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$version (build $build)"
 
   macos:
     needs: version
@@ -198,6 +211,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
+          BUILD: ${{ needs.version.outputs.build }}
           # Read from the environment, never written into the script: what is pasted is text,
           # whatever it says.
           NOTES: ${{ inputs.notes }}
@@ -206,16 +220,24 @@ jobs:
         run: |
           # What's new: as pasted, else GitHub's list of what changed since the last release.
           if [ -n "${NOTES//[[:space:]]/}" ]; then
-            printf '%s\n' "$NOTES" > notes.md
+            # One line, as the form's field gives: \n starts a new line, \\n is a \n kept. Text
+            # with lines of its own (gh workflow run … -f notes="$(pbpaste)") is taken as it is.
+            python3 - <<'PY'
+          import os, re
+          notes = os.environ['NOTES']
+          if '\n' not in notes:
+              notes = re.sub(r'\\(\\?)n', lambda m: '\\n' if m[1] else '\n', notes)
+          with open('notes.md', 'w', encoding='utf-8') as f:
+              f.write(notes.rstrip('\n') + '\n')
+          PY
           else
             gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
               -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" --jq .body > notes.md
           fi
           # The app's update window shows the description up to this line (Release.installMarker
-          # in app/lib/updater.dart): keep it as it is.
+          # in app/lib/updater.dart), and compares releases by the build under it: keep both.
+          printf '\n<!-- install -->\n<!-- build: %s -->\n' "$BUILD" >> notes.md
           cat >> notes.md <<'EOF'
-
-          <!-- install -->
           ## Install
 
           **macOS:** unzip and move the app to Applications. The app isn't notarized by Apple, so
@@ -234,7 +256,7 @@ jobs:
           if [ "$DRAFT" = true ]; then flags+=(--draft); fi
           gh release create "v$VERSION" Curator-*.zip \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Curator $VERSION" \
+            --title "Curator $VERSION ($BUILD)" \
             --notes-file notes.md \
             --target "$GITHUB_SHA" \
             "${flags[@]}"

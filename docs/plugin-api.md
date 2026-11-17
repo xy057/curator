@@ -332,7 +332,8 @@ The app: its commands, menus, keys and toolbar, what happens in it, its settings
 - `app.show_tab(index)`: Shows a tab: 0 is Home, 1 the first project.
 - `app.after(seconds, fn) → cancel`: Calls fn once, seconds from now. cancel() stops it first.
 - `app.copy(text)`: Puts text on the clipboard.
-- `app.version`: Curator’s version ("0.9.0").
+- `app.version`: Curator’s version, major.minor.build ("0.9.480").
+- `app.release`: The release it is ("0.9.0", "0.9.1a").
 - `app.build`: Its build (a number).
 - `app.platform`: "macos", "windows" or "linux".
 

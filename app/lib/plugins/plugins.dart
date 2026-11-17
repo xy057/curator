@@ -17,7 +17,7 @@ import '../extensions/extension_form.dart';
 import '../extensions/extension_sheet.dart';
 import '../key_bindings.dart';
 import '../l10n/l10n.dart';
-import '../updater.dart' show appBuild, appVersion;
+import '../updater.dart' show appBuild, appRelease, appVersion;
 import 'bundled.dart';
 
 /// A project in a tab, as a plugin is told of one.
@@ -633,6 +633,7 @@ class Plugins extends ChangeNotifier {
       },
     });
     app['version'] = appVersion;
+    app['release'] = appRelease;
     app['build'] = appBuild;
     app['platform'] = switch (defaultTargetPlatform) { TargetPlatform.macOS => 'macos', TargetPlatform.windows => 'windows', _ => 'linux' };
 

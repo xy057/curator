@@ -51,7 +51,7 @@ class _UpdateDialog extends StatelessWidget {
     final style = AppStyle.of(context);
     final size = MediaQuery.sizeOf(context);
     final muted = TextStyle(fontSize: 12.5, color: colors.textMuted);
-    final have = 'You have {version}'.fill({'version': '$appVersion ($appBuild)'});
+    final have = 'You have {version}'.fill({'version': '$appRelease ($appBuild)'});
     return ListenableBuilder(
       listenable: updater,
       builder: (context, _) {
@@ -73,7 +73,7 @@ class _UpdateDialog extends StatelessWidget {
         };
         return AppDialog(
           title: Row(children: [
-            Flexible(child: Text('Curator ${release.version}', overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text('Curator ${release.label}', overflow: TextOverflow.ellipsis)),
             if (release.prerelease) ...[const SizedBox(width: 10), _Tag('Pre-release'.tr)],
           ]),
           content: SizedBox(
