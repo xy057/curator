@@ -34,13 +34,14 @@ DAW…, Capture Stems…, and Settings… (Listen for Attacca, Install, Update, 
 
 1. **Quit your DAW.** A DAW reads its plug-ins when it starts.
 2. In Curator, choose **File ▸ Attacca ▸ Settings…** and click **Install** next to
-   **Attacca plug-in**. Curator puts two files in your own Library. It needs no password,
+   **Attacca plug-in**. Curator puts three files in your own Library. It needs no password,
    and other accounts on the Mac don't get them:
 
    | File | Where | Used by |
    |---|---|---|
    | `Attacca.vst3` | `~/Library/Audio/Plug-Ins/VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
-   | `Attacca.component` | `~/Library/Audio/Plug-Ins/Components` | Logic Pro and other Audio Unit hosts |
+   | `Attacca Capturer.vst3` | `~/Library/Audio/Plug-Ins/VST3` | the same, for [Attacca Capturer](#attacca-capturer) |
+   | `Attacca.component` | `~/Library/Audio/Plug-Ins/Components` | Logic Pro and other Audio Unit hosts (Attacca and Attacca Capturer) |
 
    The row then shows the version installed, for example `0.9.480 (480)`.
 3. Leave **Listen for Attacca** on, in the same group. It is on unless you turned it off.
@@ -66,27 +67,27 @@ damaged or partly removed.
 
 ### Installing by hand
 
-`make daw-link` leaves both plug-ins in `app/assets/daw_link/Attacca.zip`. To install them
+`make daw-link` leaves the plug-ins in `app/assets/daw_link/Attacca.zip`. To install them
 without Curator's button (on another Mac, for example), quit the DAW, unzip the file, and copy
-`Attacca.vst3` into `~/Library/Audio/Plug-Ins/VST3` and `Attacca.component` into
+`Attacca.vst3` and `Attacca Capturer.vst3` into `~/Library/Audio/Plug-Ins/VST3` and `Attacca.component` into
 `~/Library/Audio/Plug-Ins/Components`. The plug-ins have an ad-hoc signature, not Apple's.
 macOS may then refuse a copy downloaded with a web browser, which marks it as from the
 internet. If it does, clear that mark:
 
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Library/Audio/Plug-Ins/Components/"Attacca.component"
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Library/Audio/Plug-Ins/VST3/"Attacca Capturer.vst3" ~/Library/Audio/Plug-Ins/Components/"Attacca.component"
 ```
 
 ## Uninstalling
 
 1. **Quit your DAW.**
 2. In Curator, open **Settings ▸ General ▸ DAW** and click **Uninstall** next to
-   **Attacca plug-in**. Both plug-ins are removed, and the button reads **Install** again.
+   **Attacca plug-in**. All its plug-ins are removed, and the button reads **Install** again.
 
-   By hand, delete the two files instead (and any named Curator Link):
+   By hand, delete the three files instead (and any named Curator Link):
 
    ```bash
-   rm -rf ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Library/Audio/Plug-Ins/Components/"Attacca.component" \
+   rm -rf ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Library/Audio/Plug-Ins/VST3/"Attacca Capturer.vst3" ~/Library/Audio/Plug-Ins/Components/"Attacca.component" \
      ~/Library/Audio/Plug-Ins/VST3/"Curator Link.vst3" ~/Library/Audio/Plug-Ins/Components/"Curator Link.component"
    ```
 3. **Start your DAW.** It drops Attacca from its list when it next starts or rescans.
@@ -116,8 +117,9 @@ which offers them all the same (for this time only).
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
    - **Studio One, REAPER**: as they add ARA plug-ins (VST3).
 
-   Attacca put in an insert slot instead is connected all the same but given no recording: its
-   window says **Insert only** (the instance tells it whether the DAW bound it to ARA: the VST3's
+   Attacca's VST3 is ARA only (its category says `OnlyARA`), so a DAW that heeds it doesn't
+   offer it as an insert. Attacca put in an insert slot all the same (or its Audio Unit, which has
+   no such mark) is connected but given no recording: its window says **Insert only** (the instance tells it whether the DAW bound it to ARA: the VST3's
    audio side by a message to its editing side, the Audio Unit by a property of its own), and
    Follow DAW… says Attacca isn't on a recording in that DAW, and to add it as an ARA extension.
 2. In Curator, open the score, then **File ▸ Attacca ▸ Follow DAW…**. Choose the recording,
@@ -150,11 +152,15 @@ stem. Project Settings ▸ Project Info ▸ **Stems ▸ Edit…** sets each stem
 
 Attacca reads a recording as the DAW hands it over: the track's own audio, before its inserts,
 sends and the mix. To take the recording as you hear it instead, put **Attacca Capturer** (Curator
-▸ Attacca Capturer; installed with Attacca, in the same bundles) as an insert, usually in the
+▸ Attacca Capturer; installed with Attacca: a VST3 of its own, so no DAW offers it as an ARA
+extension, and a second Audio Unit in Attacca's component) as an insert, usually in the
 last slot of the DAW's output (Stereo Out, the main bus). It passes everything through untouched.
 
 It works together with Attacca on a track, which still tells Curator the song. Its window says
-**Not linked** until there is one (an Attacca bound to ARA in the same DAW).
+**Not linked** while Curator says no Attacca in the same DAW (the same process) has a document,
+as ARA gives it one. Its VST3 has a connection of its own to Curator, so Curator does the
+linking: it matches the two by the DAW's process ID (`pid` in `hello`), tells the Capturer
+`linked`, and asks the document's Attacca to have the DAW play and stop.
 
 Follow DAW… always takes the recording through ARA (**Use this recording**), Capturer or not.
 **File ▸ Attacca ▸ Record from DAW…**, while the project follows a DAW, captures the mix over the
@@ -194,8 +200,9 @@ project, because everything it knows the DAW sends again.
 - **One line per message.** Each message is a JSON object on its own line, in both directions.
   The plug-in's first message is `hello`, carrying the token. Curator closes any connection
   whose first message doesn't carry it, so nothing else that reaches the port is heard.
-- **One connection per DAW process.** All of that process's documents and plug-in instances
-  share it.
+- **One connection per bundle in a DAW process.** All of that bundle's documents and instances
+  share it: Attacca's (its VST3, or the component with both Audio Units), and Attacca Capturer's
+  VST3 apart. Curator matches a DAW's connections by `pid`.
 
 | Message | From | Holds |
 |---|---|---|
@@ -210,7 +217,10 @@ project, because everything it knows the DAW sends again.
 | `exported` | plug-in | `document`, `source`, then `path` (a 32-bit float WAV in Curator's cache folder, under `DAW Link/`) or `error` |
 | `stemmed` | plug-in | `document`, `track`, then `path` (a 32-bit float WAV under `DAW Link/Stems/`) or `error` (`empty`: nothing plays there) |
 | `capturers` | plug-in | `list`: each Attacca Capturer in the process (`id`, `channels`, `rate`); sent when one comes, goes or is set up, and on connecting |
-| `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there; the document's Attacca asks the DAW to play from a second before `from`, and to stop once it is done |
+| `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection) |
+| `play` | Curator | `document`, `from`: the document's Attacca asks the DAW to play from a second before `from` (a capture starting) |
+| `stop` | Curator | `document`: the document's Attacca asks the DAW to stop, if it asked it to play (the capture done, failed or cancelled) |
+| `linked` | Curator | `value`: to a connection with Capturers, whether an Attacca in the same DAW process has a document |
 | `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
 | `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
 
@@ -239,7 +249,7 @@ Fields are only added over time. A message type or field that one side doesn't k
 2. **Builds the plug-in** as a universal binary, ad-hoc signed, with the version from
    `app/pubspec.yaml` (major.minor.build; the Audio Unit's patch is the release's). `daw_link/CMakeLists.txt` compiles the SDKs' sources directly and runs
    none of their build scripts.
-3. **Runs `daw_link/test/link_host`**, a DAW in miniature, before zipping both bundles into
+3. **Runs `daw_link/test/link_host`**, a DAW in miniature, before zipping the bundles into
    `app/assets/daw_link/Attacca.zip`. That is the zip Settings installs from, and
    `make run` and `make build` make it whenever it is out of date. The test host:
    - stands in for Curator, behind a temporary `HOME`;

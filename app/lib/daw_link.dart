@@ -164,32 +164,57 @@ class DawLink extends ChangeNotifier {
           {required double from, required double length, void Function(double done)? progress}) =>
       session._ask((document, 'track', track), {'t': 'stem', 'document': document, 'track': track, 'from': from, 'length': length}, progress);
 
-  /// Asks [capturer] of [session] for what it hears from song time [from] for [length] seconds,
-  /// as the DAW plays it (the DAW is asked to play from a second before, where it lets Attacca
-  /// ask), written in Curator's cache as [name].wav; completes with its path once every moment
-  /// of it was heard. [progress] hears how much was, 0–1. As [recording] otherwise.
+  /// Asks [capturer] (in [session]'s DAW: [capturersOf]) for what it hears from song time [from]
+  /// for [length] seconds, as the DAW plays it, written in Curator's cache as [name].wav;
+  /// completes with its path once every moment of it was heard. [document]'s Attacca (in
+  /// [session]) is asked to have the DAW play from a second before (`play`, where the DAW lets
+  /// it ask) and to stop once it is done (`stop`), whichever way: the Capturer is in a bundle of
+  /// its own, so Curator says when. [progress] hears how much was, 0–1. As [recording] otherwise.
   Future<String> capture(DawSession session, String document, DawCapturer capturer,
-          {required double from, required double length, required String name, void Function(double done)? progress}) =>
-      session._ask((document, 'capturer', capturer.id),
-          {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
+      {required double from, required double length, required String name, void Function(double done)? progress}) async {
+    final captured = capturer.session._ask((document, 'capturer', capturer.id),
+        {'t': 'capture', 'document': document, 'capturer': capturer.id, 'from': from, 'length': length, 'name': name}, progress);
+    session._send({'t': 'play', 'document': document, 'from': from});
+    try {
+      return await captured;
+    } finally {
+      session._send({'t': 'stop', 'document': document});
+    }
+  }
 
   /// Ends [capture] of [capturer] under way: it fails as `cancelled`.
-  void cancelCapture(DawSession session, String document, DawCapturer capturer) =>
-      session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});
+  void cancelCapture(String document, DawCapturer capturer) => capturer.session._send({'t': 'cancel', 'document': document, 'capturer': capturer.id});
+
+  /// The Attacca Capturers in [session]'s DAW: its own and those of the other connections from
+  /// the same process (Attacca Capturer's VST3 is a bundle of its own, with its own connection).
+  List<DawCapturer> capturersOf(DawSession session) => [
+        for (final s in _sessions)
+          if (s == session || (session.pid > 0 && s.pid == session.pid)) ...s.capturers,
+      ];
+
+  /// Each connection with an Attacca Capturer told whether an Attacca in its DAW (the same
+  /// process) has a document, as ARA gives it one (`linked`): its window says Not linked while not.
+  void _tellLinked() {
+    for (final s in _sessions) {
+      if (s.capturers.isEmpty) continue;
+      s._tellLinked(_sessions.any((o) => (o == s || (s.pid > 0 && o.pid == s.pid)) && o._documents.isNotEmpty));
+    }
+  }
 }
 
-/// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate].
+/// An Attacca Capturer in a DAW ([DawSession.capturers]): what it hears, [channels] at [rate];
+/// [session] the connection it is on.
 @immutable
 class DawCapturer {
-  const DawCapturer(this.id, {this.channels = 2, this.rate = 0});
+  const DawCapturer(this.session, this.id, {this.channels = 2, this.rate = 0});
+  final DawSession session;
   final String id;
   final int channels;
   final double rate;
 }
 
 /// What a DAW said went wrong: [reason] is the plug-in's word for it ("gone", "unreadable",
-/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected", "capturer":
-/// an Attacca Capturer captures in Attacca's place).
+/// "too long", "out of memory", "empty", "unwritable", "cancelled", "disconnected").
 class DawLinkException implements Exception {
   const DawLinkException(this.reason);
   final String reason;
@@ -220,6 +245,10 @@ class DawSession extends ChangeNotifier {
 
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;
+
+  /// The DAW's process (0: unsaid): Attacca's and Attacca Capturer's connections from one DAW
+  /// share it.
+  int pid = 0;
 
   /// Whether its Attacca is older than this Curator ([appBuild]): Curator bundles a newer one,
   /// installed already ([AttaccaPlugIns.installedBuild]: the DAW loads it once it opens again)
@@ -268,6 +297,7 @@ class DawSession extends ChangeNotifier {
       host = (message['host'] as String?) ?? '';
       plugin = (message['plugin'] as String?) ?? '';
       build = (message['build'] as num?)?.toInt() ?? 0;
+      pid = (message['pid'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);
       _link.notifyListeners();
       _link._tellFollowers();
@@ -289,7 +319,7 @@ class DawSession extends ChangeNotifier {
       case 'capturers':
         capturers = [
           for (final c in (message['list'] as List?) ?? const [])
-            if (c case {'id': final String id}) DawCapturer(id, channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
+            if (c case {'id': final String id}) DawCapturer(this, id, channels: (c['channels'] as num?)?.toInt() ?? 2, rate: (c['rate'] as num?)?.toDouble() ?? 0),
         ];
       case 'progress':
         final pending = _recordings[_keyOf(message)];
@@ -313,12 +343,22 @@ class DawSession extends ChangeNotifier {
         return; // a later plug-in's
     }
     _link._tellFollowers(); // a document followed may have come or gone
+    _link._tellLinked();
     notifyListeners();
     _link.notifyListeners();
   }
 
   /// What this DAW was last told follows it: the projects' names, one a line.
   String _followers = '';
+
+  /// Whether this connection's Capturers were last told an Attacca in their DAW has a document.
+  bool? _linked;
+
+  void _tellLinked(bool linked) {
+    if (linked == _linked) return;
+    _linked = linked;
+    _send({'t': 'linked', 'value': linked});
+  }
 
   void _tellFollowers(String names) {
     if (names == _followers) return;
@@ -346,7 +386,10 @@ class DawSession extends ChangeNotifier {
     }
     _recordings.clear();
     _documents.clear();
-    if (_link._sessions.remove(this)) _link.notifyListeners();
+    if (_link._sessions.remove(this)) {
+      _link._tellLinked();
+      _link.notifyListeners();
+    }
     notifyListeners();
   }
 }
@@ -356,14 +399,15 @@ class DawSession extends ChangeNotifier {
 /// `…/Components`. macOS only; a build made without them has none to install ([bundled]).
 abstract final class AttaccaPlugIns {
   static const asset = 'assets/daw_link/Attacca.zip';
-  static const vst3 = 'Attacca.vst3', component = 'Attacca.component';
+  static const vst3 = 'Attacca.vst3', component = 'Attacca.component', capturerVst3 = 'Attacca Capturer.vst3';
 
   /// The bundles as they were named before (Curator Link): the same plug-in to a DAW, so they
   /// go wherever these come or go.
   static const _formerly = ['VST3/Curator Link.vst3', 'Components/Curator Link.component'];
 
   /// Every bundle of it in [folder], under either name.
-  static List<String> _bundlesIn(String folder) => ['$folder/VST3/$vst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
+  static List<String> _bundlesIn(String folder) =>
+      ['$folder/VST3/$vst3', '$folder/VST3/$capturerVst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
 
   /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
   /// Follow DAW… is greyed out; Curator doesn't listen.
@@ -418,7 +462,7 @@ abstract final class AttaccaPlugIns {
     folder ??= plugInsFolder;
     if (folder == null) throw const FileSystemException('No home folder.');
     final files = ZipDecoder().decodeBytes(bytes).files;
-    String? target(String name) => name.startsWith('$vst3/')
+    String? target(String name) => name.startsWith('$vst3/') || name.startsWith('$capturerVst3/')
         ? '$folder/VST3/$name'
         : name.startsWith('$component/')
             ? '$folder/Components/$name'

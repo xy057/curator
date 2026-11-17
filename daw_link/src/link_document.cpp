@@ -1,6 +1,5 @@
 #include "link_document.h"
 #include "link_files.h"
-#include "link_capture.h"
 
 #include "json.h"
 #include "link_client.h"
@@ -204,13 +203,11 @@ LinkDocumentController::LinkDocumentController (const ARA::PlugIn::PlugInEntry* 
   client_ (LinkClient::retain ())
 {
     listener_ = client_.listen ([this] (const Message& m) { onMessage (m); });
-    Capturer::countDocument (1);
 }
 
 LinkDocumentController::~LinkDocumentController ()
 {
     client_.unlisten (listener_);
-    Capturer::countDocument (-1);
     stopExport (nullptr);
     JsonWriter closed;
     closed.object ().field ("t", "closed").field ("id", id_).endObject ();
@@ -245,8 +242,9 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
 
 void LinkDocumentController::followCapture () noexcept
 {
-    // A Capturer hears only what the DAW plays: the DAW is asked to play from a second before
-    // the span, and to stop once it is heard whole (where the host lets a plug-in ask).
+    // An Attacca Capturer hears only what the DAW plays: Curator asks for the span to be played
+    // from a second before, and for the DAW to stop once it was heard (where the host lets a
+    // plug-in ask). The Capturer may be in another bundle, so Curator says when.
     auto* playback = getHostPlaybackController ();
     if (wantPlayback_.exchange (false))
     {
@@ -256,15 +254,8 @@ void LinkDocumentController::followCapture () noexcept
             playback->requestStartPlayback ();
         }
         playing_ = true;
-        sawCapture_ = false;
     }
-    if (!playing_)
-        return;
-    if (Capturer::busy ())
-    {
-        sawCapture_ = true;
-    }
-    else if (sawCapture_)
+    if (wantStop_.exchange (false) && playing_)
     {
         if (playback)
             playback->requestStopPlayback ();
@@ -570,15 +561,20 @@ void LinkDocumentController::onMessage (const Message& message)
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;
-    if (*t == "capture" && field ("capturer") && field ("from"))
+    if (*t == "play" && field ("from"))
     {
-        // A Capturer takes it (link_capture.cpp); the DAW is asked to play it from here.
+        // An Attacca Capturer is capturing from here: the DAW is asked to play it.
         const double from = std::strtod (field ("from")->c_str (), nullptr);
         if (std::isfinite (from))
         {
             playFrom_.store (from);
             wantPlayback_.store (true);
         }
+        return;
+    }
+    if (*t == "stop")
+    {
+        wantStop_.store (true);
         return;
     }
     ExportJob job;

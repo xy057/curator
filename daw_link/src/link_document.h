@@ -107,7 +107,7 @@ private:
     void startRecording (const std::string& sourceID);
     void startStem (const ExportJob& job);
     void stopExport (const LinkAudioSource* source);
-    // The DAW played for a Capturer's capture, and stopped when it is done.
+    // The DAW played for a Capturer's capture, and stopped when it is done, as Curator asks.
     void followCapture () noexcept;
     void lockOutRenderers () noexcept;
     void letRenderersIn () noexcept;
@@ -129,11 +129,12 @@ private:
     std::atomic<bool> busy_ { false };
     std::atomic<bool> cancelExport_ { false };
 
-    // A capture Curator asked for: where the DAW is to play from (set on the connection's
-    // thread, taken up on the main thread), and whether it was asked to play and a capture seen.
+    // A capture under way (Curator's `play` and `stop`, set on the connection's thread, taken up
+    // on the main thread): where the DAW is to play from, whether it is to start or stop, and
+    // whether it was started for one.
     std::atomic<double> playFrom_ { 0 };
-    std::atomic<bool> wantPlayback_ { false };
-    bool playing_ { false }, sawCapture_ { false };
+    std::atomic<bool> wantPlayback_ { false }, wantStop_ { false };
+    bool playing_ { false };
 
     std::atomic<bool> renderersMayAccess_ { true };
     std::atomic<int> renderersAccessing_ { 0 };

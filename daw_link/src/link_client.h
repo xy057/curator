@@ -57,6 +57,11 @@ public:
     // than it is outdated: Curator bundles a newer one.
     int curatorBuild () const noexcept { return curatorBuild_.load (); }
 
+    // Whether an Attacca in this DAW is bound to ARA, as Curator last said (`linked`, to a DAW
+    // with an Attacca Capturer in it; the two may be in bundles of their own): 1 or 0; -1 while
+    // it hasn't said or isn't connected.
+    int linked () const noexcept { return linked_.load (); }
+
 private:
     LinkClient ();
     ~LinkClient ();
@@ -74,6 +79,7 @@ private:
 
     std::atomic<int> fd_ { -1 };
     std::atomic<int> curatorBuild_ { 0 };
+    std::atomic<int> linked_ { -1 };
     std::string token_;
     bool sendAll_ { false };
     std::map<std::string, std::string> states_;

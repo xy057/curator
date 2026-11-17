@@ -29,13 +29,8 @@ public:
 
     const std::string& id () const noexcept { return id_; }
 
-    // Whether a Capturer is in this process: Attacca's own capture is off while one is.
-    static bool any () noexcept;
-    // Whether one is capturing now.
+    // Whether one in this bundle is capturing now.
     static bool busy () noexcept;
-    // How many Attacca (ARA) documents are in this process: a Capturer works with one.
-    static int documents () noexcept;
-    static void countDocument (int delta) noexcept;
 
 private:
     void onMessage (const Message& message);

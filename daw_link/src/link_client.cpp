@@ -248,6 +248,7 @@ void LinkClient::disconnect ()
     const int fd = fd_.exchange (-1);
     if (fd >= 0)
         ::close (fd);
+    linked_.store (-1);
     std::lock_guard<std::mutex> lock (mutex_);
     outbox_.clear ();
     followers_.clear ();
@@ -302,6 +303,11 @@ void LinkClient::receive ()
         {
             std::lock_guard<std::mutex> lock (mutex_);
             followers_ = message["names"];
+            continue;
+        }
+        if (message["t"] == "linked")
+        {
+            linked_.store (message["value"] == "true" ? 1 : 0);
             continue;
         }
         std::lock_guard<std::mutex> lock (handlersMutex_);

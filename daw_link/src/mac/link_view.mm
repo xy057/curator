@@ -143,7 +143,7 @@ int installedBuild ()
     }
     // Not linked: Attacca on an insert only, never bound to ARA; the Capturer with no Attacca on
     // a track (an ARA document) in this DAW.
-    if (_capturer ? attacca::Capturer::documents () == 0 : (_bound && _bound () == 0))
+    if (_capturer ? _client->linked () == 0 : (_bound && _bound () == 0))
     {
         dot = NSColor.systemOrangeColor;
         detail = _capturer ? @"Not linked: no Attacca on a track as an ARA extension" : @"Insert only: add Attacca to a track as an ARA extension";

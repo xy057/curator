@@ -19,9 +19,7 @@ namespace {
 // The Capturers in this process, and how many are capturing.
 std::mutex registryMutex;
 std::vector<Capturer*> registry;
-std::atomic<int> capturersHere { 0 };
 std::atomic<int> capturing { 0 };
-std::atomic<int> araDocuments { 0 };
 
 // The audio thread hands what it hears over in blocks of at most this many frames.
 constexpr int64_t blockFrames = 512;
@@ -101,7 +99,6 @@ Capturer::Capturer () : id_ (randomId ()), client_ (LinkClient::retain ())
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         registry.push_back (this);
-        capturersHere.fetch_add (1);
     }
     listener_ = client_.listen ([this] (const Message& m) { onMessage (m); });
     publishAll ();
@@ -114,16 +111,12 @@ Capturer::~Capturer ()
     {
         std::lock_guard<std::mutex> lock (registryMutex);
         registry.erase (std::remove (registry.begin (), registry.end (), this), registry.end ());
-        capturersHere.fetch_sub (1);
     }
     publishAll ();
     LinkClient::release ();
 }
 
-bool Capturer::any () noexcept { return capturersHere.load () > 0; }
 bool Capturer::busy () noexcept { return capturing.load () > 0; }
-int Capturer::documents () noexcept { return araDocuments.load (); }
-void Capturer::countDocument (int delta) noexcept { araDocuments.fetch_add (delta); }
 
 void Capturer::prepare (double sampleRate, int channels)
 {

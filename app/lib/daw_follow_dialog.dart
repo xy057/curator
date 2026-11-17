@@ -45,7 +45,7 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
   final (session, document) = found;
   final source = document.sources.where((s) => s.id == follow.source).firstOrNull;
   final region = document.regionsOf(follow.source).firstOrNull;
-  final capturer = session.capturers.firstOrNull;
+  final capturer = link.capturersOf(session).firstOrNull;
   if (source == null || region == null || capturer == null) {
     await showAppDialog<void>(
       context: context,
@@ -67,7 +67,7 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
     source,
     (progress) => link.capture(session, document.id, capturer,
         from: region.songAt(0), length: source.seconds, name: source.name.isEmpty ? 'Recording'.tr : source.name, progress: progress),
-    onCancel: () => link.cancelCapture(session, document.id, capturer),
+    onCancel: () => link.cancelCapture(document.id, capturer),
   );
 }
 
@@ -186,8 +186,8 @@ class _FollowDialogState extends State<_FollowDialog> {
           final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
           // A DAW whose Attacca is older than Curator: said, whatever else is.
           final outdated = [
-            for (final s in widget.link.sessions)
-              if (s.outdated) Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
+            for (final s in {for (final s in widget.link.sessions) if (s.outdated) s.host: s}.values)
+              Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
           ];
           // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Follow Anyway.
           final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};

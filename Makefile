@@ -91,9 +91,9 @@ DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DA
 $(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
 	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
-	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca.component"
+	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca.component" "daw_link/build/out/Attacca Capturer.vst3"
 	rm -f $@
-	cd daw_link/build/out && zip -qry "$(CURDIR)/$@" "Attacca.vst3" "Attacca.component"
+	cd daw_link/build/out && zip -qry "$(CURDIR)/$@" "Attacca.vst3" "Attacca Capturer.vst3" "Attacca.component"
 
 daw-link: $(DAW_LINK_ZIP)
 

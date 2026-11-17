@@ -503,12 +503,14 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   }
 
   /// The DAWs connected that were told of: each one Attacca doesn't support ([DawSession.supported]),
-  /// or whose Attacca is outdated ([DawSession.outdated]), is said once, as it connects.
+  /// or whose Attacca is outdated ([DawSession.outdated]), is said once, as it connects (once a
+  /// process: Attacca and Attacca Capturer connect apart, [DawSession.pid]).
   final _dawsSeen = Expando<bool>();
+  final _dawProcessesSeen = <int>{};
 
   void _dawsChanged() {
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
-      if (_dawsSeen[session] == true) continue;
+      if (_dawsSeen[session] == true || _dawProcessesSeen.contains(session.pid)) continue;
       final said = !session.supported
           ? (session.host.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host}))
           : session.outdated
@@ -516,6 +518,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
               : null;
       if (said == null) continue;
       _dawsSeen[session] = true;
+      if (session.pid > 0) _dawProcessesSeen.add(session.pid);
       _messenger?.showSnackBar(SnackBar(content: Text(said)));
     }
   }
