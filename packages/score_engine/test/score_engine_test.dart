@@ -82,6 +82,10 @@ void main() {
     expect(foundAt(PhraseSearch.find(Phrase(wrong), lines)), isFalse);
     expect(PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10).similarity,
         inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
+    // A note stepped past the highest or the lowest stays: B8 a step up was C8, C0 a step down B0.
+    const top = PhraseNote(step: 6, octave: 8, value: NoteValue.quarter), bottom = PhraseNote(step: 0, octave: 0, value: NoteValue.quarter);
+    expect([top.stepped(1), top.stepped(7), bottom.stepped(-1), bottom.stepped(-7)], [top, top, bottom, bottom]);
+    expect((top.stepped(-1).diatonic, bottom.stepped(7).diatonic), (top.diatonic - 1, 7));
 
     // A video frame is the preview drawn offscreen: the same pixels, engraved now or saved (a web page's score).
     final scene = CuratedScene(score);
