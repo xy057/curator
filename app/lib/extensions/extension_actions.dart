@@ -134,7 +134,8 @@ abstract final class ExtensionActions {
   /// A copy of [package] (one of Curator's own) the project carries and can change, named
   /// "… Copy", with an id of its own and data of its own.
   static ExtensionPackage copyOf(ExtensionPackage package, EditorController controller) {
-    final name = '{name} Copy'.fill({'name': package.name.tr});
+    // (Curator's own is named in the interface's language; another's name is its maker's.)
+    final name = '{name} Copy'.fill({'name': ExtensionPackage.isThirdPartyId(package.id) ? package.name : package.name.tr});
     final data = {...package.data}..remove('module');
     return package.copyWith(manifest: {
       ...package.manifest,

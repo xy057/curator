@@ -1931,7 +1931,8 @@ class _SettingRow extends StatelessWidget {
   final Widget? leading;
 
   /// The title is a name the score or the user gave (an instrument's, a group's): shown as it
-  /// is. One that reads as a word of the interface ("Alto", "Bass": clefs) is not that word.
+  /// is, and [help] with it (an extension's summary is its maker's). One that reads as a word
+  /// of the interface ("Alto", "Bass": clefs) is not that word.
   final bool named;
   final String? note;
   final String? help;
@@ -1958,7 +1959,7 @@ class _SettingRow extends StatelessWidget {
                 AnimatedSwitcher(
                   duration: motion(context, 120),
                   layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
-                  child: Text(help!.tr, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
+                  child: Text(named ? help! : help!.tr, key: ValueKey(help), style: TextStyle(fontSize: 12, height: 1.35, color: colors.textMuted)),
                 ),
               ],
             ]),
