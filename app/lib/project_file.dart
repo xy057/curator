@@ -93,13 +93,27 @@ abstract final class ProjectFile {
       }
       File(temp).renameSync(path);
     } catch (_) {
-      out.closeSync();
+      // Each let go on its own: closing a file that couldn't be written fails again (the bytes it
+      // couldn't write are still waiting), and the rest must go all the same.
+      letGo(out.closeSync);
       for (final s in streams) {
-        s.closeSync();
+        letGo(s.closeSync);
       }
-      final f = File(temp);
-      if (f.existsSync()) f.deleteSync();
+      letGo(() {
+        final f = File(temp);
+        if (f.existsSync()) f.deleteSync();
+      });
       rethrow;
+    }
+  }
+
+  /// Does [step] of a clean-up after a failure, which may fail too: the failure first met is the
+  /// one to tell.
+  static void letGo(void Function() step) {
+    try {
+      step();
+    } catch (_) {
+      // (Gone as far as it could.)
     }
   }
 

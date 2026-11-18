@@ -7,6 +7,7 @@ import 'package:score_engine/score_engine.dart' show ZipEntries;
 
 import 'legacy_project.dart';
 import 'project_archive.dart';
+import 'project_file.dart' show ProjectFile;
 import 'project_modules.dart';
 import 'project_state.dart';
 
@@ -63,9 +64,11 @@ abstract final class SettingsFile {
       out.closeSync();
       File(temp).renameSync(path);
     } catch (_) {
-      out.closeSync();
-      final f = File(temp);
-      if (f.existsSync()) f.deleteSync();
+      ProjectFile.letGo(out.closeSync); // (as a project's, each step on its own)
+      ProjectFile.letGo(() {
+        final f = File(temp);
+        if (f.existsSync()) f.deleteSync();
+      });
       rethrow;
     }
   }
