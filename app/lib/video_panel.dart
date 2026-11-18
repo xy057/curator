@@ -76,7 +76,7 @@ class VideoToolbar extends StatelessWidget {
               name: viewName,
               onSelected: (k) => set(view.copyWith(kind: k)),
             ),
-            if (view.kind == ViewKind.split)
+            if (view.kind.hasSide)
               _Menu<MapSide>(
                 tooltip: 'Where the map goes'.tr,
                 label: _sideName(view.side),
@@ -85,7 +85,7 @@ class VideoToolbar extends StatelessWidget {
                 name: _sideName,
                 onSelected: (s) => set(view.copyWith(side: s)),
               ),
-            if (view.kind == ViewKind.inset)
+            if (view.kind.hasCorner)
               _Menu<MapCorner>(
                 tooltip: 'Where the map goes'.tr,
                 label: _cornerName(view.corner),
@@ -94,11 +94,11 @@ class VideoToolbar extends StatelessWidget {
                 name: _cornerName,
                 onSelected: (s) => set(view.copyWith(corner: s)),
               ),
-            if (view.kind == ViewKind.split || view.kind == ViewKind.inset)
+            if (view.kind.sized)
               _Menu<double>(
                 tooltip: 'Map size'.tr,
                 label: _percent(view.size),
-                values: {...view.kind == ViewKind.split ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
+                values: {...view.kind.hasSide ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
                 chosen: view.size,
                 name: _percent,
                 onSelected: (s) => set(view.copyWith(size: s)),

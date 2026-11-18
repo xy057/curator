@@ -145,8 +145,7 @@ class AutomationEditing {
   void _followTime() {
     if (_editor._score == null || _editor._sync == null || _editor._disposed) return;
     final m = viewsTimed.at(_editor.playback.time.value);
-    bool inPlace(SceneView v) => v.kind == ViewKind.score || v.kind == ViewKind.inset;
-    scoreInPlace.value = inPlace(m.from) && (m.mix == 0 || inPlace(m.to));
+    scoreInPlace.value = m.from.kind.scoreWhole && (m.mix == 0 || m.to.kind.scoreWhole);
   }
 
   void _clearSelection() => _selected = null;
