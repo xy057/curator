@@ -112,6 +112,10 @@ abstract final class ExtensionApi {
 
   static ApiSocket? socket(String type) => sockets.where((s) => s.type == type).firstOrNull;
 
+  /// Whether the node [id] of [type] is one Curator calls by that name (`project.opened`,
+  /// `export.chapters`): named anything else, none of its ports would be called.
+  static bool calledByName(String type, String id) => (type == 'project' || type == 'export') && id == type;
+
   /// Whether this Curator has [name]: a function ("score.bars"), a library ("ui"), a socket
   /// ("socket:lane") or a port of one ("socket:lane.items").
   static bool has(String name) {
