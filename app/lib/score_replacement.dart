@@ -276,6 +276,7 @@ class ScoreSwap {
     required List<double> measuresAfter,
     required Map<String, String> edits,
     Lost lost = const (regions: 0, anchors: 0, warps: 0, extensions: []),
+    int firstBar = 1,
   }) {
     String names(Iterable<ScorePart> parts) => parts.map((p) => p.name).join(', ');
     final barsBefore = measuresBefore.length - 1, barsAfter = measuresAfter.length - 1;
@@ -298,8 +299,8 @@ class ScoreSwap {
       if (removed.isNotEmpty) 'Removed: {names}'.fill({'names': names(removed)}),
       for (final (a, b) in renamed) 'Renamed: {from} → {to}'.fill({'from': a.name, 'to': b.name}),
       if (barsBefore != barsAfter) 'Bars: {from} → {to}'.fill({'from': barsBefore, 'to': barsAfter}),
-      if (meter != null) 'Time signature differs from bar {n}'.fill({'n': meter + 1}),
-      if (length != null && (meter == null || length < meter)) 'Bar length differs from bar {n}'.fill({'n': length + 1}),
+      if (meter != null) 'Time signature differs from bar {n}'.fill({'n': meter + firstBar}),
+      if (length != null && (meter == null || length < meter)) 'Bar length differs from bar {n}'.fill({'n': length + firstBar}),
       if (before.tempo != after.tempo) 'Tempo: {from} → {to}'.fill({'from': _tempo(before.tempo), 'to': _tempo(after.tempo)}),
       if (dropped > 0) 'Text edits lost: {n}'.fill({'n': dropped}),
       if (lostItems.isNotEmpty) 'Lost past bar {n}: {items}'.fill({'n': barsAfter, 'items': lostItems.join(', '.tr)}),

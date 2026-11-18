@@ -33,7 +33,7 @@ import 'menu_kit.dart';
 import 'motion_settings.dart';
 import 'pdf_ai_model_dialog.dart';
 import 'typography_settings.dart';
-import 'project_state.dart' show NameGroupInfo;
+import 'project_state.dart' show EditState, NameGroupInfo;
 import 'edit_dialogs.dart' show confirmSavePath, showNameGroupDialog;
 import 'error_text.dart';
 import 'settings_file.dart';
@@ -652,6 +652,12 @@ final _projectCategories = <_Category>[
       null,
       (c) => AppSwitch(value: c.controller!.barNumbers, onChanged: c.controller!.setBarNumbers),
       keywords: 'bar measure numbers numbering count tempo row',
+    ),
+    _Item(
+      'First bar number',
+      null,
+      (c) => _FirstBar(c.controller!),
+      keywords: 'bar measure numbers numbering count start starts from first offset excerpt movement',
     ),
   ], saveDefault: (
     shown: null,
@@ -2468,6 +2474,24 @@ class _TransitionPicker extends StatelessWidget {
       onChanged: onChanged,
     );
   }
+}
+
+/// The number the project's first bar counts as, typed; Reset, once it is set, gives the
+/// score's own numbers back.
+class _FirstBar extends StatelessWidget {
+  const _FirstBar(this.controller);
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        SliderValueField(
+            value: controller.shownFirstBar.toDouble(),
+            min: 0,
+            max: EditState.maxFirstBar.toDouble(),
+            format: (v) => '${v.round()}',
+            onChanged: (v) => controller.setFirstBar(v.round())),
+        ResetSlot(changed: controller.firstBar != null, color: context.colors.textMuted, onReset: () => controller.setFirstBar(null)),
+      ]);
 }
 
 /// Beats ⟷ Notes: how closely the project's scroll follows the notes, live in the score; a

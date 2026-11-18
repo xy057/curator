@@ -50,6 +50,7 @@ class EditState {
     this.split = const {},
     this.groupSections = false,
     this.barNumbers = true,
+    this.firstBar,
     this.playheadColor,
     this.colorNames = false,
     this.nameColors = const {},
@@ -163,6 +164,15 @@ class EditState {
   /// ([CuratedScene.barNumbers]); on for a new project.
   final bool barNumbers;
 
+  /// The number the first bar counts as (Project Settings ▸ Display ▸ First bar number): the
+  /// first of the score's printed numbers ([CuratedScene.firstBar]) and where the ruler, Go to
+  /// and every bar typed count from ([BeatGrid.firstBar]); null: the score's own numbers, and
+  /// a count from 1.
+  final int? firstBar;
+
+  /// The most [firstBar] may be.
+  static const maxFirstBar = 99999;
+
   /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).
   final Color? playheadColor;
 
@@ -270,6 +280,7 @@ class EditState {
       setEquals(split, other.split) &&
       groupSections == other.groupSections &&
       barNumbers == other.barNumbers &&
+      firstBar == other.firstBar &&
       playheadColor == other.playheadColor &&
       colorNames == other.colorNames &&
       mapEquals(nameColors, other.nameColors) &&
@@ -294,7 +305,7 @@ class EditState {
   int get hashCode => Object.hash(transition, leadIn, lanes?.length, anchors.length, partNames.length, textEdits.length);
 
   /// This state with the fields given instead of its own. A field that may be null is
-  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont], [playheadColor],
+  /// cleared by passing null ([lanes], [transition], [scrollFollow], [motion], [typography], [midi], [captionFont], [playheadColor], [firstBar],
   /// [textDynamics], [rehearsalInRow], [centeredLyrics], [dynamicsBetween]); left
   /// out, it stays.
   EditState copyWith({
@@ -320,6 +331,7 @@ class EditState {
     Set<String>? split,
     bool? groupSections,
     bool? barNumbers,
+    Object? firstBar = _kept,
     Object? playheadColor = _kept,
     bool? colorNames,
     Map<InstrumentFamily, Color>? nameColors,
@@ -364,6 +376,7 @@ class EditState {
         split: split ?? this.split,
         groupSections: groupSections ?? this.groupSections,
         barNumbers: barNumbers ?? this.barNumbers,
+        firstBar: identical(firstBar, _kept) ? this.firstBar : firstBar as int?,
         playheadColor: identical(playheadColor, _kept) ? this.playheadColor : playheadColor as Color?,
         colorNames: colorNames ?? this.colorNames,
         nameColors: nameColors ?? this.nameColors,

@@ -14,7 +14,7 @@ local function cues()
   end
   -- A video's chapters must begin at 0:00.
   if #list == 0 or list[1].seconds > 0.5 then
-    table.insert(list, 1, {seconds = 0, name = tr("Start"), bar = 1})
+    table.insert(list, 1, {seconds = 0, name = tr("Start"), bar = places.bar(0)})
   end
   return list
 end

@@ -291,6 +291,7 @@ final class _Display extends ProjectModule {
       'scrollFollow': ?e.scrollFollow,
       'motion': ?e.motion?.toJson(),
       'barNumbers': e.barNumbers,
+      'firstBar': ?e.firstBar,
       'groupSections': e.groupSections,
       if (e.playheadColor case final color?) 'playheadColor': hexOf(color),
       'colorNames': e.colorNames,
@@ -311,6 +312,10 @@ final class _Display extends ProjectModule {
           },
           motion: _nested(r, 'motion', ScoreMotion.fromJson),
           barNumbers: r.boolean('barNumbers') ?? true,
+          firstBar: switch (r.number('firstBar')) {
+            final n? when n != n.roundToDouble() || n < 0 || n > EditState.maxFirstBar => throw _damaged('${r.where}.firstBar is not a bar number.'),
+            final n => n?.toInt(),
+          },
           groupSections: r.boolean('groupSections') ?? false,
           playheadColor: switch (r.string('playheadColor')) {
             null => null,

@@ -549,7 +549,7 @@ msgstr "填補不超過 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 則為 c，否則為 d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -1113,6 +1113,9 @@ msgstr "尋找樂句…"
 
 msgid "Fingering"
 msgstr "指法"
+
+msgid "First bar number"
+msgstr "起始小節號"
 
 #: lib/bottom_panel.dart
 msgid "Fit"
@@ -5595,11 +5598,11 @@ msgstr "正在擷取錄音"
 msgid "Play it in the DAW if it doesn’t start."
 msgstr "如果沒有開始，請在 DAW 中播放。"
 
-#: lib/daw_follow_dialog.dart lib/main.dart
+#: lib/daw_follow_dialog.dart
 msgid "This DAW isn’t supported by Attacca."
 msgstr "Attacca 不支援此 DAW。"
 
-#: lib/daw_follow_dialog.dart lib/main.dart
+#: lib/daw_follow_dialog.dart
 msgid "{daw} isn’t supported by Attacca."
 msgstr "Attacca 不支援 {daw}。"
 

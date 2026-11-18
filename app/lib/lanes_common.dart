@@ -386,7 +386,7 @@ class _RulerPainter extends CustomPainter {
         canvas.drawLine(Offset(x, labelled ? 8 : 17), Offset(x, size.height), warped ? jump : tick);
         if (labelled) {
           lastLabel = x;
-          _numbers.text('${i + 1}', TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)).paint(canvas, Offset(x + 4, 3));
+          _numbers.text('${c.beats.barNumber(i)}', TextStyle(fontSize: 11, color: warped ? colors.accentStrong : colors.textMuted)).paint(canvas, Offset(x + 4, 3));
         }
       }
     }
@@ -407,7 +407,7 @@ List<String>? overflowBars(EditorController c, {({double start, double end})? wi
   if (stretches.isEmpty || c.score == null) return null;
   final tl = c.timeline, lastBar = tl.measureStarts.length - 2;
   final (start, end) = (math.max(0.0, within?.start ?? 0), math.min(tl.endSeconds, within?.end ?? double.infinity));
-  int bar(double seconds) => c.beats.measureAt(tl.quarterAtSeconds(seconds)).clamp(0, lastBar) + 1;
+  int bar(double seconds) => c.beats.barNumber(c.beats.measureAt(tl.quarterAtSeconds(seconds)).clamp(0, lastBar));
   final runs = <String>[];
   for (final o in stretches) {
     final from = math.max(o.start, start), to = math.min(o.end, end);

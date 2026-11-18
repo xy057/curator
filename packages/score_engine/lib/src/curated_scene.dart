@@ -548,6 +548,7 @@ class SceneSettings {
     this.sectionOverrides = const {},
     this.instrumentSpacing = const {},
     this.barNumbers = false,
+    this.firstBar,
     this.rehearsalInRow = true,
     this.nameColors = const {},
     this.pointerColor,
@@ -569,6 +570,7 @@ class SceneSettings {
   final Map<String, String?> sectionOverrides;
   final Map<String, ({double above, double below})> instrumentSpacing;
   final bool barNumbers;
+  final int? firstBar;
   final bool rehearsalInRow;
   final Map<String, ui.Color> nameColors;
   final ui.Color? pointerColor;
@@ -694,7 +696,7 @@ class CuratedScene {
 
   /// Everything set on the scene ([names], [condensed], [partOrder], [scrollFollow],
   /// [patches], [captions], [captionStyle], [sections], [sectionOverrides], [instrumentSpacing], [barNumbers],
-  /// [rehearsalInRow], [nameColors], [pointerColor], [motion], [typography], [spacers], [bands]);
+  /// [firstBar], [rehearsalInRow], [nameColors], [pointerColor], [motion], [typography], [spacers], [bands]);
   /// setting it changes only what differs.
   SceneSettings get settings => SceneSettings(
       names: names,
@@ -708,6 +710,7 @@ class CuratedScene {
       sectionOverrides: sectionOverrides,
       instrumentSpacing: instrumentSpacing,
       barNumbers: barNumbers,
+      firstBar: firstBar,
       rehearsalInRow: rehearsalInRow,
       nameColors: nameColors,
       pointerColor: pointerColor,
@@ -727,6 +730,7 @@ class CuratedScene {
     sectionOverrides = value.sectionOverrides;
     instrumentSpacing = value.instrumentSpacing;
     barNumbers = value.barNumbers;
+    firstBar = value.firstBar;
     rehearsalInRow = value.rehearsalInRow;
     nameColors = value.nameColors;
     pointerColor = value.pointerColor;
@@ -1448,6 +1452,21 @@ class CuratedScene {
     if (_tempoIds.isNotEmpty || (rehearsalInRow && _rehearsalIds.isNotEmpty)) _remakeDisplay();
   }
 
+  /// The number the row's first numbered bar shows, the rest moved as far
+  /// ([ScoreMetadata.barNumbersFrom]; Project Settings ▸ Display ▸ First bar number); null: as
+  /// the score numbers them.
+  int? get firstBar => _firstBar;
+  int? _firstBar;
+  set firstBar(int? value) {
+    if (value == _firstBar) return;
+    _firstBar = value;
+    _shownNumbers = null;
+  }
+
+  /// The bars' numbers as the row shows them: the score's, from [firstBar].
+  List<String?> get _numbers => _shownNumbers ??= score.metadata.barNumbersFrom(_firstBar);
+  List<String?>? _shownNumbers;
+
   /// Whether, while [barNumbers] shows the row, the rehearsal marks leave the music for their
   /// bars in it (Project Settings ▸ Flags).
   bool get rehearsalInRow => _rehearsalInRow;
@@ -1625,7 +1644,7 @@ class CuratedScene {
   final _inkAboveOf = <int, double>{};
 
   void _paintBarNumbers(ui.Canvas canvas, ui.Size size, double scrollX, ui.Color ink, double shift) {
-    final measures = score.engraving.measures, numbers = score.metadata.barNumbers;
+    final measures = score.engraving.measures, numbers = _numbers;
     final scale = renderer.scale, sp = _style.staffSpace;
     final originX = renderer.pointerX(size.width) - scrollX * scale;
     final (left, right) = renderer.visibleRange(scrollX, size.width);
@@ -1648,7 +1667,7 @@ class CuratedScene {
       final bar = measures[m];
       if (bar.right < left) continue;
       if (bar.left > right) break;
-      final number = m < numbers.length ? numbers[m] : '${m + 1}';
+      final number = m < numbers.length ? numbers[m] : '${m + (_firstBar ?? 1)}';
       if (number == null) continue; // an upbeat, a split bar's second half
       final text = _barNumber(number);
       final x = marks[m]?.box.right ?? originX + bar.left * scale;

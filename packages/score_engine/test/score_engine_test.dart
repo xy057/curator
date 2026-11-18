@@ -34,7 +34,16 @@ void main() {
     final measures = ['number="0" implicit="yes"', 'number="1"', 'number="2"', 'number="2" implicit="yes"', 'number="3" text="3a"', ''];
     final xml = '<score-partwise><part-list><score-part id="P1"><part-name>A</part-name></score-part></part-list>'
         '<part id="P1">${measures.map((m) => '<measure $m/>').join()}</part></score-partwise>';
-    expect(ScoreMetadata.read(xml).barNumbers, [null, '1', '2', null, '3a', '4']);
+    final numbered = ScoreMetadata.read(xml);
+    expect(numbered.barNumbers, [null, '1', '2', null, '3a', '4']);
+    // A first bar number moves them all as far, the letters kept; the grid counts its bars from it.
+    expect((numbered.firstBarNumber, numbered.barNumbersFrom(null)), (1, numbered.barNumbers));
+    expect(numbered.barNumbersFrom(145), [null, '145', '146', null, '147a', '148']);
+    final counted = score.beats.countedFrom(145), bar3 = score.timeline.measureStarts[2];
+    expect((score.beats.format(bar3, compact: true), counted.format(bar3, compact: true), counted.format(bar3)), ('3', '147', '147.1'));
+    expect((counted.parse('147'), counted.parse('147.2'), counted.parse('3'), counted.parse('144')), (bar3, bar3 + 1.5, null, null));
+    expect((counted.barNumber(0), counted.measureAt(bar3)), (145, 2));
+    expect(score.beats.countedFrom(1), same(score.beats));
 
     // The scroll map: an anchor on every onset in every staff (and the final barline), each on its notes.
     final map = score.scrollMap;

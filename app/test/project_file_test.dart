@@ -85,6 +85,8 @@ void main() {
       // The snare drum back with the timpani, the piccolo alone, the horns in a bracket of their own.
       c.setGroupSections(true);
       c.setBarNumbers(false); // on for a new project
+      expect((c.firstBar, c.shownFirstBar, c.beats.format(0, compact: true)), (null, 1, '1'));
+      c.setFirstBar(145);
       c.setPlayheadColor(const Color(0xFFCC3300));
       c.setColorNames(true);
       c.setNameGroupColor('brass', const Color(0xFFE0B000));
@@ -148,6 +150,9 @@ void main() {
       expect(c2.textById(vivo.id)!.current, 'Presto');
       expect(c2.partOrder.first, 'P17');
       expect((c2.scene!.sections, c2.scene!.barNumbers), (true, false));
+      // The first bar's number: the score's row starts at it, and every bar typed counts from it.
+      expect((c2.firstBar, c2.shownFirstBar, c2.scene!.firstBar), (145, 145, 145));
+      expect((c2.beats.format(starts[2], compact: true), c2.beats.parse('147'), c2.beats.parse('2')), ('147', starts[2], null));
       expect(c2.scene!.pointerColor, const Color(0xFFCC3300), reason: 'drawn over the score and in the video');
       expect(c2.playheadColor, const Color(0xFFCC3300));
       expect(c2.scene!.nameColors['P10'], const Color(0xFFE0B000), reason: 'a horn: brass, recoloured');

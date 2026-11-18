@@ -426,10 +426,11 @@ abstract class ScriptRuntime {
       'open': (a) => [host.score != null],
       'quarters': (a) => [beats('score.quarters').totalQuarters],
       'bars': (a) {
-        final starts = beats('score.bars').measureStarts;
+        final grid = beats('score.bars'), starts = grid.measureStarts;
         return [
           LuaTable.list([
-            for (var i = 0; i + 1 < starts.length; i++) LuaTable.map({'number': i + 1, 'start': starts[i], 'length': starts[i + 1] - starts[i]}),
+            for (var i = 0; i + 1 < starts.length; i++)
+              LuaTable.map({'number': grid.barNumber(i), 'start': starts[i], 'length': starts[i + 1] - starts[i]}),
           ]),
         ];
       },

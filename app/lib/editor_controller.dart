@@ -135,8 +135,15 @@ class EditorController extends ChangeNotifier {
   /// The musical-time ↔ seconds mapping everything uses.
   ScoreTimeline get timeline => _performed.timeline;
 
-  /// Where the beats fall in each bar (from the time signatures): the finer grid.
-  BeatGrid get beats => _score!.beats;
+  /// Where the beats fall in each bar (from the time signatures): the finer grid, its bars
+  /// counted from the project's [firstBar].
+  BeatGrid get beats {
+    final grid = _score!.beats, first = _doc.firstBar ?? 1;
+    if (!identical(_counted?.of, grid) || _counted!.grid.firstBar != first) _counted = (of: grid, grid: grid.countedFrom(first));
+    return _counted!.grid;
+  }
+
+  ({BeatGrid of, BeatGrid grid})? _counted;
 
   String? get fileName => _source?.name;
   bool get isLoading => _loading;
@@ -526,7 +533,7 @@ class EditorController extends ChangeNotifier {
       score: score,
       state: carried,
       differences: swap.differences(
-          measuresBefore: measures.before, measuresAfter: measures.after, edits: _doc.textEdits, lost: lost),
+          measuresBefore: measures.before, measuresAfter: measures.after, edits: _doc.textEdits, lost: lost, firstBar: _doc.firstBar ?? 1),
       replacing: before,
       pages: source,
     );
@@ -864,6 +871,7 @@ class EditorController extends ChangeNotifier {
       sectionOverrides: {..._doc.sections, ...?_previewSections},
       instrumentSpacing: _doc.spacing,
       barNumbers: _doc.barNumbers,
+      firstBar: _doc.firstBar,
       rehearsalInRow: rehearsalInRow,
       nameColors: _nameColors,
       pointerColor: _doc.playheadColor,
@@ -944,6 +952,21 @@ class EditorController extends ChangeNotifier {
   void setBarNumbers(bool on) {
     if (on == _doc.barNumbers) return;
     _showEdit(_doc.copyWith(barNumbers: on));
+  }
+
+  /// The number the first bar counts as (Project Settings ▸ Display): the score's printed
+  /// numbers start at it ([CuratedScene.firstBar]), and the ruler, Go to and every bar typed
+  /// count from it ([beats]); null: the score's own numbers, and a count from 1.
+  int? get firstBar => _doc.firstBar;
+
+  /// The first bar's number as the score shows it: [firstBar], else the score's own.
+  int get shownFirstBar => _doc.firstBar ?? _score?.metadata.firstBarNumber ?? 1;
+
+  /// Sets [firstBar] (null: the score's own again): one Undo step.
+  void setFirstBar(int? number) {
+    final first = number?.clamp(0, EditState.maxFirstBar);
+    if (first == _doc.firstBar) return;
+    _showEdit(_doc.copyWith(firstBar: first));
   }
 
   /// The playback line's colour (Project Settings ▸ Instruments); null: the score's own blue ([RenderStyle.pointer]).

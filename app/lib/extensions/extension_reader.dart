@@ -12,13 +12,17 @@ import 'bundled.dart';
 /// What an extension stands on where nothing is edited: a project being opened, a video's
 /// export, a web page. It reads the data it saved and the score, and can change neither.
 class ReadingHost extends ExtensionHost {
-  ReadingHost(this.package, this.data, {this.scoreNow, this.timelineNow, this.onProblem, this.settingsNow, this.onSaveSettings});
+  ReadingHost(this.package, this.data,
+      {this.scoreNow, this.timelineNow, this.onProblem, this.settingsNow, this.onSaveSettings, this.firstBar = 1});
   final ExtensionPackage package;
 
   /// What the extension keeps for every project, and what keeps it; null: nothing, and it
   /// can't be changed here.
   final Object? Function()? settingsNow;
   final void Function(Object? json)? onSaveSettings;
+
+  /// The number the project's first bar counts as ([EditState.firstBar]).
+  final int firstBar;
 
   /// The score and the performance as they are when asked; null: there is none.
   final LoadedScore? Function()? scoreNow;
@@ -42,7 +46,7 @@ class ReadingHost extends ExtensionHost {
   @override
   ScoreTimeline? get timeline => timelineNow?.call();
   @override
-  BeatGrid? get beats => score?.beats;
+  BeatGrid? get beats => score?.beats.countedFrom(firstBar);
   @override
   String get language => Strings.language.locale.toLanguageTag();
   // Curator's own extensions' texts are the app's, translated with it.
@@ -60,7 +64,8 @@ class ExtensionReaders {
       {required LoadedScore? Function() score, required ScoreTimeline? Function() timeline, void Function(ExtensionProblem problem)? onProblem}) {
     for (final p in [...BundledExtensions.packages, ...carried.values]) {
       if (!(edits.extensions[p.id] ?? false) || p.api > ExtensionApi.level) continue;
-      _runtimes.add(ExtensionRuntime(p, ReadingHost(p, edits.extensionData[p.id], scoreNow: score, timelineNow: timeline, onProblem: onProblem)));
+      _runtimes.add(ExtensionRuntime(p, ReadingHost(p, edits.extensionData[p.id],
+          scoreNow: score, timelineNow: timeline, onProblem: onProblem, firstBar: edits.firstBar ?? 1)));
     }
   }
 

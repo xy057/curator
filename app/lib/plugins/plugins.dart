@@ -751,7 +751,7 @@ class _Host extends PluginHost {
   @override
   ScoreTimeline? get timeline => _editor?.score == null ? null : _editor!.timeline;
   @override
-  BeatGrid? get beats => _editor?.score?.beats;
+  BeatGrid? get beats => _editor?.score == null ? null : _editor!.beats;
   @override
   String get language => Strings.language.locale.toLanguageTag();
   // Curator's own plugins' texts are the app's, translated with it.

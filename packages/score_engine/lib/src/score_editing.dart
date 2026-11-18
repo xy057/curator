@@ -1206,12 +1206,22 @@ class EditableScore {
     return meterAt(m)?.length ?? (held.isPositive ? held : Frac(4));
   }
 
-  /// The bar's number as the score prints it (past the last bar: counted on from it).
+  /// How far the bars' numbers are shown from the score's own: what the project's first bar
+  /// number moves them by (see [ScoreMetadata.barNumbersFrom]). Not the score's: never written.
+  int barNumberShift = 0;
+
+  /// The bar's number as the score prints it, moved by [barNumberShift] (past the last bar:
+  /// counted on from it).
   String barNumber(int m) {
     final count = measureCount;
-    if (m < count) return parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
-    final last = int.tryParse(barNumber(count - 1));
-    return '${last == null ? m + 1 : last + m - count + 1}';
+    if (m >= count) {
+      final last = int.tryParse(barNumber(count - 1));
+      return '${last == null ? m + 1 + barNumberShift : last + m - count + 1}';
+    }
+    final number = parts.first._measures[m].getAttribute('number') ?? '${m + 1}';
+    if (barNumberShift == 0) return number;
+    final digits = RegExp(r'^\d+').stringMatch(number), n = int.tryParse(digits ?? '');
+    return n == null ? number : '${n + barNumberShift}${number.substring(digits!.length)}';
   }
 
   // MARK: Reading bars
