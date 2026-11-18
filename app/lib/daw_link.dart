@@ -46,7 +46,7 @@ class DawLink extends ChangeNotifier {
   /// Every document of every DAW connected.
   Iterable<(DawSession, DawDocument)> get documents sync* {
     for (final s in _sessions) {
-      for (final d in s.documents) {
+      for (final d in s._documents.values) {
         yield (s, d);
       }
     }
@@ -76,7 +76,12 @@ class DawLink extends ChangeNotifier {
   bool get busy => _sessions.any((s) => s._recordings.isNotEmpty);
 
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
-  (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
+  (DawSession, DawDocument)? find(String id) {
+    for (final s in _sessions) {
+      if (s._documents[id] case final d?) return (s, d);
+    }
+    return null;
+  }
 
   /// [start] and [stop], one after the other in the order asked: one asked while another is under
   /// way waits for it, so the last asked holds (the switch flicked on and off ends off, and two
