@@ -3593,11 +3593,14 @@ class EditableScore {
     return copy;
   }
 
-  /// [music] put in from [at] over what was there; returns where it ends.
+  /// [music] put in from [at] over what was there; returns where it ends. A note tied from the
+  /// one copied before it stays tied to its copy, and one written in pieces is tied through them.
   ScorePosition paste(ScorePosition at, CopiedMusic music) => input(at, [
-        for (final e in music.events)
-          for (final r in e.rhythm != null && e.rhythm!.length == e.length ? [e.rhythm!] : Rhythm.express(e.length))
-            InputItem(r, [for (final n in e.notes) ?_pitchOf(n)], templates: e.notes.isEmpty ? null : e.notes),
+        for (final (i, e) in music.events.indexed)
+          for (final (k, r) in (e.rhythm != null && e.rhythm!.length == e.length ? [e.rhythm!] : Rhythm.express(e.length)).indexed)
+            InputItem(r, [for (final n in e.notes) ?_pitchOf(n)],
+                templates: e.notes.isEmpty ? null : e.notes,
+                tieFrom: e.notes.isNotEmpty && (k > 0 || (i > 0 && music.events[i - 1].notes.isNotEmpty && e.notes.any(_tiedFrom)))),
       ]);
 }
 

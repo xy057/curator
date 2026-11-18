@@ -333,6 +333,12 @@ void main() {
           reason: 'the slur copied with them has its own too');
       score.transpose([idsIn(1).first], octaves: 1);
       expect((score.eventsIn(0, 0, voice).first.pitches.single.octave, score.eventsIn(0, 1, voice).first.pitches.single.octave), (4, 5));
+      // Two notes tied, copied: pasted, still tied.
+      score.input(ScorePosition(0, voice, 0, Frac.zero),
+          [const InputItem(Rhythm(NoteType.half), [Pitch(0, 4)]), const InputItem(Rhythm(NoteType.half), [Pitch(0, 4)], tieFrom: true)]);
+      score.paste(ScorePosition(0, voice, 1, Frac.zero), score.copy(idsIn(0)));
+      expect([for (final m in [0, 1]) score.eventsIn(0, m, voice).first.tiedOn], [true, true]);
+      expect([for (final type in ['start', 'stop']) '<tie type="$type"/>'.allMatches(score.toMusicXML()).length], [2, 2]);
     }
 
     // Bars added before a bar that changes the time signature are as long as the one before them says.
