@@ -1256,7 +1256,22 @@ class EditableScore {
     p._measures[m] = written;
     _indexMeasure(part, m, written);
     _changed.add(m);
+    _carriedChanged(m, old, written);
     _contextsStaleFrom(p, m);
+  }
+
+  /// What bar [bar] says that the bars after it go on with: its clefs, keys, times,
+  /// transpositions and staves, as written.
+  static String _carried(XmlElement bar) => [
+        for (final a in bar.findElements('attributes'))
+          for (final c in a.childElements)
+            if (const {'clef', 'key', 'time', 'transpose', 'staves'}.contains(c.name.local)) c.toXmlString(),
+      ].join();
+
+  /// Every bar after [m] changed too when what it goes on with did (a clef set, or taken back):
+  /// each is engraved with what is in force at its start.
+  void _carriedChanged(int m, XmlElement was, XmlElement now) {
+    if (_carried(was) != _carried(now)) _markFrom(m + 1);
   }
 
   // MARK: Undo
@@ -1344,6 +1359,7 @@ class EditableScore {
         // Bars that differ are written again in the engraving.
         for (var m = 0; m < math.max(now.length, all.length); m++) {
           if (m >= now.length || m >= all.length || !identical(now[m], all[m])) _changed.add(m);
+          if (m < now.length && m < all.length && !identical(now[m], all[m])) _carriedChanged(m, now[m], all[m]);
         }
         p.element.children.clear();
         p.element.children.addAll(all);
@@ -1361,6 +1377,7 @@ class EditableScore {
           now[m] = bar;
           _indexMeasure(i, m, bar);
           _changed.add(m);
+          _carriedChanged(m, old, bar);
         }
       }
       if (all != null || p.divisions != step.divisions[i]) {

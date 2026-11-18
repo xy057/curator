@@ -171,6 +171,15 @@ void main() {
         expect(written(), states[i], reason: 'redone to state $i');
       }
       expect(score.canRedo, isFalse);
+      // A clef goes on into the bars after it: they are engraved again too, set and taken back.
+      score.takeChanged();
+      score.setClef(ScorePosition(0, voice, 3, Frac.zero), Clef.named('bass')!);
+      expect(score.takeChanged().from, 4);
+      score.undo();
+      expect(score.takeChanged().from, 4);
+      score.redo();
+      expect(score.takeChanged().from, 4);
+      score.undo();
 
       // A triplet needs finer divisions in every bar of its part: only its own bar is engraved again.
       score.takeChanged();
