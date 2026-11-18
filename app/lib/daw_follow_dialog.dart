@@ -50,22 +50,14 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
   // The one linked to the DAW's Attacca, in its window.
   final capturer = link.linkedCapturerOf(session);
   if (source == null || region == null || capturer == null) {
-    await showAppDialog<void>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Record from DAW'.tr),
-        content: SizedBox(
-          width: dialogWidth(context, 360),
-          child: Text(capturer != null
-              ? 'The recording followed isn’t in the DAW.'.tr
-              : link.capturersOf(session).isEmpty
-                  ? 'Put Attacca Capturer on the DAW’s output.'.tr
-                  : 'Choose the Capturer in Attacca’s window in the DAW.'.tr),
-        ),
-        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-      ),
-    );
-    return;
+    return showNotice(
+        context,
+        'Record from DAW'.tr,
+        capturer != null
+            ? 'The recording followed isn’t in the DAW.'.tr
+            : link.capturersOf(session).isEmpty
+                ? 'Put Attacca Capturer on the DAW’s output.'.tr
+                : 'Choose the Capturer in Attacca’s window in the DAW.'.tr);
   }
   await _take(
     context,
