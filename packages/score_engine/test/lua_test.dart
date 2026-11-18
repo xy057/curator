@@ -129,6 +129,20 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         local packed = table.pack(1, nil, 3)
         return #t, table.concat(t, ""), removed, last, packed.n, table.unpack({1, 2, 3}, 2), select(-1, 1, 2, 3)
       '''), ['3', 'zcb', 'a', 'd', '3', '2', '3']);
+      // next goes through a table's keys once, however many: each call goes on from the last
+      // (a key set or cleared meanwhile, or one asked out of turn, is looked for again).
+      expect(run('''
+        local t, seen, n = {10, 20}, {}, 0
+        for i = 1, 20000 do t["k" .. i] = i end
+        local k, v = next(t)
+        while k do
+          n = n + 1
+          seen[#seen + 1] = n <= 3 and tostring(k) or nil
+          if k == "k5" then t.k6 = nil t.k7 = 70 end
+          k, v = next(t, k)
+        end
+        return n, table.concat(seen, " "), next(t, "k20000"), (next(t, "k3")), (next(t, "k3")), (next({}))
+      ''', steps: 200000), ['20001', '1 2 k1', 'nil', 'k4', 'k4', 'nil']);
       expect(run('local t = {5, 2, 8, 1} table.sort(t) return table.concat(t, ","), table.concat(table.move({1, 2, 3}, 1, 3, 2), ",")'), ['1,2,5,8', '1,1,2,3']);
     }
 

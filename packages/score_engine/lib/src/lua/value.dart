@@ -137,6 +137,7 @@ final class LuaTable {
           // What was set past the end before now follows on.
           for (var next = n + 2; hash.containsKey(next); next++) {
             array.add(hash.remove(next));
+            _walk = null;
           }
         }
         return;
@@ -144,9 +145,11 @@ final class LuaTable {
     }
     if (key == null) throw LuaError('table index is nil');
     if (value == null) {
-      _hash?.remove(key);
+      if (_hash?.remove(key) != null) _walk = null;
     } else {
-      (_hash ??= {})[key] = value;
+      final hash = _hash ??= {}, held = hash.length;
+      hash[key] = value;
+      if (hash.length != held) _walk = null;
     }
   }
 
@@ -167,11 +170,18 @@ final class LuaTable {
     if (hash == null || hash.isEmpty) return;
     for (var next = array.length + 1; hash.containsKey(next); next++) {
       array.add(hash.remove(next));
+      _walk = null;
     }
   }
 
+  /// Where [after] last stopped among the keys outside [array]: a walk of them standing on the
+  /// key it gave, so the call for the one after it goes on from there. Null once a key is set
+  /// or cleared: the walk is of the keys as they were.
+  Iterator<MapEntry<Object, Object?>>? _walk;
+
   /// The key after [key] and its value as `next` gives them (the list's first, then the rest in
-  /// the order set); null at the end. Slow past the list: `pairs` doesn't use it.
+  /// the order set); null at the end. A loop of `next` goes through the keys once ([_walk]);
+  /// a key asked out of turn is looked for from the first.
   (Object, Object?)? after(Object? key) {
     var i = 0;
     if (key != null) {
@@ -181,12 +191,13 @@ final class LuaTable {
       } else {
         final hash = _hash;
         if (hash == null || !hash.containsKey(key)) throw LuaError("invalid key to 'next'");
-        var found = false;
-        for (final e in hash.entries) {
-          if (found) return (e.key, e.value);
-          if (e.key == key) found = true;
+        var walk = _walk;
+        if (walk == null || walk.current.key != key) {
+          walk = hash.entries.iterator;
+          while (walk.moveNext() && walk.current.key != key) {}
         }
-        return null;
+        _walk = walk.moveNext() ? walk : null;
+        return _walk == null ? null : (walk.current.key, walk.current.value);
       }
     }
     for (; i < array.length; i++) {
@@ -194,8 +205,8 @@ final class LuaTable {
     }
     final hash = _hash;
     if (hash == null || hash.isEmpty) return null;
-    final first = hash.entries.first;
-    return (first.key, first.value);
+    final walk = _walk = hash.entries.iterator..moveNext();
+    return (walk.current.key, walk.current.value);
   }
 }
 
