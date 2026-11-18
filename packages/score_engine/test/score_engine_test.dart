@@ -386,6 +386,28 @@ void main() {
     curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
     expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
     pianoScene.dispose();
+    // A staff's own room is its lane's, numbered among all its instrument's staves: with a
+    // first staff that never plays (left out of the view), room under the second is between the
+    // two shown, not under the third.
+    {
+      final three = await LoadedScore.load(flutePianoScore
+          .replaceFirst('<staves>2</staves>', '<staves>3</staves>')
+          .replaceFirst('<clef number="2">', '<clef number="3">')
+          .replaceFirst('<clef number="1">', '<clef number="2">')
+          .replaceAll('<staff>2</staff>', '<staff>3</staff>')
+          .replaceAll('<staff>1</staff>', '<staff>2</staff>'));
+      expect(three.metadata.parts[1].shownStaffNumbers, hasLength(2));
+      final scene = CuratedScene(three);
+      final shown = Curation(['P1', 'P2'])..setLanes({'P1': [const Region(0, 8)], 'P2': [const Region(0, 8)]});
+      double apart() {
+        final y = [for (final p in scene.layoutAt(0.5, shown, tall).placements) p.y];
+        return y[2] - y[1];
+      }
+      final before = apart();
+      scene.instrumentSpacing = {Curation.staffLaneId('P2', 2): (above: 0, below: 6)};
+      expect(apart(), greaterThan(before + 20));
+      scene.dispose();
+    }
 
     // Under the right hand ("p") or over the left ("f"), centred between them; under the left
     // hand ("pp"), where it was.
