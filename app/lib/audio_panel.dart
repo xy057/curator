@@ -570,7 +570,7 @@ class _MidiTempoLaneState extends State<_MidiTempoLane> with LaneCursor<_MidiTem
 Future<void> _editAnchor(BuildContext context, EditorController c, int index, {bool warp = false}) async {
   final sync = c.sync!;
   final a = sync.anchors[index];
-  final set = await showAnchorDialog(context, beats: sync.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
+  final set = await showAnchorDialog(context, beats: c.beats, quarter: a.quarter, jumpTo: a.jumpTo, warp: warp);
   if (set == null || !context.mounted || index >= sync.anchors.length) return;
   if (!c.anchors.setAnchor(index, set.quarter, jumpTo: set.jumpTo)) {
     _refused(context, set.jumpTo == a.jumpTo ? 'Pick a spot between the neighboring anchors.'.tr : null);
@@ -593,7 +593,7 @@ Future<void> editWarp(BuildContext context, EditorController c) async {
   final onset = c.anchors.snapToOnsets ? c.track?.waveform.nearestOnset(t, 0.08) : null;
   if (onset != null) t = onset;
   final quarter = sync.nearestGrid(sync.quarterAtSeconds(t), c.anchors.grid);
-  final set = await showAnchorDialog(context, beats: sync.beats, quarter: quarter, warp: true);
+  final set = await showAnchorDialog(context, beats: c.beats, quarter: quarter, warp: true);
   if (set == null || !context.mounted) return;
   if (!c.anchors.addWarp(t, set.quarter, set.jumpTo)) _refused(context, null);
 }
@@ -617,7 +617,7 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
     arrival = sync.nearestGrid(q, c.anchors.grid);
     at = midi.quarterAt(t - sync.startSeconds) + arrival - q;
   }
-  final set = await showAnchorDialog(context, beats: sync.beats, quarter: arrival, jumpTo: warp?.jumpTo, warp: true);
+  final set = await showAnchorDialog(context, beats: c.beats, quarter: arrival, jumpTo: warp?.jumpTo, warp: true);
   if (set == null || !context.mounted || c.midiTempo != midi) return;
   final others = [...followed]..remove(warp);
   final moved = at + set.quarter - arrival;
@@ -1211,8 +1211,8 @@ class _AnchorPainter extends CustomPainter {
       // seen whole has hundreds of anchors, more than the labels kept.
       if (!selected && x <= lastLabelEnd + 3) continue;
       final label = a.isWarp
-          ? '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}'
-          : sync.beats.format(a.quarter, compact: true);
+          ? '${c.beats.format(a.quarter, compact: true)}→${c.beats.format(a.jumpTo!, compact: true)}'
+          : c.beats.format(a.quarter, compact: true);
       final tp = _labels.text(
           label,
           TextStyle(
@@ -1435,7 +1435,7 @@ class _TempoPainter extends CustomPainter {
       if (!a.isWarp || x < -40 || x > size.width + 40) continue;
       canvas.drawRect(Rect.fromLTWH(x - 1, 0, 2, size.height), Paint()..color = colors.accent.withValues(alpha: 0.7));
       final tp = _labels.text(
-          '${sync.beats.format(a.quarter, compact: true)}→${sync.beats.format(a.jumpTo!, compact: true)}', TextStyle(fontSize: 10.5, color: colors.text));
+          '${c.beats.format(a.quarter, compact: true)}→${c.beats.format(a.jumpTo!, compact: true)}', TextStyle(fontSize: 10.5, color: colors.text));
       if (x + 4 > lastLabelEnd + 3) {
         tp.paint(canvas, Offset(x + 4, 3));
         lastLabelEnd = x + 4 + tp.width;

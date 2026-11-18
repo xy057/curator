@@ -374,8 +374,8 @@ The score and the performance it is synced to. Places are in quarter notes from 
 
 - `score.open() → boolean`: Whether a score is open. The rest raise an error without one.
 - `score.quarters() → number`: The score’s length.
-- `score.bars() → list`: Every bar: {number, start, length}.
-- `score.bar_at(quarter) → number, start`: The bar a place is in (1 is the first) and where that bar starts.
+- `score.bars() → list`: Every bar: {number, start, length}; number counts from the project’s first bar number.
+- `score.bar_at(quarter) → number, start`: The bar a place is in, as its place in score.bars() (1 is the first), and where that bar starts.
 - `score.beat_at(quarter) → start, end`: The beat a place is in.
 - `score.format(quarter, compact) → text`: A place as bar.beat ("12.3"); compact drops a first beat ("12").
 - `score.parse(text) → quarter`: The place "12" or "12.3" names; nil when it names none.

@@ -304,8 +304,8 @@ abstract final class ExtensionApi {
     ApiLibrary('score', 'The score and the performance it is synced to. Places are in quarter notes from the start of the score; times in seconds.', [
       ApiFunction('score.open', 'score.open() → boolean', 'Whether a score is open. The rest raise an error without one.'),
       ApiFunction('score.quarters', 'score.quarters() → number', 'The score’s length.'),
-      ApiFunction('score.bars', 'score.bars() → list', 'Every bar: {number, start, length}.'),
-      ApiFunction('score.bar_at', 'score.bar_at(quarter) → number, start', 'The bar a place is in (1 is the first) and where that bar starts.'),
+      ApiFunction('score.bars', 'score.bars() → list', 'Every bar: {number, start, length}; number counts from the project’s first bar number.'),
+      ApiFunction('score.bar_at', 'score.bar_at(quarter) → number, start', 'The bar a place is in, as its place in score.bars() (1 is the first), and where that bar starts.'),
       ApiFunction('score.beat_at', 'score.beat_at(quarter) → start, end', 'The beat a place is in.'),
       ApiFunction('score.format', 'score.format(quarter, compact) → text', 'A place as bar.beat ("12.3"); compact drops a first beat ("12").'),
       ApiFunction('score.parse', 'score.parse(text) → quarter', 'The place "12" or "12.3" names; nil when it names none.'),

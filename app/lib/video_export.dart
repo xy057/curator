@@ -612,10 +612,14 @@ class VideoExport {
   }();
   late (int, int) _shown = (1, bars);
 
+  /// The number the first bar counts as, as the project has it ([EditState.firstBar]): the
+  /// bars of [showBars] and [barRange] are still counted from 1.
+  int get firstBar => _scene.firstBar ?? 1;
+
   /// The bar and beat sounding at [seconds], as the toolbar writes them ("12.2").
   String barBeatAt(double seconds) {
     final (:measure, :beat) = _scene.score.beats.position(_sync.quarterAtSeconds(seconds) + 1e-9);
-    return '${measure + 1}.${beat.floor() + 1}';
+    return '${measure + firstBar}.${beat.floor() + 1}';
   }
 
   /// What is heard, in the performance's seconds: each recording's file from a time in it, faded

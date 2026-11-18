@@ -549,7 +549,7 @@ msgstr "Unir tramos separados por silencios de hasta {bars} compases"
 msgid "c if a < b, else d"
 msgstr "c si a < b; en caso contrario, d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1113,6 +1113,9 @@ msgstr "Buscar frase musical…"
 
 msgid "Fingering"
 msgstr "Digitación"
+
+msgid "First bar number"
+msgstr ""
 
 #: lib/bottom_panel.dart
 msgid "Fit"
@@ -5595,11 +5598,11 @@ msgstr ""
 msgid "Play it in the DAW if it doesn’t start."
 msgstr ""
 
-#: lib/daw_follow_dialog.dart lib/main.dart
+#: lib/daw_follow_dialog.dart
 msgid "This DAW isn’t supported by Attacca."
 msgstr ""
 
-#: lib/daw_follow_dialog.dart lib/main.dart
+#: lib/daw_follow_dialog.dart
 msgid "{daw} isn’t supported by Attacca."
 msgstr ""
 

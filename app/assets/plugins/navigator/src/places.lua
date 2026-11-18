@@ -11,10 +11,10 @@ function M.clock(seconds)
   return string.format("%d:%02d", m, s)
 end
 
---- The number of the bar a place is in.
+--- The number of the bar a place is in, as the project counts its bars.
 function M.bar(at)
-  local number = score.bar_at(at)
-  return number
+  local _, start = score.bar_at(at)
+  return tonumber(score.format(start, true))
 end
 
 --- The start of the beat a place is in: where a click on the score, or a playhead between

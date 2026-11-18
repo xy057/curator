@@ -993,7 +993,7 @@ pointer, so the preview and the video draw it alike. The lanes' playhead keeps t
 `EditState.barNumbers`, an edit saved from format 18, on for a new project, off for one saved before; `CuratedScene.barNumbers`,
 in `SceneSettings`). Every bar's number as the score prints it (`ScoreMetadata.barNumbers`: MusicXML's `text`, else `number`;
 none on an upbeat, a split bar's second half or a bar numbered as the one before; the ruler and Go to
-still count bars from 1) is set at its
+count bars by their place, from the first bar number, below) is set at its
 top left, small, italic and in half the ink, in a row of its own just above the room the staves
 have (`_rowBottom`: the top margin), so it stays put however the stack
 grows or shrinks. Only staves squeezed into a full frame reach up into it: then the row rises, and
@@ -1014,6 +1014,20 @@ That is a flag (Project Settings ▸ Flags ▸ Rehearsal marks in bar numbers:
 until Save as default; `CuratedScene.rehearsalInRow`, in `SceneSettings`): off, they stay in the
 music with the row on. Changing it only redraws (the display list made again); Flags ▸ Reset to
 Default sets every flag in one Undo step (`EditorController.setFlags`).
+
+**The first bar can be numbered other than 1** (Project Settings ▸ Display ▸ First bar number,
+`EditState.firstBar`, an edit saved in the `display` module, null until set; not in a settings
+file, being the score's own). One number moves both counts: the row's first printed number
+becomes it and the rest move as far (`ScoreMetadata.barNumbersFrom`, a number's leading digits,
+so "12a" stays lettered; `CuratedScene.firstBar`, in `SceneSettings`), and the bars counted by
+their place start at it (`BeatGrid.firstBar`: `EditorController.beats` is the score's grid
+`countedFrom` it, so the ruler, Go to, the toolbar's readout, every bar typed in a dialog and
+Lua's `score.format` / `parse` and `score.bars()[i].number` follow; `score.bar_at` stays a place
+in that list). Whatever shows a bar asks `EditorController.beats`, never the score's or the
+sync map's own grid, which count from 1. Unset, the row shows the score's numbers and the count
+is from 1, as before. The export dialog's From bar / To bar are typed in the project's numbers
+and turned into places (`VideoExport.firstBar`); the score editor shows them through
+`EditableScore.barNumberShift`, never written to the file.
 Flags ▸ Centered lyrics (`EditState.centeredLyrics`, under `flags` from format 23 as `centredLyrics`, the flag's first spelling, null taking
 `AppSettings`'s, off until Save as default; `EngraveRequest.centeredLyrics`, an Undo step that
 re-engraves) centres each syllable, or an elision's syllables together, under its notehead, as

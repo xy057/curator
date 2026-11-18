@@ -134,6 +134,25 @@ class ScoreMetadata {
   /// numbered as the bar before. A measure with none counts on from the one before.
   final List<String?> barNumbers;
 
+  /// [barNumbers] with the first of them being [first] and the rest moved as far (a number's
+  /// leading digits: "12a" by 4 is "16a"; one with none stays as it is); null: as they are.
+  List<String?> barNumbersFrom(int? first) {
+    if (first == null) return barNumbers;
+    final digits = RegExp(r'^\d+');
+    int? by;
+    return [
+      for (final number in barNumbers)
+        switch (digits.stringMatch(number ?? '')) {
+          final d? when int.tryParse(d) != null => '${int.parse(d) + (by ??= first - int.parse(d))}${number!.substring(d.length)}',
+          _ => number,
+        },
+    ];
+  }
+
+  /// The first of [barNumbers] that is a number (its leading digits); 1 with none.
+  int get firstBarNumber =>
+      barNumbers.map((n) => int.tryParse(RegExp(r'^\d+').stringMatch(n ?? '') ?? '')).nonNulls.firstOrNull ?? 1;
+
   /// Its repeats, endings and jumps (see [ScoreForm.playedOrder]).
   final ScoreForm form;
 

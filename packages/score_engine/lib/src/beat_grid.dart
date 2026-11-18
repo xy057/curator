@@ -61,7 +61,7 @@ class Meter {
 class BeatGrid {
   /// [meters] has one entry per measure (null: carry on with quarters); [pickups] are the
   /// incomplete measures (MusicXML `implicit`) whose beats count back from their end.
-  BeatGrid(List<double> measureStarts, {List<Meter?> meters = const [], Set<int> pickups = const {}})
+  BeatGrid(List<double> measureStarts, {List<Meter?> meters = const [], Set<int> pickups = const {}, this.firstBar = 1})
       : measureStarts = List.unmodifiable(measureStarts),
         _beats = List.unmodifiable([
           for (var m = 0; m + 1 < measureStarts.length; m++)
@@ -69,8 +69,20 @@ class BeatGrid {
                 (m < meters.length ? meters[m] : null) ?? Meter.quarters, pickups.contains(m)),
         ]);
 
+  BeatGrid._(this.measureStarts, this._beats, this.firstBar);
+
   final List<double> measureStarts;
   final List<List<double>> _beats;
+
+  /// The number the first bar counts as (Project Settings ▸ Display ▸ First bar number): what
+  /// [format] writes, [parse] reads and the ruler shows.
+  final int firstBar;
+
+  /// This grid, its bars counted from [firstBar] (itself when they are).
+  BeatGrid countedFrom(int firstBar) => firstBar == this.firstBar ? this : BeatGrid._(measureStarts, _beats, firstBar);
+
+  /// Measure [m]'s number as counted: [firstBar] for the first.
+  int barNumber(int m) => m + firstBar;
 
   static List<double> _beatsOf(double start, double length, Meter meter, bool pickup) {
     final lengths = meter.beatLengths;
@@ -125,14 +137,15 @@ class BeatGrid {
     return (measure: m, beat: index + (length > 0 ? ((quarter - b.start) / length).clamp(0.0, 1.0) : 0));
   }
 
-  /// A score position as people write it: "12.3" is bar 12, beat 3, counting beats the way
-  /// the time signature does (6/8 has two). Between beats the fraction of the beat follows
-  /// ("12.1.50": half-way through beat 1). [compact] writes a barline as just "12".
+  /// A score position as people write it: "12.3" is bar 12, beat 3, counting bars from
+  /// [firstBar] and beats the way the time signature does (6/8 has two). Between beats the
+  /// fraction of the beat follows ("12.1.50": half-way through beat 1). [compact] writes a
+  /// barline as just "12".
   String format(double quarter, {bool compact = false}) {
     final (:measure, :beat) = position(quarter);
     final whole = (beat - beat.roundToDouble()).abs() < 1e-6;
-    if (compact && whole && beat.round() == 0) return '${measure + 1}';
-    return '${measure + 1}.${whole ? beat.round() + 1 : (beat + 1).toStringAsFixed(2)}';
+    if (compact && whole && beat.round() == 0) return '${barNumber(measure)}';
+    return '${barNumber(measure)}.${whole ? beat.round() + 1 : (beat + 1).toStringAsFixed(2)}';
   }
 
   /// Reads [format]'s "12", "12.3" or "12.1.50" back into a score position; null when it
@@ -142,7 +155,7 @@ class BeatGrid {
     // A bar number too long for an int ("99999999999999999999") is no bar.
     final bar = match == null ? null : int.tryParse(match[1]!);
     if (bar == null) return null;
-    return quarterAt(bar - 1, double.parse(match![2] ?? '1') - 1);
+    return quarterAt(bar - firstBar, double.parse(match![2] ?? '1') - 1);
   }
 
   /// The inverse of [position]: null when bar [measure] has no such beat. The end of the

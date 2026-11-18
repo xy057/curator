@@ -59,8 +59,8 @@ class _ExportDialogState extends State<_ExportDialog> {
   AppSettings get _settings => widget.settings;
 
   // The bars to export: the whole piece until changed.
-  late final _from = TextEditingController(text: '1');
-  late final _to = TextEditingController(text: '${_export.bars}');
+  late final _from = TextEditingController(text: '${1 + _by}');
+  late final _to = TextEditingController(text: '${_export.bars + _by}');
 
   /// The time the still shows, kept inside the range.
   late double _still = widget.controller.playback.time.value;
@@ -101,8 +101,14 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   VideoFormat get _format => _settings.videoFormat;
 
-  int get _first => int.tryParse(_from.text) ?? 0;
-  int get _last => int.tryParse(_to.text) ?? 0;
+  /// How far the bars typed are from their place in the score: the project's first bar
+  /// number, less 1.
+  int get _by => _export.firstBar - 1;
+
+  /// The bars typed, as the score counts them from 1; 0 for one that is no number.
+  int get _first => _typed(_from);
+  int get _last => _typed(_to);
+  int _typed(TextEditingController field) => switch (int.tryParse(field.text)) { null => 0, final n => n - _by };
 
   /// The seconds the bars typed cover; null while they aren't a range.
   ({double start, double end})? get _range => _export.barRange(_first, _last);
@@ -139,8 +145,8 @@ class _ExportDialogState extends State<_ExportDialog> {
   /// Bars [first]…[last], from the trimmer or the ↺: typed into the fields, and the still kept
   /// inside them.
   void _setBars(int first, int last, {bool showStart = false}) => setState(() {
-        _from.text = '$first';
-        _to.text = '$last';
+        _from.text = '${first + _by}';
+        _to.text = '${last + _by}';
         if (_export.showBars(first, last) && showStart) _still = _export.span.start;
       });
 
@@ -161,7 +167,7 @@ class _ExportDialogState extends State<_ExportDialog> {
 
   Future<void> _start() async {
     if (!_writable) return;
-    final codec = _format.codec, name = '${widget.suggestedName}${_whole ? '' : ' ${'(bars {from}–{to})'.fill({'from': _first, 'to': _last})}'}';
+    final codec = _format.codec, name = '${widget.suggestedName}${_whole ? '' : ' ${'(bars {from}–{to})'.fill({'from': _first + _by, 'to': _last + _by})}'}';
     final location = await getSaveLocation(
       acceptedTypeGroups: [if (!codec.isSequence) XTypeGroup(label: codec.typeLabel.tr, extensions: [codec.extension])],
       suggestedName: codec.isSequence ? name : '$name.${codec.extension}',

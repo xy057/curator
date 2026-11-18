@@ -1639,6 +1639,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       _readingScore = false;
     }
     if (!mounted || controller.score?.musicXML != loaded.musicXML) return;
+    // Its bars numbered as the project shows them.
+    if (controller.firstBar case final first?) score.barNumberShift = first - loaded.metadata.firstBarNumber;
     final xml = await showScoreEditor(context, score, name: name);
     if (xml == null || !mounted) return;
     await _guard(() async => _putInPlace(await document.prepareReplacementWith(name, utf8.encode(xml))),

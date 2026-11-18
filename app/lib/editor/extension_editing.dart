@@ -197,7 +197,7 @@ class ExtensionEditing {
     final value = data(id);
     final saved = switch (value) { null => false, final Map<Object?, Object?> m => m.isNotEmpty, final List<Object?> l => l.isNotEmpty, _ => true };
     if (p.graph.wire('project', 'used') == null || _editor._score == null) return saved;
-    final runtime = _runtimes[id] ?? ExtensionRuntime(p, ReadingHost(p, value, scoreNow: () => _editor._score, timelineNow: () => _editor.timeline));
+    final runtime = _runtimes[id] ?? ExtensionRuntime(p, ReadingHost(p, value, scoreNow: () => _editor._score, timelineNow: () => _editor.timeline, firstBar: _editor.firstBar ?? 1));
     return switch (runtime.ask('project', 'used')) { null => saved, final v => v != false };
   }
 
@@ -465,7 +465,7 @@ class ExtensionEditing {
     if (_runtimes[p.id] case final running?) return running;
     final value = data(p.id);
     if (value == null || p.api > ExtensionApi.level || _editor._score == null) return null;
-    return ExtensionRuntime(p, ReadingHost(p, value, scoreNow: () => _editor._score, timelineNow: () => _editor.timeline));
+    return ExtensionRuntime(p, ReadingHost(p, value, scoreNow: () => _editor._score, timelineNow: () => _editor.timeline, firstBar: _editor.firstBar ?? 1));
   }
 
   /// The pictures of [p] ([picturesOf]), asked again once the project's data or the score
@@ -716,7 +716,7 @@ class _Host extends ExtensionHost {
   @override
   ScoreTimeline? get timeline => _e._score == null ? null : _e.timeline;
   @override
-  BeatGrid? get beats => _e._score?.beats;
+  BeatGrid? get beats => _e._score == null ? null : _e.beats;
   @override
   String get language => Strings.language.locale.toLanguageTag();
   // Curator's own extensions' texts are the app's, translated with it.

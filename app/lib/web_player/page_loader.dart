@@ -100,6 +100,7 @@ class LoadedPage {
         sectionOverrides: edits.sections,
         instrumentSpacing: edits.spacing,
         barNumbers: barNumbers && edits.barNumbers,
+        firstBar: edits.firstBar,
         rehearsalInRow: edits.rehearsalInRow ?? true,
         nameColors: page.nameColors,
         pointerColor: edits.playheadColor,
