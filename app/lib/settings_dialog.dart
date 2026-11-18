@@ -1818,6 +1818,10 @@ class _SaveDefaultButton extends StatelessWidget {
   }
 }
 
+/// A row's own button (Install, Uninstall, Clear, the PDF import's model): a field's height.
+final _rowButtonStyle =
+    OutlinedButton.styleFrom(minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact);
+
 /// A button beside a page's title: slimmer than the rows' buttons, as it belongs to the page, not
 /// to a setting.
 ButtonStyle _pageButtonStyle(BuildContext context) {
@@ -2077,8 +2081,7 @@ class _AttaccaCacheState extends State<_AttaccaCache> {
           if (_bytes case final bytes?) Text(_size(bytes), style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
           const SizedBox(width: 10),
           OutlinedButton(
-            style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            style: _rowButtonStyle,
             onPressed: _busy || (_bytes ?? 0) == 0 || DawLink.shared.busy ? null : _clear,
             child: Text('Clear'.tr),
           ),
@@ -2151,16 +2154,14 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
           const SizedBox(width: 10),
           if (_installed != null) ...[
             OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+              style: _rowButtonStyle,
               onPressed: _busy ? null : _uninstall,
               child: Text('Uninstall'.tr),
             ),
             const SizedBox(width: 8),
           ],
           OutlinedButton(
-            style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            style: _rowButtonStyle,
             onPressed: _busy ? null : _install,
             child: Text(_installed == null
                 ? 'Install'.tr
@@ -2183,8 +2184,7 @@ class _PdfAiModel extends StatelessWidget {
     final chosen = settings.pdfAi;
     final result = chosen == null ? null : settings.pdfAiExam(settings.pdfAiModel);
     return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+      style: _rowButtonStyle,
       onPressed: () => showPdfAiModelDialog(context, settings),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Flexible(
