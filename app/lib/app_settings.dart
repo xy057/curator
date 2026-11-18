@@ -540,7 +540,8 @@ class AppSettings extends ChangeNotifier {
   }
 
   /// The toolbar's Score / Player Map switch (View ▸ Show Player Map / Show Score): the project's
-  /// player map in the score's place. Off by default.
+  /// player map in the score's place (but for the View lane's views while the music plays,
+  /// [AutomationEditing.playsViews]). Off by default.
   bool get playerMap => _playerMap;
   bool _playerMap;
   set playerMap(bool value) {

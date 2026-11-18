@@ -23,7 +23,8 @@ export 'player_map_paint.dart';
 // MARK: The panel
 
 /// The toolbar's Player Map (View ▸ Show Player Map): the project's map in the score's place,
-/// swelling with the music as it plays; Edit… (or a double click) opens [showPlayerMapEditor], its
+/// swelling with the music as it plays (the Video tab's View lane, once it has a view, shows in
+/// its place then: [AutomationEditing.playsViews]); Edit… (or a double click) opens [showPlayerMapEditor], its
 /// menu makes one by a smart seating, imports one (`.cpm`), exports it, or removes it, each an
 /// Undo step.
 class PlayerMapPanel extends StatelessWidget {

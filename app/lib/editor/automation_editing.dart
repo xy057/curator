@@ -142,10 +142,19 @@ class AutomationEditing {
   /// handled only then. Kept up as the playhead moves.
   final scoreInPlace = ValueNotifier(true);
 
-  /// What the preview shows now: the View lane's views, or with the toolbar on MIDI View
-  /// ([EditorController.showsMidiView]) the score's notes in rows throughout.
+  /// Whether the preview shows the lane's views whatever the toolbar's switch is on: the lane
+  /// has one and the music plays ([Playback.runs]). Stopped, MIDI View and Player Map show
+  /// their own again.
+  bool get playsViews => _editor.playback.runs && views.stretches.isNotEmpty;
+
+  /// Whether the preview shows the score's notes in rows throughout: the toolbar is on MIDI
+  /// View ([EditorController.showsMidiView]) and the lane hasn't the preview ([playsViews]).
+  bool get rowsThroughout => _editor.showsMidiView && !playsViews;
+
+  /// What the preview shows now: the View lane's views, or the rows throughout
+  /// ([rowsThroughout]).
   StepMix<SceneView> get shown =>
-      _editor.showsMidiView ? (from: SceneView.midi, to: SceneView.midi, mix: 0.0) : viewsTimed.at(_editor.playback.time.value);
+      rowsThroughout ? (from: SceneView.midi, to: SceneView.midi, mix: 0.0) : viewsTimed.at(_editor.playback.time.value);
 
   void _followTime() {
     if (_editor._score == null || _editor._sync == null || _editor._disposed) return;

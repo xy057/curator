@@ -135,8 +135,9 @@ class EditorController extends ChangeNotifier {
   /// View, a web page's): it has notes, and isn't a MIDI project's rows already.
   bool get hasMidiView => _score?.hasRows ?? false;
 
-  /// Whether the preview shows the MIDI view throughout (the toolbar's switch, View ▸ Show MIDI
-  /// View), whatever the View lane has. Not the project's: the window's.
+  /// Whether the toolbar is on MIDI View (its switch, View ▸ Show MIDI View): the preview shows
+  /// the rows throughout, but for the View lane's views while the music plays
+  /// ([AutomationEditing.playsViews]). Not the project's: the window's.
   bool get showsMidiView => _showsMidiView && hasMidiView;
   bool _showsMidiView = false;
   set showsMidiView(bool on) {
@@ -1992,8 +1993,9 @@ class EditorController extends ChangeNotifier {
   /// Each scene's answer, held while a gesture lasts.
   final _overflowing = Expando<List<({double start, double end})>>();
 
-  /// Whether the player map shows in the score's place (the toolbar's switch, View ▸ Show
-  /// Player Map): the window's, as [showsMidiView] is.
+  /// Whether the toolbar is on Player Map (its switch, View ▸ Show Player Map): the map shows
+  /// in the score's place, but for the View lane's views while the music plays
+  /// ([AutomationEditing.playsViews]). The window's, as [showsMidiView] is.
   bool get showsPlayerMap => _showsPlayerMap;
   bool _showsPlayerMap = false;
   set showsPlayerMap(bool on) {
