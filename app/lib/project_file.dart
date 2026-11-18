@@ -51,13 +51,7 @@ abstract final class ProjectFile {
     final stemEntries = {for (final MapEntry(key: id, value: m) in c.stems.entries) id: 'media/stems/$id/${safeFileName(m.name)}'};
     final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
-    final temp = '$path.saving';
-    final out = OutputFileStream(temp);
-    // zlib's default level: ZipEncoder's own (1) is no faster here and makes a score 60 % bigger;
-    // the best (9) takes twice as long for a few percent.
-    final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression);
-    final streams = <InputFileStream>[];
-    try {
+    ProjectArchive.writeFile(path, (zip, opened) {
       ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
         'kind': c.state.kind.name,
         'score': {'name': c.scoreName, 'entry': scoreEntry},
@@ -82,39 +76,11 @@ abstract final class ProjectFile {
           throw FileSystemException('Can’t find the recording to embed', m.embedFrom);
         }
         final stream = InputFileStream(m.embedFrom);
-        streams.add(stream);
+        opened.add(stream);
         // Audio and video are compressed already; deflating them again only costs time.
         zip.add(ArchiveFile.stream(entry, stream)..compression = CompressionType.none);
       }
-      zip.endEncode();
-      out.closeSync();
-      for (final s in streams) {
-        s.closeSync();
-      }
-      File(temp).renameSync(path);
-    } catch (_) {
-      // Each let go on its own: closing a file that couldn't be written fails again (the bytes it
-      // couldn't write are still waiting), and the rest must go all the same.
-      letGo(out.closeSync);
-      for (final s in streams) {
-        letGo(s.closeSync);
-      }
-      letGo(() {
-        final f = File(temp);
-        if (f.existsSync()) f.deleteSync();
-      });
-      rethrow;
-    }
-  }
-
-  /// Does [step] of a clean-up after a failure, which may fail too: the failure first met is the
-  /// one to tell.
-  static void letGo(void Function() step) {
-    try {
-      step();
-    } catch (_) {
-      // (Gone as far as it could.)
-    }
+    });
   }
 
   static OpenedProject _read(String path, String mediaDirectory) {

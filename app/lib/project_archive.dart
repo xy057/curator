@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
@@ -42,6 +43,51 @@ abstract final class ProjectArchive {
   /// Ids a module may have: not a folder the archive keeps for itself.
   static bool _isModuleId(String id) =>
       RegExp(r'^[a-z][a-z0-9-]{0,63}$').hasMatch(id) && !const {'score', 'media', 'modules'}.contains(id);
+
+  /// Writes a zip at [path] by [body], without ever leaving half a file there: into
+  /// `<path>.saving`, then moved in. [body] adds the entries, and the files it opens to read
+  /// go in the list it is given, to be closed once the zip is written. When anything fails,
+  /// each of those is let go on its own and the half-written file removed, and the failure
+  /// thrown on.
+  static void writeFile(String path, void Function(ZipEncoder zip, List<InputFileStream> opened) body) {
+    final temp = '$path.saving';
+    final out = OutputFileStream(temp);
+    // zlib's default level: ZipEncoder's own (1) is no faster here and makes a score 60 % bigger;
+    // the best (9) takes twice as long for a few percent.
+    final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression);
+    final opened = <InputFileStream>[];
+    try {
+      body(zip, opened);
+      zip.endEncode();
+      out.closeSync();
+      for (final s in opened) {
+        s.closeSync();
+      }
+      File(temp).renameSync(path);
+    } catch (_) {
+      // Each let go on its own: closing a file that couldn't be written fails again (the bytes it
+      // couldn't write are still waiting), and the rest must go all the same.
+      _letGo(out.closeSync);
+      for (final s in opened) {
+        _letGo(s.closeSync);
+      }
+      _letGo(() {
+        final f = File(temp);
+        if (f.existsSync()) f.deleteSync();
+      });
+      rethrow;
+    }
+  }
+
+  /// Does [step] of a clean-up after a failure, which may fail too: the failure first met is the
+  /// one to tell.
+  static void _letGo(void Function() step) {
+    try {
+      step();
+    } catch (_) {
+      // (Gone as far as it could.)
+    }
+  }
 
   /// Adds the mimetype, the stub (`project.json` or `settings.json`) older Curators read, the
   /// manifest (with [manifest]'s entries: a project's score and media) and [state] as [modules]
