@@ -10,34 +10,13 @@ import 'plugins/plugins.dart';
 
 /// The MIDI menu as it is now ([AppMenus.midi]): what is on ([velocity]: louder notes darker;
 /// [sharedRange]: every row's height the same span of pitches; [fileTempo]: it plays by its
-/// file's own tempo map), and what each item does, null (greyed out) when it can't (a row at
-/// its tallest, the file's tempo followed already).
-typedef MidiMenu = ({
-  bool velocity,
-  bool sharedRange,
-  bool fileTempo,
-  VoidCallback? onVelocity,
-  VoidCallback? onSharedRange,
-  VoidCallback? onTallerRows,
-  VoidCallback? onShorterRows,
-  VoidCallback? onWiderBeats,
-  VoidCallback? onNarrowerBeats,
-  VoidCallback? onFileTempo,
-});
+/// file's own tempo map).
+typedef MidiMenu = ({bool velocity, bool sharedRange, bool fileTempo});
 
 /// File ▸ Attacca as it is now (docs/daw-link.md): where it stands, greyed out ([state]:
-/// connected to which DAWs, not connected, not listening, or not on this system), Connect Attacca…
-/// (ticked while [following]: choosing it then stops), Record from DAW… (the recording
-/// followed, as the DAW plays it, through Attacca Capturer), Capture Stems… and its Settings…;
-/// each null (greyed out) when it can't.
-typedef AttaccaMenu = ({
-  String state,
-  bool following,
-  VoidCallback? onFollow,
-  VoidCallback? onRecord,
-  VoidCallback? onCaptureStems,
-  VoidCallback? onSettings,
-});
+/// connected to which DAWs, not connected, not listening, or not on this system), and whether a
+/// DAW is followed ([following]: Connect Attacca… ticked, choosing it then stops).
+typedef AttaccaMenu = ({String state, bool following});
 
 /// The menu bar: native on macOS, a Material menu bar at the top of the window elsewhere.
 /// Both are built from the same [PlatformMenu] description.
@@ -45,42 +24,15 @@ class AppMenus extends StatelessWidget {
   const AppMenus({
     super.key,
     this.keys = KeyMap.standard,
-    required this.onOpen,
-    required this.onImport,
-    this.onNewProject,
-    this.onNewLilyPond,
-    required this.onSave,
-    required this.onSaveAs,
-    required this.onSettings,
+    required this.does,
     required this.child,
-    this.onAbout,
     this.recentFiles = const [],
     this.onOpenRecent,
     this.onClearRecent,
-    this.onProjectSettings,
-    this.onExportVideo,
-    this.onExportWeb,
-    this.onClose,
-    this.onUndo,
-    this.onRedo,
-    this.onCut,
-    this.onCopy,
-    this.onPaste,
-    this.onDelete,
-    this.onSelectAll,
-    this.onFindPhrase,
     this.previewShown = true,
     this.timelineShown = true,
-    this.onShowPreview,
-    this.onShowTimeline,
-    this.onMaximizePreview,
     this.playerMapShown = false,
-    this.onShowPlayerMap,
-    this.onMaximizeTimeline,
-    this.onNextTab,
-    this.onPreviousTab,
     this.tabBarShown = true,
-    this.onShowTabBar,
     this.midi,
     this.attacca,
     this.plugins,
@@ -98,75 +50,28 @@ class AppMenus extends StatelessWidget {
   /// The keys of the items the user can give others (Settings ▸ Shortcuts).
   final KeyMap keys;
 
-  /// Open…: a project, or a score to start one from.
-  final VoidCallback? onOpen;
+  /// What each of the app's own items does, by its command's id ([PluginApi.commands]: `open`,
+  /// `save`, `undo`, `midiVelocity`…); one null or missing is greyed out (nothing open, nothing
+  /// to do).
+  final Map<String, VoidCallback?> does;
 
-  /// Import…: a PDF or LilyPond score to start a project from.
-  final VoidCallback? onImport;
-
-  /// New Project: a blank score, as a new project.
-  final VoidCallback? onNewProject;
-
-  /// New LilyPond Score…: a score written in the LilyPond editor, as a new project.
-  final VoidCallback? onNewLilyPond;
-  final VoidCallback? onSave;
-  final VoidCallback? onSaveAs;
-  final VoidCallback? onSettings;
   final Widget child;
-
-  /// About Curator: the app menu on macOS (in place of the standard panel), Help elsewhere.
-  final VoidCallback? onAbout;
 
   /// File ▸ Open Recent, most recent first.
   final List<String> recentFiles;
   final ValueChanged<String>? onOpenRecent;
   final VoidCallback? onClearRecent;
 
-  /// File ▸ Close: closes the project showing, its tab with it; null (greyed out) on Home.
-  final VoidCallback? onClose;
-
-  /// Edit ▸ Project Settings… (⇧⌘,); null (greyed out) while nothing is open.
-  final VoidCallback? onProjectSettings;
-
-  /// File ▸ Export Video…; null (greyed out) while nothing is open.
-  final VoidCallback? onExportVideo;
-
-  /// File ▸ Export to Web…; null (greyed out) while nothing is open.
-  final VoidCallback? onExportWeb;
-
-  /// Edit menu; each null (greyed out) when it has nothing to do.
-  final VoidCallback? onUndo;
-  final VoidCallback? onRedo;
-  final VoidCallback? onCut;
-  final VoidCallback? onCopy;
-  final VoidCallback? onPaste;
-  final VoidCallback? onDelete;
-  final VoidCallback? onSelectAll;
-
-  /// Edit ▸ Find Phrase… (⌘F); null (greyed out) while nothing is open.
-  final VoidCallback? onFindPhrase;
-
-  /// View ▸ Hide / Show Preview and Timeline: the editor's upper and lower parts, each given
-  /// whether to show it; null (greyed out) while nothing is open.
+  /// Whether the editor's upper and lower parts show (View ▸ Hide / Show Preview and Timeline).
   final bool previewShown, timelineShown;
-  final ValueChanged<bool>? onShowPreview, onShowTimeline;
 
-  /// View ▸ Show Player Map / Show Score (Show MIDI View for a MIDI project): the project's map
-  /// in the score's place (the toolbar's switch); null while nothing is open.
+  /// Whether the project's map is in the score's place (View ▸ Show Player Map / Show Score;
+  /// Show MIDI View for a MIDI project).
   final bool playerMapShown;
-  final ValueChanged<bool>? onShowPlayerMap;
 
-  /// View ▸ Maximize Preview / Timeline: the other at its smallest; null while nothing is open.
-  final VoidCallback? onMaximizePreview, onMaximizeTimeline;
-
-  /// Show Next / Previous Tab (⌃Tab, ⌃⇧Tab), Home among them: Window on macOS, View elsewhere;
-  /// null while no project is open.
-  final VoidCallback? onNextTab, onPreviousTab;
-
-  /// View ▸ Show / Hide Tab Bar (⇧⌘T), given whether to show it; Show All Tabs (⇧⌘\) shows it,
-  /// and is greyed out while it shows.
+  /// Whether the tab bar shows (View ▸ Show / Hide Tab Bar; Show All Tabs is greyed out while it
+  /// does).
   final bool tabBarShown;
-  final ValueChanged<bool>? onShowTabBar;
 
   /// The MIDI menu, for a MIDI project (its notes drawn in rows, nothing engraved); null, and no
   /// such menu, while another project or none shows.
@@ -186,7 +91,8 @@ class AppMenus extends StatelessWidget {
 
   /// One of the app's own items, by its command's id ([PluginApi.commands]), as plugins have
   /// it: gone when one hid it, named as one renamed it, doing what one put around it.
-  PlatformMenuItem? _own(String id, String label, {MenuSerializableShortcut? shortcut, VoidCallback? onSelected}) {
+  PlatformMenuItem? _own(String id, String label, {MenuSerializableShortcut? shortcut}) {
+    final onSelected = does[id];
     final plugins = this.plugins;
     if (plugins == null) return _MenuItem(id, label: label, shortcut: shortcut, onSelected: onSelected);
     if (plugins.hides(id)) return null;
@@ -197,8 +103,8 @@ class AppMenus extends StatelessWidget {
   static String _ticked(String title, bool on) => on ? '✓ $title' : title;
 
   PlatformMenuItemGroup get _tabs => PlatformMenuItemGroup(members: [
-        ?_own('previousTab', 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab), onSelected: onPreviousTab),
-        ?_own('nextTab', 'Show Next Tab'.tr, shortcut: _keyOf(KeyCommand.nextTab), onSelected: onNextTab),
+        ?_own('previousTab', 'Show Previous Tab'.tr, shortcut: _keyOf(KeyCommand.previousTab)),
+        ?_own('nextTab', 'Show Next Tab'.tr, shortcut: _keyOf(KeyCommand.nextTab)),
       ]);
 
   /// The menus as they are now: the app's own, as plugins changed them, with what plugins added.
@@ -209,10 +115,10 @@ class AppMenus extends StatelessWidget {
         if (_mac)
           _Menu('Curator', label: 'Curator', menus: [
             PlatformMenuItemGroup(members: [
-              ?_own('about', 'About Curator'.tr, onSelected: onAbout),
+              ?_own('about', 'About Curator'.tr),
             ]),
             PlatformMenuItemGroup(members: [
-              ?_own('settings', 'Settings…'.tr, shortcut: _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+              ?_own('settings', 'Settings…'.tr, shortcut: _key(LogicalKeyboardKey.comma)),
             ]),
             const PlatformMenuItemGroup(members: [
               PlatformProvidedMenuItem(type: PlatformProvidedMenuItemType.servicesSubmenu),
@@ -226,10 +132,10 @@ class AppMenus extends StatelessWidget {
           ]),
         _Menu('File', label: 'File'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            ?_own('newProject', 'New Project'.tr, shortcut: _keyOf(KeyCommand.newProject), onSelected: onNewProject),
-            ?_own('newLilyPond', 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond), onSelected: onNewLilyPond),
-            ?_own('open', 'Open…'.tr, shortcut: _keyOf(KeyCommand.open), onSelected: onOpen),
-            ?_own('importScore', 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore), onSelected: onImport),
+            ?_own('newProject', 'New Project'.tr, shortcut: _keyOf(KeyCommand.newProject)),
+            ?_own('newLilyPond', 'New LilyPond Score…'.tr, shortcut: _keyOf(KeyCommand.newLilyPond)),
+            ?_own('open', 'Open…'.tr, shortcut: _keyOf(KeyCommand.open)),
+            ?_own('importScore', 'Import…'.tr, shortcut: _keyOf(KeyCommand.importScore)),
             PlatformMenu(label: 'Open Recent'.tr, menus: [
               if (recentFiles.isEmpty)
                 PlatformMenuItem(label: 'No Recent Files'.tr) // no handler: greyed out
@@ -242,62 +148,59 @@ class AppMenus extends StatelessWidget {
             ]),
           ]),
           PlatformMenuItemGroup(members: [
-            ?_own('close', 'Close'.tr, shortcut: _keyOf(KeyCommand.close), onSelected: onClose),
-            ?_own('save', 'Save'.tr, shortcut: _keyOf(KeyCommand.save), onSelected: onSave),
-            ?_own('saveAs', 'Save As…'.tr, shortcut: _keyOf(KeyCommand.saveAs), onSelected: onSaveAs),
+            ?_own('close', 'Close'.tr, shortcut: _keyOf(KeyCommand.close)),
+            ?_own('save', 'Save'.tr, shortcut: _keyOf(KeyCommand.save)),
+            ?_own('saveAs', 'Save As…'.tr, shortcut: _keyOf(KeyCommand.saveAs)),
           ]),
           PlatformMenuItemGroup(members: [
-            ?_own('exportVideo', 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo), onSelected: onExportVideo),
-            ?_own('exportWeb', 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb), onSelected: onExportWeb),
+            ?_own('exportVideo', 'Export Video…'.tr, shortcut: _keyOf(KeyCommand.exportVideo)),
+            ?_own('exportWeb', 'Export to Web…'.tr, shortcut: _keyOf(KeyCommand.exportWeb)),
           ]),
           if (attacca case final link?)
             PlatformMenuItemGroup(members: [
               PlatformMenu(label: 'Attacca', menus: [
                 PlatformMenuItem(label: link.state), // no handler: greyed out, a line saying how it is
                 PlatformMenuItemGroup(members: [
-                  ?_own('followDaw', _ticked('Connect Attacca…'.tr, link.following),
-                      shortcut: _keyOf(KeyCommand.followDaw), onSelected: link.onFollow),
-                  ?_own('recordFromDaw', 'Record from DAW…'.tr, shortcut: _keyOf(KeyCommand.recordFromDaw), onSelected: link.onRecord),
-                  ?_own('captureStems', 'Capture Stems…'.tr, shortcut: _keyOf(KeyCommand.captureStems), onSelected: link.onCaptureStems),
+                  ?_own('followDaw', _ticked('Connect Attacca…'.tr, link.following), shortcut: _keyOf(KeyCommand.followDaw)),
+                  ?_own('recordFromDaw', 'Record from DAW…'.tr, shortcut: _keyOf(KeyCommand.recordFromDaw)),
+                  ?_own('captureStems', 'Capture Stems…'.tr, shortcut: _keyOf(KeyCommand.captureStems)),
                 ]),
                 PlatformMenuItemGroup(members: [
-                  ?_own('attaccaSettings', 'Settings…'.tr, shortcut: _keyOf(KeyCommand.attaccaSettings), onSelected: link.onSettings),
+                  ?_own('attaccaSettings', 'Settings…'.tr, shortcut: _keyOf(KeyCommand.attaccaSettings)),
                 ]),
               ]),
             ]),
         ]),
         _Menu('Edit', label: 'Edit'.tr, menus: [
           PlatformMenuItemGroup(members: [
-            ?_own('undo', 'Undo'.tr, shortcut: _key(LogicalKeyboardKey.keyZ), onSelected: onUndo),
+            ?_own('undo', 'Undo'.tr, shortcut: _key(LogicalKeyboardKey.keyZ)),
             ?_own(
               'redo',
               'Redo'.tr,
               shortcut: _mac
                   ? _key(LogicalKeyboardKey.keyZ, shift: true)
                   : const SingleActivator(LogicalKeyboardKey.keyY, control: true),
-              onSelected: onRedo,
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            ?_own('cut', 'Cut'.tr, shortcut: _key(LogicalKeyboardKey.keyX), onSelected: onCut),
-            ?_own('copy', 'Copy'.tr, shortcut: _key(LogicalKeyboardKey.keyC), onSelected: onCopy),
-            ?_own('paste', 'Paste'.tr, shortcut: _key(LogicalKeyboardKey.keyV), onSelected: onPaste),
+            ?_own('cut', 'Cut'.tr, shortcut: _key(LogicalKeyboardKey.keyX)),
+            ?_own('copy', 'Copy'.tr, shortcut: _key(LogicalKeyboardKey.keyC)),
+            ?_own('paste', 'Paste'.tr, shortcut: _key(LogicalKeyboardKey.keyV)),
             ?_own(
               'delete',
               'Delete'.tr,
               shortcut: SingleActivator(_mac ? LogicalKeyboardKey.backspace : LogicalKeyboardKey.delete),
-              onSelected: onDelete,
             ),
-            ?_own('selectAll', 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA), onSelected: onSelectAll),
+            ?_own('selectAll', 'Select All'.tr, shortcut: _key(LogicalKeyboardKey.keyA)),
           ]),
           PlatformMenuItemGroup(members: [
-            ?_own('findPhrase', 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase), onSelected: onFindPhrase),
+            ?_own('findPhrase', 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase)),
           ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [
-            ?_own('projectSettings', 'Project Settings…'.tr, shortcut: _keyOf(KeyCommand.projectSettings), onSelected: onProjectSettings),
-            ?_own('settings', 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma), onSelected: onSettings),
+            ?_own('projectSettings', 'Project Settings…'.tr, shortcut: _keyOf(KeyCommand.projectSettings)),
+            ?_own('settings', 'Settings…'.tr, shortcut: _mac ? null : _key(LogicalKeyboardKey.comma)),
           ]),
         ]),
         _Menu('View', label: 'View'.tr, menus: [
@@ -306,25 +209,22 @@ class AppMenus extends StatelessWidget {
               'showPreview',
               previewShown ? 'Hide Preview'.tr : 'Show Preview'.tr,
               shortcut: _keyOf(KeyCommand.showPreview),
-              onSelected: onShowPreview == null ? null : () => onShowPreview!(!previewShown),
             ),
             ?_own(
               'showTimeline',
               timelineShown ? 'Hide Timeline'.tr : 'Show Timeline'.tr,
               shortcut: _keyOf(KeyCommand.showTimeline),
-              onSelected: onShowTimeline == null ? null : () => onShowTimeline!(!timelineShown),
             ),
           ]),
           PlatformMenuItemGroup(members: [
-            ?_own('maximizePreview', 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview), onSelected: onMaximizePreview),
-            ?_own('maximizeTimeline', 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline), onSelected: onMaximizeTimeline),
+            ?_own('maximizePreview', 'Maximize Preview'.tr, shortcut: _keyOf(KeyCommand.maximizePreview)),
+            ?_own('maximizeTimeline', 'Maximize Timeline'.tr, shortcut: _keyOf(KeyCommand.maximizeTimeline)),
           ]),
           PlatformMenuItemGroup(members: [
             ?_own(
               'showPlayerMap',
               playerMapShown ? (midi == null ? 'Show Score'.tr : 'Show MIDI View'.tr) : 'Show Player Map'.tr,
               shortcut: _keyOf(KeyCommand.showPlayerMap),
-              onSelected: onShowPlayerMap == null ? null : () => onShowPlayerMap!(!playerMapShown),
             ),
           ]),
           PlatformMenuItemGroup(members: [
@@ -332,13 +232,11 @@ class AppMenus extends StatelessWidget {
               'showTabBar',
               tabBarShown ? 'Hide Tab Bar'.tr : 'Show Tab Bar'.tr,
               shortcut: _keyOf(KeyCommand.showTabBar),
-              onSelected: onShowTabBar == null ? null : () => onShowTabBar!(!tabBarShown),
             ),
             ?_own(
               'showAllTabs',
               'Show All Tabs'.tr,
               shortcut: _keyOf(KeyCommand.showAllTabs),
-              onSelected: onShowTabBar == null || tabBarShown ? null : () => onShowTabBar!(true),
             ),
           ]),
           if (!_mac) _tabs,
@@ -346,21 +244,17 @@ class AppMenus extends StatelessWidget {
         if (midi case final midi?)
           _Menu('MIDI', label: 'MIDI'.tr, menus: [
             PlatformMenuItemGroup(members: [
-              ?_own('midiVelocity', _ticked('Shade Notes by Velocity'.tr, midi.velocity),
-                  shortcut: _keyOf(KeyCommand.midiVelocity), onSelected: midi.onVelocity),
-              ?_own('midiSharedRange', _ticked('Shared Pitch Range'.tr, midi.sharedRange),
-                  shortcut: _keyOf(KeyCommand.midiSharedRange), onSelected: midi.onSharedRange),
+              ?_own('midiVelocity', _ticked('Shade Notes by Velocity'.tr, midi.velocity), shortcut: _keyOf(KeyCommand.midiVelocity)),
+              ?_own('midiSharedRange', _ticked('Shared Pitch Range'.tr, midi.sharedRange), shortcut: _keyOf(KeyCommand.midiSharedRange)),
             ]),
             PlatformMenuItemGroup(members: [
-              ?_own('midiTallerRows', 'Taller Rows'.tr, shortcut: _keyOf(KeyCommand.midiTallerRows), onSelected: midi.onTallerRows),
-              ?_own('midiShorterRows', 'Shorter Rows'.tr, shortcut: _keyOf(KeyCommand.midiShorterRows), onSelected: midi.onShorterRows),
-              ?_own('midiWiderBeats', 'Wider Beats'.tr, shortcut: _keyOf(KeyCommand.midiWiderBeats), onSelected: midi.onWiderBeats),
-              ?_own('midiNarrowerBeats', 'Narrower Beats'.tr,
-                  shortcut: _keyOf(KeyCommand.midiNarrowerBeats), onSelected: midi.onNarrowerBeats),
+              ?_own('midiTallerRows', 'Taller Rows'.tr, shortcut: _keyOf(KeyCommand.midiTallerRows)),
+              ?_own('midiShorterRows', 'Shorter Rows'.tr, shortcut: _keyOf(KeyCommand.midiShorterRows)),
+              ?_own('midiWiderBeats', 'Wider Beats'.tr, shortcut: _keyOf(KeyCommand.midiWiderBeats)),
+              ?_own('midiNarrowerBeats', 'Narrower Beats'.tr, shortcut: _keyOf(KeyCommand.midiNarrowerBeats)),
             ]),
             PlatformMenuItemGroup(members: [
-              ?_own('midiFileTempo', _ticked('Use File’s Tempo'.tr, midi.fileTempo),
-                  shortcut: _keyOf(KeyCommand.midiFileTempo), onSelected: midi.onFileTempo),
+              ?_own('midiFileTempo', _ticked('Use File’s Tempo'.tr, midi.fileTempo), shortcut: _keyOf(KeyCommand.midiFileTempo)),
             ]),
           ]),
         if (_mac)
@@ -375,7 +269,7 @@ class AppMenus extends StatelessWidget {
           ]),
         if (!_mac)
           _Menu('Help', label: 'Help'.tr, menus: [
-            ?_own('about', 'About Curator'.tr, onSelected: onAbout),
+            ?_own('about', 'About Curator'.tr),
           ]),
       ];
 
