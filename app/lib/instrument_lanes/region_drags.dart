@@ -163,6 +163,8 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
               if (r.overlaps(range)) (partId: parts[i].id, region: r),
         ], keep: drag.keep, keepLanes: true);
       case _DragKind.move || _DragKind.resizeStart || _DragKind.resizeEnd:
+        // A click that wobbles a pixel moves nothing (it would snap a region off the grid onto it).
+        if (!drag.moved) return;
         _reshape(drag, q, _laneIndex(p));
     }
   }

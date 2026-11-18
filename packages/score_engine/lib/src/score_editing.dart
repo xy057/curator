@@ -1256,7 +1256,22 @@ class EditableScore {
     p._measures[m] = written;
     _indexMeasure(part, m, written);
     _changed.add(m);
+    _carriedChanged(m, old, written);
     _contextsStaleFrom(p, m);
+  }
+
+  /// What bar [bar] says that the bars after it go on with: its clefs, keys, times,
+  /// transpositions and staves, as written.
+  static String _carried(XmlElement bar) => [
+        for (final a in bar.findElements('attributes'))
+          for (final c in a.childElements)
+            if (const {'clef', 'key', 'time', 'transpose', 'staves'}.contains(c.name.local)) c.toXmlString(),
+      ].join();
+
+  /// Every bar after [m] changed too when what it goes on with did (a clef set, or taken back):
+  /// each is engraved with what is in force at its start.
+  void _carriedChanged(int m, XmlElement was, XmlElement now) {
+    if (_carried(was) != _carried(now)) _markFrom(m + 1);
   }
 
   // MARK: Undo
@@ -1344,6 +1359,7 @@ class EditableScore {
         // Bars that differ are written again in the engraving.
         for (var m = 0; m < math.max(now.length, all.length); m++) {
           if (m >= now.length || m >= all.length || !identical(now[m], all[m])) _changed.add(m);
+          if (m < now.length && m < all.length && !identical(now[m], all[m])) _carriedChanged(m, now[m], all[m]);
         }
         p.element.children.clear();
         p.element.children.addAll(all);
@@ -1361,6 +1377,7 @@ class EditableScore {
           now[m] = bar;
           _indexMeasure(i, m, bar);
           _changed.add(m);
+          _carriedChanged(m, old, bar);
         }
       }
       if (all != null || p.divisions != step.divisions[i]) {
@@ -1784,6 +1801,14 @@ class EditableScore {
             final piece = Frac.min(remaining, length - pos.time);
             remaining = remaining - piece;
             final rhythms = piece == item.length ? [item.rhythm] : Rhythm.express(piece, tuplet: item.rhythm.tuplet);
+            // What it writes over leaves nothing tied to nothing: a note after tied from one gone
+            // or cut short, a note before tied into one gone (only before the first piece: the
+            // ones after follow what this item wrote). What it writes is tied as it says, below.
+            for (final old in eventsIn(pos.part, pos.measure, pos.voice)) {
+              final start = old.position.time;
+              if (old.isRest || start + old.length <= pos.time || start >= pos.time + piece) continue;
+              _untie(old, from: first && start >= pos.time);
+            }
             final content = _mutable(pos.part, pos.measure);
             final made = <_Event>[];
             var t = pos.time;
@@ -1809,6 +1834,29 @@ class EditableScore {
         }
         return pos;
       });
+
+  /// The notes of [e] (those of [ids], or all) untied from the note before them in their voice
+  /// ([from]) and the note after ([on]), on that side: a note about to go, or to change its pitch,
+  /// leaves none tied to nothing. Each partner's bar is put in at once: done before [e]'s own bar
+  /// is read to change (they may be one).
+  void _untie(EventInfo e, {Set<String>? ids, bool from = true, bool on = true}) {
+    final p = e.position;
+    final notes = [
+      for (final n in _view(p.part, p.measure).voices[p.voice]?.where((x) => x.start == p.time).firstOrNull?.notes ?? const <XmlElement>[])
+        if (ids == null || ids.contains(n.getAttribute('id'))) n,
+    ];
+    void loosen(EventInfo? partner, Set<int> midis, String type) {
+      if (partner == null || partner.isRest || midis.isEmpty) return;
+      _editNotes(partner, (notes) {
+        for (final n in notes) {
+          if (midis.contains(_pitchOf(n)?.midi)) _setTie(n, type, false);
+        }
+      });
+    }
+
+    if (from) loosen(previous(e), {for (final n in notes) if (_tiedFrom(n)) ?_pitchOf(n)?.midi}, 'start');
+    if (on) loosen(next(e), {for (final n in notes) if (_tiedOn(n)) ?_pitchOf(n)?.midi}, 'stop');
+  }
 
   /// The note before [at] in its voice tied on to the one at [at] (Dorico's T).
   void _tieBack(ScorePosition at) {
@@ -2184,6 +2232,8 @@ class EditableScore {
           final current = locate(e.ids.first);
           if (current == null) continue;
           final chosen = current.ids.where(notes.contains).toSet();
+          // The notes it was tied from and to are tied to nothing now.
+          if (!current.isRest) _untie(current, ids: chosen);
           final p = current.position;
           final content = _mutable(p.part, p.measure);
           final events = content.voices[p.voice]!;
@@ -2354,6 +2404,46 @@ class EditableScore {
             for (final n in notes) {
               if (!chosen.contains(n.getAttribute('id')) || n.getElement('pitch') == null) continue;
               if (_pitchOf(n) case final p? when other(p) != null) _setPitch(n, other(p)!);
+            }
+          });
+        }
+      });
+
+  /// Notes of [ids] given the letter [step] (0–6: C–B), each at the octave nearest the pitch it
+  /// had, as the key spells it (A–G outside note input). Each stays the note it was: its id, its
+  /// lyrics, marks and slurs; a note whose pitch changes is untied, both ends. Notes of a chord
+  /// that come to one pitch are one note, the first.
+  void setStep(Iterable<String> ids, int step) => edit(() {
+        final chosen = {...ids};
+        for (final e in eventsOf(ids)) {
+          if (e.isRest) continue;
+          final key = keyAt(e.position.part, e.position.measure, e.position.time).fifths;
+          Pitch? moved(XmlElement n) => switch (_pitchOf(n)) {
+                final p? when n.getElement('pitch') != null && chosen.contains(n.getAttribute('id')) =>
+                  Pitch.nearest(step, p, alter: Pitch.keyAlter(step, key)),
+                _ => null,
+              };
+          final p = e.position;
+          final notes = _view(p.part, p.measure).voices[p.voice]?.where((x) => x.start == p.time).firstOrNull?.notes ?? const <XmlElement>[];
+          final changing = {
+            for (final n in notes)
+              if (moved(n) case final to? when to.midi != _pitchOf(n)!.midi || to.step != _pitchOf(n)!.step) n.getAttribute('id')!,
+          };
+          if (changing.isEmpty) continue;
+          // A chord's notes all given the letter come to one pitch: the later ones go.
+          final heard = <int>{};
+          final doubled = {
+            for (final n in notes)
+              if ((moved(n) ?? _pitchOf(n)) case final to? when n.getElement('pitch') != null && !heard.add(to.midi)) n.getAttribute('id')!,
+          };
+          _untie(e, ids: {...changing, ...doubled});
+          _editNotes(e, (notes) {
+            notes.removeWhere((n) => doubled.contains(n.getAttribute('id')));
+            for (final n in notes) {
+              if (!changing.contains(n.getAttribute('id'))) continue;
+              _setPitch(n, moved(n)!);
+              _setTie(n, 'start', false);
+              _setTie(n, 'stop', false);
             }
           });
         }
@@ -2975,7 +3065,11 @@ class EditableScore {
         for (final (i, p) in parts.indexed) {
           final context = _contextAt(i, m, Frac.zero);
           if (context.clefs.values.isNotEmpty && context.clefs.values.every((c) => c.isPercussion)) continue;
-          final written = (key.fifths + _fifthsOf(context.transpose)).clamp(-7, 7);
+          // Past seven sharps or flats, the same key spelled the other way (F♯ major for a B♭
+          // clarinet is A♭, not C♯), as concertKeySignatures reads it back.
+          var written = key.fifths + _fifthsOf(context.transpose);
+          if (written > 7) written -= 12;
+          if (written < -7) written += 12;
           final content = _mutable(i, m);
           final a = _startAttributes(content);
           _removeChildren(a, 'key');
@@ -3572,11 +3666,14 @@ class EditableScore {
     return copy;
   }
 
-  /// [music] put in from [at] over what was there; returns where it ends.
+  /// [music] put in from [at] over what was there; returns where it ends. A note tied from the
+  /// one copied before it stays tied to its copy, and one written in pieces is tied through them.
   ScorePosition paste(ScorePosition at, CopiedMusic music) => input(at, [
-        for (final e in music.events)
-          for (final r in e.rhythm != null && e.rhythm!.length == e.length ? [e.rhythm!] : Rhythm.express(e.length))
-            InputItem(r, [for (final n in e.notes) ?_pitchOf(n)], templates: e.notes.isEmpty ? null : e.notes),
+        for (final (i, e) in music.events.indexed)
+          for (final (k, r) in (e.rhythm != null && e.rhythm!.length == e.length ? [e.rhythm!] : Rhythm.express(e.length)).indexed)
+            InputItem(r, [for (final n in e.notes) ?_pitchOf(n)],
+                templates: e.notes.isEmpty ? null : e.notes,
+                tieFrom: e.notes.isNotEmpty && (k > 0 || (i > 0 && music.events[i - 1].notes.isNotEmpty && e.notes.any(_tiedFrom)))),
       ]);
 }
 

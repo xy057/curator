@@ -64,6 +64,12 @@ void main() {
     for (final key in [LogicalKeyboardKey.keyC, LogicalKeyboardKey.keyD, LogicalKeyboardKey.keyE]) {
       await tester.sendKeyEvent(key);
     }
+    // ⌥⇧G puts a G in the chord, whatever the character ⌥ makes of the key (˝ on a Mac).
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyG, character: '˝');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.digit6);
     await tester.sendKeyEvent(LogicalKeyboardKey.comma);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -71,7 +77,7 @@ void main() {
 
     const voice = VoiceKey(1, '1');
     final bar = score.eventsIn(0, 0, voice);
-    expect([for (final e in bar.take(3)) e.pitches.single.name], ['C5', 'D5', 'E5']);
+    expect([for (final e in bar.take(3)) e.pitches.map((p) => p.name).join(' ')], ['C5', 'D5', 'E5 G5']);
     expect(bar[3].isRest, isTrue);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft); // the rest selected
     await tester.pump();
@@ -145,7 +151,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(closed, isTrue);
     final back = EditableScore.parse(result!).eventsIn(0, 0, voice);
-    expect([for (final e in back.where((e) => !e.isRest)) e.pitches.single.name], ['C5', 'D5', 'E5']);
+    expect([for (final e in back.where((e) => !e.isRest)) e.pitches.map((p) => p.name).join(' ')], ['C5', 'D5', 'E5 G5']);
     expect(back.where((e) => e.isRest).fold(Frac.zero, (a, e) => a + e.length), Frac(5, 2)); // the rest undone: rests to the end
     expect(result, isNot(contains('cxe')));
 

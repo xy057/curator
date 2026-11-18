@@ -53,6 +53,11 @@ void main() {
       c.tab = BottomTab.video;
       c.automation.draw(0, 8); // a view: the map, selected
       expect(c.automation.selected, 0);
+      // Out of sight on another tab it isn't selected: Delete there is that tab's.
+      c.tab = BottomTab.instruments;
+      expect(c.automation.hasSelection, isFalse);
+      c.tab = BottomTab.video;
+      c.automation.select(0);
       c.commands.delete(); // and removed
 
       c.tab = BottomTab.audio; // the tab doesn't decide what Undo undoes
@@ -291,6 +296,12 @@ void main() {
       say({'t': 'transport', 'playing': false, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
       await until(() => !c.playback.followsDaw);
 
+      // A recording asked of a document the DAW closes before it is written: told it is gone,
+      // never waited on.
+      final lost = link.recording(session, 'other', 'take-9');
+      expect(await heard.moveNext(), isTrue);
+      say({'t': 'closed', 'id': 'other'});
+      await expectLater(lost, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'gone')));
       final asked = link.recording(session, 'doc', 'take-1');
       expect(await heard.moveNext(), isTrue);
       expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
@@ -312,6 +323,11 @@ void main() {
       expect(c.focus, isNot(attacca.id));
       await c.debugLoadTrack(track('Bernstein.flac'));
       expect([for (final t in c.takes) (t.label, t.daw != null)], [('Take 1', true), ('Bernstein', false)]);
+      // A recording read as its window closed is held by nothing.
+      final closed = AudioEngine();
+      await closed.close();
+      await closed.put('late', track('Late.wav'));
+      expect(closed.trackOf('late'), isNull);
 
       // Its tracks kept as stems: each asked for from where the recording starts in the song for
       // as long as it lasts; the file the plug-in writes kept as FLAC, named by the track, in its

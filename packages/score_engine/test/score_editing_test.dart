@@ -144,6 +144,13 @@ void main() {
       states.add(written());
       expect(score.keyAt(0, 8, Frac.zero).fifths, 3);
       expect(score.keyAt(0, 0, Frac.zero).fifths, key);
+      // A B♭ clarinet in F♯ major is written in A♭ (four flats), never past seven sharps.
+      final clarinet = EditableScore.parse('<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Clarinet</part-name>'
+          '</score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>2</fifths></key><time><beats>4</beats>'
+          '<beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose>'
+          '</attributes><note><rest measure="yes"/><duration>4</duration></note></measure></part></score-partwise>');
+      clarinet.setKey(0, KeySig.parse('F#')!);
+      expect(RegExp(r'<fifths>(-?\d+)</fifths>').firstMatch(clarinet.toMusicXML())?[1], '-4');
       score.deleteBars(0, 1);
       states.add(written());
       for (var i = states.length - 2; i >= 0; i--) {
@@ -164,6 +171,15 @@ void main() {
         expect(written(), states[i], reason: 'redone to state $i');
       }
       expect(score.canRedo, isFalse);
+      // A clef goes on into the bars after it: they are engraved again too, set and taken back.
+      score.takeChanged();
+      score.setClef(ScorePosition(0, voice, 3, Frac.zero), Clef.named('bass')!);
+      expect(score.takeChanged().from, 4);
+      score.undo();
+      expect(score.takeChanged().from, 4);
+      score.redo();
+      expect(score.takeChanged().from, 4);
+      score.undo();
 
       // A triplet needs finer divisions in every bar of its part: only its own bar is engraved again.
       score.takeChanged();
@@ -298,6 +314,13 @@ void main() {
       expect('<slur'.allMatches(score.toMusicXML()).length, 2);
       score.toggleSlur([ids[0]]);
       expect(score.toMusicXML(), plain);
+      // A letter given to it (outside note input) changes its pitch only: the note it was, its
+      // lyric and its marks kept.
+      score.toggleMark([ids[0]], 'staccato');
+      score.setStep([ids[0]], 1);
+      final note = score.eventsIn(0, 0, voice).first;
+      expect((note.ids.first, note.pitches.single.name), (ids[0], 'D4'));
+      expect(['<text>la</text>', '<staccato'].every(score.toMusicXML().contains), isTrue);
     }
 
     // Notes pasted are notes of their own: each has its id, so one found by it is the copy, not what it was copied from.
@@ -317,6 +340,35 @@ void main() {
           reason: 'the slur copied with them has its own too');
       score.transpose([idsIn(1).first], octaves: 1);
       expect((score.eventsIn(0, 0, voice).first.pitches.single.octave, score.eventsIn(0, 1, voice).first.pitches.single.octave), (4, 5));
+      // Two notes tied, copied: pasted, still tied.
+      score.input(ScorePosition(0, voice, 0, Frac.zero),
+          [const InputItem(Rhythm(NoteType.half), [Pitch(0, 4)]), const InputItem(Rhythm(NoteType.half), [Pitch(0, 4)], tieFrom: true)]);
+      score.paste(ScorePosition(0, voice, 1, Frac.zero), score.copy(idsIn(0)));
+      expect([for (final m in [0, 1]) score.eventsIn(0, m, voice).first.tiedOn], [true, true]);
+      expect([for (final type in ['start', 'stop']) '<tie type="$type"/>'.allMatches(score.toMusicXML()).length], [2, 2]);
+    }
+
+    // A tied note deleted or written over leaves the note it was tied to tied to nothing: never
+    // half a tie (one tied from nothing is drawn and heard as tied).
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      const c = Pitch(0, 4);
+      void tiedPair() => score.input(ScorePosition(0, voice, 0, Frac.zero), [const InputItem(Rhythm(NoteType.half), [c]), const InputItem(Rhythm(NoteType.half), [c], tieFrom: true)]);
+      List<int> ties() => [for (final type in ['start', 'stop']) '<tie type="$type"/>'.allMatches(score.toMusicXML()).length];
+      tiedPair();
+      expect(ties(), [1, 1]);
+      score.delete([score.eventsIn(0, 0, voice)[1].ids.first]); // the second goes
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.delete([score.eventsIn(0, 0, voice)[0].ids.first]); // the first goes
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.input(ScorePosition(0, voice, 0, Frac(2)), [const InputItem(Rhythm(NoteType.half), [Pitch(1, 4)])]); // D over the second
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [const InputItem(Rhythm(NoteType.quarter), [Pitch(1, 4)])]); // D over half the first
+      expect(ties(), [0, 0]);
     }
 
     // Bars added before a bar that changes the time signature are as long as the one before them says.

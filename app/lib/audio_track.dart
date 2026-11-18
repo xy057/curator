@@ -8,8 +8,8 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_soloud/flutter_soloud.dart';
-// The binding its readSamplesFromFile wraps: that keeps the buffer it reads into (never freed),
-// fine for a waveform's few samples, not for a recording read whole (Align).
+// The binding its readSamplesFromFile wraps: that keeps the buffer it reads into (never freed,
+// four times the samples asked for, and the file's name too), so every read here is the binding's.
 // ignore: implementation_imports
 import 'package:flutter_soloud/src/bindings/flutter_soloud_ffigen.dart' as soloud;
 import 'package:score_engine/score_engine.dart';
@@ -327,7 +327,7 @@ class AudioEngine {
         source = await _load(playable, LoadMode.memory);
       }
       final plan = AudioFormat.samplingPlan(length, rate);
-      final samples = await SoLoud.instance.readSamplesFromFile(playable, plan.count);
+      final samples = await _readEvenly(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
       return AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate, scratch,
           decodedBytes: inMemory ? decoded : 0);
@@ -338,8 +338,30 @@ class AudioEngine {
     }
   }
 
-  /// Makes [track] take [id]'s recording, letting go of the one it had.
+  /// [count] samples of the recording at [path], spread evenly over it (as SoLoud's
+  /// readSamplesFromFile, which never frees what it reads into: 14 MB for five minutes, every
+  /// time a recording is read), on an isolate.
+  static Future<Float32List> _readEvenly(String path, int count) => Isolate.run(() {
+        if (count <= 0) return Float32List(0);
+        final buffer = malloc<Float>(count), name = path.toNativeUtf8();
+        try {
+          buffer.asTypedList(count).fillRange(0, count, 0);
+          final error = soloud.readSamplesFromFile(name.cast(), 0, -1, count, false, buffer);
+          if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
+            throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
+          }
+          return Float32List.fromList(buffer.asTypedList(count));
+        } finally {
+          malloc
+            ..free(buffer)
+            ..free(name);
+        }
+      });
+
+  /// Makes [track] take [id]'s recording, letting go of the one it had. Once [close]d, lets go
+  /// of [track] instead: one read as its window closed is held by nothing.
   Future<void> put(String id, AudioTrack track) async {
+    if (_closed) return track._dispose();
     stop();
     _unread.remove(id);
     final before = _tracks[id];
@@ -353,6 +375,14 @@ class AudioEngine {
     if (id == _focus) _focus = null;
     _unread.remove(id);
     await _tracks.remove(id)?._dispose();
+  }
+
+  bool _closed = false;
+
+  /// Lets go of every recording for good, and of each one [put] in after (its window closed).
+  Future<void> close() {
+    _closed = true;
+    return unload();
   }
 
   /// Lets go of every recording.

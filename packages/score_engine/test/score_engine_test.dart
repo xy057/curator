@@ -312,6 +312,11 @@ void main() {
       final silent = Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, 4, 0, 0xff, 0x2f, 0]);
       expect(() => MidiScore.read(silent), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file has no notes.')));
     }
+
+    // A motion curve typed a character at a time: "0." on the way to "0.5" is a number, and a point
+    // that is in none is said, never thrown past the field.
+    expect([for (final text in ['0.', '0.5*t', '2.t', '.5t', 't^1.']) MotionCurve.problemWith(text)], [for (var i = 0; i < 5; i++) isNot(contains('Null'))]);
+    expect([MotionCurve.problemWith('0.5*t'), MotionCurve.problemWith('.'), MotionCurve.problemWith('t*.')], [null, 'Unexpected “.”.', 'Unexpected “.”.']);
   });
 
   test('curation: regions drawn and erased, a region leaving out a staff, auto-curate only where staves would run off; a piano’s dynamics between its staves', () async {

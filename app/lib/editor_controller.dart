@@ -150,6 +150,9 @@ class EditorController extends ChangeNotifier {
   set tab(BottomTab value) {
     _tab = value;
     if (value != BottomTab.audio) anchors.tapArmed = false;
+    // The View lane is the Video tab's: a stretch selected there isn't once it's out of sight
+    // (Delete and ←/→ would act on it before the tab's own).
+    if (value != BottomTab.video) automation._clearSelection();
     notifyListeners();
   }
 
@@ -718,6 +721,7 @@ class EditorController extends ChangeNotifier {
     images._reset();
     captions._reset();
     extensions._reset();
+    automation._clearSelection(); // (an index: another project's stretch by the same number)
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);
@@ -2157,6 +2161,7 @@ class EditorController extends ChangeNotifier {
   Future<void> _addTake(AudioTrack track) async {
     final id = _newTakeId(), first = _doc.takes.isEmpty;
     await audio.put(id, track);
+    if (_disposed) return; // (let go of: its window closed as it was read)
     // The first is heard throughout; another, nowhere until its lane says so.
     _everywhere((s) => s.adding(Take(id, stemOf(track.name), regions: first ? [Region(0, _sync!.totalQuarters)] : const [])));
     if (!first) editSyncOf(id);
@@ -2314,12 +2319,13 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
     try {
       await job();
+      if (_disposed) return; // the window closed as it was read: the engine let it go
       _edited();
       _tab = BottomTab.audio;
       viewport.requestFit();
     } finally {
       _loadingAudio = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
@@ -2339,6 +2345,7 @@ class EditorController extends ChangeNotifier {
       final take = _doc.take(id)!;
       final before = audio.trackOf(id);
       await audio.put(id, track);
+      if (_disposed) return; // (let go of: its window closed as it was read)
       final label = before == null || take.label == stemOf(before.name) ? stemOf(track.name) : take.label;
       _everywhere((s) => s.copyWith(takes: [for (final t in s.takes) t.id == id ? t.copyWith(label: label, daw: daw) : t]));
       _performanceChanged();
@@ -2369,6 +2376,7 @@ class EditorController extends ChangeNotifier {
     }
     if (_doc.focus case final id? when focusPath != null) await load(id, focusPath);
     for (final t in _doc.takes) {
+      if (_disposed) break; // (the window closed: the rest aren't read)
       if (t.id != _doc.focus && paths[t.id] != null) await load(t.id, paths[t.id]!);
     }
     if (_disposed) return null;
@@ -2562,7 +2570,7 @@ class EditorController extends ChangeNotifier {
     _pdfPages?.close();
     _curation?.dispose();
     _sync?.dispose();
-    unawaited(audio.unload());
+    unawaited(audio.close()); // (a recording still being read is let go of once it is)
     editRevision.dispose();
     automation._dispose();
     engravingFailure.dispose();

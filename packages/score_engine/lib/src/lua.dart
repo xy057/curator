@@ -209,8 +209,11 @@ final class Lua {
   }
 
   /// Takes the steps that making a string of [length] characters, or a list of as many values,
-  /// costs: one for every 64. The script is stopped at its next step when none are left.
-  void spend(int length) => steps -= length >> 6;
+  /// costs: one for every 64. The script is stopped at its next step when none are left. A length
+  /// below 0 (one that wrapped round) costs nothing: steps are never given back.
+  void spend(int length) {
+    if (length > 0) steps -= length >> 6;
+  }
 
   /// [text], just made, paid for by its length ([spend]).
   String _made(String text) {

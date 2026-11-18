@@ -266,7 +266,9 @@ class _PhraseSearchWindowState extends State<PhraseSearchWindow> {
     _set(_phrase.notes, _selected);
   }
 
-  void _select(int? i) => setState(() => _entry.selected = i);
+  /// Selects the phrase's note [i], one that is there: none in an empty phrase (← there, or a tap
+  /// on a picture not yet engraved again, asked for one past its end).
+  void _select(int? i) => setState(() => _entry.selected = i == null || _phrase.notes.isEmpty ? null : i.clamp(0, _phrase.notes.length - 1));
 
   // MARK: Matches
 
