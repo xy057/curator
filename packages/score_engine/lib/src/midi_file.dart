@@ -129,9 +129,13 @@ class MidiFile {
       }
     }
     // In time order (a format 1 file may keep them in any track), those at one tick as read.
-    final meterOrder = [for (var i = 0; i < meters.length; i++) i]..sort((a, b) => meters[a].tick != meters[b].tick ? meters[a].tick.compareTo(meters[b].tick) : a.compareTo(b));
-    final keyOrder = [for (var i = 0; i < keys.length; i++) i]..sort((a, b) => keys[a].tick != keys[b].tick ? keys[a].tick.compareTo(keys[b].tick) : a.compareTo(b));
-    return MidiFile._(division, voices, [for (final i in meterOrder) meters[i]], [for (final i in keyOrder) keys[i]], title, length);
+    List<T> inTime<T>(List<T> items, int Function(T) tickOf) {
+      final order = [for (var i = 0; i < items.length; i++) i]
+        ..sort((a, b) => tickOf(items[a]) != tickOf(items[b]) ? tickOf(items[a]).compareTo(tickOf(items[b])) : a.compareTo(b));
+      return [for (final i in order) items[i]];
+    }
+
+    return MidiFile._(division, voices, inTime(meters, (m) => m.tick), inTime(keys, (k) => k.tick), title, length);
   }
 
   /// The file's data, its ticks a quarter note and the tracks to read (start and end of each
