@@ -259,12 +259,12 @@ class _AudioLanesState extends State<AudioLanes> with LaneCursor<AudioLanes> {
                   Text('Recording'.tr),
                   if (track != null)
                     Row(children: [
-                      if (c.takes.where((t) => t.id == c.focus).firstOrNull?.daw case final daw?) ...[
+                      if (c.focusTake?.daw case final daw?) ...[
                         AttaccaMark(daw: daw, size: 11),
                         const SizedBox(width: 3),
                       ],
                       Flexible(
-                        child: Text(c.takes.where((t) => t.id == c.focus).firstOrNull?.label ?? track.name,
+                        child: Text(c.focusTake?.label ?? track.name,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, color: colors.textMuted)),
                       ),

@@ -2029,6 +2029,15 @@ class EditorController extends ChangeNotifier {
   /// The take whose sync is [sync]; null when there is no recording.
   String? get focus => _doc.focus;
 
+  /// The take [id]; null when there is none.
+  Take? take(String id) => _doc.take(id);
+
+  /// The [focus]'s take.
+  Take? get focusTake => switch (focus) {
+        final id? => _doc.take(id),
+        _ => null,
+      };
+
   /// The take heard alone, in its own time ([editSyncOf]); null: the lanes say what is heard.
   String? get syncedTake => _syncedTake;
   String? _syncedTake;

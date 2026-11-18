@@ -115,7 +115,7 @@ class _TakeRegions extends SpanLaneModel {
   final EditorController c;
   final String id;
 
-  List<Region> get _regions => c.takes.where((t) => t.id == id).firstOrNull?.regions ?? const [];
+  List<Region> get _regions => c.take(id)?.regions ?? const [];
 
   @override
   List<Span> get spans => [for (final r in _regions) (start: r.start, end: r.end)];
