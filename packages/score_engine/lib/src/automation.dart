@@ -359,11 +359,14 @@ class Automation {
 
   bool get isEmpty => _steps.isEmpty && _curves.isEmpty && foreign.isEmpty;
 
-  /// The step lane of [target] (empty while it has none).
+  /// The step lane of [target] (empty while it has none: the same one each time, so what is
+  /// kept by the lane, as the frame's views in time are, holds while there is none).
   StepLane<T> steps<T>(AutomationTarget<T> target) => switch (_steps[target.id]) {
         final StepLane<T> lane => lane,
-        _ => StepLane<T>(target),
+        _ => (_emptyLanes[target] ??= StepLane<T>(target)) as StepLane<T>,
       };
+
+  static final _emptyLanes = Expando<StepLane<Object?>>();
 
   /// The curve lane of [target] (empty while it has none).
   CurveLane curve(AutomationTarget<double> target) => _curves[target.id] ?? CurveLane(target);
