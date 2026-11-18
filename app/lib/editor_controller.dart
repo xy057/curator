@@ -150,6 +150,9 @@ class EditorController extends ChangeNotifier {
   set tab(BottomTab value) {
     _tab = value;
     if (value != BottomTab.audio) anchors.tapArmed = false;
+    // The View lane is the Video tab's: a stretch selected there isn't once it's out of sight
+    // (Delete and ←/→ would act on it before the tab's own).
+    if (value != BottomTab.video) automation._clearSelection();
     notifyListeners();
   }
 
@@ -718,6 +721,7 @@ class EditorController extends ChangeNotifier {
     images._reset();
     captions._reset();
     extensions._reset();
+    automation._clearSelection(); // (an index: another project's stretch by the same number)
     _scene?.dispose();
     _scene = null;
     _curation?.removeListener(_curationEdited);

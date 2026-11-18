@@ -53,6 +53,11 @@ void main() {
       c.tab = BottomTab.video;
       c.automation.draw(0, 8); // a view: the map, selected
       expect(c.automation.selected, 0);
+      // Out of sight on another tab it isn't selected: Delete there is that tab's.
+      c.tab = BottomTab.instruments;
+      expect(c.automation.hasSelection, isFalse);
+      c.tab = BottomTab.video;
+      c.automation.select(0);
       c.commands.delete(); // and removed
 
       c.tab = BottomTab.audio; // the tab doesn't decide what Undo undoes
