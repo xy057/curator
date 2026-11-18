@@ -133,11 +133,24 @@ What stays behind, and how to remove it:
 
 ## Using it
 
-Attacca supports **Cubase, Nuendo, Studio One (Studio Pro) and REAPER**, told by the DAW's
-process name. Any other DAW is not supported: Logic Pro, and DAWs without ARA such as Ableton
-Live and Bitwig Studio. When one connects, Curator says it isn't supported, and Connect Attacca…
-doesn't offer its recordings. Holding **⌥ (Option; Alt on Windows)** in that notice shows **Connect Anyway**,
-which offers them all the same (for this time only).
+Attacca supports a DAW by what the DAW gives it through ARA, never by the DAW's name. ARA has a
+host hand a plug-in several interfaces. Two of them every ARA host gives (a recording's samples,
+and the project's archive); the others it may leave out. Attacca needs two of those:
+
+- **the song** (ARA's content access: the tempo map, bar and key signatures), which the sync
+  follows;
+- **the transport** (ARA's playback controller), by which Curator's transport drives the DAW's
+  and Record from DAW… starts it.
+
+Attacca tells Curator which interfaces the DAW gave it (`interfaces` in `document`), and a DAW
+that gives both is supported: **Cubase, Nuendo, Studio One (Studio Pro) and REAPER** do. A DAW
+that leaves one out is not: when Attacca is put on a recording there, Curator says the DAW isn't
+supported and what it doesn't give, and Connect Attacca… doesn't offer its recordings. Holding
+**⌥ (Option; Alt on Windows)** in that notice shows **Connect Anyway**, which offers them all the
+same (for this time only): what the DAW does give still works. A DAW without ARA at all (Ableton
+Live, Bitwig Studio) can only have Attacca on an insert, with no recording: Connect Attacca…
+says Attacca isn't on a recording there. An Attacca from before build 622 doesn't say what the
+DAW gives, and its DAW is taken to give everything (Curator says that Attacca is outdated).
 
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
@@ -282,7 +295,7 @@ project, because everything it knows the DAW sends again.
 | Message | From | Holds |
 |---|---|---|
 | `hello` | plug-in | `token`, `protocol` (1), `plugin` (its version), `build`, `host` (the DAW process's name), `pid` |
-| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport |
+| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport; `interfaces`: the ARA host interfaces the DAW gave Attacca, of `audio`, `archiving` (every host gives both), `content` (the song), `updates`, `playback` (the transport): Curator supports a DAW that gives `content` and `playback` (`DawDocument.needed`) |
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
 | `followers` | Curator | `names`: the projects following one of this DAW's documents, one a line (empty: none); sent when they change, and on connecting |
@@ -335,7 +348,8 @@ Fields are only added over time. A message type or field that one side doesn't k
    `make run` and `make build` make it whenever it is out of date. The test host:
    - stands in for Curator, behind a temporary `HOME` (Windows: `LOCALAPPDATA`);
    - loads the VST3, makes a document with a tempo change, 4/4 then 3/4, a key, a track and a
-     recording placed in the song;
+     recording placed in the song; and one as a DAW giving only what ARA requires of every host,
+     which must say so;
    - checks what Curator is told;
    - asks for the recording, and checks the file sample by sample; asks again while it holds
      the first open, and checks the second is whole (on Windows, beside the first);

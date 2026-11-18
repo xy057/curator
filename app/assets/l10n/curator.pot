@@ -5587,10 +5587,6 @@ msgid "{daw} isn’t supported by Attacca."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Attacca works in {daws}."
-msgstr ""
-
-#: lib/daw_follow_dialog.dart
 msgid "Attacca isn’t on a recording in the DAW."
 msgstr ""
 
@@ -5664,4 +5660,12 @@ msgstr ""
 
 #: lib/settings_dialog.dart
 msgid "Quit your DAW first."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t give plug-ins its tempo map."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t let plug-ins run its transport."
 msgstr ""

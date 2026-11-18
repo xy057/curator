@@ -381,6 +381,19 @@ std::string LinkDocumentController::snapshot ()
     name (w, "name", document->getName ());
     // Whether the DAW lets Attacca drive its transport (Curator's then does, while following).
     w.field ("playback", getHostPlaybackController () != nullptr);
+    // What the DAW gives Attacca of ARA's host interfaces: by these Curator tells whether the
+    // DAW can do what it asks of it, never by the DAW's name. Samples ("audio") and the
+    // project's archive every ARA host gives; the song ("content": tempo, bars, keys), word of
+    // changes ("updates") and its transport ("playback") a host may leave out.
+    w.key ("interfaces").array ();
+    w.string ("audio").string ("archiving");
+    if (getHostContentAccessController ())
+        w.string ("content");
+    if (getHostModelUpdateController ())
+        w.string ("updates");
+    if (getHostPlaybackController ())
+        w.string ("playback");
+    w.endArray ();
 
     w.key ("contexts").array ();
     for (const auto* context : document->getMusicalContexts ())

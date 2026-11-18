@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:curated_score/audio_track.dart';
+import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
 import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/file_names.dart';
@@ -239,10 +240,20 @@ void main() {
       await until(() => link.find('doc') != null);
       final (session, document) = link.find('doc')!;
       expect(session.host, 'Cubase 15');
-      // Supported DAWs, by their process's name; any other is told of, and not followed but by ⌥.
+      // A DAW is supported by the ARA interfaces it gives Attacca (its song, its transport), never
+      // by its name: one that leaves one out is told of, and not followed but by ⌥. A plug-in
+      // that doesn't say which the DAW gives (an older one, as here) is taken to give them.
       expect(session.supported, isTrue);
-      expect([for (final h in ['Nuendo 14', 'Studio One 6', 'REAPER', 'Logic Pro', 'Live', 'Bitwig Studio', '']) DawLink.supports(h)],
-          [true, true, true, false, false, false, false]);
+      DawDocument given(List<String>? interfaces) => DawDocument.fromJson({'id': 'd', 'interfaces': ?interfaces});
+      expect([for (final i in [null, ['audio', 'archiving', 'content', 'updates', 'playback'], ['audio', 'archiving', 'content'], ['audio', 'archiving']]) given(i).missing],
+          [<String>[], <String>[], ['playback'], ['content', 'playback']]);
+      say({'t': 'document', 'id': 'bare', 'name': 'Bare', 'interfaces': ['audio', 'archiving', 'content']});
+      await until(() => link.find('bare') != null);
+      expect(session.missing, ['playback']);
+      expect((session.supported, attaccaMissing(session.missing)), (false, 'It doesn’t let plug-ins run its transport.'));
+      say({'t': 'closed', 'id': 'bare'});
+      await until(() => link.find('bare') == null);
+      expect(session.supported, isTrue, reason: 'by what its documents say now');
       // Curator's build in its discovery file; a plug-in older than it is outdated (one that
       // doesn't say its build isn't).
       expect((discovery['build'], session.outdated), (appBuild, false));

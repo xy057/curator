@@ -184,18 +184,6 @@ class DawLink extends ChangeNotifier {
     }
   }
 
-  /// The DAWs Attacca supports, as their process is named: those whose ARA hands it the song
-  /// and the recordings. Any other is not (Logic Pro, Ableton Live, Bitwig Studio and the
-  /// DAWs without ARA among them).
-  static const supportedDaws = ['Cubase', 'Nuendo', 'Studio One', 'Studio Pro', 'REAPER'];
-
-  /// Whether the DAW whose process is named [host] ("Cubase 15"; on Windows "Cubase15", its
-  /// program without ".exe") is one of [supportedDaws].
-  static bool supports(String host) {
-    final name = host.toLowerCase();
-    return supportedDaws.any((d) => name.contains(d.toLowerCase()));
-  }
-
   /// Asks the DAW of [session] for [source] of [document] as a file, written in Curator's
   /// cache; completes with its path. [progress] hears how far it has got, 0–1. Throws a
   /// [DawLinkException] when the DAW can't (or is gone).
@@ -341,11 +329,18 @@ class DawSession extends ChangeNotifier {
   /// Runs out when it hasn't said hello ([DawLink.greetWithin]).
   Timer? _greeting;
 
+  /// The DAW's name: its process's ("Cubase 15"; on Windows "Cubase15", its program without
+  /// ".exe"). Shown, never judged by ([supported]).
   String host = '';
 
-  /// Whether Attacca supports this DAW ([DawLink.supports]); one that isn't is told of, and
-  /// Connect Attacca… refuses its recordings unless ⌥ is held.
-  bool get supported => DawLink.supports(host);
+  /// Whether this DAW gives Attacca what it needs: told by the ARA interfaces its documents
+  /// say it gives ([DawDocument.missing]), never by its name. One that doesn't is told of, and
+  /// Connect Attacca… refuses its recordings unless ⌥ is held. (A DAW with no document, Attacca
+  /// on no recording there, isn't known not to.)
+  bool get supported => missing.isEmpty;
+
+  /// What Attacca needs of ARA that this DAW doesn't give ([DawDocument.needed]'s order).
+  List<String> get missing => [for (final i in DawDocument.needed) if (_documents.values.any((d) => d.missing.contains(i))) i];
 
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;

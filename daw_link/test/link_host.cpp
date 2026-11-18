@@ -1051,6 +1051,36 @@ int main (int argc, const char* argv[])
     check (contains (line, "\"name\":\"Strings\"") && contains (line, "\"color\":\"#ff8000\""), "the track, by name and colour");
     check (contains (line, "{\"id\":\"take-1\",\"name\":\"Take 1\",\"rate\":44100,\"frames\":220500,\"channels\":1"), "the recording");
     check (contains (line, "\"source\":\"take-1\",\"start\":1,\"length\":3,\"from\":0.5,\"span\":3"), "the region placing it in the song");
+    check (contains (line, "\"interfaces\":[\"audio\",\"archiving\",\"content\",\"updates\",\"playback\"]"), "the ARA interfaces the DAW gives: all of them");
+
+    // A DAW that gives only what ARA requires of every host (no song, no word of changes, no
+    // transport): its document says so, with no tempo map, and Curator tells by that.
+    {
+        const ARADocumentControllerHostInstance bareHost = {
+            ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
+            reinterpret_cast<ARAAudioAccessControllerHostRef> (10), &audioAccess,
+            reinterpret_cast<ARAArchivingControllerHostRef> (11), &archiving,
+            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
+        const ARADocumentProperties bareProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), "Bare" };
+        const auto* bare = factory->createDocumentControllerWithDocument (&bareHost, &bareProperties);
+        const auto* bareInterface = bare->documentControllerInterface;
+        bareInterface->beginEditing (bare->documentControllerRef);
+        const auto bareContext = bareInterface->createMusicalContext (bare->documentControllerRef, reinterpret_cast<ARAMusicalContextHostRef> (6), &contextProperties);
+        bareInterface->endEditing (bare->documentControllerRef);
+        std::string said;
+        for (int i = 0; i < 4 && !contains (said, "\"name\":\"Bare\""); ++i)
+        {
+            curator.next ("document", 5);
+            said = curator.lines.back ();
+        }
+        check (contains (said, "\"name\":\"Bare\"") && contains (said, "\"playback\":false,\"interfaces\":[\"audio\",\"archiving\"]") && contains (said, "\"tempo\":[]"),
+               "a DAW giving only what ARA requires: said, with no tempo map");
+        bareInterface->beginEditing (bare->documentControllerRef);
+        bareInterface->destroyMusicalContext (bare->documentControllerRef, bareContext);
+        bareInterface->endEditing (bare->documentControllerRef);
+        bareInterface->destroyDocumentController (bare->documentControllerRef);
+        curator.next ("closed", 5);
+    }
 
     // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates.
     check (contains (line, "\"access\":false"), "not readable yet as the edit ends");
