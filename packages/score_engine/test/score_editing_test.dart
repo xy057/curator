@@ -29,6 +29,16 @@ void main() {
       expect((await EditableScore.parseApart(_flute)).toMusicXML(), EditableScore.parse(_flute).toMusicXML());
       await expectLater(EditableScore.parseApart('<score-timewise/>'), throwsFormatException);
 
+      // A clef change written after a <backup> is in force from its time on, whatever the file
+      // has before it: a direction at the bar's end, written with the first voice.
+      {
+        final score = EditableScore.parse(_flute.replaceFirst('<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure>',
+            '<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note><direction><direction-type><words>fine</words></direction-type></direction>'
+                '<backup><duration>2</duration></backup><attributes><clef><sign>F</sign><line>4</line></clef></attributes>'
+                '<note><rest/><duration>2</duration><voice>2</voice></note></measure>'));
+        expect([score.clefAt(0, 1, 0, Frac.one).sign, score.clefAt(0, 1, 0, Frac(2)).sign, score.clefAt(0, 1, 0, Frac(3)).sign, score.clefAt(0, 1, 1, Frac.zero).sign], ['G', 'F', 'F', 'F']);
+      }
+
       // A note shortened into tied pieces keeps its slur's start on the first of them (one, not
       // one a piece), and a slur's end goes to the last: the slur is over the whole note still.
       {

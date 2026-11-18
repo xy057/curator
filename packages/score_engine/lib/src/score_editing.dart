@@ -1179,9 +1179,15 @@ class EditableScore {
   _Context _contextAt(int part, int m, Frac time) {
     final p = parts[part];
     var context = _contextBefore(p, m);
-    for (final o in _view(part, m).others) {
-      if (o.time > time) break;
-      if (o.element.name.local == 'attributes') context = _applyAttributes(context, o.element);
+    // By their times, not as the file has them: after a <backup>, one written later is earlier
+    // in the bar (a clef change in the second voice, after the first voice's whole bar).
+    final changes = [
+      for (final o in _view(part, m).others)
+        if (!(o.time > time) && o.element.name.local == 'attributes') o,
+    ];
+    if (changes.length > 1) _stableSort(changes, (a, b) => a.time.compareTo(b.time));
+    for (final o in changes) {
+      context = _applyAttributes(context, o.element);
     }
     return context;
   }
