@@ -141,7 +141,48 @@ class PreparedScore {
     final options = metadata == null ? null : Condenser.options(doc, metadata);
     final condensed =
         metadata == null ? const <CondensedGroup>[] : Condenser.condense(doc, metadata, custom: pairs, options: options);
+    _keepVoices(doc);
     return PreparedScore._(doc.toXmlString(), texts, condensed, options);
+  }
+
+  /// A direction written back under the note before it (Dorico's dynamics: `<backup>`, the
+  /// direction, a `<forward>` as long) is given that time as its `<offset>`, the two steps
+  /// dropped. After a `<backup>` Verovio takes the next note's voice to be on that note's own
+  /// staff, so in a voice that crosses staves the steps broke its beam and its tuplet in two.
+  /// Only between two notes of one voice, and for directions naming no voice of their own.
+  static void _keepVoices(XmlDocument doc) {
+    String voiceOf(XmlElement note) => note.getElement('voice')?.innerText.trim() ?? '1';
+    for (final measure in doc.findAllElements('measure')) {
+      final elements = measure.childElements.toList();
+      for (var i = 1; i < elements.length; i++) {
+        final back = elements[i];
+        if (back.name.local != 'backup' || elements[i - 1].name.local != 'note') continue;
+        var j = i + 1;
+        while (j < elements.length && elements[j].name.local == 'direction' && elements[j].getElement('voice') == null) {
+          j++;
+        }
+        if (j == i + 1 || j + 1 >= elements.length) continue;
+        final forward = elements[j], next = elements[j + 1];
+        final length = num.tryParse(back.getElement('duration')?.innerText.trim() ?? '');
+        if (forward.name.local != 'forward' || next.name.local != 'note' || length == null) continue;
+        if (num.tryParse(forward.getElement('duration')?.innerText.trim() ?? '') != length) continue;
+        if (voiceOf(elements[i - 1]) != voiceOf(next)) continue;
+        for (final direction in elements.sublist(i + 1, j)) {
+          final offset = direction.getElement('offset');
+          final at = (num.tryParse(offset?.innerText.trim() ?? '') ?? 0) - length;
+          if (offset != null) {
+            offset.innerText = '$at';
+          } else {
+            final after = direction.findElements('direction-type').last;
+            direction.children.insert(direction.children.indexOf(after) + 1, XmlElement.tag('offset', children: [XmlText('$at')]));
+          }
+        }
+        measure.children
+          ..remove(back)
+          ..remove(forward);
+        i = j;
+      }
+    }
   }
 
   /// Some exporters write a direction's text twice over ("pizz.pizz.", "mf mf", two hairpins): a

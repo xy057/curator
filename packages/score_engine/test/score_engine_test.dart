@@ -437,6 +437,14 @@ void main() {
     expect([for (final y in apart.take(2)) y.abs() > 1], [true, true], reason: '$apart');
     expect([for (final y in between.take(2)) y.abs() < 0.5], [true, true], reason: '$between');
     expect(between.last, greaterThan(4), reason: 'under the left hand');
+    // A dynamic written back under a note of a beam that crosses the staves (Dorico's way: a
+    // backup, the dynamic, a forward) leaves the beam whole: no note of it flagged on its own.
+    {
+      const steps = '<backup><duration>1</duration></backup><direction placement="below"><direction-type><dynamics><f/></dynamics></direction-type><staff>1</staff></direction><forward><duration>1</duration></forward>';
+      final e = (await LoadedScore.load(flutePianoScore.replaceFirst('<beam number="1">begin</beam></note>', '<beam number="1">begin</beam></note>$steps'))).engraving;
+      final classes = {for (var i = 0; i < e.commandCount; i++) e.classNames[e.commandInts[i * Cmd.words + Cmd.classIndex]]};
+      expect((classes.contains('dynam'), classes.contains('flag')), (true, false));
+    }
 
     // Auto-curate, worked out on another isolate while opening (from the file's bar lengths).
     final stages = <LoadStage>[];
