@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -201,6 +202,10 @@ void main() {
       final text = seated.encode();
       expect(PlayerMap.decode(text).encode(), text);
       expect(() => PlayerMap.decode('{"format": "something else"}'), throwsFormatException);
+      // A section with no seat at all is damage, said as such (drawn, it threw).
+      final seatless = jsonDecode(text) as Map<String, Object?>;
+      (((seatless['map'] as Map)['sections'] as List).first as Map)['seats'] = <Object?>[];
+      expect(() => PlayerMap.decode(jsonEncode(seatless)), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('seats is not a list of seats'))));
       expect(() => PlayerMap.decode(text.replaceFirst('"version": 1', '"version": 2')), throwsFormatException);
       final other = [part('X9', 'Flute 2'), part('P2', 'Oboe')];
       final moved = PlayerMap.decode(text).relinked(other);
