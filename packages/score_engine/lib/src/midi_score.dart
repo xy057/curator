@@ -104,6 +104,11 @@ class MidiScore {
   /// The most instruments a file may have, and bars: far more than any real piece's.
   static const maxParts = 512, maxBars = 100000;
 
+  /// The most bars written in all, every instrument's counted (each is written out, an empty
+  /// one too), and the most pieces its notes may be cut into at the barlines: a few files' worth
+  /// of the longest real piece, where the two limits above multiplied are gigabytes of score.
+  static const maxCells = 2000000, maxPieces = 2 * MidiFile.maxNotes;
+
   /// Reads the MIDI file [bytes]; [title], the score's when the file names none. Throws a
   /// [FormatException] saying why when it isn't one, or has no notes.
   static MidiScore read(Uint8List bytes, {String title = ''}) => MidiScore.of(MidiFile.read(bytes),
@@ -138,6 +143,7 @@ class MidiScore {
       if (bars.length > maxBars) throw const FormatException('This MIDI file is too long.');
       at += ticks;
     }
+    if (voices.length * bars.length > maxCells) throw const FormatException('This MIDI file is too long.');
     // The key in force where each bar starts.
     final fifths = <int>[];
     var key = 0, nextKey = 0;
@@ -171,7 +177,7 @@ class MidiScore {
     final count = voices.fold(0, (n, v) => n + v.notes.length);
     final part = Uint16List(count), keys = Uint8List(count), velocities = Uint8List(count);
     final starts = Float64List(count), ends = Float64List(count);
-    var n = 0;
+    var n = 0, cut = 0;
     for (final (i, v) in voices.indexed) {
       out.write('  <part id="P${i + 1}">\n');
       // Each note in the first voice free where it starts (the notes of a chord, which start
@@ -207,6 +213,7 @@ class MidiScore {
         for (var b = bar; b < bars.length && bars[b].start < end; b++) {
           final from = math.max(start, bars[b].start), to = math.min(end, bars[b].start + bars[b].length);
           (pieces[b] ??= []).add(_Piece(voice, from - bars[b].start, to - bars[b].start, note.key, tiedBack: from > start, tiedOn: to < end));
+          if (++cut > maxPieces) throw const FormatException('This MIDI file is too long.'); // (notes held through thousands of bars)
         }
       }
       final low = !v.isDrums && v.notes.isNotEmpty && sum / v.notes.length < 55;

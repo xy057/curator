@@ -365,7 +365,7 @@ class ScoreRenderer {
   void dispose() {
     _dropTiles();
     for (final label in _labelCache.values) {
-      label.dispose();
+      label.paragraph.dispose();
     }
     _labelCache.clear();
     frozen?.dispose();
@@ -507,7 +507,8 @@ class ScoreRenderer {
     return _Tile(image, offsetPx / dpr)..waiting = items.where((i) => i is PictureItem && i.pending).length;
   }
 
-  final _labelCache = <String, ui.Paragraph>{};
+  /// The names laid out, by their text, each with the width it was laid out to.
+  final _labelCache = <String, ({ui.Paragraph paragraph, double width})>{};
 
   /// How the names look (Project Settings ▸ Typography ▸ Names).
   TextLook get names => _names;
@@ -516,7 +517,7 @@ class ScoreRenderer {
     if (value == _names) return;
     _names = value;
     for (final label in _labelCache.values) {
-      label.dispose();
+      label.paragraph.dispose();
     }
     _labelCache.clear();
   }
@@ -562,21 +563,32 @@ class ScoreRenderer {
 }
 
 extension on ScoreRenderer {
-  ui.Paragraph _label(String text, double width) => _labelCache.putIfAbsent(text, () {
-        final fontSize = style.labelFontSize * _names.size;
-        final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
-          fontFamily: style.textFontFamily,
-          fontSize: fontSize,
-          fontStyle: _names.face.fontStyle,
-          fontWeight: _names.face.fontWeight,
-          textAlign: ui.TextAlign.right,
-          maxLines: 1,
-          ellipsis: '…',
-        ))
-          ..pushStyle(ui.TextStyle(color: style.ink, letterSpacing: _names.spacingAt(fontSize)))
-          ..addText(text);
-        return builder.build()..layout(ui.ParagraphConstraints(width: width));
-      });
+  ui.Paragraph _label(String text, double width) {
+    if (_labelCache[text] case final kept?) {
+      // The names' room has changed since (longer names, another size): laid out to it again,
+      // or it stays set to the right of the room there was, cut where that ended.
+      if (kept.width != width) {
+        kept.paragraph.layout(ui.ParagraphConstraints(width: width));
+        _labelCache[text] = (paragraph: kept.paragraph, width: width);
+      }
+      return kept.paragraph;
+    }
+    final fontSize = style.labelFontSize * _names.size;
+    final builder = ui.ParagraphBuilder(ui.ParagraphStyle(
+      fontFamily: style.textFontFamily,
+      fontSize: fontSize,
+      fontStyle: _names.face.fontStyle,
+      fontWeight: _names.face.fontWeight,
+      textAlign: ui.TextAlign.right,
+      maxLines: 1,
+      ellipsis: '…',
+    ))
+      ..pushStyle(ui.TextStyle(color: style.ink, letterSpacing: _names.spacingAt(fontSize)))
+      ..addText(text);
+    final paragraph = builder.build()..layout(ui.ParagraphConstraints(width: width));
+    _labelCache[text] = (paragraph: paragraph, width: width);
+    return paragraph;
+  }
 }
 
 class _Tile {

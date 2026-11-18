@@ -182,7 +182,9 @@ class SyncEditing {
     if (sync == null || track == null || score == null || _aligning != null) return null;
     final starts = score.timeline.measureStarts;
     final passes = sync.passes.length > 1 ? sync.passes : score.metadata.form.passes(starts);
+    var over = false;
     void report(double done) {
+      if (over) return; // a stretch still being heard as it ended (another's failed) tells nothing
       _aligning = done;
       if (!_editor._disposed) _editor._changed();
     }
@@ -202,6 +204,7 @@ class SyncEditing {
       _deselect();
       return sync.anchors.length;
     } finally {
+      over = true;
       _aligning = null;
       if (!_editor._disposed) _editor._changed();
     }

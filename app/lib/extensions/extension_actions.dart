@@ -76,7 +76,8 @@ abstract final class ExtensionActions {
   }
 
   /// Opens [package] in the extension editor: one the project carries is edited there (Run
-  /// hands it to the project as it stands, Done keeps it). One of Curator's own is edited too,
+  /// hands it to the project as it stands, Done keeps it, and Cancel puts back the one it had,
+  /// run since or not). One of Curator's own is edited too,
   /// as the sample project is: it runs as changed while the project is open
   /// ([ExtensionEditing.tryOut]) and is never saved; Duplicate keeps a copy.
   static Future<void> edit(BuildContext context, EditorController controller, ExtensionPackage package) async {
@@ -88,9 +89,7 @@ abstract final class ExtensionActions {
       unsaved: own,
       onRun: (p) {
         controller.extensions.clearProblems(p.id);
-        if (own) return controller.extensions.tryOut(p);
-        controller.extensions.add(p);
-        controller.extensions.restart(p.id);
+        controller.extensions.run(p);
       },
       calls: () => controller.extensions.runtime(package.id)?.calls,
       problems: controller.extensions.problems,
@@ -99,6 +98,10 @@ abstract final class ExtensionActions {
     if (edited != null) {
       controller.extensions.clearProblems(edited.id);
       own ? controller.extensions.tryOut(edited) : controller.extensions.add(edited);
+    } else if (controller.extensions.package(package.id) case final ran? when ran != package) {
+      // Left without keeping it, after Run handed the project another: the one it had is back.
+      controller.extensions.clearProblems(package.id);
+      own ? controller.extensions.tryOut(package) : controller.extensions.add(package);
     }
   }
 
@@ -131,7 +134,8 @@ abstract final class ExtensionActions {
   /// A copy of [package] (one of Curator's own) the project carries and can change, named
   /// "… Copy", with an id of its own and data of its own.
   static ExtensionPackage copyOf(ExtensionPackage package, EditorController controller) {
-    final name = '{name} Copy'.fill({'name': package.name.tr});
+    // (Curator's own is named in the interface's language; another's name is its maker's.)
+    final name = '{name} Copy'.fill({'name': ExtensionPackage.isThirdPartyId(package.id) ? package.name : package.name.tr});
     final data = {...package.data}..remove('module');
     return package.copyWith(manifest: {
       ...package.manifest,

@@ -5,6 +5,7 @@ import 'dart:ui' show Color;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/file_names.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:archive/archive_io.dart';
@@ -67,6 +68,10 @@ void main() {
   }
 
   test('saved and opened: every edit survives, a failed save leaves the file as it was, every recording travels in its own folder', () async {
+    // A recent file's folder is "~" where it is home or in it, not where its name starts as home's.
+    expect([for (final f in ['/Users/ann', '/Users/ann/Scores', '/Users/anna/Scores', '/tmp']) underHome(f, '/Users/ann/')], ['~', '~/Scores', '/Users/anna/Scores', '/tmp']);
+    expect((underHome(r'C:\Users\ann\Scores', r'C:\Users\ann'), underHome('/a', null)), (r'~\Scores', '/a'));
+
     final (c, doc) = await demo();
     {
       final part = c.score!.metadata.parts.first;
@@ -255,6 +260,25 @@ void main() {
       expect(opened.state.edits.focus, 'take-1');
       expect(opened.state.edits.crossfade, 0.5);
       expect([for (final t in opened.state.edits.takes) t.regions], [[Region(0, 4)], [Region(4, 8)]]);
+    }
+
+    // A recording a project linked to and couldn't find is still named once the project is saved
+    // (opened in a document, saved, opened again), and found beside the project once it is back.
+    {
+      final path = '${dir.path}/linked.ccs';
+      await ProjectFile.write(path, ProjectContents(
+        scoreName: demoScore.uri.pathSegments.last,
+        scoreBytes: demoScore.readAsBytesSync(),
+        state: const ProjectState(),
+        missingMedia: (name: 'Concert.wav', path: '${dir.path}/elsewhere/Concert.wav', relativePath: 'Concert.wav'),
+      ));
+      final (_, linked) = await demo();
+      expect(await linked.open(path), contains('${dir.path}/elsewhere/Concert.wav'));
+      await linked.save();
+      final again = await open(path);
+      expect((again.media!.path, again.media!.missingPath, again.media!.link?.relativePath), (null, '${dir.path}/elsewhere/Concert.wav', 'Concert.wav'));
+      File('${dir.path}/Concert.wav').writeAsBytesSync([1, 2, 3]);
+      expect(((await open(path)).media!.path, (await open(path)).media!.missingPath), ('${dir.path}/Concert.wav', null));
     }
   });
 

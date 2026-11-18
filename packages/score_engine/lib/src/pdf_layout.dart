@@ -1140,13 +1140,13 @@ class PdfScoreLayout {
       meters: _meters(json['meters'], 'meters'),
       keys: {
         for (final MapEntry(:key, :value) in _map(json['keys'] ?? const {}, 'keys').entries)
-          int.tryParse(key) ?? (throw _bad('keys')): value is num ? value.toInt().clamp(-7, 7) : throw _bad('keys'),
+          _barOf(key, 'keys'): value is num && value.isFinite ? value.toInt().clamp(-7, 7) : throw _bad('keys'),
       },
       pickup: (_numberOrNull(json, 'pickup')?.toDouble() ?? 0).clamp(0, 64),
       tempo: (_numberOrNull(json, 'tempo')?.toDouble() ?? 100).clamp(10, 1000),
       tempos: {
         for (final MapEntry(:key, :value) in _map(json['tempos'] ?? const {}, 'tempos').entries)
-          int.tryParse(key) ?? (throw _bad('tempos')): PdfTempo.fromJson(value),
+          _barOf(key, 'tempos'): PdfTempo.fromJson(value),
       },
     );
   }
@@ -1188,7 +1188,14 @@ FormatException _bad(String what) => FormatException('$what is damaged.');
 /// Meters by bar index, as [PdfScoreLayout.toJson] writes them.
 Map<int, PdfMeter> _meters(Object? json, String key) => {
       for (final MapEntry(key: bar, :value) in _map(json ?? const {}, key).entries)
-        int.tryParse(bar) ?? (throw _bad(key)): value is String ? PdfMeter.parse(value) ?? (throw _bad(key)) : throw _bad(key),
+        _barOf(bar, key): value is String ? PdfMeter.parse(value) ?? (throw _bad(key)) : throw _bad(key),
+    };
+
+/// The bar a change in [what] is at, as its key in the file says: a whole number, none below
+/// the first bar (one there would be in force before the score's own, from its start).
+int _barOf(String key, String what) => switch (int.tryParse(key)) {
+      final int bar when bar >= 0 => bar,
+      _ => throw _bad(what),
     };
 
 List<Object?> _list(Map<String, Object?> json, String key) => switch (json[key]) {

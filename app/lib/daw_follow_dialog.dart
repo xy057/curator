@@ -86,11 +86,20 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
   // While the DAW writes the recording out, or Attacca Capturer hears it as the DAW plays it.
   final capturing = onCancel != null;
   String? path;
+  var cancelled = false;
   try {
     path = await withProgress(context, capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr, fetch,
-        note: capturing ? 'Play it in the DAW if it doesn’t start.'.tr : null, onCancel: onCancel);
+        note: capturing ? 'Play it in the DAW if it doesn’t start.'.tr : null,
+        onCancel: onCancel == null
+            ? null
+            : () {
+                cancelled = true;
+                onCancel();
+              });
   } on DawLinkException catch (e) {
-    if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
+    // Cancelled here, nothing more is said. The plug-in says the same of one it ended itself
+    // (the recording changed in the DAW, another capture begun): that is told.
+    if (!cancelled || e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
   }
   if (path == null) return false;
   try {
@@ -122,6 +131,7 @@ String dawProblem(String reason) => switch (reason) {
       'empty' => 'Nothing plays there.'.tr,
       'gone' => 'It is no longer in the DAW.'.tr,
       'disconnected' => 'The DAW disconnected.'.tr,
+      'cancelled' => 'The DAW stopped it.'.tr,
       _ => 'The file couldn’t be written.'.tr,
     };
 

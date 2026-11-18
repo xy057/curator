@@ -1009,6 +1009,8 @@ class _InspectorState extends State<_Inspector> {
         AppTextField(
           controller: _id,
           label: 'Name'.tr,
+          // One the app calls by its name keeps it: renamed, nothing of it would be called.
+          readOnly: ExtensionApi.calledByName(node.type, node.id),
           bad: problem != null,
           helper: problem,
           onChanged: (_) => setState(() {}),

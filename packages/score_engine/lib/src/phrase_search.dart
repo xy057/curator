@@ -78,11 +78,12 @@ class PhraseNote {
     return PhraseNote(step: step, alter: pc - _semitones[step], octave: octave, value: value, dotted: dotted);
   }
 
-  /// [diatonic] steps up (or down), its alteration kept.
+  /// [diatonic] steps up (or down), its alteration kept; as it is where that would be past
+  /// C0 or B8.
   PhraseNote stepped(int diatonic) {
     if (step == null) return this;
     final d = this.diatonic + diatonic;
-    return copyWith(step: d % 7, octave: (d ~/ 7).clamp(0, 8));
+    return d < 0 || d >= 9 * 7 ? this : copyWith(step: d % 7, octave: d ~/ 7);
   }
 
   PhraseNote copyWith({int? step, int? alter, int? octave, NoteValue? value, bool? dotted}) => PhraseNote(

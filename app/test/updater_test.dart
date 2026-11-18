@@ -143,5 +143,38 @@ void main() {
       }, platform: 'macos', origin: Uri.parse('http://127.0.0.1:8080/latest'));
       expect(local!.download, isNotNull, reason: 'the server asked');
     }
+
+    // A download is written whole into Downloads; one that goes on past the size its release
+    // says is let go, and nothing of it left.
+    {
+      final downloads = Directory.systemTemp.createTempSync('updater-test-');
+      addTearDown(() => downloads.deleteSync(recursive: true));
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      var sent = 10;
+      server.listen((request) async {
+        if (request.uri.path == '/releases/latest') {
+          request.response.write(jsonEncode({
+            'tag_name': 'v9.0.0',
+            'assets': [
+              {'name': 'Curator-9.0.0-macos.zip', 'browser_download_url': 'http://127.0.0.1:${server.port}/dl/a.zip', 'size': 10},
+            ],
+          }));
+        } else {
+          request.response.add(List.filled(sent, 7)); // (no length said: sent in chunks)
+        }
+        await request.response.close();
+      });
+      final updater = Updater(api: Uri.parse('http://127.0.0.1:${server.port}/releases'), downloads: downloads.path, platform: 'macos');
+      addTearDown(updater.dispose);
+      final release = (await updater.check())!;
+      await updater.download(release);
+      expect(updater.status, isA<UpdateDownloaded>());
+      expect(File('${downloads.path}/a.zip').readAsBytesSync(), List.filled(10, 7));
+      sent = 200000;
+      await updater.download(release);
+      expect(updater.status, isA<UpdateFailed>());
+      expect(downloads.listSync().map((f) => f.uri.pathSegments.last), ['a.zip'], reason: 'the part is gone');
+    }
   });
 }

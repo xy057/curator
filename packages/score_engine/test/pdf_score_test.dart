@@ -126,6 +126,9 @@ void main() {
       String x(double points) => (points / view.width * 1000).toStringAsFixed(1);
       String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
       // Its places off, as a model's are (all 6 points low, barlines to the left); in a code fence.
+      // The object is found among words with braces of their own, before it and after.
+      expect(PdfAiPage.parse('I use {x} for a place. {"systems": [{"staves": [], "note": "a } in text"}]} As {asked}.').systems, hasLength(1));
+      expect(() => PdfAiPage.parse('No {object} here.'), throwsFormatException);
       final answer = PdfAiPage.parse('''Here it is:
 ```json
 {"systems": [{"staves": [
@@ -147,6 +150,9 @@ void main() {
       // Named and abbreviated as printed, the transposition following the name.
       expect([for (final i in next.instruments) (i.name, i.abbreviation, i.key)],
           [('Flute', 'Fl.', SpacerKey.c), ('Clarinet in B♭', '', SpacerKey.bFlat)]);
+      // A staff at concert pitch shows the score's key as it is, seven sharps too; one transposed
+      // stays within six either way.
+      expect([SpacerKey.c.keyOf(7), SpacerKey.c.keyOf(-7), SpacerKey.bFlat.keyOf(5), SpacerKey.bFlat.concertOf(-5)], [7, -7, -5, 5]);
       // The clarinet's two sharps and the flute's flat both say F major.
       expect([next.fifths, '${next.meter}', next.tempo], [-1, '3/4', 132]);
       expect(next.tempos, {0: const PdfTempo('Allegro'), 1: const PdfTempo('rit.')});
@@ -196,6 +202,11 @@ void main() {
       expect([_band(layout.systems[1], 0), _band(layout.systems[1], 1)], [(20.0, 40.0), (48.0, 76.0)]);
       expect([layout.systems[0].top, layout.systems[1].top, layout.systems[1].bottom], [20.0, 20.0, 76.0]);
       expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
+      // A change at a bar before the first is damage, said as such.
+      for (final (field, value) in [('meters', '3/4'), ('keys', 2), ('tempos', {'words': 'rit.'})]) {
+        expect(() => PdfScoreLayout.fromJson({...layout.toJson(), field: {'-1': value}}),
+            throwsA(isA<FormatException>().having((e) => e.message, 'message', '$field is damaged.')), reason: field);
+      }
       // As the pdf module's version 1 kept it: a system's top, bottom, cuts and gaps.
       final v1 = {
         ...layout.toJson(),

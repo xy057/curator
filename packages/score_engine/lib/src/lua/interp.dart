@@ -701,7 +701,7 @@ final class _Compiler {
     final lastMulti = entries.last.key == null && isMulti(entries.last.value);
     final values = <_E>[for (final (i, entry) in entries.indexed) i == n - 1 && lastMulti ? (_) => null : expr(entry.value)];
     final tail = lastMulti ? multi(entries.last.value) : null;
-    final keyed = keys.any((k) => k != null), count = tail == null ? n : n - 1;
+    final keyed = keys.any((k) => k != null), count = tail == null ? n : n - 1, long = count >= 64;
     return (f) {
       final t = LuaTable(), array = t.array;
       // The values without a key are the list, in order, a nil among them too (as Lua's own
@@ -720,10 +720,10 @@ final class _Compiler {
             ..add(values[i](f));
         }
       }
-      if (tail != null) {
-        array.addAll(tail(f));
-        lua.steps -= array.length >> 6; // as many values as a call gave, in one step
-      }
+      if (tail != null) array.addAll(tail(f));
+      // As many values as a call gave, or as are written out, in one step: paid for by their
+      // number, as a list made any other way is.
+      if (long || tail != null) lua.steps -= (array.length + (later == null ? 0 : later.length >> 1)) >> 6;
       if (array.length > Lua.maxLength) throw lua._tooBig();
       t._trim();
       if (keyed && later != null) {

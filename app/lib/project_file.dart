@@ -55,7 +55,12 @@ abstract final class ProjectFile {
       ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
         'kind': c.state.kind.name,
         'score': {'name': c.scoreName, 'entry': scoreEntry},
-        if (media != null) 'media': {'name': media.name, 'entry': mediaEntry},
+        if (media != null)
+          'media': {'name': media.name, 'entry': mediaEntry}
+        else if (c.missingMedia case final m?)
+          // Linked, and not found when the project was opened: where it was is kept, so the
+          // project still says so, and finds it once it is back.
+          'media': {'name': m.name, 'path': ?m.path, 'relativePath': ?m.relativePath},
         if (c.takes.isNotEmpty)
           'takes': [
             for (final MapEntry(key: id, value: m) in c.takes.entries) {'id': id, 'name': m.name, 'entry': takeEntries[id]},
@@ -135,10 +140,12 @@ abstract final class ProjectFile {
       if (!manifest.isAbsent('media')) {
         final m = manifest.child('media');
         final name = m.string('name', required: true)!;
-        // Only a project saved before recordings were always embedded links to one.
-        final original = legacy ? m.string('path') : null;
-        final relative = legacy ? m.string('relativePath') : null;
+        // Only a project saved before recordings were always embedded links to one, or one
+        // saved since while that recording couldn't be found (it has none embedded).
         final entry = m.string('entry');
+        final links = legacy || entry == null;
+        final original = links ? m.string('path') : null;
+        final relative = links ? m.string('relativePath') : null;
         final candidates = [
           if (relative != null) _join(File(path).parent.path, relative),
           if (original != null && isLocalPath(original)) original,
@@ -146,10 +153,12 @@ abstract final class ProjectFile {
         // Only a recording: whatever else a project names is never opened.
         final linked = candidates.where((p) => MediaFormats.isRecording(p) && File(p).existsSync()).firstOrNull;
         final playable = entry == null ? null : unpack(entry, name, mediaDirectory);
+        final missing = playable == null && linked == null && (original ?? relative) != null;
         media = ProjectMediaLocation(
           name: name,
           path: playable ?? linked,
-          missingPath: playable == null && linked == null ? (original ?? relative) : null,
+          missingPath: missing ? (original ?? relative) : null,
+          link: missing ? (name: name, path: original, relativePath: relative) : null,
         );
       }
 
@@ -209,7 +218,13 @@ abstract final class ProjectFile {
 /// Everything a save writes.
 class ProjectContents {
   const ProjectContents(
-      {required this.scoreName, required this.scoreBytes, required this.state, this.media, this.takes = const {}, this.stems = const {}});
+      {required this.scoreName,
+      required this.scoreBytes,
+      required this.state,
+      this.media,
+      this.missingMedia,
+      this.takes = const {},
+      this.stems = const {}});
 
   final String scoreName;
   final Uint8List scoreBytes;
@@ -218,12 +233,20 @@ class ProjectContents {
   final ProjectState state;
   final ProjectMedia? media;
 
+  /// With no [media]: the recording the project linked to and couldn't find when it was opened
+  /// ([ProjectMediaLocation.link]), kept as it was named.
+  final MissingMedia? missingMedia;
+
   /// The recordings besides the focus's ([media]), by [Take.id].
   final Map<String, ProjectMedia> takes;
 
   /// The stems' files, by [Stem.id].
   final Map<String, ProjectMedia> stems;
 }
+
+/// A recording a project links to that wasn't found: its [name], and where it was, as the
+/// project says it ([path], and [relativePath] from the project's folder).
+typedef MissingMedia = ({String name, String? path, String? relativePath});
 
 /// The recording, as a save should store it.
 class ProjectMedia {
@@ -265,7 +288,7 @@ class OpenedProject {
 }
 
 class ProjectMediaLocation {
-  const ProjectMediaLocation({required this.name, this.path, this.missingPath});
+  const ProjectMediaLocation({required this.name, this.path, this.missingPath, this.link});
 
   final String name;
 
@@ -274,4 +297,7 @@ class ProjectMediaLocation {
 
   /// Where a linked recording was expected, when it could not be found.
   final String? missingPath;
+
+  /// The link itself then, for a save to keep ([ProjectContents.missingMedia]).
+  final MissingMedia? link;
 }

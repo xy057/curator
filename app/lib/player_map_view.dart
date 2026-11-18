@@ -246,7 +246,11 @@ class _PlayerMapEditorState extends State<PlayerMapEditor> {
       _redo.clear();
     }
     _run = run;
-    setState(() => _map = map);
+    setState(() {
+      _map = map;
+      // (Fewer players, or another shape: the seat selected may be one it no longer has.)
+      if (_seat case final seat? when seat >= (_selected?.seats.length ?? 0)) _seat = null;
+    });
   }
 
   void _stepBack() {

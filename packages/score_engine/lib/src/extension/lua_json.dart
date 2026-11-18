@@ -32,9 +32,14 @@ abstract final class LuaJson {
   /// A Lua value as JSON. What can't be saved (a function, a table that is both a list and a
   /// map, a key that isn't text, a number that isn't one) is a [LuaError] saying where in
   /// [where] it is.
-  static Object? fromLua(Object? value, {String where = 'value'}) => _from(value, where, 0);
+  static Object? fromLua(Object? value, {String where = 'value'}) => _from(value, where, 0, [maxValues]);
 
-  static Object? _from(Object? value, String where, int depth) {
+  /// The most values saved at once, every table and what it holds counted each time it is
+  /// held: a table held twice by each of twenty in turn is a million tables written out.
+  static const maxValues = 1 << 20;
+
+  static Object? _from(Object? value, String where, int depth, List<int> left) {
+    if (--left[0] < 0) throw LuaError('there is too much to save (does a table hold another many times over?)', level: 0);
     if (value == null || value is bool || value is String || identical(value, nil)) return identical(value, nil) ? null : value;
     if (value is num) {
       if (value is double && !value.isFinite) throw LuaError('$where is ${Lua.number(value)}, which can’t be saved', level: 0);
@@ -47,13 +52,13 @@ abstract final class LuaJson {
     if (!keyed && (value.length > 0 || value.shape != LuaShape.map)) {
       return [
         for (final (i, v) in value.array.indexed)
-          if (v == null) throw LuaError('$where[${i + 1}] is nil: a list saved has no gaps', level: 0) else _from(v, '$where[${i + 1}]', depth + 1),
+          if (v == null) throw LuaError('$where[${i + 1}] is nil: a list saved has no gaps', level: 0) else _from(v, '$where[${i + 1}]', depth + 1, left),
       ];
     }
     final out = <String, Object?>{};
     for (final key in value.hashKeys) {
       if (key is! String) throw LuaError('$where has the key ${Lua.show(key)}: a map saved has text keys', level: 0);
-      out[key] = _from(value[key], '$where.$key', depth + 1);
+      out[key] = _from(value[key], '$where.$key', depth + 1, left);
     }
     return out;
   }

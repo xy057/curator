@@ -90,7 +90,9 @@ class PoFile {
         final space = line.indexOf(' ');
         if (space < 0) throw FormatException('Unreadable line', line);
         final keyword = line.substring(0, space);
-        if (keyword == 'msgctxt' || (keyword == 'msgid' && field == 'msgstr')) flush();
+        // An entry's comments (`#:`, `#, fuzzy`) come before its first keyword: one that starts
+        // an entry ends the one before it, never the comments read for itself.
+        if (id != null && (keyword == 'msgctxt' || (keyword == 'msgid' && field == 'msgstr'))) flush();
         sawEntry = true;
         final value = _unquote(line.substring(space + 1).trim());
         switch (keyword) {

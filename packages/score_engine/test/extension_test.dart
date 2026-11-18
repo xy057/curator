@@ -243,6 +243,8 @@ void main() {
       expect([value('math.round(2.5)'), value('math.round(-2.5)'), value('math.round(0.49999999999999994)'), value('math.round(7)')], [3, -3, 0, 7]);
       // A place stays a fraction once it is one: saved as 4.0, not 4.
       expect(LuaJson.fromLua(runtime.run('return {4 + 0.0, 4}').first, where: 'data').toString(), '[4.0, 4]');
+      // A table held twice by each of many in turn is refused before it is written out 2^n times.
+      expect(() => LuaJson.fromLua(runtime.run('local t = {1} for i = 1, 40 do t = {a = t, b = t} end return t').first), throwsA(isA<LuaError>().having((e) => e.message, 'message', contains('too much to save'))));
       // The list has `ui`, but this host gives none: an extension can ask before using it.
       expect([value('curator.has("ui.form")'), value('curator.has("text.squeeze")'), value('curator.has("socket:lane.items")'), value('curator.has("nothing.here")')],
           [false, true, true, false]);

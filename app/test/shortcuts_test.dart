@@ -65,6 +65,10 @@ void main() {
     expect(KeyMap.standard.takenBy(KeyCommand.metronome, const KeyChord(LogicalKeyboardKey.keyQ)), isNull, reason: 'the score editor’s are its own');
     expect(KeyMap.standard.withKey(KeyCommand.tapAnchors, null).takenBy(KeyCommand.metronome, const KeyChord(LogicalKeyboardKey.keyT)), isNull,
         reason: 'given away, a key is free');
+    // A key given away and then given another command isn't had again by a Reset: that says whose it is.
+    final swapped = KeyMap.standard.withKey(KeyCommand.tapAnchors, _m);
+    expect(swapped.ownTakenBy(KeyCommand.tapAnchors), isNull);
+    expect(swapped.withKey(KeyCommand.metronome, const KeyChord(LogicalKeyboardKey.keyT)).ownTakenBy(KeyCommand.tapAnchors), KeyCommand.metronome);
     expect(KeyCommand.exportWeb.refuses(const KeyChord(LogicalKeyboardKey.keyK)), isNotNull);
     expect(KeyCommand.exportWeb.refuses(_ctrlK), isNull);
     _onMac(() {

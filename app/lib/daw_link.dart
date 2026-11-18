@@ -33,6 +33,14 @@ class DawLink extends ChangeNotifier {
   String _token = '';
   final _sessions = <DawSession>[];
 
+  /// The connections that haven't said hello: each is let go when it hasn't within
+  /// [greetWithin], and all when listening stops (one kept could say it after, to a link that
+  /// listens no more).
+  final _ungreeted = <DawSession>{};
+
+  /// How long a connection has to say hello: the plug-in says it as it connects.
+  static const greetWithin = Duration(seconds: 10);
+
   /// The protocol this Curator speaks (`LINK_PROTOCOL` in daw_link/src/link_config.h).
   static const protocol = 1;
 
@@ -131,7 +139,7 @@ class DawLink extends ChangeNotifier {
     if (server == null) return;
     _server = null;
     await server.close();
-    for (final s in [..._sessions]) {
+    for (final s in [..._sessions, ..._ungreeted]) {
       s._close();
     }
     final file = _discovery;
@@ -145,6 +153,8 @@ class DawLink extends ChangeNotifier {
 
   void _accept(Socket socket) {
     final session = DawSession._(this, socket);
+    _ungreeted.add(session);
+    session._greeting = Timer(greetWithin, session._close);
     // (A name a DAW gives that isn't UTF-8 is read as it can be: refused, the connection would
     // end, and the plug-in connect and say the same again each second.)
     final lines = const LineSplitter().bind(const Utf8Decoder(allowMalformed: true).bind(_limited(socket)));
@@ -327,6 +337,9 @@ class DawSession extends ChangeNotifier {
   final Socket _socket;
   bool _greeted = false, _closed = false;
 
+  /// Runs out when it hasn't said hello ([DawLink.greetWithin]).
+  Timer? _greeting;
+
   String host = '';
 
   /// Whether Attacca supports this DAW ([DawLink.supports]); one that isn't is told of, and
@@ -391,6 +404,8 @@ class DawSession extends ChangeNotifier {
       // The first word must be hello, with the token from the discovery file.
       if (type != 'hello' || message['token'] != _link._token || message['protocol'] != DawLink.protocol) return _close();
       _greeted = true;
+      _greeting?.cancel();
+      _link._ungreeted.remove(this);
       host = (message['host'] as String?) ?? '';
       build = (message['build'] as num?)?.toInt() ?? 0;
       pid = (message['pid'] as num?)?.toInt() ?? 0;
@@ -492,6 +507,8 @@ class DawSession extends ChangeNotifier {
   void _close() {
     if (_closed) return;
     _closed = true;
+    _greeting?.cancel();
+    _link._ungreeted.remove(this);
     _socket.destroy();
     _fail((_) => true, 'disconnected');
     _documents.clear();

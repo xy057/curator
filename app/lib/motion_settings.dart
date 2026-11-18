@@ -290,10 +290,13 @@ class _SliderValueFieldState extends State<SliderValueField> {
 
 /// Room after a row's control for its Reset, shown once [changed].
 class ResetSlot extends StatelessWidget {
-  const ResetSlot({super.key, required this.changed, required this.color, required this.onReset});
+  const ResetSlot({super.key, required this.changed, required this.color, required this.onReset, this.refused});
   final bool changed;
   final Color color;
   final VoidCallback onReset;
+
+  /// Why it can't be reset now, said in place of "Reset"; null when it can.
+  final String? refused;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -301,10 +304,10 @@ class ResetSlot extends StatelessWidget {
         child: changed
             ? IconButton(
                 icon: Icon(AppIcon.reset.of(context), size: 15),
-                tooltip: 'Reset'.tr,
+                tooltip: refused ?? 'Reset'.tr,
                 visualDensity: VisualDensity.compact,
                 color: color,
-                onPressed: onReset,
+                onPressed: refused == null ? onReset : null,
               )
             : null,
       );

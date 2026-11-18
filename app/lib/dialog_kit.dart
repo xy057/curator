@@ -270,9 +270,13 @@ class AppTextField extends StatelessWidget {
     this.suffix,
     this.lines = 1,
     this.textStyle,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
+
+  /// Shown and selectable, not typed in.
+  final bool readOnly;
 
   /// Lines shown: more than one, a field that takes them (Return starts one), as tall as they
   /// are and growing with what is typed up to three times as many.
@@ -314,6 +318,7 @@ class AppTextField extends StatelessWidget {
           controller: controller,
           focusNode: focusNode,
           autofocus: autofocus,
+          readOnly: readOnly,
           maxLength: maxLength,
           obscureText: obscureText,
           autocorrect: !obscureText && !multiline,

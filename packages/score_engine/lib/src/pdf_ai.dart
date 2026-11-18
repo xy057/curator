@@ -118,16 +118,19 @@ class PdfAiPage {
     return null;
   }
 
-  /// The answer in [text]: a JSON object, alone or among words (a code fence around it). What
-  /// isn't as asked is passed over; a [FormatException] when there is no such object at all.
+  /// The answer in [text]: a JSON object, alone or among words (a code fence around it, a
+  /// sentence before or after with braces of its own). What isn't as asked is passed over; a
+  /// [FormatException] when there is no such object at all.
   static PdfAiPage parse(String text) {
-    final from = text.indexOf('{'), to = text.lastIndexOf('}');
     Object? json;
-    if (from >= 0 && to > from) {
+    for (final written in _objects(text)) {
       try {
-        json = jsonDecode(text.substring(from, to + 1));
+        if (jsonDecode(written) case final Map map when map['systems'] is List) {
+          json = map;
+          break;
+        }
       } on FormatException {
-        json = null;
+        // not this one
       }
     }
     final systems = switch (json) {
@@ -136,6 +139,35 @@ class PdfAiPage {
     };
     var missed = 0;
     return PdfAiPage([for (final s in systems) if (s is Map) _system(s, () => --missed)]);
+  }
+
+  /// What in [text] may be the object: from its first `{` to its last `}`, then from each `{`
+  /// in turn to the `}` that closes it (those inside its strings aside), the first few dozen.
+  static Iterable<String> _objects(String text) sync* {
+    final first = text.indexOf('{'), last = text.lastIndexOf('}');
+    if (first < 0 || last < first) return;
+    yield text.substring(first, last + 1);
+    var tried = 0;
+    for (var at = first; at >= 0 && at < last && tried < 64; at = text.indexOf('{', at + 1), tried++) {
+      var depth = 0, quoted = false;
+      for (var i = at; i <= last; i++) {
+        final c = text.codeUnitAt(i);
+        if (quoted) {
+          if (c == 0x5C) {
+            i++;
+          } else if (c == 0x22) {
+            quoted = false;
+          }
+        } else if (c == 0x22) {
+          quoted = true;
+        } else if (c == 0x7B) {
+          depth++;
+        } else if (c == 0x7D && --depth == 0) {
+          if (at != first || i != last) yield text.substring(at, i + 1);
+          break;
+        }
+      }
+    }
   }
 
   static PdfAiSystem _system(Map s, int Function() missed) => PdfAiSystem(

@@ -29,6 +29,36 @@ void main() {
       expect((await EditableScore.parseApart(_flute)).toMusicXML(), EditableScore.parse(_flute).toMusicXML());
       await expectLater(EditableScore.parseApart('<score-timewise/>'), throwsFormatException);
 
+      // A clef change written after a <backup> is in force from its time on, whatever the file
+      // has before it: a direction at the bar's end, written with the first voice.
+      {
+        final score = EditableScore.parse(_flute.replaceFirst('<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note></measure>',
+            '<note><rest measure="yes"/><duration>4</duration><voice>1</voice></note><direction><direction-type><words>fine</words></direction-type></direction>'
+                '<backup><duration>2</duration></backup><attributes><clef><sign>F</sign><line>4</line></clef></attributes>'
+                '<note><rest/><duration>2</duration><voice>2</voice></note></measure>'));
+        expect([score.clefAt(0, 1, 0, Frac.one).sign, score.clefAt(0, 1, 0, Frac(2)).sign, score.clefAt(0, 1, 0, Frac(3)).sign, score.clefAt(0, 1, 1, Frac.zero).sign], ['G', 'F', 'F', 'F']);
+      }
+
+      // A note shortened into tied pieces keeps its slur's start on the first of them (one, not
+      // one a piece), and a slur's end goes to the last: the slur is over the whole note still.
+      {
+        final score = EditableScore.parse(_flute);
+        const voice = VoiceKey(1, '1'), c5 = Pitch(0, 5);
+        for (final bar in [0, 1]) {
+          score.input(ScorePosition(0, voice, bar, Frac.zero), [InputItem(const Rhythm(NoteType.whole), [c5])]);
+        }
+        score.toggleSlur([...score.eventsIn(0, 0, voice).first.ids, ...score.eventsIn(0, 1, voice).first.ids]);
+        for (final bar in [0, 1]) {
+          score.input(ScorePosition(0, voice, bar, Frac(5, 2)), [InputItem(const Rhythm(NoteType.eighth), [c5])]);
+        }
+        final notes = XmlDocument.parse(score.toMusicXML()).findAllElements('note').where((n) => n.getElement('rest') == null).toList();
+        String marks(XmlElement n) => [...?n.getElement('notations')?.childElements.map((e) => '${e.name.local} ${e.getAttribute('type')}')].join(', ');
+        expect([for (final n in notes) (n.getElement('type')!.innerText, marks(n))], [
+          ('half', 'tied start, slur start'), ('eighth', 'tied stop'), ('eighth', ''), //
+          ('half', 'tied start'), ('eighth', 'tied stop, slur stop'), ('eighth', ''),
+        ]);
+      }
+
       final score = EditableScore.parse(_flute);
       const voice = VoiceKey(1, '1');
       final start = ScorePosition(0, voice, 0, Frac.zero);

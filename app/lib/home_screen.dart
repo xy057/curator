@@ -239,10 +239,7 @@ class _RecentRowState extends State<_RecentRow> {
 
   String get _folder {
     final parts = widget.path.split(RegExp(r'[/\\]'));
-    var folder = parts.sublist(0, parts.length - 1).join(Platform.pathSeparator);
-    final home = _home;
-    if (home != null && folder.startsWith(home)) folder = '~${folder.substring(home.length)}';
-    return folder;
+    return underHome(parts.sublist(0, parts.length - 1).join(Platform.pathSeparator), _home);
   }
 
   bool get _isProject => widget.path.toLowerCase().endsWith('.${ProjectFile.extension}');

@@ -1179,9 +1179,15 @@ class EditableScore {
   _Context _contextAt(int part, int m, Frac time) {
     final p = parts[part];
     var context = _contextBefore(p, m);
-    for (final o in _view(part, m).others) {
-      if (o.time > time) break;
-      if (o.element.name.local == 'attributes') context = _applyAttributes(context, o.element);
+    // By their times, not as the file has them: after a <backup>, one written later is earlier
+    // in the bar (a clef change in the second voice, after the first voice's whole bar).
+    final changes = [
+      for (final o in _view(part, m).others)
+        if (!(o.time > time) && o.element.name.local == 'attributes') o,
+    ];
+    if (changes.length > 1) _stableSort(changes, (a, b) => a.time.compareTo(b.time));
+    for (final o in changes) {
+      context = _applyAttributes(context, o.element);
     }
     return context;
   }
@@ -1982,11 +1988,12 @@ class EditableScore {
     for (final (i, r) in rhythms.indexed) {
       final notes = i == 0 ? e.notes : [for (final n in e.notes) n.copy()];
       if (i > 0) {
+        // A piece tied on is the same note going on: its words, its marks and its slurs are
+        // the first piece's (a slur's start written on each would be a slur each).
         for (final n in notes) {
           _retag(n);
-          for (final lyric in n.findElements('lyric').toList()) {
-            lyric.remove();
-          }
+          _removeChildren(n, 'lyric');
+          _removeChildren(n, 'notations');
         }
       }
       for (final (k, n) in notes.indexed) {
@@ -1996,6 +2003,17 @@ class EditableScore {
       }
       out.add(_Event(t, r.length, notes, i == 0 ? e.graces : null));
       t = t + r.length;
+    }
+    // A slur that ends on the note ends on its last piece: over the whole of it, as it was.
+    if (out.length > 1) {
+      for (final (k, n) in e.notes.indexed) {
+        final stops = [...?n.getElement('notations')?.findElements('slur').where((s) => s.getAttribute('type') == 'stop')];
+        for (final stop in stops) {
+          stop.remove();
+          _notations(out.last.notes[k]).children.add(stop);
+        }
+        if (stops.isNotEmpty) _dropEmptyNotations(n);
+      }
     }
     return out;
   }

@@ -523,7 +523,8 @@ class MapSection {
     if (size < minSize || size > maxSize) throw FormatException('$where.size is out of range.');
     final label = _numbers(m['label'], '$where.label', 2);
     final seats = m['seats'] ?? const [];
-    if (seats is! List || seats.length > PlayerMap.maxSeats) throw FormatException('$where.seats is not a list of seats.');
+    // (A section has a seat at least: with none, whatever asks where it is has nothing to ask.)
+    if (seats is! List || seats.isEmpty || seats.length > PlayerMap.maxSeats) throw FormatException('$where.seats is not a list of seats.');
     final plan = m['plan'] == null ? null : SeatPlan.fromJson(m['plan'], '$where.plan');
     return MapSection(
       name: name,

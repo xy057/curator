@@ -43,6 +43,9 @@ class SpacingPlan {
     /// Room added above and below an instrument (negative: taken away), by part id, in the
     /// layout's pixels; above and below a staff of one, by its split lane's id.
     Map<String, ({double above, double below})> spacing = const {},
+    /// Staff index → which staff of its instrument it is (1 the top one, counting those never
+    /// shown too), for instruments on several: the number its split lane's id has.
+    Map<int, int> staffOfPart = const {},
     required double visibleLeft,
     required double visibleRight,
     required double transition,
@@ -77,8 +80,11 @@ class SpacingPlan {
     final unitOf = [for (final (u, unit) in units.indexed) ...List.filled(unit.length, u)];
     // A staff's own room ([Curation.staffLaneId]), of an instrument on several.
     final staffRoom = [
-      for (final unit in units)
-        for (final (j, k) in unit.indexed) unit.length < 2 ? null : spacing[Curation.staffLaneId(order[k].partId, j + 1)],
+      for (final s in order)
+        switch (staffOfPart[s.staffIndex]) {
+          final n? => spacing[Curation.staffLaneId(s.partId, n)],
+          null => null,
+        },
     ];
     final unitTwins = {for (final MapEntry(:key, :value) in twins.entries) unitOf[key]: [for (final j in value) unitOf[j]]};
 

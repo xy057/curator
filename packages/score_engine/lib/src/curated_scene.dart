@@ -1094,6 +1094,7 @@ class CuratedScene {
         for (final MapEntry(key: id, value: (:above, :below)) in _instrumentSpacing.entries)
           id: (above: above * display.data.staffSpace * renderer.scale, below: below * display.data.staffSpace * renderer.scale),
       },
+      staffOfPart: _staffOfPart,
       twins: _twins,
       visibleLeft: pointerX / renderer.scale,
       visibleRight: (size.width - pointerX) / renderer.scale,

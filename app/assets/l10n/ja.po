@@ -5673,3 +5673,7 @@ msgstr "Attacca に接続"
 #: lib/daw_follow_dialog.dart
 msgid "Connect Anyway"
 msgstr "それでも接続"
+
+#: lib/daw_follow_dialog.dart
+msgid "The DAW stopped it."
+msgstr "DAW が中止しました。"

@@ -129,6 +129,20 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         local packed = table.pack(1, nil, 3)
         return #t, table.concat(t, ""), removed, last, packed.n, table.unpack({1, 2, 3}, 2), select(-1, 1, 2, 3)
       '''), ['3', 'zcb', 'a', 'd', '3', '2', '3']);
+      // next goes through a table's keys once, however many: each call goes on from the last
+      // (a key set or cleared meanwhile, or one asked out of turn, is looked for again).
+      expect(run('''
+        local t, seen, n = {10, 20}, {}, 0
+        for i = 1, 20000 do t["k" .. i] = i end
+        local k, v = next(t)
+        while k do
+          n = n + 1
+          seen[#seen + 1] = n <= 3 and tostring(k) or nil
+          if k == "k5" then t.k6 = nil t.k7 = 70 end
+          k, v = next(t, k)
+        end
+        return n, table.concat(seen, " "), next(t, "k20000"), (next(t, "k3")), (next(t, "k3")), (next({}))
+      ''', steps: 200000), ['20001', '1 2 k1', 'nil', 'k4', 'k4', 'nil']);
       expect(run('local t = {5, 2, 8, 1} table.sort(t) return table.concat(t, ","), table.concat(table.move({1, 2, 3}, 1, 3, 2), ",")'), ['1,2,5,8', '1,1,2,3']);
     }
 
@@ -157,6 +171,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
           string.format("%.2f %10.3f|%-8.1f|%e %.0f %g %g %g %g", 3.14159, 2.5, 1.25, 12345.678, 2.5, 0.1, 1e20, 100000, 1e-5),
           string.format("%s %10s|%-10s|%.2s %q %%", "a", "b", "c", "long", 'q"uote'), string.format("%5.1f%%", 12.345), string.format("%s %s", 1, true)
       '''), ['42    42|42   |00042 +42 ff FF 10 A', '3.14      2.500|1.3     |1.234568e+04 3 0.1 1e+20 100000 1e-05', 'a          b|c         |lo "q\\"uote" %', ' 12.3%', '1 true']);
+      // More digits than Dart's own formatting gives at once.
+      expect(run('return string.format("%.20g %.21g %.99g %.19g", 0.001, 0.5, 0.25, 123.5)'), ['0.0010000000000000000208 0.5 0.25 123.5']);
       expect(run('return tostring(12), tostring(1.5), tostring(1e100), tonumber("0x1F"), tonumber(" 12.5 "), tonumber("z", 36), tonumber("nope"), tonumber("1e2"), utf8.len("héllo"), utf8.char(233)'),
           ['12', '1.5', '1e+100', '31', '12.5', '35', 'nil', '100', '5', 'é']);
     }
@@ -196,9 +212,12 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
       expect(fails('table.insert(nil, 1)'), "test.lua:1: bad argument #1 to 'insert' (table expected, got nil)");
       expect(fails('("x"):rep()'), "test.lua:1: bad argument #2 to 'rep' (number expected, got no value)");
       expect(fails('local t = {}\nt[nil] = 1'), 'test.lua:2: table index is nil');
+      expect(fails('next({}, 1/0)'), "test.lua:1: invalid key to 'next'");
+      expect(fails('next({1}, 0/0)'), "test.lua:1: invalid key to 'next'");
       expect(fails('x = = 1'), "test.lua:1: unexpected symbol near '='");
       expect(fails('if x then\n\n'), "test.lua:3: 'end' expected (to close 'if' at line 1) near '<eof>'");
       expect(fails('local s = "open'), 'test.lua:1: unfinished string');
+      expect(fails(r'return "\u{-1}"'), contains('invalid \\u{xxxx} escape'));
       expect(fails('break'), contains('break outside a loop'));
       expect(fails('goto nowhere'), contains("no visible label 'nowhere'"));
       expect(fails('coroutine.wrap(print)'), contains("coroutines aren't available"));
@@ -253,6 +272,12 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         const start = 'keep = {}\nlocal s = ("x"):rep(64000)\nlocal list = {}\nfor i = 1, 64000 do list[i] = i end\n';
         expect(() => lua.run('${start}while true do keep[#keep + 1] = $make end', steps: 68000), throwsA(isA<LuaLimit>()), reason: make);
         expect(lua.run('return #keep').single, lessThan(10), reason: make);
+      }
+      // A list written out at length is paid for each time it is made, with keys or without.
+      for (final written in ['("0,"):rep(6400)', '("[{}]=0,"):rep(6400)']) {
+        final lua = Lua();
+        expect(() => lua.run('keep = {}\nlocal make = load("return {" .. $written .. "}")\nwhile true do keep[#keep + 1] = make() end', steps: 10000), throwsA(isA<LuaLimit>()), reason: written);
+        expect(lua.run('return #keep').single, lessThan(100), reason: written);
       }
       // What the host makes for a script is paid for the same: a string by its length, a table a
       // step and what it holds in turn (one held twice, once).

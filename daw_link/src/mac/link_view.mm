@@ -188,10 +188,18 @@ int installedBuild ()
         [stack.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
     ]];
     [self update];
+    [self startTimer];
+    return self;
+}
+
+// Asks how Curator stands each second while the view is in a window (or was never in one yet).
+- (void)startTimer
+{
+    if (_timer != nil)
+        return;
     // Weakly held: the timer ends with the view.
     __weak LinkStatusView* weakSelf = self;
     _timer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer*) { [weakSelf update]; }];
-    return self;
 }
 
 // Where Curator is: connected (and the projects following this DAW), connecting, open but not
@@ -279,6 +287,18 @@ int installedBuild ()
         _timer = nil;
     }
     [super viewWillMoveToWindow:window];
+}
+
+// Shown again (a DAW that keeps the view and puts it back in a window, as Logic does with an
+// Audio Unit's): it says how things stand now, and each second from then on.
+- (void)viewDidMoveToWindow
+{
+    [super viewDidMoveToWindow];
+    if (self.window != nil && _timer == nil)
+    {
+        [self update];
+        [self startTimer];
+    }
 }
 
 - (void)dealloc

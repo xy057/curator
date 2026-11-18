@@ -73,14 +73,36 @@ class MidiFile {
       final notes = <int, List<MidiNote>>{}; // by channel
       final sounding = <int, List<(int tick, int velocity)>>{}; // channel << 7 | key → those held
       var last = 0;
+      // The keys struck more often than let go: struck again while held with no note-off
+      // between (a keyboard's, a sequencer's), or never let go. Paired first come first let
+      // go, as the others are, each would leave a note held to the track's end; so a note-off
+      // of theirs lets go of every one held.
+      final unpaired = <int>{};
+      {
+        final held = <int, int>{};
+        for (final e in events(data, at, end)) {
+          if (e.status == 0xff) continue;
+          final id = (e.status & 0x0f) << 7 | (e.a & 0x7f), n = held[id] ?? 0;
+          switch (e.status & 0xf0) {
+            case 0x90 when e.b & 0x7f > 0:
+              held[id] = n + 1;
+            case 0x80 || 0x90 when n > 0:
+              held[id] = n - 1;
+          }
+        }
+        unpaired.addAll(held.keys.where((id) => held[id]! > 0));
+      }
       void release(int id, int tick) {
         final held = sounding[id];
         if (held == null || held.isEmpty) return;
-        final (start, velocity) = held.removeAt(0);
-        // One let go as it is struck (some drum tracks') is still a note: a sixteenth.
-        final int stop = tick > start ? tick : start + math.max(1, division ~/ 4);
-        (notes[id >> 7] ??= []).add((start: start, end: stop, key: id & 0x7f, velocity: velocity));
-        if (++count > maxNotes) throw const FormatException('This MIDI file has too many notes.');
+        do {
+          final (start, velocity) = held.removeAt(0);
+          // One let go as it is struck (some drum tracks') is still a note: a sixteenth.
+          final int stop = tick > start ? tick : start + math.max(1, division ~/ 4);
+          (notes[id >> 7] ??= []).add((start: start, end: stop, key: id & 0x7f, velocity: velocity));
+          if (++count > maxNotes) throw const FormatException('This MIDI file has too many notes.');
+          // (One struck at this very tick stays held when another is let go by it.)
+        } while (unpaired.contains(id) && held.isNotEmpty && held.first.$1 < tick);
       }
 
       for (final e in events(data, at, end)) {

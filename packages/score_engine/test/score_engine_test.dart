@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -81,6 +82,10 @@ void main() {
     expect(foundAt(PhraseSearch.find(Phrase(wrong), lines)), isFalse);
     expect(PhraseSearch.find(Phrase(wrong), lines, similar: true).firstWhere((m) => identical(m.line, cello) && m.first == 10).similarity,
         inInclusiveRange(PhraseSearch.minSimilarity, 0.99));
+    // A note stepped past the highest or the lowest stays: B8 a step up was C8, C0 a step down B0.
+    const top = PhraseNote(step: 6, octave: 8, value: NoteValue.quarter), bottom = PhraseNote(step: 0, octave: 0, value: NoteValue.quarter);
+    expect([top.stepped(1), top.stepped(7), bottom.stepped(-1), bottom.stepped(-7)], [top, top, bottom, bottom]);
+    expect((top.stepped(-1).diatonic, bottom.stepped(7).diatonic), (top.diatonic - 1, 7));
 
     // A video frame is the preview drawn offscreen: the same pixels, engraved now or saved (a web page's score).
     final scene = CuratedScene(score);
@@ -201,6 +206,10 @@ void main() {
       final text = seated.encode();
       expect(PlayerMap.decode(text).encode(), text);
       expect(() => PlayerMap.decode('{"format": "something else"}'), throwsFormatException);
+      // A section with no seat at all is damage, said as such (drawn, it threw).
+      final seatless = jsonDecode(text) as Map<String, Object?>;
+      (((seatless['map'] as Map)['sections'] as List).first as Map)['seats'] = <Object?>[];
+      expect(() => PlayerMap.decode(jsonEncode(seatless)), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('seats is not a list of seats'))));
       expect(() => PlayerMap.decode(text.replaceFirst('"version": 1', '"version": 2')), throwsFormatException);
       final other = [part('X9', 'Flute 2'), part('P2', 'Oboe')];
       final moved = PlayerMap.decode(text).relinked(other);
@@ -317,6 +326,27 @@ void main() {
       expect((blue > 50, black), (true, 0), reason: 'the piccolo’s notes in its colour, on white');
       scene.dispose();
 
+      // A key struck again while held, with no note-off between, isn't held to the track's end:
+      // its note-off lets go of both. One whose notes overlap and are each let go keeps them.
+      final struck = <int>[
+        0, 0x90, 60, 80, 0, 0x90, 62, 80, 0x83, 0x60, 0x90, 60, 80, 0, 0x90, 62, 80, // at 0 and at 480
+        0x83, 0x60, 0x80, 60, 0, 0, 0x80, 62, 0, 0x83, 0x60, 0x80, 62, 0, // at 960 and 1440
+        0x83, 0x60, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0xa5, 0x40, 0x90, 64, 80, 0x83, 0x60, 0x80, 64, 0, // 1920 to 2400; 7200 to 7680
+        0, 0xff, 0x2f, 0,
+      ];
+      final again = MidiFile.read(Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, struck.length, ...struck]));
+      expect([for (final n in again.voices.single.notes) (n.key, n.start, n.end)],
+          [(62, 0, 960), (60, 0, 960), (62, 480, 1440), (60, 480, 960), (60, 1920, 2400), (64, 7200, 7680)]);
+
+      // Many instruments over many bars are refused before each one's every bar is written out:
+      // 500 tracks of a note each, the last four hours in.
+      final one = <int>[0, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0, 0xff, 0x2f, 0], far = <int>[0x87, 0xd4, 0xc0, 0x00, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0, 0xff, 0x2f, 0];
+      final wide = Uint8List.fromList([
+        ...'MThd'.codeUnits, 0, 0, 0, 6, 0, 1, 500 >> 8, 500 & 0xff, 1, 0xe0, //
+        for (var t = 0; t < 500; t++) ...[...'MTrk'.codeUnits, 0, 0, 0, (t == 499 ? far : one).length, ...(t == 499 ? far : one)],
+      ]);
+      expect(() => MidiScore.read(wide), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file is too long.')));
+
       // A file that plays nothing is no score.
       final silent = Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, 4, 0, 0xff, 0x2f, 0]);
       expect(() => MidiScore.read(silent), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file has no notes.')));
@@ -360,6 +390,28 @@ void main() {
     curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
     expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
     pianoScene.dispose();
+    // A staff's own room is its lane's, numbered among all its instrument's staves: with a
+    // first staff that never plays (left out of the view), room under the second is between the
+    // two shown, not under the third.
+    {
+      final three = await LoadedScore.load(flutePianoScore
+          .replaceFirst('<staves>2</staves>', '<staves>3</staves>')
+          .replaceFirst('<clef number="2">', '<clef number="3">')
+          .replaceFirst('<clef number="1">', '<clef number="2">')
+          .replaceAll('<staff>2</staff>', '<staff>3</staff>')
+          .replaceAll('<staff>1</staff>', '<staff>2</staff>'));
+      expect(three.metadata.parts[1].shownStaffNumbers, hasLength(2));
+      final scene = CuratedScene(three);
+      final shown = Curation(['P1', 'P2'])..setLanes({'P1': [const Region(0, 8)], 'P2': [const Region(0, 8)]});
+      double apart() {
+        final y = [for (final p in scene.layoutAt(0.5, shown, tall).placements) p.y];
+        return y[2] - y[1];
+      }
+      final before = apart();
+      scene.instrumentSpacing = {Curation.staffLaneId('P2', 2): (above: 0, below: 6)};
+      expect(apart(), greaterThan(before + 20));
+      scene.dispose();
+    }
 
     // Under the right hand ("p") or over the left ("f"), centred between them; under the left
     // hand ("pp"), where it was.
@@ -385,6 +437,14 @@ void main() {
     expect([for (final y in apart.take(2)) y.abs() > 1], [true, true], reason: '$apart');
     expect([for (final y in between.take(2)) y.abs() < 0.5], [true, true], reason: '$between');
     expect(between.last, greaterThan(4), reason: 'under the left hand');
+    // A dynamic written back under a note of a beam that crosses the staves (Dorico's way: a
+    // backup, the dynamic, a forward) leaves the beam whole: no note of it flagged on its own.
+    {
+      const steps = '<backup><duration>1</duration></backup><direction placement="below"><direction-type><dynamics><f/></dynamics></direction-type><staff>1</staff></direction><forward><duration>1</duration></forward>';
+      final e = (await LoadedScore.load(flutePianoScore.replaceFirst('<beam number="1">begin</beam></note>', '<beam number="1">begin</beam></note>$steps'))).engraving;
+      final classes = {for (var i = 0; i < e.commandCount; i++) e.classNames[e.commandInts[i * Cmd.words + Cmd.classIndex]]};
+      expect((classes.contains('dynam'), classes.contains('flag')), (true, false));
+    }
 
     // Auto-curate, worked out on another isolate while opening (from the file's bar lengths).
     final stages = <LoadStage>[];

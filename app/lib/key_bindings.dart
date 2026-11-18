@@ -394,6 +394,15 @@ class KeyMap {
   /// [command] with its own keys again.
   KeyMap reset(KeyCommand command) => KeyMap(Map.unmodifiable({..._chosen}..remove(command)));
 
+  /// The command given one of [command]'s own keys since it gave them up, if one was: what
+  /// keeps it from having them again ([reset]).
+  KeyCommand? ownTakenBy(KeyCommand command) {
+    for (final key in [...command.defaults, ...command.also]) {
+      if (takenBy(command, key) case final other?) return other;
+    }
+    return null;
+  }
+
   /// The command other than [command] that [key] gives where [command]'s keys work, if one does.
   KeyCommand? takenBy(KeyCommand command, KeyChord key) {
     for (final other in KeyCommand.values) {
