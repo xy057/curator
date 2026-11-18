@@ -21,3 +21,13 @@ String safeFileName(String name) {
   final cleaned = name.replaceAll(RegExp(r'[/\\:*?"<>|\x00-\x1f]'), '_').trim();
   return cleaned.isEmpty ? 'file' : cleaned;
 }
+
+/// [folder] as shown: `~` for [home] where it is that folder or one inside it (never one whose
+/// name only starts as home's does: `/Users/anna` is not in `/Users/ann`).
+String underHome(String folder, String? home) {
+  if (home == null || home.isEmpty) return folder;
+  final root = home.replaceFirst(RegExp(r'[/\\]+$'), '');
+  if (root.isEmpty || !folder.startsWith(root)) return folder;
+  final rest = folder.substring(root.length);
+  return rest.isEmpty || rest.startsWith('/') || rest.startsWith(r'\') ? '~$rest' : folder;
+}

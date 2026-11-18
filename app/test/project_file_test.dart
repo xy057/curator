@@ -5,6 +5,7 @@ import 'dart:ui' show Color;
 
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/file_names.dart';
 import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:archive/archive_io.dart';
@@ -67,6 +68,10 @@ void main() {
   }
 
   test('saved and opened: every edit survives, a failed save leaves the file as it was, every recording travels in its own folder', () async {
+    // A recent file's folder is "~" where it is home or in it, not where its name starts as home's.
+    expect([for (final f in ['/Users/ann', '/Users/ann/Scores', '/Users/anna/Scores', '/tmp']) underHome(f, '/Users/ann/')], ['~', '~/Scores', '/Users/anna/Scores', '/tmp']);
+    expect((underHome(r'C:\Users\ann\Scores', r'C:\Users\ann'), underHome('/a', null)), (r'~\Scores', '/a'));
+
     final (c, doc) = await demo();
     {
       final part = c.score!.metadata.parts.first;
