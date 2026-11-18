@@ -114,6 +114,12 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
 /// That Attacca doesn't support [daw] (its name as the DAW says it; '' unsaid).
 String attaccaUnsupported(String daw) => daw.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': daw});
 
+/// Why: what Attacca needs of ARA that the DAW doesn't give ([DawSession.missing]).
+String attaccaMissing(Iterable<String> missing) => [
+      if (missing.contains('content')) 'It doesn’t give plug-ins its tempo map.'.tr,
+      if (missing.contains('playback')) 'It doesn’t let plug-ins run its transport.'.tr,
+    ].join(' ');
+
 /// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
 /// the newer one is installed already (a DAW keeps the one it loaded until then), else update it.
 String attaccaOutdated(DawSession session) {
@@ -216,10 +222,10 @@ class _FollowDialogState extends State<_FollowDialog> {
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
           ];
           // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Connect Anyway.
-          final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
+          final unsupported = {for (final s in widget.link.sessions) if (!s.supported) s.host};
           if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
             return notice(attaccaUnsupported(unsupported.where((h) => h.isNotEmpty).join(', ')),
-                'Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}),
+                attaccaMissing({for (final s in widget.link.sessions) ...s.missing}),
                 actions: [if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr))]);
           }
           final bound = widget.bound;

@@ -14,7 +14,7 @@ import 'search.dart';
 @immutable
 class DawDocument {
   const DawDocument(
-      {required this.id, required this.name, this.contexts = const [], this.tracks = const [], this.sources = const [], this.regions = const [], this.playback = false});
+      {required this.id, required this.name, this.contexts = const [], this.tracks = const [], this.sources = const [], this.regions = const [], this.playback = false, this.interfaces});
 
   /// The plug-in's own name for the document, new each time the DAW opens it.
   final String id;
@@ -29,6 +29,24 @@ class DawDocument {
   /// Whether the DAW lets Attacca start, stop and move its transport (an ARA playback
   /// controller): Curator's own then drives it while following.
   final bool playback;
+
+  /// The ARA host interfaces the DAW gives Attacca, as the plug-in says: `audio` (a recording's
+  /// samples) and `archiving`, which every ARA host gives; `content` (the song: tempo, bars,
+  /// keys), `updates` and `playback` (its transport), which a host may leave out. Null from a
+  /// plug-in that doesn't say (one before build 622).
+  final Set<String>? interfaces;
+
+  /// The interfaces Attacca needs of a DAW for what Curator does with it: its song (the tempo
+  /// map and bars the sync follows) and its transport (Curator's driving it, Record from DAW…
+  /// starting it).
+  static const needed = ['content', 'playback'];
+
+  /// Those of [needed] the DAW doesn't give. A DAW is told by these, whatever it is called;
+  /// none from a plug-in that doesn't say what the DAW gives.
+  List<String> get missing => [for (final i in needed) if (interfaces case final given? when !given.contains(i)) i];
+
+  /// Whether the DAW gives Attacca all it needs ([missing] is empty).
+  bool get supported => missing.isEmpty;
 
   /// Reads a `document` message. Throws a [FormatException] saying what isn't right when it
   /// isn't one (no id, a list that is none); what a later plug-in may add is passed over, and so
@@ -61,6 +79,7 @@ class DawDocument {
       sources: each('sources', DawSource.fromJson),
       regions: each('regions', region).nonNulls.toList()..sort((a, b) => a.start.compareTo(b.start)),
       playback: json['playback'] == true,
+      interfaces: switch (json['interfaces']) { final List<Object?> given => {for (final i in given) if (i is String) i}, _ => null },
     );
   }
 

@@ -113,7 +113,7 @@ private:
     std::condition_variable wake_;
     bool stop_ { false };
 
-    std::atomic<int> fd_ { -1 };
+    std::atomic<std::intptr_t> fd_ { -1 };  // the socket (net::Socket); -1: none
     std::atomic<int> curatorBuild_ { 0 };
     std::string linkedCapturer_;
     // What Curator last told of a state, by the message's type (`followers`, `linked`,
@@ -138,9 +138,5 @@ private:
     std::atomic<uint32_t> transportStamp_ { 0 };
     uint32_t sentStamp_ { 0 };
 };
-
-// Curator's data folder (AppFolders.data) and cache folder (AppFolders.cache) on this system.
-std::string curatorDataFolder ();
-std::string curatorCacheFolder ();
 
 }  // namespace attacca

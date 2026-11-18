@@ -4,7 +4,7 @@
 name too. Since build 485 it is a plug-in of its own to a DAW, with IDs of its own: a DAW project
 that used Curator Link says it is missing, so put Attacca on that track instead.)
 
-Attacca is an ARA 2 plug-in (VST3 and Audio Unit) that a DAW loads on an audio track. It
+Attacca is an ARA 2 plug-in (VST3, and on macOS an Audio Unit too) that a DAW loads on an audio track. It
 reads the DAW's song through ARA, which hands a plug-in the host's model instead of only its
 audio, and passes it to Curator: the tempo map, bar and key signatures, the tracks, the
 recordings and where each is placed in the song, and the transport while the DAW plays. Curator
@@ -26,8 +26,9 @@ can then:
 
 ## Installing
 
-Attacca runs on macOS (Apple silicon and Intel). Curator carries it, so there is nothing to
-download. On Windows and Linux, Settings ▸ General ▸ DAW says Attacca is not available for
+Attacca runs on macOS (Apple silicon and Intel) and on Windows 10 and later (x86_64; see
+[On Windows](#on-windows) for what differs there). Curator carries it, so there is nothing to
+download. On Linux, Settings ▸ General ▸ DAW says Attacca is not available for
 the system ("OS not supported"), Listen for Attacca stays off, Curator opens no port, and
 File ▸ Attacca reads OS not supported, its Connect Attacca… greyed out. A project's stems are kept
 and can be edited there.
@@ -35,16 +36,26 @@ and can be edited there.
 Everything Attacca does in Curator is under **File ▸ Attacca**: how it stands, Follow
 DAW…, Capture Stems…, and Settings… (Listen for Attacca, Install, Update, Uninstall).
 
-1. **Quit your DAW.** A DAW reads its plug-ins when it starts.
+1. **Quit your DAW.** A DAW reads its plug-ins when it starts. (On Windows it must be quit:
+   Windows lets nothing replace a plug-in a DAW has loaded, and Curator says **Quit your DAW
+   first.**)
 2. In Curator, choose **File ▸ Attacca ▸ Settings…** and click **Install** next to
-   **Attacca plug-in**. Curator puts three files in your own Library. It needs no password,
-   and other accounts on the Mac don't get them:
+   **Attacca plug-in**. On macOS, Curator puts three files in your own Library. It needs no
+   password, and other accounts on the Mac don't get them:
 
    | File | Where | Used by |
    |---|---|---|
    | `Attacca.vst3` | `~/Library/Audio/Plug-Ins/VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
    | `Attacca Capturer.vst3` | `~/Library/Audio/Plug-Ins/VST3` | the same, for [Attacca Capturer](#attacca-capturer) |
    | `Attacca.component` | `~/Library/Audio/Plug-Ins/Components` | Logic Pro and other Audio Unit hosts (Attacca and Attacca Capturer) |
+
+   On Windows it puts two folders in your own VST3 folder, which needs no administrator, and
+   other accounts on the PC don't get them (there is no Audio Unit on Windows):
+
+   | Folder | Where | Used by |
+   |---|---|---|
+   | `Attacca.vst3` | `%LOCALAPPDATA%\Programs\Common\VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
+   | `Attacca Capturer.vst3` | `%LOCALAPPDATA%\Programs\Common\VST3` | the same, for [Attacca Capturer](#attacca-capturer) |
 
    The row then shows the version installed, for example `0.9.480 (480)`.
 3. Leave **Listen for Attacca** on, in the same group. It is on unless you turned it off.
@@ -55,6 +66,11 @@ DAW…, Capture Stems…, and Settings… (Listen for Attacca, Install, Update, 
    - **Cubase / Nuendo**: rescan in Studio ▸ VST Plug-in Manager.
    - **REAPER**: Settings ▸ Plug-ins ▸ VST ▸ **Re-scan**.
    - **Studio One** and other DAWs: rescan their plug-ins, or restart them once more.
+   - **On Windows**, a DAW that doesn't look in your own VST3 folder (the VST3 standard's
+     place for one user's plug-ins) needs to be told of it: add
+     `%LOCALAPPDATA%\Programs\Common\VST3` to its VST3 folders (Studio One: Options ▸
+     Locations ▸ VST Plug-ins; REAPER: Settings ▸ Plug-ins ▸ VST), or copy the two folders into
+     `C:\Program Files\Common Files\VST3`, which every VST3 host reads (as an administrator).
 5. **Check that it works.** Put Attacca on a track ([Using it](#using-it)), then open its
    window in the DAW. It says **Connected to Curator** while Curator is open, and **Waiting for
    Curator** otherwise. In Curator, **File ▸ Attacca** (and its Settings row) then says
@@ -70,7 +86,12 @@ damaged or partly removed.
 
 ### Installing by hand
 
-`make daw-link` leaves the plug-ins in `app/assets/daw_link/Attacca.zip`. To install them
+On Windows, `make daw-link-windows` (run on a Mac) leaves them in
+`daw_link/build-windows/Attacca.zip`: quit the DAW, unzip it, and copy the folders
+`Attacca.vst3` and `Attacca Capturer.vst3` into `%LOCALAPPDATA%\Programs\Common\VST3` (or
+`C:\Program Files\Common Files\VST3`). They are not signed.
+
+On macOS, `make daw-link` leaves the plug-ins in `app/assets/daw_link/Attacca.zip`. To install them
 without Curator's button (on another Mac, for example), quit the DAW, unzip the file, and copy
 `Attacca.vst3` and `Attacca Capturer.vst3` into `~/Library/Audio/Plug-Ins/VST3` and `Attacca.component` into
 `~/Library/Audio/Plug-Ins/Components`. The plug-ins have an ad-hoc signature, not Apple's.
@@ -87,7 +108,8 @@ xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Li
 2. In Curator, open **Settings ▸ General ▸ DAW** and click **Uninstall** next to
    **Attacca plug-in**. All its plug-ins are removed, and the button reads **Install** again.
 
-   By hand, delete the three files instead (and any named Curator Link):
+   By hand on Windows, delete the two folders `Attacca.vst3` and `Attacca Capturer.vst3` from
+   `%LOCALAPPDATA%\Programs\Common\VST3`. On macOS, delete the three files instead (and any named Curator Link):
 
    ```bash
    rm -rf ~/Library/Audio/Plug-Ins/VST3/"Attacca.vst3" ~/Library/Audio/Plug-Ins/VST3/"Attacca Capturer.vst3" ~/Library/Audio/Plug-Ins/Components/"Attacca.component" \
@@ -102,20 +124,33 @@ What stays behind, and how to remove it:
 - **Curator's projects keep what they took.** That includes a tempo map, a recording and
   stems. They are part of each project and don't need the plug-in.
 - **Files written for Curator stay in its cache.** Recordings and stems the plug-in wrote are
-  in `~/Library/Caches/Curator/DAW Link`. A project saved holds its own copy of what it uses.
+  in `~/Library/Caches/Curator/DAW Link` (Windows: `%LOCALAPPDATA%\Curator\Cache\DAW Link`). A project saved holds its own copy of what it uses.
   **Settings ▸ General ▸ DAW ▸ Attacca cache** shows how much is there, and **Clear** removes it
   (all but the files a project open now still plays, which go the next time).
 - **Curator still listens for the plug-in.** Turn off **Listen for Attacca** to stop it.
   Curator then also removes `daw-link.json`, the file in
-  `~/Library/Application Support/Curator` that tells the plug-in where to connect.
+  `~/Library/Application Support/Curator` (Windows: `%LOCALAPPDATA%\Curator`) that tells the plug-in where to connect.
 
 ## Using it
 
-Attacca supports **Cubase, Nuendo, Studio One (Studio Pro) and REAPER**, told by the DAW's
-process name. Any other DAW is not supported: Logic Pro, and DAWs without ARA such as Ableton
-Live and Bitwig Studio. When one connects, Curator says it isn't supported, and Connect Attacca…
-doesn't offer its recordings. Holding **⌥ (Option)** in that notice shows **Connect Anyway**,
-which offers them all the same (for this time only).
+Attacca supports a DAW by what the DAW gives it through ARA, never by the DAW's name. ARA has a
+host hand a plug-in several interfaces. Two of them every ARA host gives (a recording's samples,
+and the project's archive); the others it may leave out. Attacca needs two of those:
+
+- **the song** (ARA's content access: the tempo map, bar and key signatures), which the sync
+  follows;
+- **the transport** (ARA's playback controller), by which Curator's transport drives the DAW's
+  and Record from DAW… starts it.
+
+Attacca tells Curator which interfaces the DAW gave it (`interfaces` in `document`), and a DAW
+that gives both is supported: **Cubase, Nuendo, Studio One (Studio Pro) and REAPER** do. A DAW
+that leaves one out is not: when Attacca is put on a recording there, Curator says the DAW isn't
+supported and what it doesn't give, and Connect Attacca… doesn't offer its recordings. Holding
+**⌥ (Option; Alt on Windows)** in that notice shows **Connect Anyway**, which offers them all the
+same (for this time only): what the DAW does give still works. A DAW without ARA at all (Ableton
+Live, Bitwig Studio) can only have Attacca on an insert, with no recording: Connect Attacca…
+says Attacca isn't on a recording there. An Attacca from before build 622 doesn't say what the
+DAW gives, and its DAW is taken to give everything (Curator says that Attacca is outdated).
 
 1. In the DAW, use it as an ARA plug-in on the track with the recording:
    - **Cubase / Nuendo**: select the audio event, then Audio ▸ Extensions ▸ Attacca.
@@ -195,6 +230,38 @@ this. The menu item is checked while Curator follows a DAW, and choosing it agai
 choosing another tempo map, editing the one taken, or Convert to Anchors. The tempo map taken is
 saved with the project like any other. Following lasts only while the project is open.
 
+## On Windows
+
+Attacca on Windows is the same plug-in, built from the same sources, and Curator does with it
+all it does on macOS. What differs:
+
+- **VST3 only.** Windows has no Audio Units: `Attacca.vst3` and `Attacca Capturer.vst3`, each a
+  folder holding its program (`Contents\x86_64-win\<name>.vst3`), the SDKs' licences and
+  Curator's version (`Contents\Resources`). The DAWs Attacca supports all load VST3.
+- **x86_64 only.** A DAW built for ARM (Windows on ARM, run natively) doesn't load it. One
+  built for x86_64 does, on either processor.
+- **Your own VST3 folder.** `%LOCALAPPDATA%\Programs\Common\VST3` is the VST3 standard's
+  place for one user's plug-ins, and Curator writes there without an administrator. Not every
+  DAW looks there by itself ([Installing](#installing), step 4).
+- **Quit the DAW to install, update or uninstall.** Windows keeps a plug-in a DAW has loaded:
+  it can't be replaced or removed until the DAW quits, and Curator says **Quit your DAW first.**
+  and changes nothing. So a newer Attacca is never on disk under a DAW still running the old
+  one, and its window only ever says it is outdated because Curator is newer.
+- **A file Curator is playing isn't replaced.** Curator plays a recording from the file the
+  plug-in wrote, and Windows lets nothing take an open file's place. A recording asked for again
+  (Load ARA Clip, Record from DAW…) is then written by the same name in a folder beside the
+  first (`<folder> 2`), and Curator is told that one. Attacca cache ▸ Clear removes the old ones.
+- **Its window** is drawn by the plug-in itself (no Cocoa there): the same lines and the
+  Capturer menu, in Windows' own font and colours, as many pixels a point as the DAW says its
+  screen has.
+- **Where things are.** Curator's `daw-link.json` is in `%LOCALAPPDATA%\Curator`, and the files
+  the plug-in writes in `%LOCALAPPDATA%\Curator\Cache\DAW Link`, which the plug-in finds as
+  Curator does (`%LOCALAPPDATA%`, else `%USERPROFILE%\AppData\Local`). A DAW is named by its
+  program without `.exe` ("Cubase15", "reaper").
+
+It has been run only by the DAW in miniature (below), on Wine and, in the Release workflow, on
+Windows: never yet in a DAW on Windows.
+
 ## What the plug-in does
 
 On a track, an ARA plug-in plays that track's regions itself (it is their *playback renderer*):
@@ -213,7 +280,7 @@ project, because everything it knows the DAW sends again.
 
 - **Finding Curator.** Curator listens on the loopback address (127.0.0.1) at a port the system
   picks. It writes the port, a random token and its own build to `daw-link.json` in its data
-  folder (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
+  folder (`~/Library/Application Support/Curator`; Windows: `%LOCALAPPDATA%\Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
   therefore connects as soon as Curator is up. The file also names Curator's process (`pid`): one
   left behind by a Curator that is gone (it crashed) is not followed, since its port may be
@@ -228,7 +295,7 @@ project, because everything it knows the DAW sends again.
 | Message | From | Holds |
 |---|---|---|
 | `hello` | plug-in | `token`, `protocol` (1), `plugin` (its version), `build`, `host` (the DAW process's name), `pid` |
-| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport |
+| `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport; `interfaces`: the ARA host interfaces the DAW gave Attacca, of `audio`, `archiving` (every host gives both), `content` (the song), `updates`, `playback` (the transport): Curator supports a DAW that gives `content` and `playback` (`DawDocument.needed`) |
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
 | `followers` | Curator | `names`: the projects following one of this DAW's documents, one a line (empty: none); sent when they change, and on connecting |
@@ -279,11 +346,13 @@ Fields are only added over time. A message type or field that one side doesn't k
 3. **Runs `daw_link/test/link_host`**, a DAW in miniature, before zipping the bundles into
    `app/assets/daw_link/Attacca.zip`. That is the zip Settings installs from, and
    `make run` and `make build` make it whenever it is out of date. The test host:
-   - stands in for Curator, behind a temporary `HOME`;
+   - stands in for Curator, behind a temporary `HOME` (Windows: `LOCALAPPDATA`);
    - loads the VST3, makes a document with a tempo change, 4/4 then 3/4, a key, a track and a
-     recording placed in the song;
+     recording placed in the song; and one as a DAW giving only what ARA requires of every host,
+     which must say so;
    - checks what Curator is told;
-   - asks for the recording, and checks the file sample by sample;
+   - asks for the recording, and checks the file sample by sample; asks again while it holds
+     the first open, and checks the second is whole (on Windows, beside the first);
    - asks for the track as a stem from before its region, and checks the silence, then the
      region where the song plays it;
    - plays the region through the plug-in, and checks it sample by sample against the song;
@@ -294,5 +363,24 @@ Fields are only added over time. A message type or field that one side doesn't k
 The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`. That file is shown under Settings
 ▸ About ▸ Licenses and copied into each bundle.
 
-Only macOS is built so far (`AttaccaPlugIns.supported`). The protocol and Curator's side don't depend on
-the system.
+**For Windows**, `make daw-link-windows` builds the same sources on a Mac, for x86_64:
+
+1. It fetches the ARA and VST3 SDKs as above, and **llvm-mingw** (Clang, LLD and mingw-w64:
+   a compiler that makes Windows programs on a Mac) into `daw_link/third_party/`, the release
+   pinned in the Makefile, its download checked against the SHA-256 pinned beside it.
+2. It builds the two VST3 bundles and `link_host.exe` in `daw_link/build-windows/`. The C++
+   library is linked into each DLL, so they need nothing but Windows' own libraries (no Visual
+   C++ runtime) where a DAW loads them.
+3. It zips the bundles into `daw_link/build-windows/Attacca.zip`. `link_host.exe` runs on
+   Windows (`link_host.exe <path>\Attacca.vst3 "<path>\Attacca Capturer.vst3"`), or on a Mac
+   under Wine: the same checks as on macOS, without the Audio Unit's, with the window put in a
+   window never shown and made half as big again as a DAW on a denser screen does.
+
+The Release workflow does this in a job of its own (`attacca-windows`, on a Mac), and its
+Windows job runs `link_host.exe` on Windows, then puts the zip in the app as
+`assets/daw_link/Attacca.zip` before building it. Each system's app carries its own Attacca.
+
+macOS and Windows are built (`AttaccaPlugIns.supported`); the plug-in's sources say what
+differs between them in `link_system.cpp` (Curator's folders, the process), `link_socket.h`
+(sockets) and the window (`mac/link_view.mm`, `win/link_view.cpp`). Linux isn't: the protocol
+and Curator's side don't depend on the system.

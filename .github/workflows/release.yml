@@ -30,6 +30,11 @@
 # Both systems build side by side; the release is published only when both have built (and
 # Windows has run the smoke test), so a release always has both downloads.
 #
+# Attacca, the plug-in for DAWs (docs/daw-link.md), is in both: macOS builds its own as it builds
+# the app (`make build`); the one for Windows is built on a Mac too (the attacca-windows job:
+# `make daw-link-windows`, as on your own Mac), and the Windows job checks it on Windows before
+# building the app around it.
+#
 # Every action is pinned to a commit (its tag in a comment): a tag can be moved, a commit can't.
 # To update one, look up the new tag's commit (`git ls-remote --tags https://github.com/<action>`). The app's updater finds its own by the name:
 # Curator-<version>-<macos|windows>.zip.
@@ -134,8 +139,28 @@ jobs:
           path: Curator-*-macos.zip
           if-no-files-found: error
 
-  windows:
+  # Attacca for Windows: its two VST3s zipped, and the DAW in miniature that checks them, both
+  # made on a Mac with llvm-mingw (the Makefile pins its release and checks its SHA-256).
+  attacca-windows:
     needs: version
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build
+        run: make daw-link-windows
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: attacca-windows
+          path: |
+            daw_link/build-windows/Attacca.zip
+            daw_link/build-windows/link_host.exe
+          if-no-files-found: error
+
+  windows:
+    needs: [version, attacca-windows]
     runs-on: windows-2022
     timeout-minutes: 90
     defaults:
@@ -161,6 +186,21 @@ jobs:
           git clone --depth 1 --branch "$tag" https://github.com/rism-digital/verovio.git "$dir"
           for p in patches/*.patch; do echo "applying $p"; git -C "$dir" apply "$PWD/$p"; done
           touch "$dir/.curated-score-patched"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: attacca-windows
+          path: attacca
+
+      - name: Attacca
+        # The plug-ins the attacca-windows job built, checked here, on Windows, by the DAW in
+        # miniature (daw_link/test/link_host.cpp: it stands in for Curator and for a DAW), then
+        # made the app's asset: Settings ▸ General ▸ DAW installs them from it.
+        run: |
+          mkdir attacca/out
+          unzip -q attacca/Attacca.zip -d attacca/out
+          attacca/link_host.exe "$(cygpath -w "$PWD/attacca/out/Attacca.vst3")" "$(cygpath -w "$PWD/attacca/out/Attacca Capturer.vst3")"
+          cp attacca/Attacca.zip app/assets/daw_link/Attacca.zip
 
       - name: Web player
         # What `make web-player` does (no make on Windows): File ▸ Export to Web… copies it.

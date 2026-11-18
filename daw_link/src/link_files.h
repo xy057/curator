@@ -1,7 +1,7 @@
 // What Attacca's ARA side and its Capturer both need for the files they write Curator.
 #pragma once
 
-#include <sys/stat.h>
+#include "link_system.h"
 
 #include <cctype>
 #include <cmath>
@@ -10,6 +10,7 @@
 #include <functional>
 #include <random>
 #include <string>
+#include <system_error>
 
 namespace attacca {
 
@@ -24,7 +25,8 @@ inline std::string randomId ()
 
 // A file name of [text]: letters, digits, spaces and a few marks; at most 60 bytes, of whole
 // characters (a name cut inside one isn't UTF-8, and macOS makes no file by such a name), a
-// byte that is no character's left out.
+// byte that is no character's left out. Never one of the names Windows keeps for its devices
+// ("CON", "COM1": a file so named, whatever follows its dot, is the device there).
 inline std::string safeName (const std::string& text)
 {
     std::string out;
@@ -49,16 +51,54 @@ inline std::string safeName (const std::string& text)
     }
     while (!out.empty () && (out.front () == '.' || out.front () == ' '))
         out.erase (out.begin ());
+#if defined(_WIN32)
+    std::string stem = out.substr (0, out.find ('.'));
+    while (!stem.empty () && stem.back () == ' ')
+        stem.pop_back ();
+    for (char& c : stem)
+        c = static_cast<char> (std::toupper (static_cast<unsigned char> (c)));
+    const bool numbered = stem.size () == 4 && (stem.compare (0, 3, "COM") == 0 || stem.compare (0, 3, "LPT") == 0) && std::isdigit (static_cast<unsigned char> (stem[3]));
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || numbered)
+        out.insert (out.begin (), '_');
+#endif
     return out.empty () ? std::string ("Recording") : out;
 }
 
+// [path] and every folder above it made, where they aren't there.
 inline void makeFolders (const std::string& path)
 {
-    for (size_t i = 1; i <= path.size (); ++i)
+    std::error_code error;
+    std::filesystem::create_directories (fileOf (path), error);
+}
+
+// The file [from] put in place as [to], instead of any there: where it is now, or empty when it
+// can't be put. Windows lets no file take the place of one a program has open (Curator plays a
+// recording from the file the plug-in wrote, and may ask for it again): it then goes by the same
+// name into a folder beside [to]'s ("<folder> 2", "<folder> 3", …), the first that takes it.
+inline std::string putInPlace (const std::string& from, const std::string& to)
+{
+    const std::filesystem::path file = fileOf (from), wanted = fileOf (to);
+    std::error_code error;
+    std::filesystem::rename (file, wanted, error);
+    if (!error)
+        return to;
+    for (int i = 2; i <= 50 && std::filesystem::exists (wanted, error); ++i)
     {
-        if (i == path.size () || path[i] == '/')
-            ::mkdir (path.substr (0, i).c_str (), 0755);
+        std::filesystem::path folder = wanted.parent_path ();
+        folder += " " + std::to_string (i);
+        const std::filesystem::path beside = folder / wanted.filename ();
+        std::filesystem::create_directories (folder, error);
+        std::filesystem::rename (file, beside, error);
+        if (!error)
+            return pathOf (beside);
     }
+    return {};
+}
+
+inline void removeFile (const std::string& path)
+{
+    std::error_code error;
+    std::filesystem::remove (fileOf (path), error);
 }
 
 // 16 hex digits naming [text] in a folder's name.

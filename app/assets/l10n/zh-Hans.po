@@ -5610,10 +5610,6 @@ msgid "{daw} isn’t supported by Attacca."
 msgstr "Attacca 不支持 {daw}。"
 
 #: lib/daw_follow_dialog.dart
-msgid "Attacca works in {daws}."
-msgstr "Attacca 可用于 {daws}。"
-
-#: lib/daw_follow_dialog.dart
 msgid "Attacca isn’t on a recording in the DAW."
 msgstr "DAW 中的 Attacca 没有用在录音上。"
 
@@ -5684,3 +5680,15 @@ msgstr "DAW 已将其停止。"
 #: lib/web_export_dialog.dart
 msgid "As in Video tab"
 msgstr "按“视频”标签页"
+
+#: lib/settings_dialog.dart
+msgid "Quit your DAW first."
+msgstr "请先退出 DAW。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t give plug-ins its tempo map."
+msgstr "它不向插件提供速度图。"
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t let plug-ins run its transport."
+msgstr "它不允许插件控制播放。"

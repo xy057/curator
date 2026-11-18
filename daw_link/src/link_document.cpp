@@ -11,10 +11,10 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <functional>
 #include <new>
 #include <random>
-#include <sys/stat.h>
 #include <utility>
 
 namespace attacca {
@@ -381,6 +381,19 @@ std::string LinkDocumentController::snapshot ()
     name (w, "name", document->getName ());
     // Whether the DAW lets Attacca drive its transport (Curator's then does, while following).
     w.field ("playback", getHostPlaybackController () != nullptr);
+    // What the DAW gives Attacca of ARA's host interfaces: by these Curator tells whether the
+    // DAW can do what it asks of it, never by the DAW's name. Samples ("audio") and the
+    // project's archive every ARA host gives; the song ("content": tempo, bars, keys), word of
+    // changes ("updates") and its transport ("playback") a host may leave out.
+    w.key ("interfaces").array ();
+    w.string ("audio").string ("archiving");
+    if (getHostContentAccessController ())
+        w.string ("content");
+    if (getHostModelUpdateController ())
+        w.string ("updates");
+    if (getHostPlaybackController ())
+        w.string ("playback");
+    w.endArray ();
 
     w.key ("contexts").array ();
     for (const auto* context : document->getMusicalContexts ())
@@ -508,22 +521,25 @@ void LinkDocumentController::publish ()
 namespace {
 
 // Writes a 32-bit float WAV of [frames] frames of [channels] at [rate] to [path], through a file
-// beside it put in place at the end; [fill] gives [n] frames from frame [at], interleaved, and
-// [progress] hears the share written. False when it can't be written or [cancel] is set.
-bool writeFloatWav (const std::string& path, int channels, double rate, int64_t frames, const std::atomic<bool>& cancel,
+// beside it put in place at the end ([putInPlace]: where it is then, usually [path]); [fill] gives
+// [n] frames from frame [at], interleaved, and [progress] hears the share written. Empty when it
+// can't be written or [cancel] is set.
+std::string writeFloatWav (const std::string& path, int channels, double rate, int64_t frames, const std::atomic<bool>& cancel,
                     const std::function<void (float* block, int64_t at, int64_t n)>& fill, const std::function<void (double done)>& progress)
 {
     const std::string partial = path + ".part";
-    std::FILE* f = cancel.load () ? nullptr : std::fopen (partial.c_str (), "wb");
-    bool ok = f != nullptr;
-    if (f)
+    std::ofstream f;
+    if (!cancel.load ())
+        f.open (fileOf (partial), std::ios::binary | std::ios::trunc);
+    bool ok = f.is_open ();
+    if (ok)
     {
         const uint64_t bytes = static_cast<uint64_t> (frames) * static_cast<uint64_t> (channels) * 4;
         // A RIFF file holds under 4 GB: the length is read as at most that.
         const uint32_t dataBytes = static_cast<uint32_t> (std::min<uint64_t> (bytes, 0xffffffffu - 64));
         const int64_t written = static_cast<int64_t> (dataBytes / (static_cast<uint32_t> (channels) * 4));
         const std::string header = wavHeader (channels, rate, written);
-        std::fwrite (header.data (), 1, header.size (), f);
+        f.write (header.data (), static_cast<std::streamsize> (header.size ()));
 
         std::vector<float> block (static_cast<size_t> (chunkFrames * channels));
         auto lastSaid = std::chrono::steady_clock::now ();
@@ -536,19 +552,21 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
             }
             const int64_t n = std::min (chunkFrames, written - at);
             fill (block.data (), at, n);
-            ok = std::fwrite (block.data (), sizeof (float), static_cast<size_t> (n * channels), f) == static_cast<size_t> (n * channels);
+            f.write (reinterpret_cast<const char*> (block.data ()), static_cast<std::streamsize> (sizeof (float) * static_cast<size_t> (n * channels)));
+            ok = f.good ();
             if (std::chrono::steady_clock::now () - lastSaid > std::chrono::milliseconds (100))
             {
                 lastSaid = std::chrono::steady_clock::now ();
                 progress (static_cast<double> (at + n) / static_cast<double> (written));
             }
         }
-        ok = std::fclose (f) == 0 && ok;
+        f.close ();
+        ok = !f.fail () && ok;
     }
-    if (ok && std::rename (partial.c_str (), path.c_str ()) == 0)
-        return true;
-    std::remove (partial.c_str ());
-    return false;
+    if (const std::string put = ok ? putInPlace (partial, path) : std::string (); !put.empty ())
+        return put;
+    removeFile (partial);
+    return {};
 }
 
 }  // namespace
@@ -634,10 +652,10 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
 
     // A folder for each recording (by its ID), the file named as the DAW names the recording:
     // Curator calls the take it makes of it by the file's name.
-    const std::string folder = curatorCacheFolder () + "/DAW Link/" + hashOf (sourceID);
+    const std::string folder = nativePath (curatorCacheFolder () + "/DAW Link/" + hashOf (sourceID));
     makeFolders (folder);
     const char* sourceName = found->getName ();
-    const std::string path = folder + "/" + safeName (sourceName ? sourceName : "") + ".wav";
+    const std::string path = nativePath (folder + "/" + safeName (sourceName ? sourceName : "") + ".wav");
 
     std::lock_guard<std::mutex> lock (exportMutex_);
     cancelExport_.store (false);
@@ -648,7 +666,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
         while (found->framesRead () < found->frames () && !cancelExport_.load ())
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
         const int channels = found->channels ();
-        const bool ok = writeFloatWav (
+        const std::string written = writeFloatWav (
             path, channels, found->getSampleRate (), found->frames (), cancelExport_,
             [found, channels] (float* block, int64_t at, int64_t n) {
                 for (int64_t i = 0; i < n; ++i)
@@ -658,8 +676,8 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
             [this, sourceID] (double done) {
                 client_.progress (id_, "source", sourceID, done);
             });
-        if (ok)
-            reply ("path", path);
+        if (!written.empty ())
+            reply ("path", written);
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);
@@ -707,10 +725,10 @@ void LinkDocumentController::startStem (const ExportJob& job)
         return reply ("error", "too long");
 
     // A folder for each track of each document open, the file named as the DAW names the track.
-    const std::string folder = curatorCacheFolder () + "/DAW Link/Stems/" + hashOf (id_ + "/" + trackID);
+    const std::string folder = nativePath (curatorCacheFolder () + "/DAW Link/Stems/" + hashOf (id_ + "/" + trackID));
     makeFolders (folder);
     const char* trackName = track->getName ();
-    const std::string path = folder + "/" + safeName (trackName && *trackName ? trackName : "Track") + ".wav";
+    const std::string path = nativePath (folder + "/" + safeName (trackName && *trackName ? trackName : "Track") + ".wav");
     const double from = job.from;
 
     std::lock_guard<std::mutex> lock (exportMutex_);
@@ -725,7 +743,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
         }
         // As the song plays the track, from [from] on: each region at its source's own speed,
         // resampled linearly, a source of another layout averaged into every channel.
-        const bool ok = writeFloatWav (
+        const std::string written = writeFloatWav (
             path, channels, rate, frames, cancelExport_,
             [&pieces, rate, channels, from] (float* block, int64_t at, int64_t n) {
                 std::fill (block, block + n * channels, 0.0f);
@@ -740,8 +758,8 @@ void LinkDocumentController::startStem (const ExportJob& job)
             [this, trackID] (double done) {
                 client_.progress (id_, "track", trackID, done);
             });
-        if (ok)
-            reply ("path", path);
+        if (!written.empty ())
+            reply ("path", written);
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);

@@ -2,7 +2,7 @@
 #include "../link_capture.h"
 #include "../link_client.h"
 #include "../link_document.h"
-#include "../mac/link_view.h"
+#include "../link_view.h"
 
 _Pragma ("GCC diagnostic push")
 _Pragma ("GCC diagnostic ignored \"-Wimport-preprocessor-directive-pedantic\"")

@@ -2094,7 +2094,7 @@ class _AttaccaCacheState extends State<_AttaccaCache> {
       );
 }
 
-/// Attacca's VST3 and Audio Unit installed for DAWs ([AttaccaPlugIns]): the DAWs
+/// Attacca's VST3s (and on macOS its Audio Unit) installed for DAWs ([AttaccaPlugIns]): the DAWs
 /// connected now, then Install (Update when another version is there, Reinstall when this one).
 class _AttaccaPlugIns extends StatefulWidget {
   const _AttaccaPlugIns();
@@ -2132,7 +2132,11 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
     try {
       await job();
     } catch (e) {
-      _problem = e is StateError ? e.message : describeError(e);
+      _problem = switch (e) {
+        StateError(:final message) => message,
+        AttaccaInUse() => 'Quit your DAW first.'.tr,
+        _ => describeError(e),
+      };
     }
     if (mounted) {
       setState(() {
