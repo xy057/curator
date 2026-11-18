@@ -2415,8 +2415,15 @@ class EditableScore {
   /// Notes of [ids] given the letter [step] (0–6: C–B), each at the octave nearest the pitch it
   /// had, as the key spells it (A–G outside note input). Each stays the note it was: its id, its
   /// lyrics, marks and slurs; a note whose pitch changes is untied, both ends. Notes of a chord
-  /// that come to one pitch are one note, the first.
+  /// that come to one pitch are one note, the first. A rest of [ids] becomes a note, at the
+  /// octave nearest the pitch before it (these first, so the notes' are as they were).
   void setStep(Iterable<String> ids, int step) => edit(() {
+        for (final e in eventsOf(ids)) {
+          if (!e.isRest) continue;
+          final fifths = keyAt(e.position.part, e.position.measure, e.position.time).fifths;
+          final pitch = Pitch.nearest(step, pitchBefore(e.position), alter: Pitch.keyAlter(step, fifths));
+          input(e.position, [InputItem(e.rhythm ?? Rhythm.express(e.length).first, [pitch])]);
+        }
         final chosen = {...ids};
         for (final e in eventsOf(ids)) {
           if (e.isRest) continue;
