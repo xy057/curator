@@ -358,8 +358,10 @@ class AudioEngine {
         }
       });
 
-  /// Makes [track] take [id]'s recording, letting go of the one it had.
+  /// Makes [track] take [id]'s recording, letting go of the one it had. Once [close]d, lets go
+  /// of [track] instead: one read as its window closed is held by nothing.
   Future<void> put(String id, AudioTrack track) async {
+    if (_closed) return track._dispose();
     stop();
     _unread.remove(id);
     final before = _tracks[id];
@@ -373,6 +375,14 @@ class AudioEngine {
     if (id == _focus) _focus = null;
     _unread.remove(id);
     await _tracks.remove(id)?._dispose();
+  }
+
+  bool _closed = false;
+
+  /// Lets go of every recording for good, and of each one [put] in after (its window closed).
+  Future<void> close() {
+    _closed = true;
+    return unload();
   }
 
   /// Lets go of every recording.

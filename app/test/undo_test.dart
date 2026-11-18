@@ -317,6 +317,11 @@ void main() {
       expect(c.focus, isNot(attacca.id));
       await c.debugLoadTrack(track('Bernstein.flac'));
       expect([for (final t in c.takes) (t.label, t.daw != null)], [('Take 1', true), ('Bernstein', false)]);
+      // A recording read as its window closed is held by nothing.
+      final closed = AudioEngine();
+      await closed.close();
+      await closed.put('late', track('Late.wav'));
+      expect(closed.trackOf('late'), isNull);
 
       // Its tracks kept as stems: each asked for from where the recording starts in the song for
       // as long as it lasts; the file the plug-in writes kept as FLAC, named by the track, in its
