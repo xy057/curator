@@ -1855,13 +1855,19 @@ class CuratedScene {
       double end = double.infinity,
       ui.Color? paper,
       ui.Color? ink}) {
+    return drawFrame(width, height, devicePixelRatio,
+        (canvas, size) => paint(canvas, size, time: time, curation: curation, devicePixelRatio: devicePixelRatio, end: end, paper: paper, ink: ink));
+  }
+
+  /// A [width] × [height] pixel image of what [draw] draws, given a canvas in layout points
+  /// ([devicePixelRatio] pixels each) clipped to the frame, and the frame's size in them.
+  static ui.Image drawFrame(int width, int height, double devicePixelRatio, void Function(ui.Canvas canvas, ui.Size size) draw) {
     final size = ui.Size(width / devicePixelRatio, height / devicePixelRatio);
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder)
       ..scale(devicePixelRatio)
       ..clipRect(ui.Offset.zero & size);
-    paint(canvas, size,
-        time: time, curation: curation, devicePixelRatio: devicePixelRatio, end: end, paper: paper, ink: ink);
+    draw(canvas, size);
     final picture = recorder.endRecording();
     try {
       return picture.toImageSync(width, height);

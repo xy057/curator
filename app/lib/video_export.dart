@@ -772,18 +772,12 @@ class VideoExport {
         final ui.Image image;
         try {
           await _scene.ready(start + format.timeOf(i), frameSize, holder: hold);
-          final recorder = ui.PictureRecorder();
-          final canvas = ui.Canvas(recorder)
-            ..scale(format.devicePixelRatio)
-            ..clipRect(ui.Offset.zero & frameSize);
-          _paintFrame(canvas, frameSize,
-              time: start + format.timeOf(i), devicePixelRatio: format.devicePixelRatio, paper: format.paperColor, ink: format.paper.ink);
-          final picture = recorder.endRecording();
-          try {
-            image = picture.toImageSync(format.width, format.height);
-          } finally {
-            picture.dispose();
-          }
+          image = CuratedScene.drawFrame(
+              format.width,
+              format.height,
+              format.devicePixelRatio,
+              (canvas, size) => _paintFrame(canvas, size,
+                  time: start + format.timeOf(i), devicePixelRatio: format.devicePixelRatio, paper: format.paperColor, ink: format.paper.ink));
         } finally {
           pdf?.release(hold);
         }
