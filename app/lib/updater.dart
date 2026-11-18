@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'file_names.dart';
@@ -11,7 +12,7 @@ import 'l10n/l10n.dart';
 const _majorMinor = '0.9';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
-const appBuild = 603;
+const appBuild = 604;
 
 /// The patch of the release this build is (or comes after): kept apart from the build, and
 /// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
@@ -312,6 +313,9 @@ class Updater extends ChangeNotifier {
 
   static const _timeout = Duration(seconds: 20);
 
+  /// The most a download may be when neither its answer nor its release says its size.
+  static const _maxDownload = 4 << 30;
+
   HttpClient _client() => HttpClient()
     ..connectionTimeout = _timeout
     ..userAgent = 'Curator/$appVersion';
@@ -376,14 +380,19 @@ class Updater extends ChangeNotifier {
       final response = await (await client.getUrl(url).timeout(_timeout)).close().timeout(_timeout);
       if (response.statusCode != HttpStatus.ok) throw HttpException('GitHub returned an error ({code})'.fill({'code': response.statusCode}));
       final total = response.contentLength > 0 ? response.contentLength : release.downloadSize;
+      // The most it may be: what the answer or the release says (the greater), or with neither
+      // [_maxDownload]. An answer that goes on past it isn't the file, and is let go.
+      final most = math.max(response.contentLength, release.downloadSize ?? 0);
+      final limit = most > 0 ? most : _maxDownload;
       final target = _freeName(downloadsFolder, release.fileName);
       part = File('$target.part');
       final sink = part.openWrite();
       var received = 0;
       try {
         await for (final chunk in response.timeout(_timeout)) {
-          sink.add(chunk);
           received += chunk.length;
+          if (received > limit) throw const FormatException('The download is longer than it says.');
+          sink.add(chunk);
           _set = UpdateDownloading(release, total == null ? null : (received / total).clamp(0.0, 1.0));
         }
       } finally {
