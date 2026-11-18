@@ -159,9 +159,6 @@ class _TakeRegions extends SpanLaneModel {
 
   @override
   String? label(int index) => null;
-
-  @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
 }
 
 /// The sign of a recording Attacca took from a DAW ([Take.daw]), beside its name: a link, and

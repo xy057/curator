@@ -261,8 +261,5 @@ class _ViewStretches extends SpanLaneModel {
   }
 
   @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
-
-  @override
   Color? color(int index) => _viewColor(_stretches[index].value.kind);
 }

@@ -47,8 +47,8 @@ abstract class SpanLaneModel {
   /// What stretch [index] shows in the lane; null: nothing.
   String? label(int index);
 
-  /// [label] as drawn (its markup's faces, say).
-  InlineSpan labelSpan(String label, TextStyle style);
+  /// [label] as drawn (its markup's faces, say): the text as it is.
+  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
 
   /// Whether a stretch goes over the others as an instrument's region goes over its lane's
   /// (key areas): Draw takes the whole stretch dragged across, [drawn] painting it over what it
