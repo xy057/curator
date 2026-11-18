@@ -404,7 +404,8 @@ class _PathBuilder {
           (x, y) = (startX, startY);
           cx2 = null;
           lastCommand = command;
-          continue; // takes no numbers; a number after it begins a line
+          command = rel ? 'l' : 'L'; // takes no numbers: one after it begins a line
+          continue;
         default:
           return;
       }

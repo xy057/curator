@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 import 'package:score_engine/src/display_list.dart' show ParagraphItem, ScoreDisplayList;
 import 'package:score_engine/src/engraving.dart' show Cmd;
+import 'package:score_engine/src/lilypond_svg.dart' show LilyPath;
 
 /// LilyPond's engraving of test/lilypond/fixture.ly with Curator's settings (how it was made is
 /// in that file): a flute with an upbeat, a B♭ clarinet, a piano (a note crossing to the lower
@@ -35,6 +36,12 @@ void main() {
       }
       final tops = [for (final s in data.staves) s.top];
       expect(tops, orderedEquals([...tops]..sort()));
+    }
+
+    // A path closed and gone on with numbers alone is read to its end (they are a line's).
+    {
+      final shapes = readLilyPondSvg('<svg><g data-c="0" data-g="x" data-l="1"><path d="M0 0 L1 0 L1 1 Z 2 2 z"/></g></svg>', unit: 1).single.shapes;
+      expect((shapes.single as LilyPath).ops, hasLength(6));
     }
 
     // Bars: the upbeat, then six, each where its barline is drawn.
