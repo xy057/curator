@@ -820,7 +820,7 @@ class _PdfImportState extends State<PdfImport> {
 
   void _down(Offset local) {
     _focus.requestFocus();
-    if (_ai != null) return;
+    if (_busy) return;
     final p = _toPage(local);
     if ((_step == _Step.edit && _tool != _Tool.select) || (_step == _Step.pages && _tool == _Tool.drawRegion)) {
       _drawFrom = p;
@@ -945,7 +945,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A double click in a system: a barline there (not on the selected region's handles or sides).
   void _doubleClick(Offset local) {
-    if (_ai != null) return;
+    if (_busy) return;
     final p = _toPage(local);
     if (_dragAt(p) case _RegionDrag(:final handle) when handle != _Handle.move) return;
     _addBarlineAt(p);
@@ -1291,7 +1291,7 @@ class _PdfImportState extends State<PdfImport> {
 
   /// A right click on a bar: it selected, and what can be inserted there.
   Future<void> _contextMenu(Offset local, Offset global) async {
-    if (_step != _Step.changes || _ai != null) return;
+    if (_step != _Step.changes || _busy) return;
     final hit = _selectionAt(_toPage(local));
     if (hit is! _BarSelection) return;
     setState(() => _selection = hit);
@@ -1366,8 +1366,9 @@ class _PdfImportState extends State<PdfImport> {
   KeyEventResult _key(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
     if (_layout == null) return KeyEventResult.ignored;
-    // Reading with AI: only the pages are turned.
-    if (_ai != null &&
+    // Measuring or reading with AI: only the pages are turned (an Undo or a Delete now would
+    // change the layout under what is being measured).
+    if (_busy &&
         ![LogicalKeyboardKey.pageDown, LogicalKeyboardKey.pageUp, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight]
             .contains(event.logicalKey)) {
       return KeyEventResult.ignored;
@@ -1413,7 +1414,7 @@ class _PdfImportState extends State<PdfImport> {
   /// Measures every system's bars (what plays where), then leaves with the layout.
   Future<void> _done() async {
     if (_layout == null || _busy) return;
-    final systems = [...layout.systems];
+    final from = layout, systems = [...from.systems];
     setState(() {
       _measured = 0;
       _error = null; // an earlier try's
@@ -1422,7 +1423,7 @@ class _PdfImportState extends State<PdfImport> {
       for (var i = 0; i < systems.length; i++) {
         final s = systems[i];
         if (s.ink == null) {
-          final masks = layout.masksOf(s);
+          final masks = from.masksOf(s);
           systems[i] = s.copyWith(ink: () => null);
           final ink = await pages.measure(s, masks.all, staffMasks: masks.staves);
           systems[i] = s.copyWith(ink: () => ink);
@@ -1438,7 +1439,7 @@ class _PdfImportState extends State<PdfImport> {
     }
     if (!mounted) return;
     // Edit… left as it came: nothing to put in its place (the project's Undo stays as it is).
-    final done = layout.copyWith(systems: systems);
+    final done = from.copyWith(systems: systems);
     Navigator.of(context).pop(done == widget.layout ? null : done);
   }
 
@@ -1494,7 +1495,7 @@ class _PdfImportState extends State<PdfImport> {
                         ]),
                       ),
                       VerticalDivider(width: 1, color: colors.line),
-                      AbsorbPointer(absorbing: _ai != null, child: _panel(context)),
+                      AbsorbPointer(absorbing: _busy, child: _panel(context)),
                     ]),
             ),
             Divider(height: 1, color: colors.line),
@@ -1825,7 +1826,7 @@ class _PdfImportState extends State<PdfImport> {
                       onHover: (e) {
                         final before = _cursorAt(_hover);
                         _hover = e.localPosition;
-                        final hovered = _step == _Step.pages && _tool == _Tool.select && _ai == null ? _regionAt(_toPage(_hover)) : null;
+                        final hovered = _step == _Step.pages && _tool == _Tool.select && !_busy ? _regionAt(_toPage(_hover)) : null;
                         if (_cursorAt(_hover) != before || hovered != _hovered) setState(() => _hovered = hovered);
                       },
                       onExit: (_) {
@@ -1864,8 +1865,8 @@ class _PdfImportState extends State<PdfImport> {
                       ),
                     ),
                   ),
-                  // Reading with AI, nothing is edited.
-                  Positioned.fill(child: IgnorePointer(ignoring: _ai != null, child: Stack(children: [...chips, ...tags]))),
+                  // Measuring or reading with AI, nothing is edited.
+                  Positioned.fill(child: IgnorePointer(ignoring: _busy, child: Stack(children: [...chips, ...tags]))),
                 ]),
               ),
             ),
