@@ -114,6 +114,13 @@ class DawEditing {
   /// The region followed in the document as it is.
   DawRegion? _regionIn(DawDocument d) => d.region(_follow!.region) ?? d.regionsOf(_follow!.source).firstOrNull;
 
+  /// The region followed, in its document as it is now; null when nothing is followed or the
+  /// document isn't open.
+  DawRegion? get region => switch (document) {
+        (_, final d)? => _regionIn(d),
+        _ => null,
+      };
+
   /// Where the score's first full bar starts: an upbeat's length, else 0.
   double get _pickup {
     final score = _editor._score;

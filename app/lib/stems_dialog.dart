@@ -20,7 +20,7 @@ Future<void> showStemCaptureDialog(BuildContext context, EditorController c) asy
   final link = DawLink.shared;
   final found = c.daw.document;
   if (found == null) return;
-  final document = found.$2, followed = document.region(c.daw.following?.region) ?? document.regionsOf(c.daw.following!.source).firstOrNull;
+  final document = found.$2, followed = c.daw.region;
   final tracks = [
     for (final t in [...document.tracks]..sort((a, b) => a.order.compareTo(b.order)))
       if (document.regions.any((r) => r.track == t.id)) t,

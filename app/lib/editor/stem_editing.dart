@@ -40,14 +40,13 @@ class StemEditing {
   /// went wrong with each track that couldn't be captured, by its name: the plug-in's word
   /// ([DawLinkException.reason]), or a conversion's error.
   Future<Map<String, Object>> capture(DawLink link, List<DawTrack> tracks, {void Function(double done)? progress}) async {
-    final follow = _editor.daw.following, found = _editor.daw.document;
-    final region = found == null || follow == null ? null : _editor.daw._regionIn(found.$2);
+    final found = _editor.daw.document, region = _editor.daw.region;
     if (found == null || region == null) return {for (final t in tracks) t.name: const DawLinkException('gone')};
     final (session, document) = found;
     // The recording followed: where it starts in the song, and as long as it is here (else there).
     // (In time with the project's Attacca take, which has the recording followed; else the focus.)
     final take = _editor._doc.attaccaTake?.id ?? _editor._doc.focus;
-    final length = (take == null ? null : _editor.audio.trackOf(take)?.length) ?? document.source(follow!.source)?.seconds ?? region.span;
+    final length = (take == null ? null : _editor.audio.trackOf(take)?.length) ?? document.source(_editor.daw.following!.source)?.seconds ?? region.span;
     final from = region.songAt(0);
     final failed = <String, Object>{};
     for (final (i, track) in tracks.indexed) {
