@@ -126,6 +126,9 @@ void main() {
       String x(double points) => (points / view.width * 1000).toStringAsFixed(1);
       String y(double points) => (points / 120 * 1000).toStringAsFixed(1);
       // Its places off, as a model's are (all 6 points low, barlines to the left); in a code fence.
+      // The object is found among words with braces of their own, before it and after.
+      expect(PdfAiPage.parse('I use {x} for a place. {"systems": [{"staves": [], "note": "a } in text"}]} As {asked}.').systems, hasLength(1));
+      expect(() => PdfAiPage.parse('No {object} here.'), throwsFormatException);
       final answer = PdfAiPage.parse('''Here it is:
 ```json
 {"systems": [{"staves": [
