@@ -242,7 +242,10 @@ void main() {
       // doesn't say its build isn't).
       expect((discovery['build'], session.outdated), (appBuild, false));
       final older = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
-      older.write('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
+      // (Its name not UTF-8, a byte astray: read as it can be, the connection kept.)
+      final hello = utf8.encode('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
+      final astray = utf8.decode(hello).indexOf('Cubase') + 6;
+      older.add([...hello.take(astray), 0xff, ...hello.skip(astray)]);
       await until(() => link.sessions.length == 2);
       expect([for (final s in link.sessions) s.outdated], [false, true]);
       older.destroy();
@@ -391,6 +394,14 @@ void main() {
       expect([await told(toMixer), await told(toMixer)], [listed, {'t': 'linked', 'ids': ''}]);
       expect(await told(heard), listed);
       expect(link.linkedCapturerOf(session), isNull, reason: 'not until chosen in Attacca’s window');
+      // An Attacca that connects after them and says nothing more (on an insert only: no document,
+      // no link kept) is told of them too, as it connects.
+      final insert = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      final toInsert = StreamIterator(insert.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter()));
+      insert.write('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'pid': 4242})}\n');
+      expect(await told(toInsert), listed);
+      insert.destroy();
+      await until(() => link.sessions.length == 2);
       say({'t': 'link', 'capturer': 'cap'});
       expect(await told(toMixer), {'t': 'linked', 'ids': 'cap'});
       expect(link.linkedCapturerOf(session)?.id, 'cap');
@@ -432,6 +443,11 @@ void main() {
       await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
       await link.stop();
       expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
+      // Asked to listen and, before it does, to stop (the switch flicked on and off): it ends off.
+      unawaited(link.start());
+      await link.stop();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect((link.listening, File('${folder.path}/daw-link.json').existsSync()), (false, false), reason: 'the last asked holds');
 
       // The plug-ins installed from the zip the app bundles: each bundle in its folder, replacing
       // what was there (and one by its former name, Curator Link), its program executable; nothing
@@ -457,6 +473,21 @@ void main() {
       expect(AttaccaPlugIns.installed(folder: plugIns), isNull);
       expect(Directory('$plugIns/Components/Attacca.component').existsSync() || Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync(), isFalse,
           reason: 'uninstalled, all go');
+
+      // Attacca's cache cleared (Settings ▸ General ▸ DAW): the files the plug-in wrote go, one
+      // half written too, and the folders left empty; one a recording open still plays stays.
+      final cache = Directory('${folder.path}/DAW Link');
+      for (final file in ['a1/Take 1.wav', 'Captures/b2/Mix.wav', 'Stems/c3/Strings.wav.part']) {
+        File('${cache.path}/$file')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(Uint8List(1000));
+      }
+      expect(await AttaccaCache.size(folder: cache), 3000);
+      await AttaccaCache.clear(folder: cache, keep: ['${cache.path}/Captures/b2/Mix.wav']);
+      expect([for (final e in cache.listSync(recursive: true)) e.path.substring(cache.path.length + 1)]..sort(), ['Captures', 'Captures/b2', 'Captures/b2/Mix.wav']);
+      await AttaccaCache.clear(folder: cache);
+      expect(cache.listSync(), isEmpty);
+      expect(await AttaccaCache.size(folder: Directory('${folder.path}/none')), 0, reason: 'no cache yet: nothing');
       await folder.delete(recursive: true);
     }
   });

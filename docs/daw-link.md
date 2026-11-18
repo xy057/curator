@@ -102,8 +102,9 @@ What stays behind, and how to remove it:
 - **Curator's projects keep what they took.** That includes a tempo map, a recording and
   stems. They are part of each project and don't need the plug-in.
 - **Files written for Curator stay in its cache.** Recordings and stems the plug-in wrote are
-  in `~/Library/Caches/Curator/DAW Link`. Curator has copied what it uses into its projects,
-  so the folder can be deleted.
+  in `~/Library/Caches/Curator/DAW Link`. A project saved holds its own copy of what it uses.
+  **Settings ▸ General ▸ DAW ▸ Attacca cache** shows how much is there, and **Clear** removes it
+  (all but the files a project open now still plays, which go the next time).
 - **Curator still listens for the plug-in.** Turn off **Listen for Attacca** to stop it.
   Curator then also removes `daw-link.json`, the file in
   `~/Library/Application Support/Curator` that tells the plug-in where to connect.
@@ -213,7 +214,9 @@ project, because everything it knows the DAW sends again.
   picks. It writes the port, a random token and its own build to `daw-link.json` in its data
   folder (`~/Library/Application Support/Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
-  therefore connects as soon as Curator is up.
+  therefore connects as soon as Curator is up. The file also names Curator's process (`pid`): one
+  left behind by a Curator that is gone (it crashed) is not followed, since its port may be
+  another program's by then.
 - **One line per message.** Each message is a JSON object on its own line, in both directions.
   The plug-in's first message is `hello`, carrying the token. Curator closes any connection
   whose first message doesn't carry it, so nothing else that reaches the port is heard.
@@ -250,6 +253,8 @@ region plays in it as it plays in the song, unstretched; one of another layout i
 every channel. The files are written one at a time, after the recordings they need are read.
 
 The plug-in sends a document after every edit the DAW makes, but only when something differs.
+A recording's samples let be read (`access`) outside an edit are told when the DAW next asks the
+plug-in for its updates.
 It also sends every document again whenever it connects. Times are in seconds and positions in
 quarter notes, both measured from the start of the song. Between two tempo entries the tempo is
 constant; before the first entry and after the last, it is the tempo of the nearest stretch (as

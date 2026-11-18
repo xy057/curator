@@ -627,7 +627,7 @@ msgstr "コードシンボル"
 msgid "Chords"
 msgstr "コード"
 
-#: lib/home_screen.dart lib/phrase_search_window.dart
+#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr "消去"
 
@@ -3531,6 +3531,9 @@ msgstr "Attacca を待ち受ける"
 
 msgid "Attacca plug-in"
 msgstr "Attacca プラグイン"
+
+msgid "Attacca cache"
+msgstr "Attacca キャッシュ"
 
 msgid "Load ARA Clip"
 msgstr "ARA クリップを読み込む"

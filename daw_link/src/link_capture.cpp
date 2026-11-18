@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -107,18 +108,19 @@ struct Capture {
         }
     }
 
-    // Marks frames [at, at + n) heard.
+    // Marks frames [at, at + n) heard: a word of 64 at a time (what is outside a recording's
+    // region is marked before it starts, an hour of it some 170 million frames).
     void hear (int64_t at, int64_t n)
     {
-        for (int64_t i = at; i < at + n; ++i)
+        for (int64_t i = at, end = at + n; i < end;)
         {
+            const int bit = static_cast<int> (i & 63);
+            const int64_t count = std::min<int64_t> (64 - bit, end - i);
+            const uint64_t mask = (count == 64 ? ~uint64_t { 0 } : (uint64_t { 1 } << count) - 1) << bit;
             uint64_t& word = heard[static_cast<size_t> (i >> 6)];
-            const uint64_t bit = uint64_t { 1 } << (i & 63);
-            if (!(word & bit))
-            {
-                word |= bit;
-                ++heardCount;
-            }
+            heardCount += std::popcount (mask & ~word);
+            word |= mask;
+            i += count;
         }
     }
 };
@@ -202,15 +204,18 @@ void Capturer::publishAll ()
 
 void Capturer::process (const float* const* in, int channels, int64_t frames, bool playing, int64_t songSample) noexcept
 {
-    processing_.fetch_add (1, std::memory_order_acquire);
-    if (Capture* capture = live_.load (std::memory_order_acquire); capture && frames > 0)
+    // (Both sequentially consistent, as the writer's two are: it lets the capture go once it has
+    // taken it away and sees no block under way, and with anything weaker each side could miss
+    // the other's word, this one then reading a capture already freed.)
+    processing_.fetch_add (1);
+    if (Capture* capture = live_.load (); capture && frames > 0)
     {
         if (!capture->listening.load (std::memory_order_acquire))
             capture->wait (in, channels, frames, playing);
         else if (playing)
             capture->push (in, channels, frames, songSample);
     }
-    processing_.fetch_sub (1, std::memory_order_release);
+    processing_.fetch_sub (1);
 }
 
 void Capturer::onMessage (const Message& message)
@@ -303,7 +308,7 @@ void Capturer::start (const std::string& document, double from, double length, c
 
     Capture* c = capture.get ();
     capturing.fetch_add (1);
-    live_.store (c, std::memory_order_release);
+    live_.store (c);
     c->writer = std::thread ([this, c, reply, partial, me] {
         bool ok = true;
         const auto begun = std::chrono::steady_clock::now ();
@@ -354,8 +359,8 @@ void Capturer::start (const std::string& document, double from, double length, c
             }
         }
         // The audio thread lets go of it before it goes.
-        live_.store (nullptr, std::memory_order_release);
-        while (processing_.load (std::memory_order_acquire) != 0)
+        live_.store (nullptr);
+        while (processing_.load () != 0)
             std::this_thread::sleep_for (std::chrono::milliseconds (1));
         ok = ::close (c->fd) == 0 && ok;
         c->fd = -1;

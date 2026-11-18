@@ -29,14 +29,15 @@ public:
 
     // How many frames are read and may be played or written: below it, [channel] holds them.
     int64_t framesRead () const noexcept { return read_.load (std::memory_order_acquire); }
-    const float* channel (int c) const noexcept { return samples_[static_cast<size_t> (c)].data (); }
+    const float* channel (int c) const noexcept { return samples_[static_cast<size_t> (c)].get (); }
     int channels () const noexcept { return static_cast<int> (samples_.size ()); }
     int64_t frames () const noexcept { return frames_; }
     // Why the samples can't be had (too long to hold), or empty.
     const std::string& problem () const noexcept { return problem_; }
 
 private:
-    std::vector<std::vector<float>> samples_;
+    // Each channel's [frames_] samples; only those below [read_] are set (and looked at).
+    std::vector<std::unique_ptr<float[]>> samples_;
     int64_t frames_ { 0 };
     std::atomic<int64_t> read_ { 0 };
     std::atomic<bool> cancel_ { false };
@@ -51,12 +52,9 @@ class LinkPlaybackRenderer : public ARA::PlugIn::PlaybackRenderer {
 public:
     using ARA::PlugIn::PlaybackRenderer::PlaybackRenderer;
 
-    void enable (double sampleRate, int channels) noexcept;
-    void render (float* const* out, int64_t songSample, int64_t frames, bool playing) noexcept;
-
-private:
-    double sampleRate_ { 44100 };
-    int channels_ { 2 };
+    // On the audio thread: [frames] frames into the [channels] buffers of [out], as the host
+    // gives them for this block at [sampleRate], the first at song sample [songSample].
+    void render (float* const* out, int channels, double sampleRate, int64_t songSample, int64_t frames, bool playing) noexcept;
 };
 
 // One DAW document as Curator sees it. After every edit the host makes it is read whole (the
@@ -114,9 +112,10 @@ private:
     LinkClient& client_;
     int listener_ { 0 };
 
-    // The last state published: a new one is sent only when it differs.
+    // The last state published: a new one is sent only when it differs. [dirty_]: something
+    // changed outside an edit, to be published when the DAW next asks for model updates.
     std::string published_;
-    bool dirty_ { true };
+    bool dirty_ { false };
 
     // Files Curator asked for, and the one being written (one at a time): the recordings it
     // reads ([using_], set before it starts), and whether it is still at it.

@@ -37,6 +37,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -210,7 +211,26 @@ struct Curator {
     // The connection the last message came on.
     size_t from { 0 };
 
-    void listen (const std::string& home)
+    // Where the discovery file is, and the port it names.
+    std::string discovery;
+    int port { 0 };
+
+    // The discovery file written as the Curator whose process is [process] would.
+    void announce (long process)
+    {
+        std::ofstream (discovery + ".part") << "{\"port\":" << port << ",\"token\":\"t0k3n\",\"pid\":" << process << "}";
+        std::rename ((discovery + ".part").c_str (), discovery.c_str ());
+    }
+
+    // Whether something asks to connect within [seconds].
+    bool knocked (double seconds)
+    {
+        pollfd p { listener, POLLIN, 0 };
+        return ::poll (&p, 1, static_cast<int> (seconds * 1000)) > 0;
+    }
+
+    // Listens, the discovery file saying so as the process [process] (this one, unless given).
+    void listen (const std::string& home, long process = ::getpid ())
     {
         listener = ::socket (AF_INET, SOCK_STREAM, 0);
         sockaddr_in address {};
@@ -223,7 +243,9 @@ struct Curator {
         const std::string folder = home + "/Library/Application Support/Curator";
         for (const std::string part : { home + "/Library", home + "/Library/Application Support", folder })
             ::mkdir (part.c_str (), 0755);
-        std::ofstream (folder + "/daw-link.json") << "{\"port\":" << ntohs (address.sin_port) << ",\"token\":\"t0k3n\",\"pid\":" << ::getpid () << "}";
+        discovery = folder + "/daw-link.json";
+        port = ntohs (address.sin_port);
+        announce (process);
     }
 
     // The next message whose "t" is [type] (others are passed over), on any connection, within
@@ -783,6 +805,17 @@ int main (int argc, const char* argv[])
         std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\" \"<path>/Attacca Capturer.vst3\"\n");
         return 2;
     }
+    // A file's name from a recording's or a track's: marks no file may have left out, and cut to
+    // 60 bytes between characters, never inside one.
+    {
+        std::string strings;
+        for (int i = 0; i < 25; ++i)
+            strings += "\xe5\xbc\xa6";  // 弦, three bytes
+        const std::string named = attacca::safeName (strings);
+        check (named.size () == 60 && named == strings.substr (0, 60), "a long name cut between characters");
+        check (attacca::safeName ("../Take\xe5 1: \xe5\xbc\xa6/a") == "Take 1 \xe5\xbc\xa6" "a", "a name's marks and stray bytes left out");
+    }
+
     char homeTemplate[] = "/tmp/attacca-host.XXXXXX";
     const char* home = ::mkdtemp (homeTemplate);
     if (!home)
@@ -790,8 +823,15 @@ int main (int argc, const char* argv[])
     ::setenv ("HOME", home, 1);
     std::printf ("Attacca host test (home %s)\n", home);
 
+    // The discovery file first as one a Curator left behind: its process gone (a child of this
+    // one, ended and waited for).
+    const pid_t gone = ::fork ();
+    if (gone == 0)
+        ::_exit (0);
+    int ended = 0;
+    ::waitpid (gone, &ended, 0);
     Curator curator;
-    curator.listen (home);
+    curator.listen (home, gone);
 
     VST3Binary binary = VST3LoadBinary (argv[1]);
     if (!binary)
@@ -807,6 +847,8 @@ int main (int argc, const char* argv[])
     // Attacca on an insert first, never bound to ARA (as a DAW has it before the extension).
     VST3Effect insert = VST3CreateEffect (binary, nullptr);
     VST3StartRendering (insert, 2, 512, sourceRate);
+    check (!curator.knocked (1.3), "a discovery file left by a Curator that is gone isn't followed");
+    curator.announce (::getpid ());
 
     const ARADocumentControllerHostInstance hostInstance = {
         ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
@@ -852,6 +894,11 @@ int main (int argc, const char* argv[])
     check (contains (line, "\"name\":\"Strings\"") && contains (line, "\"color\":\"#ff8000\""), "the track, by name and colour");
     check (contains (line, "{\"id\":\"take-1\",\"name\":\"Take 1\",\"rate\":44100,\"frames\":220500,\"channels\":1"), "the recording");
     check (contains (line, "\"source\":\"take-1\",\"start\":1,\"length\":3,\"from\":0.5,\"span\":3"), "the region placing it in the song");
+
+    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates.
+    check (contains (line, "\"access\":false"), "not readable yet as the edit ends");
+    curator.next ("document", 5, [&] { dc->notifyModelUpdates (controller); });
+    check (contains (curator.lines.back (), "\"access\":true"), "readable once the DAW lets it be read");
 
     std::printf ("Curator's transport drives the DAW's\n");
     check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");

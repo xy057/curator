@@ -71,30 +71,56 @@ class DawLink extends ChangeNotifier {
     }
   }
 
+  /// Whether a DAW is writing a file for Curator now (a recording, a track, a capture): its
+  /// cache isn't cleared meanwhile ([AttaccaCache]).
+  bool get busy => _sessions.any((s) => s._recordings.isNotEmpty);
+
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
   (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
 
-  /// Starts listening and writes the discovery file. Does nothing when listening already.
-  Future<void> start() async {
+  /// [start] and [stop], one after the other in the order asked: one asked while another is under
+  /// way waits for it, so the last asked holds (the switch flicked on and off ends off, and two
+  /// asked to start at once open one port).
+  Future<void> _turn = Future.value();
+
+  Future<void> _inTurn(Future<void> Function() job) {
+    final done = _turn.then((_) => job());
+    _turn = done.then<void>((_) {}, onError: (Object _) {});
+    return done;
+  }
+
+  /// Starts listening and writes the discovery file. Does nothing when listening already. Throws
+  /// when it can't (no port, or the file can't be written): it isn't listening then.
+  Future<void> start() => _inTurn(_start);
+
+  /// Stops listening, lets every DAW go and removes the discovery file (when it is still ours).
+  Future<void> stop() => _inTurn(_stop);
+
+  Future<void> _start() async {
     if (_server != null) return;
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    _server = server;
     final random = math.Random.secure();
     _token = [for (var i = 0; i < 16; i++) random.nextInt(256).toRadixString(16).padLeft(2, '0')].join();
     server.listen(_accept, onError: (_) {});
     final folder = _folder ?? AppFolders.data;
-    await folder.create(recursive: true);
     final file = File('${folder.path}${Platform.pathSeparator}daw-link.json');
-    final partial = File('${file.path}.part');
-    // Written whole, then put in place: a plug-in never reads half of it.
-    await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
-    await partial.rename(file.path);
+    try {
+      await folder.create(recursive: true);
+      final partial = File('${file.path}.part');
+      // Written whole, then put in place: a plug-in never reads half of it.
+      await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
+      await partial.rename(file.path);
+    } catch (_) {
+      // No plug-in can find a port no file names: not left open.
+      await server.close();
+      rethrow;
+    }
+    _server = server;
     _discovery = file;
     notifyListeners();
   }
 
-  /// Stops listening, lets every DAW go and removes the discovery file (when it is still ours).
-  Future<void> stop() async {
+  Future<void> _stop() async {
     final server = _server;
     if (server == null) return;
     _server = null;
@@ -113,7 +139,9 @@ class DawLink extends ChangeNotifier {
 
   void _accept(Socket socket) {
     final session = DawSession._(this, socket);
-    final lines = const LineSplitter().bind(utf8.decoder.bind(_limited(socket)));
+    // (A name a DAW gives that isn't UTF-8 is read as it can be: refused, the connection would
+    // end, and the plug-in connect and say the same again each second.)
+    final lines = const LineSplitter().bind(const Utf8Decoder(allowMalformed: true).bind(_limited(socket)));
     lines.listen(
       (line) {
         try {
@@ -367,6 +395,7 @@ class DawSession extends ChangeNotifier {
       _link._sessions.add(this);
       _link.notifyListeners();
       _link._tellFollowers();
+      _link._tellLinked(); // the Capturers already in its DAW, for its window's Capturer menu
       return;
     }
     switch (type) {
@@ -471,6 +500,63 @@ class DawSession extends ChangeNotifier {
       _link.notifyListeners();
     }
     notifyListeners();
+  }
+}
+
+/// What Attacca wrote for Curator (`DAW Link` in [AppFolders.cache]): recordings, tracks and
+/// captures as WAV files, each left there once Curator has loaded it. A project open plays its
+/// recording from there until it closes (saved, it holds a copy of its own), so nothing ever
+/// removed them: Settings ▸ General ▸ DAW shows how much there is, and clears it.
+abstract final class AttaccaCache {
+  static Directory get folder => Directory('${AppFolders.cache.path}${Platform.pathSeparator}DAW Link');
+
+  /// The bytes its files take up; 0 when there is none.
+  static Future<int> size({Directory? folder}) async {
+    folder ??= AttaccaCache.folder;
+    var bytes = 0;
+    try {
+      await for (final e in folder.list(recursive: true, followLinks: false)) {
+        if (e is File) bytes += await e.length();
+      }
+    } on FileSystemException {
+      // (No such folder, or a file gone meanwhile: what was counted.)
+    }
+    return bytes;
+  }
+
+  /// Removes its files, all but those in [keep] (what the recordings open now play:
+  /// `AudioTrack.filesInUse`), and the folders left empty. One that can't be removed stays.
+  static Future<void> clear({Directory? folder, Iterable<String> keep = const []}) async {
+    folder ??= AttaccaCache.folder;
+    if (!folder.existsSync()) return;
+    // (By where each really is: the cache named through a link is the same place.)
+    String real(String path) {
+      try {
+        return File(path).resolveSymbolicLinksSync();
+      } on FileSystemException {
+        return File(path).absolute.path;
+      }
+    }
+
+    final kept = {for (final path in keep) real(path)};
+    final entries = await folder.list(recursive: true, followLinks: false).toList();
+    for (final e in entries) {
+      if (e is Directory || kept.contains(real(e.path))) continue;
+      try {
+        await e.delete();
+      } on FileSystemException {
+        // In use by something else: left.
+      }
+    }
+    // The deepest first; one that still holds a file doesn't go.
+    final folders = [for (final e in entries) if (e is Directory) e]..sort((a, b) => b.path.length.compareTo(a.path.length));
+    for (final d in folders) {
+      try {
+        await d.delete();
+      } on FileSystemException {
+        // Not empty.
+      }
+    }
   }
 }
 

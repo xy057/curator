@@ -12,6 +12,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #include <algorithm>
 #include <utility>
@@ -31,14 +32,31 @@ namespace {
 // Curator has put a newer one there, which the DAW loads only when it opens again.
 int installedBuild ()
 {
-    Dl_info info {};
-    if (!::dladdr (reinterpret_cast<const void*> (&installedBuild), &info) || !info.dli_fname)
-        return 0;
-    // .../Attacca.vst3/Contents/MacOS/Attacca → .../Attacca.vst3/Contents/Info.plist
-    NSString* contents = [[NSString stringWithUTF8String:info.dli_fname].stringByDeletingLastPathComponent stringByDeletingLastPathComponent];
-    NSDictionary* plist = [NSDictionary dictionaryWithContentsOfFile:[contents stringByAppendingPathComponent:@"Info.plist"]];
-    id build = plist[@"CFBundleVersion"];
-    return [build isKindOfClass:NSString.class] ? [(NSString*) build intValue] : 0;
+    // (On the main thread only. Read again when the file changes, not each second a window is open.)
+    static NSString* path = nil;
+    static dispatch_once_t once;
+    dispatch_once (&once, ^{
+        Dl_info info {};
+        if (::dladdr (reinterpret_cast<const void*> (&installedBuild), &info) && info.dli_fname)
+        {
+            // .../Attacca.vst3/Contents/MacOS/Attacca → .../Attacca.vst3/Contents/Info.plist
+            NSString* contents = [[NSString stringWithUTF8String:info.dli_fname].stringByDeletingLastPathComponent stringByDeletingLastPathComponent];
+            path = [contents stringByAppendingPathComponent:@"Info.plist"];
+        }
+    });
+    static struct timespec read {};
+    static int build = 0;
+    struct stat now {};
+    if (!path || ::stat (path.fileSystemRepresentation, &now) != 0)
+    {
+        read = {};
+        return build = 0;
+    }
+    if (now.st_mtimespec.tv_sec == read.tv_sec && now.st_mtimespec.tv_nsec == read.tv_nsec)
+        return build;
+    read = now.st_mtimespec;
+    id found = [NSDictionary dictionaryWithContentsOfFile:path][@"CFBundleVersion"];
+    return build = [found isKindOfClass:NSString.class] ? [(NSString*) found intValue] : 0;
 }
 
 }  // namespace

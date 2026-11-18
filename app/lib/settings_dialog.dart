@@ -15,6 +15,7 @@ import 'app_logo.dart';
 import 'app_settings.dart';
 import 'color_dialog.dart';
 import 'audio_panel.dart' show pickAudio;
+import 'audio_track.dart' show AudioTrack;
 import 'condensing_editor.dart';
 import 'daw_link.dart';
 import 'dialog_kit.dart';
@@ -380,6 +381,14 @@ final _categories = <_Category>[
           : Builder(builder: (context) => Text('OS not supported'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
       group: 'DAW',
       keywords: 'install update daw ara plugin plug-in vst3 audio unit component cubase logic studio one reaper',
+    ),
+    _Item(
+      'Attacca cache',
+      null,
+      (c) => const _AttaccaCache(),
+      shown: (_) => AttaccaPlugIns.supported,
+      group: 'DAW',
+      keywords: 'cache clear delete remove disk space storage free recordings stems captures daw files',
     ),
   ]),
   _Category('Appearance', AppIcon.appearance, [
@@ -2024,6 +2033,59 @@ class _Dropdown<T> extends StatelessWidget {
 
 /// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
 /// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
+/// What Attacca wrote for Curator ([AttaccaCache]): how much, and Clear, which leaves what a
+/// project open still plays (off while a DAW is writing one).
+class _AttaccaCache extends StatefulWidget {
+  const _AttaccaCache();
+
+  @override
+  State<_AttaccaCache> createState() => _AttaccaCacheState();
+}
+
+class _AttaccaCacheState extends State<_AttaccaCache> {
+  int? _bytes;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _measure();
+  }
+
+  Future<void> _measure() async {
+    final bytes = await AttaccaCache.size();
+    if (mounted) setState(() => _bytes = bytes);
+  }
+
+  Future<void> _clear() async {
+    setState(() => _busy = true);
+    await AttaccaCache.clear(keep: AudioTrack.filesInUse);
+    await _measure();
+    if (mounted) setState(() => _busy = false);
+  }
+
+  static String _size(int n) => n < 1 << 20
+      ? '${(n / (1 << 10)).ceil()} KB'
+      : n < 1 << 30
+          ? '${(n / (1 << 20)).toStringAsFixed(1)} MB'
+          : '${(n / (1 << 30)).toStringAsFixed(2)} GB';
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: DawLink.shared,
+        builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+          if (_bytes case final bytes?) Text(_size(bytes), style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            onPressed: _busy || (_bytes ?? 0) == 0 || DawLink.shared.busy ? null : _clear,
+            child: Text('Clear'.tr),
+          ),
+        ]),
+      );
+}
+
 /// Attacca's VST3 and Audio Unit installed for DAWs ([AttaccaPlugIns]): the DAWs
 /// connected now, then Install (Update when another version is there, Reinstall when this one).
 class _AttaccaPlugIns extends StatefulWidget {

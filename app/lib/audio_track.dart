@@ -130,7 +130,16 @@ Future<void> _letGo(AudioSource source) async {
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
   AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate, this._scratch,
-      {required this.decodedBytes});
+      {required this.decodedBytes}) {
+    _open.add(this);
+  }
+
+  /// The recordings loaded now, in every project open.
+  static final _open = <AudioTrack>{};
+
+  /// The files the recordings loaded now are played and saved from, in every project open: what
+  /// clearing a cache must leave (`AttaccaCache.clear`).
+  static Set<String> get filesInUse => {for (final t in _open) ...[t.path, t._samples]};
 
   /// A silent track (no playback) for tests and previews.
   @visibleForTesting
@@ -150,6 +159,7 @@ class AudioTrack {
 
   /// Lets go of its sound and its converted files.
   Future<void> _dispose() async {
+    _open.remove(this);
     if (source case final source?) await _letGo(source);
     ScratchSpace.release(_scratch);
   }
