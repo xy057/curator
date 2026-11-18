@@ -787,7 +787,9 @@ The bar ruler is red while notation runs off the video's frame (`EditorControlle
 slur) whose bounds, where the keyframe puts its staff, pass the frame's top or bottom edge, for as long
 as it is in view between the names and the right edge, `ScrollMap.timesBetween`; a staff whose lines
 are off it, the whole segment. The margins and the caption bar are on screen, so ink there is not off
-it), and a warning by its name lists those bars.
+it), and a warning by its name lists those bars. Only in the Instruments tab, and of what the preview
+shows (`overflowingShown`): the MIDI view's rows while the toolbar has them, nothing while the player map
+shows.
 Export says so too, for the bars it writes (`overflowBars(within:)`: a warning under the Picture
 rows, Carbon's inline error notification there), and Export… waits until Export anyway is ticked;
 ticked for those bars only, so bars that change (another ratio, score size or range) ask again.

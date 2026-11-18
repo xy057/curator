@@ -1085,6 +1085,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   void _settingsChanged() {
     controller.takeSettings(settings);
     controller.showsMidiView = settings.midiView;
+    controller.showsPlayerMap = settings.playerMap;
     _shown.value = _shownSettings;
   }
 
@@ -1103,6 +1104,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _menuState.addListener(_menusChanged);
     controller.takeSettings(settings);
     controller.showsMidiView = settings.midiView;
+    controller.showsPlayerMap = settings.playerMap;
     unawaited(_load());
     // Home had the keyboard: it comes here, as it does when the tab is shown again.
     WidgetsBinding.instance.addPostFrameCallback((_) {

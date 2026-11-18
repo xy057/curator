@@ -827,7 +827,6 @@ class EditorController extends ChangeNotifier {
     _source = null;
     _doc = const EditState();
     _previewSections = null;
-    _overflowing = null;
     _tab = BottomTab.instruments;
   }
 
@@ -1973,14 +1972,35 @@ class EditorController extends ChangeNotifier {
   /// ([CuratedScene.overflowing]). Working it out plans the whole piece (tens of milliseconds
   /// in a long score), so while a gesture lasts (a region dragged, the score size slid) it is
   /// the answer from before: it catches up as the gesture ends.
-  List<({double start, double end})> get overflowing {
-    final scene = this.scene, curation = _curation;
-    if (scene == null || curation == null) return const [];
-    if (_overflowing case final held? when _gestures > 0 || _staffSpaceChanged) return held;
-    return _overflowing = scene.overflowing(curation, _videoLayout);
+  List<({double start, double end})> get overflowing => _overflowingOf(scene);
+
+  /// [overflowing] of what the preview shows: the MIDI view's rows while the toolbar has them
+  /// (the score's until they are laid out, as they show then), nothing while the player map
+  /// shows in the score's place.
+  List<({double start, double end})> get overflowingShown {
+    if (_showsPlayerMap) return const [];
+    return _overflowingOf(showsMidiView ? rowsScene ?? scene : scene);
   }
 
-  List<({double start, double end})>? _overflowing;
+  List<({double start, double end})> _overflowingOf(CuratedScene? scene) {
+    final curation = _curation;
+    if (scene == null || curation == null) return const [];
+    if (_overflowing[scene] case final held? when _gestures > 0 || _staffSpaceChanged) return held;
+    return _overflowing[scene] = scene.overflowing(curation, _videoLayout);
+  }
+
+  /// Each scene's answer, held while a gesture lasts.
+  final _overflowing = Expando<List<({double start, double end})>>();
+
+  /// Whether the player map shows in the score's place (the toolbar's switch, View ▸ Show
+  /// Player Map): the window's, as [showsMidiView] is.
+  bool get showsPlayerMap => _showsPlayerMap;
+  bool _showsPlayerMap = false;
+  set showsPlayerMap(bool on) {
+    if (on == _showsPlayerMap) return;
+    _showsPlayerMap = on;
+    notifyListeners();
+  }
 
   // MARK: MIDI tempo map
 
