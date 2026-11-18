@@ -140,13 +140,24 @@ abstract final class WebExport {
           // Sized here: the page can't measure an SVG with no size of its own.
           id: image.kind == ImageKind.vector ? PatchImage(id, image.kind, await PatchImage.sized(image.bytes)) : image,
       });
-      final zip = _StoredZip()..startEncode(OutputFileStream('$folder/${WebPage.projectFile}'));
-      ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
-        'kind': ?kind?.name,
-        'score': {'name': 'score.musicxml', 'entry': WebPage.scoreEntry},
-      });
-      zip.add(ArchiveFile.string(WebPage.scoreEntry, score.musicXML));
-      zip.endEncode();
+      // Closed whether or not it is written whole: left open, the file is held until the app
+      // quits (on Windows it can't then be replaced by the next export, or removed).
+      final out = OutputFileStream('$folder/${WebPage.projectFile}');
+      try {
+        final zip = _StoredZip()..startEncode(out);
+        ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+          'kind': ?kind?.name,
+          'score': {'name': 'score.musicxml', 'entry': WebPage.scoreEntry},
+        });
+        zip.add(ArchiveFile.string(WebPage.scoreEntry, score.musicXML));
+        zip.endEncode();
+        out.closeSync();
+      } catch (_) {
+        try {
+          out.closeSync(); // (one that couldn't be written fails again as it closes: the first failure is the one told)
+        } catch (_) {}
+        rethrow;
+      }
       File('$folder/${WebPage.engravingFile}').writeAsBytesSync(EngravingFile.write(score.engraving));
       if (score.pdf case final art?) await _writePdf(editor, art.layout, folder, page);
 
