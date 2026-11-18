@@ -486,7 +486,10 @@ class _Parser {
       return f;
     }
     if (_isDigit(c) || c == '.') {
-      final match = RegExp(r'\d*\.?\d+(?:[eE][-+]?\d+)?|\d+\.').matchAsPrefix(text, _at)!;
+      // (Digits first, then their point: "0." as it is typed on the way to "0.5" is a number. A
+      // point with no digit is none.)
+      final match = RegExp(r'\d+\.?\d*(?:[eE][-+]?\d+)?|\.\d+(?:[eE][-+]?\d+)?').matchAsPrefix(text, _at) ??
+          (throw FormatException('Unexpected “$c”.'));
       _at = match.end;
       final v = double.parse(match[0]!);
       return (_) => v;
