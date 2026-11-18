@@ -36,7 +36,7 @@ void main() {
       captionStyle: const CaptionStyle(),
       speed: const WebChoice(0.75, open: true),
       barNumbers: const WebChoice(false),
-      playerMap: const WebChoice(true, open: true),
+      view: const WebChoice(PageShows.map, open: true),
     );
     await WebExport.write(c, out, page: page, player: player);
     expect(File('$out/index.html').readAsStringSync(), contains('<title>Intro &lt;1&gt;</title>'));
@@ -46,11 +46,14 @@ void main() {
     expect(loaded.page.recordings.single.audio, isNull, reason: 'no recording: silent');
     expect((loaded.page.speed.value, loaded.page.speed.open, loaded.page.barNumbers.open), (0.75, true, false));
     // The player map goes with the project, shown first, the viewer free to switch; a page
-    // written before it had one shows the score.
+    // written before it chose among three says the map or not, one before the map nothing: the
+    // Video tab's views, kept to.
     expect(loaded.edits.playerMap!.encode(), c.playerMap.map!.encode());
-    expect((loaded.page.playerMap.value, loaded.page.playerMap.open), (true, true));
-    final older = page.toJson()..['viewer'] = ({...(page.toJson()['viewer'] as Map<String, Object?>)}..remove('playerMap'));
-    expect(WebPage.fromJson(older).playerMap.value, isFalse);
+    expect((loaded.page.view.value, loaded.page.view.open), (PageShows.map, true));
+    final viewer = {...(page.toJson()['viewer'] as Map<String, Object?>)}..remove('view');
+    WebChoice<PageShows> earlier(Map<String, Object?> more) => WebPage.fromJson(page.toJson()..['viewer'] = {...viewer, ...more}).view;
+    final (before, mapped) = (earlier(const {}), earlier(const {'playerMap': {'value': true, 'open': true}}));
+    expect((before.value, before.open, mapped.value, mapped.open), (PageShows.views, false, PageShows.map, true));
 
     // The same frame as the editor's preview.
     final heard = loaded.page.recordings.single;

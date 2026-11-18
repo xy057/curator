@@ -1960,7 +1960,7 @@ msgstr "保存…"
 msgid "Saving…"
 msgstr "保存中…"
 
-#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "楽譜"
 
@@ -5197,7 +5197,7 @@ msgstr "リハーサルマーク"
 msgid "Show Player Map"
 msgstr "奏者配置図を表示"
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "奏者配置図"
 
@@ -5346,7 +5346,7 @@ msgstr "ファイルのテンポを使う"
 msgid "MIDI view ({key})"
 msgstr "MIDI ビュー（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr "MIDI ビュー"
 
@@ -5677,3 +5677,7 @@ msgstr "それでも接続"
 #: lib/daw_follow_dialog.dart
 msgid "The DAW stopped it."
 msgstr "DAW が中止しました。"
+
+#: lib/web_export_dialog.dart
+msgid "As in Video tab"
+msgstr "ビデオタブどおり"

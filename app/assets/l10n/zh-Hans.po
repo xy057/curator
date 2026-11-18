@@ -1960,7 +1960,7 @@ msgstr "保存…"
 msgid "Saving…"
 msgstr "正在保存…"
 
-#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Score"
 msgstr "乐谱"
 
@@ -5197,7 +5197,7 @@ msgstr "排练记号"
 msgid "Show Player Map"
 msgstr "显示乐手位置图"
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr "乐手位置图"
 
@@ -5346,7 +5346,7 @@ msgstr "使用文件的速度"
 msgid "MIDI view ({key})"
 msgstr "MIDI 视图（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr "MIDI 视图"
 
@@ -5677,3 +5677,7 @@ msgstr "仍然连接"
 #: lib/daw_follow_dialog.dart
 msgid "The DAW stopped it."
 msgstr "DAW 已将其停止。"
+
+#: lib/web_export_dialog.dart
+msgid "As in Video tab"
+msgstr "按“视频”标签页"

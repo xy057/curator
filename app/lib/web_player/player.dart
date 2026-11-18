@@ -47,12 +47,13 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   /// Whether there are views to follow: a map, and a stretch showing something else than the score.
   late final bool _follows = _map != null && !_views.isEmpty;
 
-  /// What shows: the views as the project has them, the score throughout, or the map in its place.
-  late _Shows _shows = _map != null && _page.playerMap.value
-      ? _Shows.map
-      : _follows
-          ? _Shows.views
-          : _Shows.score;
+  /// What shows, as the export set it and the viewer (if it is theirs to change) has it since:
+  /// with no map the score, as with no views to follow.
+  late PageShows _shows = switch (_page.view.value) {
+    _ when _map == null => PageShows.score,
+    PageShows.views when !_follows => PageShows.score,
+    final shows => shows,
+  };
 
   /// The views in the recording heard's time.
   TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
@@ -193,7 +194,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                   _playPause();
                 },
                 child: Stack(children: [
-                  Positioned.fill(child: _shows == _Shows.map ? _playerMap(context) : _score(paper, ink)),
+                  Positioned.fill(child: _shows == PageShows.map ? _playerMap(context) : _score(paper, ink)),
                   Positioned(left: 0, right: 0, bottom: 0, child: _controls(context, choices.isNotEmpty)),
                 ]),
               ),
@@ -272,16 +273,17 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                 ]),
               ),
             ),
-            if (_map != null && _page.playerMap.open)
+            if (_map != null && _page.view.open)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: SegmentedButton<_Shows>(
+                child: SegmentedButton<PageShows>(
                   showSelectedIcon: false,
                   style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   segments: [
-                    if (_follows) ButtonSegment(value: _Shows.views, label: Text('Auto'.tr)),
-                    ButtonSegment(value: _Shows.score, label: Text('Score'.tr)),
-                    ButtonSegment(value: _Shows.map, label: Text('Player Map'.tr)),
+                    if (_follows) ButtonSegment(value: PageShows.views, label: Text('Auto'.tr)),
+                    // A MIDI project's score is its rows of notes, named as the app names them.
+                    ButtonSegment(value: PageShows.score, label: Text(_loaded.score.isRoll ? 'MIDI View'.tr : 'Score'.tr)),
+                    ButtonSegment(value: PageShows.map, label: Text('Player Map'.tr)),
                   ],
                   selected: {_shows},
                   onSelectionChanged: (s) => setState(() => _shows = s.single),
@@ -412,9 +414,6 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   }
 }
 
-/// What a page shows: the project's views ([SceneView]) as they come, the score, or the map.
-enum _Shows { views, score, map }
-
 class _Skip extends Intent {
   const _Skip(this.seconds);
   final double seconds;
@@ -441,7 +440,7 @@ class _ScorePainter extends CustomPainter {
       ..clipRect(Offset.zero & size)
       ..scale(scale);
     final s = state, time = s._time.value, end = s._heard.end, map = s._map;
-    final views = s._shows == _Shows.views;
+    final views = s._shows == PageShows.views;
     paintViews(
       canvas,
       size / scale,

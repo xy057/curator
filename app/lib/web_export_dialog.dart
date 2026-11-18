@@ -57,6 +57,9 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   late final _hasBarNumbers = _c.pageState.barNumbers;
   late final _hasPlayerMap = _c.playerMap.map != null;
 
+  /// Whether the Video tab's View lane shows anything but the score (only a map can).
+  late final _hasViews = _hasPlayerMap && !_c.automation.views.isEmpty;
+
   /// Recordings heard whole as well as the performance (with two or more).
   late Set<String> _whole = {if (_takes.length > 1) for (final t in _takes) t.id};
   bool _captions = true, _chapters = true, _images = true;
@@ -66,7 +69,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   var _captionsShown = const WebChoice(true, open: true);
   var _barNumbersShown = const WebChoice(true, open: true);
   var _instruments = const WebChoice(<String, PartShown>{}, open: true);
-  var _playerMapShown = const WebChoice(false, open: true);
+  late var _view = WebChoice(_hasViews ? PageShows.views : PageShows.score, open: true);
 
   var _stage = _Stage.setup;
   String? _error, _output;
@@ -119,7 +122,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           captions: _captionsShown,
           barNumbers: _barNumbersShown,
           speed: _speed,
-          playerMap: _hasPlayerMap ? _playerMapShown : const WebChoice(false),
+          view: _hasPlayerMap ? _view : const WebChoice(PageShows.score),
         ),
         takes: [for (final t in _takes) if (_whole.contains(t.id)) t.id],
         captions: _captions,
@@ -287,11 +290,21 @@ class _WebExportDialogState extends State<_WebExportDialog> {
               value: _barNumbersShown.value, onChanged: (v) => setState(() => _barNumbersShown = _barNumbersShown.copyWith(value: v))),
         ),
       if (_hasPlayerMap)
+        // What the frame shows: left to the viewer, or as set here (the View lane's views, kept to).
         _ViewerRow(
-          label: 'Player Map',
-          open: _playerMapShown.open,
-          onOpen: (v) => setState(() => _playerMapShown = _playerMapShown.copyWith(open: v)),
-          child: AppSwitch(value: _playerMapShown.value, onChanged: (v) => setState(() => _playerMapShown = _playerMapShown.copyWith(value: v))),
+          label: 'View',
+          open: _view.open,
+          onOpen: (v) => setState(() => _view = _view.copyWith(open: v)),
+          child: ExportSelect<PageShows>(
+            named: true, // translated here
+            value: _view.value,
+            items: [
+              if (_hasViews) (PageShows.views, 'As in Video tab'.tr, true),
+              (PageShows.score, _c.isMidi ? 'MIDI View'.tr : 'Score'.tr, true),
+              (PageShows.map, 'Player Map'.tr, true),
+            ],
+            onChanged: (v) => setState(() => _view = _view.copyWith(value: v)),
+          ),
         ),
       _ViewerRow(
         label: 'Instruments',

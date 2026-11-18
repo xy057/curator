@@ -1949,7 +1949,7 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Score"
 msgstr ""
 
@@ -5174,7 +5174,7 @@ msgstr ""
 msgid "Show Player Map"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/player_map_view.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "Player Map"
 msgstr ""
 
@@ -5323,7 +5323,7 @@ msgstr ""
 msgid "MIDI view ({key})"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr ""
 
@@ -5653,4 +5653,8 @@ msgstr ""
 
 #: lib/daw_follow_dialog.dart
 msgid "The DAW stopped it."
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "As in Video tab"
 msgstr ""
