@@ -187,7 +187,7 @@ class AudioTrack {
     final weights = await (_weights ??= rootBundle.load(BasicPitch.asset).then((d) => d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes)));
     final chunks = AudioNotes.chunks(length), stretches = (chunks + _together - 1) ~/ _together;
     final frames = Float32List(((length * AudioNotes.frameRate).floor() + 1) * AudioNotes.values);
-    var next = 0, done = 0;
+    var next = 0, done = 0, failed = false;
     Future<void> work() async {
       while (next < stretches) {
         final first = next++ * _together, end = math.min(chunks, first + _together);
@@ -196,8 +196,10 @@ class AudioTrack {
           heard = await _readNotes(_samples, rate, length, weights, first, end);
         } catch (_) {
           next = stretches; // the others take no more
+          failed = true;
           rethrow;
         }
+        if (failed) return; // another's failure ended it: what this one heard goes nowhere, and no more is told
         final at = first * AudioNotes.chunkFrames * AudioNotes.values;
         if (at < frames.length) frames.setRange(at, math.min(frames.length, at + heard.length), heard);
         progress?.call((done += end - first) / chunks);
