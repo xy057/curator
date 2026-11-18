@@ -520,7 +520,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
       if (_dawsSeen[session] == true || _dawProcessesSeen.contains(session.pid)) continue;
       final said = !session.supported
-          ? (session.host.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host}))
+          ? attaccaUnsupported(session.host)
           : session.outdated
               ? attaccaOutdated(session)
               : null;

@@ -110,6 +110,9 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
   return true;
 }
 
+/// That Attacca doesn't support [daw] (its name as the DAW says it; '' unsaid).
+String attaccaUnsupported(String daw) => daw.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': daw});
+
 /// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
 /// the newer one is installed already (a DAW keeps the one it loaded until then), else update it.
 String attaccaOutdated(DawSession session) {
@@ -192,6 +195,20 @@ class _FollowDialogState extends State<_FollowDialog> {
           final chosen = recordings.where((r) => (r.document.id, r.source.id) == _key).firstOrNull ?? recordings.firstOrNull;
           final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
           // A DAW whose Attacca is older than Curator: said, whatever else is.
+          // A notice: what is so, and what to do (muted), then [extra].
+          Widget notice(String said, String hint, {List<Widget> extra = const [], List<Widget> actions = const []}) => AppDialog(
+                title: Text('Connect Attacca'.tr),
+                content: SizedBox(
+                  width: dialogWidth(context, 360),
+                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(said),
+                    const SizedBox(height: 6),
+                    Text(hint, style: muted),
+                    ...extra,
+                  ]),
+                ),
+                actions: [...actions, FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
+              );
           final outdated = [
             for (final s in {for (final s in widget.link.sessions) if (s.outdated) s.host: s}.values)
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
@@ -199,38 +216,14 @@ class _FollowDialogState extends State<_FollowDialog> {
           // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Connect Anyway.
           final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
           if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
-            final name = unsupported.where((h) => h.isNotEmpty).join(', ');
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': name})),
-                  const SizedBox(height: 6),
-                  Text('Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}), style: muted),
-                ]),
-              ),
-              actions: [
-                if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr)),
-                FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr)),
-              ],
-            );
+            return notice(attaccaUnsupported(unsupported.where((h) => h.isNotEmpty).join(', ')),
+                'Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}),
+                actions: [if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr))]);
           }
           final bound = widget.bound;
           if (chosen == null && bound != null && widget.link.sessions.isNotEmpty) {
             // Its own Attacca recording isn't in the DAWs connected: no other is offered.
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('This project’s Attacca recording isn’t open in a DAW.'.tr),
-                  const SizedBox(height: 6),
-                  Text([bound.name, if (bound.host.isNotEmpty) bound.host].join(' · '), style: muted),
-                ]),
-              ),
-              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-            );
+            return notice('This project’s Attacca recording isn’t open in a DAW.'.tr, [bound.name, if (bound.host.isNotEmpty) bound.host].join(' · '));
           }
           if (chosen == null) {
             // Connected, yet no recording: Attacca is on an insert only (or on no track) there.
@@ -241,19 +234,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                     ? ('No DAW connected.'.tr, 'Put Attacca on a track in your DAW.'.tr)
                     : (connected.isEmpty ? 'Attacca isn’t on a recording in the DAW.'.tr : 'Attacca isn’t on a recording in {daw}.'.fill({'daw': connected}),
                         'Add it to a track as an ARA extension, not as an insert.'.tr);
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(said),
-                  const SizedBox(height: 6),
-                  Text(hint, style: muted),
-                  ...outdated,
-                ]),
-              ),
-              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-            );
+            return notice(said, hint, extra: outdated);
           }
           final bar = _barValue;
           final hosts = {for (final r in recordings) r.session.host}.length;
