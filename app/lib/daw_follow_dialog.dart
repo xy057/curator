@@ -92,21 +92,15 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
     Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel, bool linked = true}) async {
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
-  final done = ValueNotifier<double>(0);
-  final dialog = showAppDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _Fetching(done: done, capturing: onCancel != null, onCancel: onCancel),
-  );
+  // While the DAW writes the recording out, or Attacca Capturer hears it as the DAW plays it.
+  final capturing = onCancel != null;
   String? path;
   try {
-    path = await fetch((d) => done.value = d);
+    path = await withProgress(context, capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr, fetch,
+        note: capturing ? 'Play it in the DAW if it doesn’t start.'.tr : null, onCancel: onCancel);
   } on DawLinkException catch (e) {
     if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
   }
-  if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-  await dialog;
-  done.dispose();
   if (path == null) return false;
   try {
     await c.loadAudio(path, daw: linked ? (host: session.host, source: source.id, name: source.name) : null, intoAttacca: true);
@@ -320,33 +314,5 @@ class _FollowDialogState extends State<_FollowDialog> {
             ],
           );
         },
-      );
-}
-
-/// While the DAW writes the recording out, or ([capturing]) Attacca Capturer hears it as the
-/// DAW plays it: how far it has got; a capture can be cancelled.
-class _Fetching extends StatelessWidget {
-  const _Fetching({required this.done, this.capturing = false, this.onCancel});
-  final ValueNotifier<double> done;
-  final bool capturing;
-  final VoidCallback? onCancel;
-
-  @override
-  Widget build(BuildContext context) => AppDialog(
-        title: Text(capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr),
-        content: SizedBox(
-          width: dialogWidth(context, 320),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ValueListenableBuilder<double>(
-              valueListenable: done,
-              builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
-            ),
-            if (capturing) ...[
-              const SizedBox(height: 10),
-              Text('Play it in the DAW if it doesn’t start.'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
-            ],
-          ]),
-        ),
-        actions: [if (onCancel case final cancel?) TextButton(onPressed: cancel, child: Text('Cancel'.tr))],
       );
 }

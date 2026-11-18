@@ -29,13 +29,7 @@ Future<void> showStemCaptureDialog(BuildContext context, EditorController c) asy
       context: context, builder: (_) => _CaptureDialog(tracks: tracks, recordingTrack: followed?.track));
   if (picked == null || picked.isEmpty || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
-  final done = ValueNotifier<double>(0);
-  final dialog = showAppDialog<void>(
-      context: context, barrierDismissible: false, builder: (_) => _Capturing(done: done));
-  final failed = await c.stems.capture(link, picked, progress: (d) => done.value = d);
-  if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-  await dialog;
-  done.dispose();
+  final failed = await withProgress(context, 'Capturing Stems'.tr, (progress) => c.stems.capture(link, picked, progress: progress));
   final captured = picked.length - failed.length;
   messenger.showSnackBar(SnackBar(
     content: Text([
@@ -92,25 +86,6 @@ class _CaptureDialogState extends State<_CaptureDialog> {
       ],
     );
   }
-}
-
-/// While the DAW writes the stems out: how far it has got.
-class _Capturing extends StatelessWidget {
-  const _Capturing({required this.done});
-  final ValueNotifier<double> done;
-
-  @override
-  Widget build(BuildContext context) => AppDialog(
-        title: Text('Capturing Stems'.tr),
-        content: SizedBox(
-          width: dialogWidth(context, 320),
-          child: ValueListenableBuilder<double>(
-            valueListenable: done,
-            builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
-          ),
-        ),
-        actions: const [],
-      );
 }
 
 /// A track's or stem's colour (0xAARRGGBB, from the DAW), as a small dot; none, nothing.

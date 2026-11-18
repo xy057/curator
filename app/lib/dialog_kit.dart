@@ -516,6 +516,53 @@ Future<bool> confirmDiscard(BuildContext context, {String? content}) async =>
     ) ==
     true;
 
+/// [job] run while a dialog titled [title] shows how far it has got (the 0–1 it is told; at 0
+/// the bar runs unmeasured), [note] under the bar, Cancel calling [onCancel] when given. Nothing
+/// else closes it; it goes when the job ends, however it ends.
+Future<T> withProgress<T>(BuildContext context, String title, Future<T> Function(void Function(double done) progress) job,
+    {String? note, VoidCallback? onCancel}) async {
+  final done = ValueNotifier<double>(0);
+  final dialog = showAppDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _Progress(title: title, done: done, note: note, onCancel: onCancel),
+  );
+  try {
+    return await job((d) => done.value = d);
+  } finally {
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+    await dialog;
+    done.dispose();
+  }
+}
+
+class _Progress extends StatelessWidget {
+  const _Progress({required this.title, required this.done, this.note, this.onCancel});
+  final String title;
+  final ValueNotifier<double> done;
+  final String? note;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) => AppDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: dialogWidth(context, 320),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ValueListenableBuilder<double>(
+              valueListenable: done,
+              builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
+            ),
+            if (note case final note?) ...[
+              const SizedBox(height: 10),
+              Text(note, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
+            ],
+          ]),
+        ),
+        actions: [if (onCancel case final cancel?) TextButton(onPressed: cancel, child: Text('Cancel'.tr))],
+      );
+}
+
 /// A message with only OK: what went wrong, or what happened.
 Future<void> showNotice(BuildContext context, String title, String message) => showAppDialog<void>(
       context: context,
