@@ -171,6 +171,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
           string.format("%.2f %10.3f|%-8.1f|%e %.0f %g %g %g %g", 3.14159, 2.5, 1.25, 12345.678, 2.5, 0.1, 1e20, 100000, 1e-5),
           string.format("%s %10s|%-10s|%.2s %q %%", "a", "b", "c", "long", 'q"uote'), string.format("%5.1f%%", 12.345), string.format("%s %s", 1, true)
       '''), ['42    42|42   |00042 +42 ff FF 10 A', '3.14      2.500|1.3     |1.234568e+04 3 0.1 1e+20 100000 1e-05', 'a          b|c         |lo "q\\"uote" %', ' 12.3%', '1 true']);
+      // More digits than Dart's own formatting gives at once.
+      expect(run('return string.format("%.20g %.21g %.99g %.19g", 0.001, 0.5, 0.25, 123.5)'), ['0.0010000000000000000208 0.5 0.25 123.5']);
       expect(run('return tostring(12), tostring(1.5), tostring(1e100), tonumber("0x1F"), tonumber(" 12.5 "), tonumber("z", 36), tonumber("nope"), tonumber("1e2"), utf8.len("héllo"), utf8.char(233)'),
           ['12', '1.5', '1e+100', '31', '12.5', '35', 'nil', '100', '5', 'é']);
     }

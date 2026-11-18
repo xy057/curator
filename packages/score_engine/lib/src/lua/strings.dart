@@ -571,7 +571,11 @@ String _general(double m, int p, bool alt) {
     final mantissa = strip(probe.substring(0, probe.indexOf('e')));
     return '$mantissa${'e'}${x < 0 ? '-' : '+'}${x.abs().toString().padLeft(2, '0')}';
   }
-  return strip(m.toStringAsFixed(p - 1 - x));
+  // toStringAsFixed takes up to 20 digits: past them, the digits the probe found, set out.
+  final places = p - 1 - x;
+  if (places <= 20) return strip(m.toStringAsFixed(places));
+  final digits = probe.substring(0, probe.indexOf('e')).replaceFirst('.', '');
+  return strip(x < 0 ? '0.${'0' * (-x - 1)}$digits' : '${digits.substring(0, x + 1)}.${digits.substring(x + 1)}');
 }
 
 String _quoted(Object? v) {
