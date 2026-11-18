@@ -370,9 +370,9 @@ class DawSession extends ChangeNotifier {
   /// Where it is playing, as it last said; null until it has.
   final transport = ValueNotifier<DawTransport?>(null);
 
-  /// The Attacca Capturers in it (inserts, usually last on its output): while it has one, a
-  /// recording is captured there as the DAW plays it ([DawLink.capture]), and Attacca's own
-  /// capture (a recording or a track as a file) is off.
+  /// The Attacca Capturers in it (inserts, usually last on its output): Record from DAW…
+  /// captures the mix with the one linked ([DawLink.capture]); Attacca's own files (a recording
+  /// or a track, through ARA) are written whether or not there is one.
   List<DawCapturer> capturers = const [];
 
   /// Files asked for and not yet written, by document, kind ("source", "track") and id.
