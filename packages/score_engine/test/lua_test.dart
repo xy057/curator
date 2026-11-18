@@ -196,6 +196,8 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
       expect(fails('table.insert(nil, 1)'), "test.lua:1: bad argument #1 to 'insert' (table expected, got nil)");
       expect(fails('("x"):rep()'), "test.lua:1: bad argument #2 to 'rep' (number expected, got no value)");
       expect(fails('local t = {}\nt[nil] = 1'), 'test.lua:2: table index is nil');
+      expect(fails('next({}, 1/0)'), "test.lua:1: invalid key to 'next'");
+      expect(fails('next({1}, 0/0)'), "test.lua:1: invalid key to 'next'");
       expect(fails('x = = 1'), "test.lua:1: unexpected symbol near '='");
       expect(fails('if x then\n\n'), "test.lua:3: 'end' expected (to close 'if' at line 1) near '<eof>'");
       expect(fails('local s = "open'), 'test.lua:1: unfinished string');

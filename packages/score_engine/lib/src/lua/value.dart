@@ -175,7 +175,7 @@ final class LuaTable {
   (Object, Object?)? after(Object? key) {
     var i = 0;
     if (key != null) {
-      final at = key is num && key == key.truncate() ? key.toInt() : 0;
+      final at = key is num && key.isFinite && key == key.truncate() ? key.toInt() : 0; // (inf and nan have no int to truncate to)
       if (at >= 1 && at <= array.length) {
         i = at;
       } else {
