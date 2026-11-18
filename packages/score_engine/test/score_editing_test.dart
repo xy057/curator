@@ -341,6 +341,29 @@ void main() {
       expect([for (final type in ['start', 'stop']) '<tie type="$type"/>'.allMatches(score.toMusicXML()).length], [2, 2]);
     }
 
+    // A tied note deleted or written over leaves the note it was tied to tied to nothing: never
+    // half a tie (one tied from nothing is drawn and heard as tied).
+    {
+      final score = EditableScore.parse(_fluteOf(2));
+      const voice = VoiceKey(1, '1');
+      const c = Pitch(0, 4);
+      void tiedPair() => score.input(ScorePosition(0, voice, 0, Frac.zero), [const InputItem(Rhythm(NoteType.half), [c]), const InputItem(Rhythm(NoteType.half), [c], tieFrom: true)]);
+      List<int> ties() => [for (final type in ['start', 'stop']) '<tie type="$type"/>'.allMatches(score.toMusicXML()).length];
+      tiedPair();
+      expect(ties(), [1, 1]);
+      score.delete([score.eventsIn(0, 0, voice)[1].ids.first]); // the second goes
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.delete([score.eventsIn(0, 0, voice)[0].ids.first]); // the first goes
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.input(ScorePosition(0, voice, 0, Frac(2)), [const InputItem(Rhythm(NoteType.half), [Pitch(1, 4)])]); // D over the second
+      expect(ties(), [0, 0]);
+      tiedPair();
+      score.input(ScorePosition(0, voice, 0, Frac.zero), [const InputItem(Rhythm(NoteType.quarter), [Pitch(1, 4)])]); // D over half the first
+      expect(ties(), [0, 0]);
+    }
+
     // Bars added before a bar that changes the time signature are as long as the one before them says.
     {
       final score = EditableScore.parse(_fluteOf(4));

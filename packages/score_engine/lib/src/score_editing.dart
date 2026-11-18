@@ -1801,6 +1801,14 @@ class EditableScore {
             final piece = Frac.min(remaining, length - pos.time);
             remaining = remaining - piece;
             final rhythms = piece == item.length ? [item.rhythm] : Rhythm.express(piece, tuplet: item.rhythm.tuplet);
+            // What it writes over leaves nothing tied to nothing: a note after tied from one gone
+            // or cut short, a note before tied into one gone (only before the first piece: the
+            // ones after follow what this item wrote). What it writes is tied as it says, below.
+            for (final old in eventsIn(pos.part, pos.measure, pos.voice)) {
+              final start = old.position.time;
+              if (old.isRest || start + old.length <= pos.time || start >= pos.time + piece) continue;
+              _untie(old, from: first && start >= pos.time);
+            }
             final content = _mutable(pos.part, pos.measure);
             final made = <_Event>[];
             var t = pos.time;
@@ -1826,6 +1834,29 @@ class EditableScore {
         }
         return pos;
       });
+
+  /// The notes of [e] (those of [ids], or all) untied from the note before them in their voice
+  /// ([from]) and the note after ([on]), on that side: a note about to go, or to change its pitch,
+  /// leaves none tied to nothing. Each partner's bar is put in at once: done before [e]'s own bar
+  /// is read to change (they may be one).
+  void _untie(EventInfo e, {Set<String>? ids, bool from = true, bool on = true}) {
+    final p = e.position;
+    final notes = [
+      for (final n in _view(p.part, p.measure).voices[p.voice]?.where((x) => x.start == p.time).firstOrNull?.notes ?? const <XmlElement>[])
+        if (ids == null || ids.contains(n.getAttribute('id'))) n,
+    ];
+    void loosen(EventInfo? partner, Set<int> midis, String type) {
+      if (partner == null || partner.isRest || midis.isEmpty) return;
+      _editNotes(partner, (notes) {
+        for (final n in notes) {
+          if (midis.contains(_pitchOf(n)?.midi)) _setTie(n, type, false);
+        }
+      });
+    }
+
+    if (from) loosen(previous(e), {for (final n in notes) if (_tiedFrom(n)) ?_pitchOf(n)?.midi}, 'start');
+    if (on) loosen(next(e), {for (final n in notes) if (_tiedOn(n)) ?_pitchOf(n)?.midi}, 'stop');
+  }
 
   /// The note before [at] in its voice tied on to the one at [at] (Dorico's T).
   void _tieBack(ScorePosition at) {
@@ -2201,6 +2232,8 @@ class EditableScore {
           final current = locate(e.ids.first);
           if (current == null) continue;
           final chosen = current.ids.where(notes.contains).toSet();
+          // The notes it was tied from and to are tied to nothing now.
+          if (!current.isRest) _untie(current, ids: chosen);
           final p = current.position;
           final content = _mutable(p.part, p.measure);
           final events = content.voices[p.voice]!;
