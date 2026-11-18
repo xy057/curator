@@ -128,7 +128,7 @@ abstract final class WebExport {
       if (!chapters) edits = without(editor.extensions.readers().chapterSources);
       // The picture extensions' switches stay: one may turn the spacers on.
       if (!images) edits = without(editor.extensions.imageSources, off: false);
-      if (WebPage.requestOf(edits) != score.request) {
+      if (WebPage.requestOf(edits, rows: score.isRoll) != score.request) {
         throw VideoExportException('The score is still being engraved. Try again in a moment.'.tr);
       }
       final project = editor.projectState;

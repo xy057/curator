@@ -4528,6 +4528,9 @@ msgstr "隐藏 / 显示时间线"
 msgid "Score / Player Map"
 msgstr "乐谱 / 乐手位置图"
 
+msgid "Score / MIDI View"
+msgstr "乐谱 / MIDI 视图"
+
 msgid "Hide / Show Tab Bar"
 msgstr "隐藏 / 显示标签页栏"
 
@@ -5346,7 +5349,7 @@ msgstr "使用文件的速度"
 msgid "MIDI view ({key})"
 msgstr "MIDI 视图（{key}）"
 
-#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr "MIDI 视图"
 

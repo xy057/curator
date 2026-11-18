@@ -44,16 +44,38 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   /// What the project's Video tab shows when ([SceneView]): the page follows it, as a video does.
   late final StepLane<SceneView> _views = (_loaded.edits.automation ?? Automation.none).steps(SceneViews.target);
 
-  /// Whether there are views to follow: a map, and a stretch showing something else than the score.
-  late final bool _follows = _map != null && !_views.isEmpty;
+  /// Whether the score's notes can be shown in rows where it is engraved (the MIDI view of a
+  /// score that is notation; a MIDI project's score is rows already).
+  late final bool _hasRows = _loaded.score.hasRows;
+
+  /// Whether a view of the lane's is the MIDI view (and the score has one).
+  late final bool _viewsRows = _hasRows && _views.stretches.any((s) => s.value.kind.showsRows);
+
+  /// Whether there are views to follow: a stretch showing what the page has, a map or the
+  /// score's notes in rows.
+  late final bool _follows = _views.stretches.any((s) => s.value.kind.showsRows ? _hasRows : _map != null);
 
   /// What shows, as the export set it and the viewer (if it is theirs to change) has it since:
-  /// with no map the score, as with no views to follow.
+  /// the score where the page hasn't what it names (no map, no notes to draw in rows, no views
+  /// to follow).
   late PageShows _shows = switch (_page.view.value) {
-    _ when _map == null => PageShows.score,
+    PageShows.map when _map == null => PageShows.score,
+    PageShows.midi when !_hasRows => PageShows.score,
     PageShows.views when !_follows => PageShows.score,
     final shows => shows,
   };
+
+  /// The score's notes in rows ([LoadedScore.rows]), a scene beside the score's: made when
+  /// first shown (a browser has no isolate to spare), before the page shows where it is to
+  /// from the start.
+  CuratedScene? _rows;
+
+  CuratedScene? get _rowsScene {
+    if (!_hasRows) return null;
+    return _rows ??= CuratedScene(_loaded.score.rows(_loaded.edits.midiLook), style: RenderStyle(staffSpace: _page.staffSpace))
+      ..settings = _scene.settings
+      ..setTimeline(_scene.timeline);
+  }
 
   /// The views in the recording heard's time.
   TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
@@ -77,6 +99,8 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     super.initState();
     _showSettings();
     _hear(_recording, at: _heard.start);
+    // Not in the middle of the music, where a view first shows them.
+    if (_shows == PageShows.midi || _viewsRows) _rowsScene;
     _ticker.start();
   }
 
@@ -85,19 +109,24 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     _ticker.dispose();
     _audio.dispose();
     _scene.dispose();
+    _rows?.dispose();
     _curation.dispose();
     _time.dispose();
     _controlsShown.dispose();
     super.dispose();
   }
 
-  void _showSettings() => _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers, bands: _extensions);
+  void _showSettings() {
+    _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers, bands: _extensions);
+    _rows?.settings = _scene.settings;
+  }
 
   /// Plays recording [index] from [at] (seconds of its performance).
   void _hear(int index, {required double at}) {
     _recording = index;
     _audio = widget.audioFor(_heard.audio)..speed = _speed;
     _scene.setTimeline(_loaded.timeline(_heard));
+    _rows?.setTimeline(_scene.timeline);
     _pulses = null; // as this recording plays the notes
     _seek(at);
   }
@@ -273,7 +302,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                 ]),
               ),
             ),
-            if (_map != null && _page.view.open)
+            if ((_map != null || _hasRows) && _page.view.open)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: SegmentedButton<PageShows>(
@@ -283,7 +312,8 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                     if (_follows) ButtonSegment(value: PageShows.views, label: Text('Auto'.tr)),
                     // A MIDI project's score is its rows of notes, named as the app names them.
                     ButtonSegment(value: PageShows.score, label: Text(_loaded.score.isRoll ? 'MIDI View'.tr : 'Score'.tr)),
-                    ButtonSegment(value: PageShows.map, label: Text('Player Map'.tr)),
+                    if (_hasRows) ButtonSegment(value: PageShows.midi, label: Text('MIDI View'.tr)),
+                    if (_map != null) ButtonSegment(value: PageShows.map, label: Text('Player Map'.tr)),
                   ],
                   selected: {_shows},
                   onSelectionChanged: (s) => setState(() => _shows = s.single),
@@ -441,12 +471,17 @@ class _ScorePainter extends CustomPainter {
       ..scale(scale);
     final s = state, time = s._time.value, end = s._heard.end, map = s._map;
     final views = s._shows == PageShows.views;
+    // The score's notes in rows, where the viewer or a view of the lane's has the MIDI view.
+    final rows = s._shows == PageShows.midi || (views && s._viewsRows) ? s._rowsScene : null;
+    final only = s._shows == PageShows.midi ? SceneView.midi : SceneView.score;
+    void draw(CuratedScene scene, Canvas canvas, Size layout) =>
+        scene.paint(canvas, layout, time: time, curation: s._curation, devicePixelRatio: devicePixelRatio * scale, end: end, paper: paper, ink: ink);
     paintViews(
       canvas,
       size / scale,
-      views ? s._timed.at(time) : (from: SceneView.score, to: SceneView.score, mix: 0.0),
-      score: (canvas, layout) =>
-          s._scene.paint(canvas, layout, time: time, curation: s._curation, devicePixelRatio: devicePixelRatio * scale, end: end, paper: paper, ink: ink),
+      views ? s._timed.at(time) : (from: only, to: only, mix: 0.0),
+      score: (canvas, layout) => draw(s._scene, canvas, layout),
+      rows: rows == null ? null : (canvas, layout) => draw(rows, canvas, layout),
       map: !views || map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: s._mapPulses, time: s._time, textDirection: textDirection).paintAt(canvas, size, time),
       paper: paper,
       ink: ink,

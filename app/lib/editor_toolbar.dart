@@ -32,6 +32,7 @@ class EditorToolbar extends StatelessWidget {
     this.readout,
     this.playerMap = false,
     this.onPlayerMap,
+    this.onMidiView,
   });
   final EditorController controller;
   final ProjectDocument document;
@@ -48,6 +49,10 @@ class EditorToolbar extends StatelessWidget {
   /// Whether the player map shows in the score's place; [onPlayerMap] switches (null: no switch).
   final bool playerMap;
   final ValueChanged<bool>? onPlayerMap;
+
+  /// Shows the score as engraved (false) or as its notes in rows (the MIDI view): a third
+  /// button of the switch, where the score has one ([EditorController.hasMidiView]).
+  final ValueChanged<bool>? onMidiView;
 
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
@@ -66,6 +71,7 @@ class EditorToolbar extends StatelessWidget {
           images: controller.images.enabled,
           reengraving: controller.isReengraving,
           staffSpace: controller.staffSpace,
+          midiView: (controller.hasMidiView, controller.showsMidiView),
         ),
         builder: (context, _) => _bar(context),
       );
@@ -117,15 +123,29 @@ class EditorToolbar extends StatelessWidget {
         ),
         if (onPlayerMap case final onPlayerMap?) ...[
           const ToolbarDivider(),
-          // The score or the player map in its place: one lit, as a segmented switch.
+          // The score, its notes in rows (where it has them beside its engraving) or the player
+          // map in its place: one lit, as a segmented switch.
           ToolbarButton(
             icon: AppIcon.score.of(context),
             tooltip: c.isMidi
                 ? keyed(context, KeyCommand.showPlayerMap, (key) => 'MIDI view ({key})'.fill({'key': key}), 'MIDI View'.tr)
                 : keyed(context, KeyCommand.showPlayerMap, (key) => 'Score ({key})'.fill({'key': key}), 'Score'.tr),
-            selected: !playerMap,
-            onPressed: () => onPlayerMap(false),
+            selected: !playerMap && !c.showsMidiView,
+            onPressed: () {
+              onMidiView?.call(false);
+              onPlayerMap(false);
+            },
           ),
+          if (onMidiView case final onMidiView? when c.hasMidiView)
+            ToolbarButton(
+              glyph: const _MidiViewGlyph(),
+              tooltip: keyed(context, KeyCommand.showMidiView, (key) => 'MIDI view ({key})'.fill({'key': key}), 'MIDI View'.tr),
+              selected: !playerMap && c.showsMidiView,
+              onPressed: () {
+                onMidiView(true);
+                onPlayerMap(false);
+              },
+            ),
           ToolbarButton(
             glyph: const _PlayerMapGlyph(),
             tooltip: keyed(context, KeyCommand.showPlayerMap, (key) => 'Player map ({key})'.fill({'key': key}), 'Player Map'.tr),
@@ -338,6 +358,34 @@ class _PlayerMapGlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PlayerMapGlyphPainter old) => old.color != color;
+}
+
+/// The MIDI view's: notes as bars of ink, each at its height.
+class _MidiViewGlyph extends StatelessWidget {
+  const _MidiViewGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = IconTheme.of(context);
+    return CustomPaint(size: Size.square(icon.size ?? 18), painter: _MidiViewGlyphPainter(icon.color ?? context.colors.text));
+  }
+}
+
+class _MidiViewGlyphPainter extends CustomPainter {
+  const _MidiViewGlyphPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24);
+    final bar = Paint()..color = color;
+    for (final (x, y, w) in const [(3.0, 4.6, 8.0), (12.5, 8.2, 8.5), (5.5, 11.8, 5.5), (12.5, 15.4, 5.0), (3.0, 15.4, 7.5), (19.0, 11.8, 2.0)]) {
+      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, 2.6), const Radius.circular(1.1)), bar);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MidiViewGlyphPainter old) => old.color != color;
 }
 
 class _MetronomeGlyph extends StatelessWidget {

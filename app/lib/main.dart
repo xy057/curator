@@ -772,8 +772,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
         // a key the field leaves unused would otherwise reach the menu.
         final edit = page != null && !_typing.value && free ? page._edit.value : null;
         final commands = page?._commands;
-        // The MIDI menu's, for a MIDI project: a change of its look, greyed out when it changes
-        // nothing (a row at its tallest) or a dialog is up.
+        // The MIDI menu's, for a MIDI project and a score in its MIDI view: a change of the
+        // rows' look, greyed out when it changes nothing (a row at its tallest) or a dialog is up.
         final midi = open ? page._midi.value : null;
         VoidCallback? midiLook(MidiLook Function(MidiLook) change) {
           final look = midi?.look, next = look == null ? null : change(look);
@@ -814,13 +814,20 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'maximizePreview': open ? () => page._maximize(timeline: false) : null,
           'maximizeTimeline': open ? () => page._maximize(timeline: true) : null,
           'showPlayerMap': open ? () => settings.playerMap = !settings.playerMap : null,
+          // A score's notes in rows where it is engraved, or back: out from under the map too.
+          'showMidiView': open && page._hasMidiView.value
+              ? () {
+                  settings.midiView = !settings.midiView;
+                  settings.playerMap = false;
+                }
+              : null,
           'midiVelocity': midiLook((look) => look.copyWith(velocity: !look.velocity)),
           'midiSharedRange': midiLook((look) => look.copyWith(sharedRange: !look.sharedRange)),
           'midiTallerRows': midiLook((look) => look.rows(1)),
           'midiShorterRows': midiLook((look) => look.rows(-1)),
           'midiWiderBeats': midiLook((look) => look.beats(1)),
           'midiNarrowerBeats': midiLook((look) => look.beats(-1)),
-          'midiFileTempo': midi == null || midi.fileTempo || !free ? null : page!.controller.useFileTempo,
+          'midiFileTempo': midi == null || !midi.file || midi.fileTempo || !free ? null : page!.controller.useFileTempo,
           'showTabBar': () => settings.tabBar = !_tabBar,
           'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
           'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
@@ -840,6 +847,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           previewShown: page?._previewShown ?? true,
           timelineShown: page?._timelineShown ?? true,
           playerMapShown: settings.playerMap,
+          midiViewShown: open && page._hasMidiView.value ? settings.midiView : null,
           tabBarShown: _tabBar,
           attacca: (state: _attaccaState, following: open && page._followsDaw.value),
           midi: midi == null ? null : (velocity: midi.look.velocity, sharedRange: midi.look.sharedRange, fileTempo: midi.fileTempo),
@@ -1040,6 +1048,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// Whether a score is open: the menus' Score items follow it.
   final _hasScore = ValueNotifier(false);
 
+  /// Whether the score's notes can be shown in rows where it is engraved (View ▸ Show MIDI View).
+  final _hasMidiView = ValueNotifier(false);
+
   /// Whether a video can be made now: not while the score is engraved again (the toolbar's
   /// button is greyed out then too).
   final _canExport = ValueNotifier(false);
@@ -1054,23 +1065,26 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({VideoRatio videoRatio, bool tabBar, bool playerMap}) get _shownSettings => (
+  ({VideoRatio videoRatio, bool tabBar, bool playerMap, bool midiView}) get _shownSettings => (
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
         playerMap: settings.playerMap,
+        midiView: settings.midiView,
       );
 
-  /// A MIDI project's look and whether it plays by its file's own tempo map: what the MIDI menu
-  /// shows; null for any other project (and no such menu).
-  final _midi = ValueNotifier<({MidiLook look, bool fileTempo})?>(null);
+  /// The rows' look, for a MIDI project ([file]) and a score in its MIDI view, and whether a
+  /// MIDI project plays by its file's own tempo map: what the MIDI menu shows; null for any
+  /// other project (and no such menu).
+  final _midi = ValueNotifier<({MidiLook look, bool file, bool fileTempo})?>(null);
 
   /// Whether a DAW is followed (File ▸ Attacca ▸ Connect Attacca…, ticked).
   final _followsDaw = ValueNotifier(false);
 
-  late final _menuState = Listenable.merge([_hasScore, _canExport, _isSample, _edit, _midi, _followsDaw]);
+  late final _menuState = Listenable.merge([_hasScore, _hasMidiView, _canExport, _isSample, _edit, _midi, _followsDaw]);
 
   void _settingsChanged() {
     controller.takeSettings(settings);
+    controller.showsMidiView = settings.midiView;
     _shown.value = _shownSettings;
   }
 
@@ -1088,6 +1102,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     settings.addListener(_settingsChanged);
     _menuState.addListener(_menusChanged);
     controller.takeSettings(settings);
+    controller.showsMidiView = settings.midiView;
     unawaited(_load());
     // Home had the keyboard: it comes here, as it does when the tab is shown again.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1129,8 +1144,11 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     }
     final open = controller.score != null;
     _hasScore.value = open;
+    _hasMidiView.value = controller.hasMidiView;
     _canExport.value = open && !controller.isReengraving;
-    _midi.value = controller.isMidi ? (look: controller.midiLook, fileTempo: controller.followsFileTempo) : null;
+    _midi.value = controller.isMidi || controller.showsMidiView
+        ? (look: controller.midiLook, file: controller.isMidi, fileTempo: controller.followsFileTempo)
+        : null;
     _followsDaw.value = controller.daw.following != null;
     _edit.value = (
       undo: controller.canUndo,
@@ -1174,6 +1192,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     settings.removeListener(_settingsChanged);
     _menuState.removeListener(_menusChanged);
     _hasScore.dispose();
+    _hasMidiView.dispose();
     _canExport.dispose();
     _isSample.dispose();
     _midi.dispose();
@@ -1903,6 +1922,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       readout: _readout,
       playerMap: settings.playerMap,
       onPlayerMap: (on) => settings.playerMap = on,
+      onMidiView: (on) => settings.midiView = on,
     );
     final view = ScoreView(
       key: _scoreView,

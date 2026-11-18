@@ -62,6 +62,7 @@ class AppSettings extends ChangeNotifier {
         _videoChapters = _prefs?.getBool(_videoChaptersKey) ?? true,
         _tabBar = _prefs?.getBool(_tabBarKey) ?? true,
         _playerMap = _prefs?.getBool(_playerMapKey) ?? false,
+        _midiView = _prefs?.getBool(_midiViewKey) ?? false,
         _rememberWindow = _prefs?.getBool(_rememberWindowKey) ?? true,
         _windowFrame = WindowFrame.parse(_prefs?.getString(_windowFrameKey)),
         _aiProviders = List.unmodifiable(AiProvider.read(_prefs?.getString(_aiProvidersKey))),
@@ -105,7 +106,7 @@ class AppSettings extends ChangeNotifier {
   static const _videoResolutionKey = 'videoResolution', _videoFpsKey = 'videoFps', _videoPaperKey = 'videoPaper';
   static const _videoRatioKey = 'videoRatio', _videoCodecKey = 'videoCodec';
   static const _videoTransparentKey = 'videoTransparent', _videoFrameRateKey = 'videoFrameRate';
-  static const _tabBarKey = 'showTabBar', _playerMapKey = 'showPlayerMap';
+  static const _tabBarKey = 'showTabBar', _playerMapKey = 'showPlayerMap', _midiViewKey = 'showMidiView';
   // macOS reads the flag itself, before Dart runs (MainFlutterWindow.swift: "flutter." + this).
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
@@ -546,6 +547,18 @@ class AppSettings extends ChangeNotifier {
     if (value == _playerMap) return;
     _playerMap = value;
     _prefs?.setBool(_playerMapKey, value);
+    notifyListeners();
+  }
+
+  /// The toolbar's MIDI View (View ▸ Show MIDI View / Show Score): a score's notes in rows where
+  /// it is engraved, in a project whose score has notes and isn't rows already
+  /// ([EditorController.hasMidiView]); under the player map while [playerMap]. Off by default.
+  bool get midiView => _midiView;
+  bool _midiView;
+  set midiView(bool value) {
+    if (value == _midiView) return;
+    _midiView = value;
+    _prefs?.setBool(_midiViewKey, value);
     notifyListeners();
   }
 

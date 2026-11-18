@@ -4528,6 +4528,9 @@ msgstr "Ocultar / mostrar línea de tiempo"
 msgid "Score / Player Map"
 msgstr ""
 
+msgid "Score / MIDI View"
+msgstr ""
+
 msgid "Hide / Show Tab Bar"
 msgstr "Ocultar / mostrar barra de pestañas"
 
@@ -5346,7 +5349,7 @@ msgstr ""
 msgid "MIDI view ({key})"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr ""
 

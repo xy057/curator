@@ -69,6 +69,11 @@ void main() {
     }
 
     expect(await frame(scene, loaded.curation(const {})), await frame(c.scene!, c.curation!));
+    // The MIDI view of the score is the page's too: it lays the notes out in rows itself, as
+    // the project's look has them, and can be what the page shows.
+    final rows = loaded.score.rows(loaded.edits.midiLook), own = c.rows!;
+    expect((loaded.score.hasRows, rows.engraving.commandCount, rows.engraving.width), (true, own.engraving.commandCount, own.engraving.width));
+    expect(WebPage.fromJson(page.toJson()..['viewer'] = {...viewer, 'view': {'value': 'midi', 'open': false}}).view.value, PageShows.midi);
     final hidden = loaded.curation({c.score!.metadata.parts.first.id: PartShown.hidden});
     expect(hidden.lane(c.score!.metadata.parts.first.id), isEmpty, reason: 'the viewer hid it');
 

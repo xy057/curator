@@ -57,8 +57,11 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   late final _hasBarNumbers = _c.pageState.barNumbers;
   late final _hasPlayerMap = _c.playerMap.map != null;
 
-  /// Whether the Video tab's View lane shows anything but the score (only a map can).
-  late final _hasViews = _hasPlayerMap && !_c.automation.views.isEmpty;
+  /// Whether the score's notes can be shown in rows where it is engraved (the MIDI view).
+  late final _hasMidiView = _c.hasMidiView;
+
+  /// Whether the Video tab's View lane shows anything the page can: a map, or the MIDI view.
+  late final _hasViews = _c.automation.views.stretches.any((s) => s.value.kind.showsRows ? _hasMidiView : _hasPlayerMap);
 
   /// Recordings heard whole as well as the performance (with two or more).
   late Set<String> _whole = {if (_takes.length > 1) for (final t in _takes) t.id};
@@ -122,7 +125,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           captions: _captionsShown,
           barNumbers: _barNumbersShown,
           speed: _speed,
-          view: _hasPlayerMap ? _view : const WebChoice(PageShows.score),
+          view: _hasPlayerMap || _hasMidiView ? _view : const WebChoice(PageShows.score),
         ),
         takes: [for (final t in _takes) if (_whole.contains(t.id)) t.id],
         captions: _captions,
@@ -289,7 +292,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           child: AppSwitch(
               value: _barNumbersShown.value, onChanged: (v) => setState(() => _barNumbersShown = _barNumbersShown.copyWith(value: v))),
         ),
-      if (_hasPlayerMap)
+      if (_hasPlayerMap || _hasMidiView)
         // What the frame shows: left to the viewer, or as set here (the View lane's views, kept to).
         _ViewerRow(
           label: 'View',
@@ -301,7 +304,8 @@ class _WebExportDialogState extends State<_WebExportDialog> {
             items: [
               if (_hasViews) (PageShows.views, 'As in Video tab'.tr, true),
               (PageShows.score, _c.isMidi ? 'MIDI View'.tr : 'Score'.tr, true),
-              (PageShows.map, 'Player Map'.tr, true),
+              if (_hasMidiView) (PageShows.midi, 'MIDI View'.tr, true),
+              if (_hasPlayerMap) (PageShows.map, 'Player Map'.tr, true),
             ],
             onChanged: (v) => setState(() => _view = _view.copyWith(value: v)),
           ),

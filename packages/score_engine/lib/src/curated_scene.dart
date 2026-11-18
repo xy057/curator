@@ -446,6 +446,47 @@ class LoadedScore {
   /// Re-engraves as [request] asks (the structure, and so the curation and sync, stay valid).
   Future<LoadedScore> withRequest(EngraveRequest request) =>
       engrave(musicXML, request, tempo: metadata.tempo, pdf: pdf, lilypond: lilypond, midi: midi);
+
+  /// Whether its notes can be drawn in rows as well ([rows]: the MIDI view of a score that is
+  /// notation): it has notes, and isn't drawn so already.
+  bool get hasRows => hasNotes && !isRoll;
+
+  /// This score in the MIDI view: its notes in rows as [look] says ([MidiScore.ofScore]), a row
+  /// for each staff, where its engraving is. All else (its parts, bars, texts and timeline) is
+  /// this score's own, so what curates and times the one does the other. It reads the score's
+  /// notes: [rowsApart] does that on another isolate.
+  LoadedScore rows(MidiLook look) => _asRows(_rowsOf(musicXML, metadata, timeline.measureStarts, look), look);
+
+  /// [rows], the score read on another isolate (the main one only waits).
+  Future<LoadedScore> rowsApart(MidiLook look) async => _asRows(await _rowsApart(musicXML, metadata, timeline.measureStarts, look), look);
+
+  // Given only what it needs (not the engraving, nor a PDF's pictures).
+  static Future<EngravingData> _rowsApart(String musicXML, ScoreMetadata metadata, List<double> starts, MidiLook look) =>
+      Isolate.run(() => _rowsOf(musicXML, metadata, starts, look));
+
+  static EngravingData _rowsOf(String musicXML, ScoreMetadata metadata, List<double> starts, MidiLook look) =>
+      MidiScore.ofScore(musicXML, metadata, starts).engraving(metadata, look);
+
+  LoadedScore _asRows(EngravingData drawn, MidiLook look) => LoadedScore._(metadata, drawn, timeline, beats, ScrollMap(drawn, timeline, beats: beats),
+      musicXML: musicXML,
+      texts: texts,
+      request: EngraveRequest(
+          textEdits: request.textEdits,
+          pairs: request.pairs,
+          fonts: request.fonts,
+          options: request.options,
+          textDynamics: request.textDynamics,
+          typography: request.typography,
+          centeredLyrics: request.centeredLyrics,
+          dynamicsBetween: request.dynamicsBetween,
+          spacers: request.spacers,
+          gaps: request.gaps,
+          midi: look),
+      textFontFound: textFontFound,
+      condensed: const [], // a row is no staff two players could share
+      condensing: condensing,
+      isRoll: true,
+      salience: _salience);
 }
 
 /// A run of staves in one section (start and end, inclusive, in the planned order).
@@ -1964,7 +2005,8 @@ class CuratedScene {
             partId: part.id,
             color: nameColors[part.id]));
         final braced = (weight - most).clamp(0.0, 1.0);
-        if (staves.length > 1 && braced > 0) {
+        // (A MIDI score's rows have no lines to brace: a piano's two are named as one.)
+        if (staves.length > 1 && braced > 0 && !score.isRoll) {
           braces.add(StaffBrace(staves: [
             for (var j = i; j <= last; j++)
               if (staffShown[j] > 0) (top: tops[j], height: heightOf(j) * staffShown[j]),
@@ -1974,7 +2016,7 @@ class CuratedScene {
     }
     // An instrument's barlines run on between its staves shown (a PDF's are in its pictures).
     final joins = <StaffJoin>[];
-    if (display.strokes == null) {
+    if (display.strokes == null && !score.isRoll) {
       final shownStaves = placed.keys.toList();
       for (var k = 1; k < shownStaves.length; k++) {
         final (a, b) = (shownStaves[k - 1], shownStaves[k]);

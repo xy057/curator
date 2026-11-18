@@ -130,6 +130,14 @@ void main() {
       c.automation.drawing = const SceneView(ViewKind.split, side: MapSide.bottom, size: 0.3);
       c.automation.draw(starts[4], starts[6]);
       c.automation.setSelectedFade(0);
+      // …and over bars 11–12 the score's notes in rows (the MIDI view), the rows a step taller:
+      // the look is the project's, and no part of the engraving.
+      final engraved = c.score;
+      expect((c.hasMidiView, c.rowsScene), (true, null));
+      c.automation.drawing = SceneView.midi;
+      c.automation.draw(starts[10], starts[12]);
+      await c.setMidiLook(const MidiLook().rows(1));
+      expect((identical(c.score, engraved), c.isReengraving), (true, false));
       final saved = c.projectState;
 
       final path = '${dir.path}/round.ccs';
@@ -145,7 +153,19 @@ void main() {
       expect(jsonEncode(ProjectModules.toJson(c2.projectState)), jsonEncode(ProjectModules.toJson(saved)));
       expect(c2.partName(part), 'Solo Piccolo');
       expect(c2.automation.views.stretches.map((s) => (s.start, s.value.kind, s.fade)),
-          [(starts[2], ViewKind.map, 0.5), (starts[4], ViewKind.split, 0.0), (starts[6], ViewKind.map, 0.5)]);
+          [(starts[2], ViewKind.map, 0.5), (starts[4], ViewKind.split, 0.0), (starts[6], ViewKind.map, 0.5), (starts[10], ViewKind.midi, 0.5)]);
+      // The rows are laid out beside the score for the view that shows them (off this isolate),
+      // as the look has them, the same parts and bars; the toolbar's switch shows them throughout.
+      for (var i = 0; c2.rowsScene == null && i < 500; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final rows = c2.rowsScene!.score;
+      expect((rows.isRoll, rows.request.midi, identical(rows.metadata, c2.score!.metadata), identical(c2.rows, rows)),
+          (true, const MidiLook().rows(1), true, true));
+      expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.score, true));
+      c2.showsMidiView = true;
+      expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.midi, false));
+      c2.showsMidiView = false;
       expect(c2.curation!.lane(parts[1].id), const [Region(0, 6, hiddenStaves: [2]), Region(6, 9)]);
       expect(c2.spacingOf(parts[2].id), (above: 2.5, below: -1.0));
       expect(c2.condensed, {'cond-P2-P3', 'cond-P6-P12'});

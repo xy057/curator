@@ -126,9 +126,10 @@ abstract final class PluginApi {
     ApiCommand('maximizePreview', 'Maximize Preview', 'View'),
     ApiCommand('maximizeTimeline', 'Maximize Timeline', 'View'),
     ApiCommand('showPlayerMap', 'Score / Player Map', 'View'),
+    ApiCommand('showMidiView', 'Score / MIDI View', 'View'),
     ApiCommand('showTabBar', 'Hide / Show Tab Bar', 'View'),
     ApiCommand('showAllTabs', 'Show All Tabs', 'View'),
-    // A MIDI project's (the menu is in the menu bar while one shows).
+    // A MIDI project's, and a score's in its MIDI view (the menu is in the menu bar while one shows).
     ApiCommand('midiVelocity', 'Shade Notes by Velocity', 'MIDI'),
     ApiCommand('midiSharedRange', 'Shared Pitch Range', 'MIDI'),
     ApiCommand('midiTallerRows', 'Taller Rows', 'MIDI'),

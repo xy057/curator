@@ -32,6 +32,7 @@ class AppMenus extends StatelessWidget {
     this.previewShown = true,
     this.timelineShown = true,
     this.playerMapShown = false,
+    this.midiViewShown,
     this.tabBarShown = true,
     this.midi,
     this.attacca,
@@ -66,15 +67,20 @@ class AppMenus extends StatelessWidget {
   final bool previewShown, timelineShown;
 
   /// Whether the project's map is in the score's place (View ▸ Show Player Map / Show Score;
-  /// Show MIDI View for a MIDI project).
+  /// Show MIDI View for a MIDI project, and where the map is over a score's MIDI view).
   final bool playerMapShown;
+
+  /// Whether a score that is notation shows as its notes in rows (View ▸ Show MIDI View / Show
+  /// Score); null, and no such item, for a project with no such view (a MIDI project is rows
+  /// already) or none.
+  final bool? midiViewShown;
 
   /// Whether the tab bar shows (View ▸ Show / Hide Tab Bar; Show All Tabs is greyed out while it
   /// does).
   final bool tabBarShown;
 
-  /// The MIDI menu, for a MIDI project (its notes drawn in rows, nothing engraved); null, and no
-  /// such menu, while another project or none shows.
+  /// The MIDI menu, for a MIDI project (its notes drawn in rows, nothing engraved) and a score
+  /// in its MIDI view; null, and no such menu, while another project or none shows.
   final MidiMenu? midi;
 
   /// File ▸ Attacca; null: no such menu (a test).
@@ -223,9 +229,12 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             ?_own(
               'showPlayerMap',
-              playerMapShown ? (midi == null ? 'Show Score'.tr : 'Show MIDI View'.tr) : 'Show Player Map'.tr,
+              // (What is under the map: a MIDI project's rows, or a score's while it shows them.)
+              playerMapShown ? (midiViewShown ?? midi != null ? 'Show MIDI View'.tr : 'Show Score'.tr) : 'Show Player Map'.tr,
               shortcut: _keyOf(KeyCommand.showPlayerMap),
             ),
+            if (midiViewShown case final shown?)
+              ?_own('showMidiView', shown ? 'Show Score'.tr : 'Show MIDI View'.tr, shortcut: _keyOf(KeyCommand.showMidiView)),
           ]),
           PlatformMenuItemGroup(members: [
             ?_own(
