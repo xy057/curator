@@ -317,6 +317,18 @@ void main() {
       expect((blue > 50, black), (true, 0), reason: 'the piccolo’s notes in its colour, on white');
       scene.dispose();
 
+      // A key struck again while held, with no note-off between, isn't held to the track's end:
+      // its note-off lets go of both. One whose notes overlap and are each let go keeps them.
+      final struck = <int>[
+        0, 0x90, 60, 80, 0, 0x90, 62, 80, 0x83, 0x60, 0x90, 60, 80, 0, 0x90, 62, 80, // at 0 and at 480
+        0x83, 0x60, 0x80, 60, 0, 0, 0x80, 62, 0, 0x83, 0x60, 0x80, 62, 0, // at 960 and 1440
+        0x83, 0x60, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0xa5, 0x40, 0x90, 64, 80, 0x83, 0x60, 0x80, 64, 0, // 1920 to 2400; 7200 to 7680
+        0, 0xff, 0x2f, 0,
+      ];
+      final again = MidiFile.read(Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, struck.length, ...struck]));
+      expect([for (final n in again.voices.single.notes) (n.key, n.start, n.end)],
+          [(62, 0, 960), (60, 0, 960), (62, 480, 1440), (60, 480, 960), (60, 1920, 2400), (64, 7200, 7680)]);
+
       // A file that plays nothing is no score.
       final silent = Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, 4, 0, 0xff, 0x2f, 0]);
       expect(() => MidiScore.read(silent), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file has no notes.')));
