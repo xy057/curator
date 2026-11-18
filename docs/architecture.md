@@ -202,7 +202,8 @@ is (`ClippedTimeline.bars`). The engine compiles for the web because every `dart
 `native/verovio.dart`, which the web swaps for a stub by conditional import; `dart:io` compiles there,
 so code reaching it (a file read) must just never run on a page. SVGs are sized before they go (a page
 can't measure one on an isolate). For each thing a viewer could choose (the recording, speed with the
-pitch kept, captions, bar numbers, each instrument as curated, always or never), the export sets what
+pitch kept, captions, bar numbers, the view with a player map, each instrument as curated, always or
+never), the export sets what
 they see first and whether they may change it (`WebChoice.open`); with none open the page is a player
 only. The page loads its files beside it (no `<base>`), so it plays from any folder of a server, not
 from a file opened directly. Written as `<name>.part`, then moved in: a folder there already takes
@@ -1143,10 +1144,13 @@ repaint boundary of its own (a frame of a performance paints nothing round it), 
 once for every painter (`_label`). A map travels as a `.cpm` (JSON: format,
 version, map); imported, its links are found again among this score's instruments by name, else by id
 while the name agrees (`PlayerMap.relinked`), and Replace Score carries it as the other part ids
-(`ScoreSwap`). A web page has it in its project: `WebPage.playerMap` says whether the viewer sees it
-first and may switch (the export's Player Map row, only with a map; a page without the field shows
-the score), and the player reads the notes and dynamics itself the first time it shows the map,
-again for each recording's timeline. In a video only as the Video tab's View lane has it (below).
+(`ScoreSwap`). A web page has it in its project: `WebPage.view` says what the viewer sees first
+(`PageShows`: the Video tab's views as they come, the score throughout, or the map in its place) and
+whether they may switch (the export's View row, only with a map; As in Video tab only where the View
+lane has views, and with Viewer can change off the page keeps to them; a MIDI project's score is
+named MIDI View there and on the page; a page written before the row says `playerMap`, the map or
+not, and one without either follows the views), and the player reads the notes and dynamics itself
+the first time it shows the map, again for each recording's timeline. In a video only as the Video tab's View lane has it (below).
 
 **What changes over a performance is automation** (`Automation`, the project's: `EditState.automation`,
 an edit; the optional `automation` module, `{lanes: {<target id>: lane}}`, so an older Curator opens
@@ -1175,8 +1179,9 @@ a layer added by their shares (`BlendMode.plus`, exact on see-through paper too)
 (an inset one on a card edged in ink) fading at the end with the score (`CuratedScene.endFadeAt`); no
 map, the score throughout. The preview (`ScoreView`), a video's frames (`VideoExport`: the lane as
 it was when the export began, in the timeline shown, the notes read for the map before the first
-frame, `PlayerMapEditing.notes`) and a web page (the viewer's Auto, the default where the project
-has views and a map, beside Score and Player Map) all draw through it. The preview handles images,
+frame, `PlayerMapEditing.notes`) and a web page (`PageShows.views`: the export's default where the
+project has views and a map, the viewer's Auto beside Score and Player Map where the switch is
+theirs) all draw through it. The preview handles images,
 spacers and its menu only while the score is in its place (`AutomationEditing.scoreInPlace`: the
 score or an inset map, nothing mid-change), kept up as the playhead moves. The toolbar's Score /
 Player Map switch still shows the map alone; on Score the preview follows the lane. The Video tab

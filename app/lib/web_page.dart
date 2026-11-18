@@ -27,7 +27,7 @@ class WebPage {
     this.captions = const WebChoice(true),
     this.barNumbers = const WebChoice(true),
     this.speed = const WebChoice(1.0),
-    this.playerMap = const WebChoice(false),
+    this.view = const WebChoice(PageShows.views),
   });
 
   static const format = 'application/x-curator-web', version = 1;
@@ -79,9 +79,9 @@ class WebPage {
   /// how fast it plays (pitch kept);
   final WebChoice<double> speed;
 
-  /// and whether the player map shows in the score's place (only where the project has one; a
-  /// page written before it had none: the score, no switch).
-  final WebChoice<bool> playerMap;
+  /// and what shows in its frame ([PageShows]; only where the project has a player map: without
+  /// one, the score).
+  final WebChoice<PageShows> view;
 
   /// The speeds a viewer may pick.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -109,7 +109,7 @@ class WebPage {
           'captions': captions.toJson(captions.value),
           'barNumbers': barNumbers.toJson(barNumbers.value),
           'speed': speed.toJson(speed.value),
-          'playerMap': playerMap.toJson(playerMap.value),
+          'view': view.toJson(view.value.name),
         },
       };
 
@@ -150,7 +150,12 @@ class WebPage {
         captions: WebChoice.fromJson(viewer['captions'], (v) => v as bool),
         barNumbers: WebChoice.fromJson(viewer['barNumbers'], (v) => v as bool),
         speed: WebChoice.fromJson(viewer['speed'], (v) => (v as num).toDouble()),
-        playerMap: viewer['playerMap'] == null ? const WebChoice(false) : WebChoice.fromJson(viewer['playerMap'], (v) => v as bool),
+        view: switch (viewer) {
+          {'view': final view?} => WebChoice.fromJson(view, (v) => named(PageShows.values, v)),
+          // A page written before it chose among three: the map or not.
+          {'playerMap': final map?} => WebChoice.fromJson(map, (v) => v as bool ? PageShows.map : PageShows.views),
+          _ => const WebChoice(PageShows.views),
+        },
       );
     } on FormatException {
       rethrow;
@@ -192,6 +197,11 @@ class WebChoice<T> {
     return WebChoice(read(j['value']), open: j['open'] as bool);
   }
 }
+
+/// What a page shows in its frame: the views as the project's Video tab has them ([SceneView];
+/// the score where it has none), the score throughout (a MIDI project's rows), or the player map
+/// in its place.
+enum PageShows { views, score, map }
 
 /// How an instrument shows on a page: as its lane says, always, or never.
 enum PartShown { curated, shown, hidden }
