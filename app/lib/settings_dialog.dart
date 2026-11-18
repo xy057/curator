@@ -2035,8 +2035,6 @@ class _Dropdown<T> extends StatelessWidget {
       );
 }
 
-/// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
-/// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
 /// What Attacca wrote for Curator ([AttaccaCache]): how much, and Clear, which leaves what a
 /// project open still plays (off while a DAW is writing one).
 class _AttaccaCache extends StatefulWidget {
@@ -2175,6 +2173,8 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
   }
 }
 
+/// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
+/// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
 class _PdfAiModel extends StatelessWidget {
   const _PdfAiModel({required this.settings});
   final AppSettings settings;
