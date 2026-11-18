@@ -225,7 +225,7 @@ final class _Lexer {
           if (_at(pos) != 0x7B) _fail("missing '{' in \\u{xxxx}");
           final close = src.indexOf('}', pos);
           final code = close < 0 ? null : int.tryParse(src.substring(pos + 1, close), radix: 16);
-          if (code == null || code > 0x10FFFF) _fail('invalid \\u{xxxx} escape');
+          if (code == null || code < 0 || code > 0x10FFFF) _fail('invalid \\u{xxxx} escape'); // (below 0: a sign, which int.tryParse reads)
           out.writeCharCode(code);
           pos = close + 1;
         default:

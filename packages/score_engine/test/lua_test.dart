@@ -199,6 +199,7 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
       expect(fails('x = = 1'), "test.lua:1: unexpected symbol near '='");
       expect(fails('if x then\n\n'), "test.lua:3: 'end' expected (to close 'if' at line 1) near '<eof>'");
       expect(fails('local s = "open'), 'test.lua:1: unfinished string');
+      expect(fails(r'return "\u{-1}"'), contains('invalid \\u{xxxx} escape'));
       expect(fails('break'), contains('break outside a loop'));
       expect(fails('goto nowhere'), contains("no visible label 'nowhere'"));
       expect(fails('coroutine.wrap(print)'), contains("coroutines aren't available"));
