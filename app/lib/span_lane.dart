@@ -264,10 +264,13 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
     if (drag == null) return;
     switch (drag.kind) {
       case _Kind.draw:
-        // A click draws one beat (one bar zoomed out), from the beat clicked, as far as there's room.
-        var (q0, q1) = band != null && band.q1 - band.q0 > 1e-9 ? (band.q0, band.q1) : _beatAt(drag.downQ, drag.pass);
+        // A click draws one beat (one bar zoomed out), the beat clicked (where the pointer went
+        // down, not that place snapped: in a beat's second half the nearest edge is the next
+        // beat's start), as far as there's room.
+        final clicked = c.laneQuarter(drag.downAt.dx, pass: drag.pass);
+        var (q0, q1) = band != null && band.q1 - band.q0 > 1e-9 ? (band.q0, band.q1) : _beatAt(clicked, drag.pass);
         if ((band == null || band.q1 - band.q0 <= 1e-9) && !model.paints) {
-          final room = _room(drag.from, c.laneQuarter(drag.downAt.dx, pass: drag.pass));
+          final room = _room(drag.from, clicked);
           if (room == null) return;
           (q0, q1) = (math.max(q0, room.from), math.min(q1, room.to));
         }
