@@ -199,6 +199,11 @@ void main() {
       expect([_band(layout.systems[1], 0), _band(layout.systems[1], 1)], [(20.0, 40.0), (48.0, 76.0)]);
       expect([layout.systems[0].top, layout.systems[1].top, layout.systems[1].bottom], [20.0, 20.0, 76.0]);
       expect(PdfScoreLayout.fromJson(layout.toJson()).toJson(), layout.toJson());
+      // A change at a bar before the first is damage, said as such.
+      for (final (field, value) in [('meters', '3/4'), ('keys', 2), ('tempos', {'words': 'rit.'})]) {
+        expect(() => PdfScoreLayout.fromJson({...layout.toJson(), field: {'-1': value}}),
+            throwsA(isA<FormatException>().having((e) => e.message, 'message', '$field is damaged.')), reason: field);
+      }
       // As the pdf module's version 1 kept it: a system's top, bottom, cuts and gaps.
       final v1 = {
         ...layout.toJson(),
