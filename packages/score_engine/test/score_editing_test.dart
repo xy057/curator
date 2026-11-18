@@ -314,6 +314,13 @@ void main() {
       expect('<slur'.allMatches(score.toMusicXML()).length, 2);
       score.toggleSlur([ids[0]]);
       expect(score.toMusicXML(), plain);
+      // A letter given to it (outside note input) changes its pitch only: the note it was, its
+      // lyric and its marks kept.
+      score.toggleMark([ids[0]], 'staccato');
+      score.setStep([ids[0]], 1);
+      final note = score.eventsIn(0, 0, voice).first;
+      expect((note.ids.first, note.pitches.single.name), (ids[0], 'D4'));
+      expect(['<text>la</text>', '<staccato'].every(score.toMusicXML().contains), isTrue);
     }
 
     // Notes pasted are notes of their own: each has its id, so one found by it is the copy, not what it was copied from.

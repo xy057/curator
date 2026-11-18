@@ -543,12 +543,15 @@ class _ScoreEditorState extends State<ScoreEditor> {
       if (notes.isEmpty) return;
       if (chord) return _addAbove(score.eventsOf(notes), step);
       _edit(() {
+        // A rest becomes a note; a note keeps what it has (lyrics, marks, its id), only its pitch
+        // changing.
         for (final e in score.eventsOf(notes)) {
+          if (!e.isRest) continue;
           final fifths = score.keyAt(e.position.part, e.position.measure, e.position.time).fifths;
-          final near = e.isRest ? score.pitchBefore(e.position) : e.pitches.first;
-          final pitch = Pitch.nearest(step, near, alter: Pitch.keyAlter(step, fifths));
+          final pitch = Pitch.nearest(step, score.pitchBefore(e.position), alter: Pitch.keyAlter(step, fifths));
           score.input(e.position, [InputItem(e.rhythm ?? Rhythm.express(e.length).first, [pitch])]);
         }
+        score.setStep(notes, step);
       });
       return;
     }

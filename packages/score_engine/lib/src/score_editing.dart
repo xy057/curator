@@ -2409,6 +2409,46 @@ class EditableScore {
         }
       });
 
+  /// Notes of [ids] given the letter [step] (0–6: C–B), each at the octave nearest the pitch it
+  /// had, as the key spells it (A–G outside note input). Each stays the note it was: its id, its
+  /// lyrics, marks and slurs; a note whose pitch changes is untied, both ends. Notes of a chord
+  /// that come to one pitch are one note, the first.
+  void setStep(Iterable<String> ids, int step) => edit(() {
+        final chosen = {...ids};
+        for (final e in eventsOf(ids)) {
+          if (e.isRest) continue;
+          final key = keyAt(e.position.part, e.position.measure, e.position.time).fifths;
+          Pitch? moved(XmlElement n) => switch (_pitchOf(n)) {
+                final p? when n.getElement('pitch') != null && chosen.contains(n.getAttribute('id')) =>
+                  Pitch.nearest(step, p, alter: Pitch.keyAlter(step, key)),
+                _ => null,
+              };
+          final p = e.position;
+          final notes = _view(p.part, p.measure).voices[p.voice]?.where((x) => x.start == p.time).firstOrNull?.notes ?? const <XmlElement>[];
+          final changing = {
+            for (final n in notes)
+              if (moved(n) case final to? when to.midi != _pitchOf(n)!.midi || to.step != _pitchOf(n)!.step) n.getAttribute('id')!,
+          };
+          if (changing.isEmpty) continue;
+          // A chord's notes all given the letter come to one pitch: the later ones go.
+          final heard = <int>{};
+          final doubled = {
+            for (final n in notes)
+              if ((moved(n) ?? _pitchOf(n)) case final to? when n.getElement('pitch') != null && !heard.add(to.midi)) n.getAttribute('id')!,
+          };
+          _untie(e, ids: {...changing, ...doubled});
+          _editNotes(e, (notes) {
+            notes.removeWhere((n) => doubled.contains(n.getAttribute('id')));
+            for (final n in notes) {
+              if (!changing.contains(n.getAttribute('id'))) continue;
+              _setPitch(n, moved(n)!);
+              _setTie(n, 'start', false);
+              _setTie(n, 'stop', false);
+            }
+          });
+        }
+      });
+
   /// Notes of [ids] given [alter] (−1 a flat, 0 a natural, 1 a sharp: Dorico's − 0 =).
   void setAlter(Iterable<String> ids, int alter) => edit(() {
         final chosen = {...ids};
