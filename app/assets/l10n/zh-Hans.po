@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Simplified\n"
 "Language: zh_CN\n"
-"PO-Revision-Date: 2026-11-17 22:16\n"
+"PO-Revision-Date: 2026-11-18 04:15\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -625,7 +625,7 @@ msgstr "和弦记号"
 msgid "Chords"
 msgstr "和弦"
 
-#: lib/home_screen.dart lib/phrase_search_window.dart
+#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr "清除"
 
@@ -3518,7 +3518,10 @@ msgstr ""
 msgid "Attacca plug-in"
 msgstr ""
 
-msgid "Use this recording"
+msgid "Attacca cache"
+msgstr ""
+
+msgid "Load ARA Clip"
 msgstr ""
 
 msgid "Follow the DAW’s playhead"
@@ -5334,10 +5337,6 @@ msgstr ""
 msgid "Couldn’t Import MIDI File"
 msgstr ""
 
-#: lib/app_menus.dart
-msgid "Follow DAW…"
-msgstr ""
-
 #: lib/daw_follow_dialog.dart
 msgid "Couldn’t get the recording from the DAW. {error}"
 msgstr ""
@@ -5368,10 +5367,6 @@ msgstr ""
 
 #: lib/daw_follow_dialog.dart
 msgid "The file couldn’t be written."
-msgstr ""
-
-#: lib/daw_follow_dialog.dart
-msgid "Follow DAW"
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
@@ -5572,11 +5567,9 @@ msgstr ""
 msgid "Bars: {count}"
 msgstr ""
 
-#: lib/daw_follow_dialog.dart
 msgid "Attacca Capturer captures in its place."
 msgstr ""
 
-#: lib/daw_follow_dialog.dart
 msgid "Captured by Attacca Capturer as the DAW plays it."
 msgstr ""
 
@@ -5598,10 +5591,6 @@ msgstr ""
 
 #: lib/daw_follow_dialog.dart
 msgid "Attacca works in {daws}."
-msgstr ""
-
-#: lib/daw_follow_dialog.dart
-msgid "Follow Anyway"
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
@@ -5634,5 +5623,37 @@ msgstr ""
 
 #: lib/main.dart
 msgid "{daw} (outdated)"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Record from DAW…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Record from DAW"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Put Attacca Capturer on the DAW’s output."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "The recording followed isn’t in the DAW."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Choose the Capturer in Attacca’s window in the DAW."
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Connect Attacca…"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Attacca"
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "Connect Anyway"
 msgstr ""
 
