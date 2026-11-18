@@ -74,8 +74,10 @@ class ExtensionEditing {
     if (!ExtensionPackage.isThirdPartyId(package.id)) throw const FormatException('The extension has no id Curator can use.');
     if (_carried[package.id] == package) return;
     _carried = Map.unmodifiable({..._carried, package.id: package});
-    _stop(package.id);
-    _sync();
+    _sceneAfter(() {
+      _stop(package.id);
+      _startAndStop();
+    });
     _packagesChanged();
   }
 
@@ -83,8 +85,10 @@ class ExtensionEditing {
   /// it is added again.
   void remove(String id) {
     if (!_carried.containsKey(id)) return;
-    _stop(id);
-    _carried = Map.unmodifiable({..._carried}..remove(id));
+    _sceneAfter(() {
+      _stop(id);
+      _carried = Map.unmodifiable({..._carried}..remove(id));
+    });
     _packagesChanged();
   }
 
@@ -115,11 +119,16 @@ class ExtensionEditing {
   }
 
   /// Starts and stops runtimes as the project's switches say.
-  void _sync() {
+  void _sync() => _sceneAfter(_startAndStop);
+
+  /// Does [change], which stops or starts runtimes, and has the scene show what there is after
+  /// it when one that put something there ran before or runs now: one stopped and started
+  /// again without its band is one that showed.
+  void _sceneAfter(void Function() change) {
     final e = _editor;
     final shown = _inScene;
     try {
-      _startAndStop();
+      change();
     } finally {
       // A band or captions came or went with their extension: the scene shows what there is now.
       if (shown || _inScene) {
@@ -179,8 +188,10 @@ class ExtensionEditing {
 
   /// Runs [package] again from its files: after its code was changed.
   void restart(String id) {
-    _stop(id);
-    _sync();
+    _sceneAfter(() {
+      _stop(id);
+      _startAndStop();
+    });
     _editor._showSettings();
     _editor._changed();
   }
