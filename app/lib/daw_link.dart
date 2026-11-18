@@ -407,7 +407,14 @@ class DawSession extends ChangeNotifier {
           return;
         }
       case 'closed':
-        _documents.remove(message['id']);
+        final id = message['id'];
+        _documents.remove(id);
+        // What was asked of it and not yet written never will be (the plug-in lets its queue go
+        // with it): told so, or Curator would wait on it while the DAW stays connected. A
+        // capture is asked of the Capturer's connection from the same DAW.
+        for (final s in [this, for (final s in _link._sessions) if (pid != 0 && s.pid == pid && s != this) s]) {
+          s._fail((key) => key.$1 == id, 'gone');
+        }
       case 'transport':
         transport.value = dawTransportOf(message);
         return;
@@ -476,24 +483,23 @@ class DawSession extends ChangeNotifier {
   }
 
   void _send(Map<String, Object?> message) {
-    if (_closed) {
-      for (final p in _recordings.values) {
-        p.completer.completeError(const DawLinkException('disconnected'));
-      }
-      _recordings.clear();
-      return;
-    }
+    if (_closed) return _fail((_) => true, 'disconnected');
     _socket.write('${jsonEncode(message)}\n');
+  }
+
+  /// Fails the files asked for [which] keys says, for [reason] ([DawLinkException]).
+  void _fail(bool Function((String, String, String) key) which, String reason) {
+    final failed = [for (final key in _recordings.keys) if (which(key)) key];
+    for (final key in failed) {
+      _recordings.remove(key)!.completer.completeError(DawLinkException(reason));
+    }
   }
 
   void _close() {
     if (_closed) return;
     _closed = true;
     _socket.destroy();
-    for (final p in _recordings.values) {
-      p.completer.completeError(const DawLinkException('disconnected'));
-    }
-    _recordings.clear();
+    _fail((_) => true, 'disconnected');
     _documents.clear();
     if (_link._sessions.remove(this)) {
       _link._tellLinked();

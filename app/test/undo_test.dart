@@ -296,6 +296,12 @@ void main() {
       say({'t': 'transport', 'playing': false, 'seconds': 3.0, 'quarters': 6, 'tempo': 120});
       await until(() => !c.playback.followsDaw);
 
+      // A recording asked of a document the DAW closes before it is written: told it is gone,
+      // never waited on.
+      final lost = link.recording(session, 'other', 'take-9');
+      expect(await heard.moveNext(), isTrue);
+      say({'t': 'closed', 'id': 'other'});
+      await expectLater(lost, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'gone')));
       final asked = link.recording(session, 'doc', 'take-1');
       expect(await heard.moveNext(), isTrue);
       expect(jsonDecode(heard.current), {'t': 'export', 'document': 'doc', 'source': 'take-1'});
