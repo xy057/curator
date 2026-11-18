@@ -832,6 +832,11 @@ class PlayerNotes {
   /// By [PlayerLink.key].
   final Map<String, _Spans> _spans;
 
+  /// The notes of the score [musicXML], whose bars start at [measureStarts], unpitched ones too,
+  /// each as loud as its dynamics say: what the app, a video and a web page pulse the map with.
+  factory PlayerNotes.ofScore(String musicXML, List<double> measureStarts) =>
+      PlayerNotes.of(soundingNotes(musicXML, measureStarts, unpitched: true), dynamics: ScoreDynamics.read(musicXML, measureStarts));
+
   /// [notes] (each as [soundingNotes] reads it, ties carried on), each as loud as [dynamics]
   /// says (none: all mf).
   factory PlayerNotes.of(Iterable<SoundingNote> notes, {ScoreDynamics? dynamics}) {

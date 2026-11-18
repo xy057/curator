@@ -111,7 +111,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     final score = _loaded.score, starts = score.timeline.measureStarts;
     _notes ??= !score.hasNotes
         ? PlayerNotes.none
-        : PlayerNotes.of(soundingNotes(score.musicXML, starts, unpitched: true), dynamics: ScoreDynamics.read(score.musicXML, starts));
+        : PlayerNotes.ofScore(score.musicXML, starts);
     return _pulses ??= PlayerPulses(_notes!, _scene.timeline);
   }
 
