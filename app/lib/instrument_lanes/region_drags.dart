@@ -138,7 +138,7 @@ mixin _RegionDrags on _LaneGeometry, LaneCursor<InstrumentLanes> {
     if (drag == null) return;
     final p = e.localPosition;
     final q = c.laneQuarter(p.dx, pass: drag.pass);
-    drag.moved |= (p - drag.downAt).distance >= 3;
+    drag.moved |= (p - drag.downAt).distance >= dragStart;
     switch (drag.kind) {
       case _DragKind.scrub:
         c.playback.scrub(c.viewport.seconds(p.dx));

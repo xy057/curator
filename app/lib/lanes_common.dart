@@ -548,6 +548,10 @@ double snapInLanes(EditorController c, double quarter, {required int pass}) {
   return (start: starts[m], end: starts[math.min(m + 1, starts.length - 1)]);
 }
 
+/// How far a press moves before it is a drag, not a click (in a lane, or a spacer's handle on
+/// the preview): a click only selects.
+const dragStart = 3.0;
+
 /// Tells a double-click from two clicks: a second press within [interval] of the first and
 /// [slop] pixels of where it was. A double-click starts the count again, so a third press is a
 /// first one.

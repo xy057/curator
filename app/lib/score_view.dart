@@ -12,7 +12,7 @@ import 'editor_controller.dart';
 import 'edit_dialogs.dart';
 import 'error_text.dart';
 import 'image_patch.dart';
-import 'lanes_common.dart' show SideSwipe, isCommandPressed, isZoomModifierPressed;
+import 'lanes_common.dart' show SideSwipe, dragStart, isCommandPressed, isZoomModifierPressed;
 import 'player_map_paint.dart';
 import 'plugins/plugins.dart';
 import 'scene_views.dart';

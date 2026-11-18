@@ -211,7 +211,7 @@ class _SpanLaneState extends State<SpanLane> with LaneCursor<SpanLane> {
     final drag = _drag;
     if (drag == null) return;
     final p = e.localPosition, q = c.laneQuarter(p.dx, pass: drag.pass);
-    drag.moved |= (p - drag.downAt).distance >= 3;
+    drag.moved |= (p - drag.downAt).distance >= dragStart;
     switch (drag.kind) {
       case _Kind.scrub:
         c.playback.scrub(c.viewport.seconds(p.dx));
