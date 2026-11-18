@@ -499,12 +499,8 @@ std::string LinkDocumentController::snapshot ()
 
 void LinkDocumentController::publish ()
 {
-    std::string state = snapshot ();
     dirty_ = false;
-    if (state == published_)
-        return;
-    published_ = state;
-    client_.publish (id_, std::move (state));
+    client_.publish (id_, snapshot ());  // sent only when it differs from the last (LinkClient::publish)
 }
 
 // MARK: Files for Curator
