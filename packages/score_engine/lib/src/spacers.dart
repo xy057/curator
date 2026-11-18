@@ -27,7 +27,9 @@ enum SpacerKey {
   static SpacerKey named(String? name) => values.where((k) => k.name == name).firstOrNull ?? c;
 
   /// [concert] written for this key: within six accidentals either way (C♯ major is D♭ major).
+  /// At concert pitch it is the score's own, seven sharps or flats too.
   int keyOf(int concert) {
+    if (this == c) return concert;
     var key = concert + fifths;
     while (key > 6) {
       key -= 12;

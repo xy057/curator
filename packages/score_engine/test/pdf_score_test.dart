@@ -147,6 +147,9 @@ void main() {
       // Named and abbreviated as printed, the transposition following the name.
       expect([for (final i in next.instruments) (i.name, i.abbreviation, i.key)],
           [('Flute', 'Fl.', SpacerKey.c), ('Clarinet in B♭', '', SpacerKey.bFlat)]);
+      // A staff at concert pitch shows the score's key as it is, seven sharps too; one transposed
+      // stays within six either way.
+      expect([SpacerKey.c.keyOf(7), SpacerKey.c.keyOf(-7), SpacerKey.bFlat.keyOf(5), SpacerKey.bFlat.concertOf(-5)], [7, -7, -5, 5]);
       // The clarinet's two sharps and the flute's flat both say F major.
       expect([next.fifths, '${next.meter}', next.tempo], [-1, '3/4', 132]);
       expect(next.tempos, {0: const PdfTempo('Allegro'), 1: const PdfTempo('rit.')});
