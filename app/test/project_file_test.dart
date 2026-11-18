@@ -256,6 +256,25 @@ void main() {
       expect(opened.state.edits.crossfade, 0.5);
       expect([for (final t in opened.state.edits.takes) t.regions], [[Region(0, 4)], [Region(4, 8)]]);
     }
+
+    // A recording a project linked to and couldn't find is still named once the project is saved
+    // (opened in a document, saved, opened again), and found beside the project once it is back.
+    {
+      final path = '${dir.path}/linked.ccs';
+      await ProjectFile.write(path, ProjectContents(
+        scoreName: demoScore.uri.pathSegments.last,
+        scoreBytes: demoScore.readAsBytesSync(),
+        state: const ProjectState(),
+        missingMedia: (name: 'Concert.wav', path: '${dir.path}/elsewhere/Concert.wav', relativePath: 'Concert.wav'),
+      ));
+      final (_, linked) = await demo();
+      expect(await linked.open(path), contains('${dir.path}/elsewhere/Concert.wav'));
+      await linked.save();
+      final again = await open(path);
+      expect((again.media!.path, again.media!.missingPath, again.media!.link?.relativePath), (null, '${dir.path}/elsewhere/Concert.wav', 'Concert.wav'));
+      File('${dir.path}/Concert.wav').writeAsBytesSync([1, 2, 3]);
+      expect(((await open(path)).media!.path, (await open(path)).media!.missingPath), ('${dir.path}/Concert.wav', null));
+    }
   });
 
   test('older formats and modules: Curator 0.1 to 0.6.1 ask for an update, a project or settings file saved before modules opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {

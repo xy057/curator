@@ -102,6 +102,7 @@ class ProjectDocument extends ChangeNotifier {
   Future<String?> _open(String path) async {
     final String? recordingProblem;
     final Map<String, String>? unreadTakes, unreadStems;
+    final MissingMedia? missingMedia;
     final previousMedia = _mediaDirectory;
     final mediaDirectory = ScratchSpace.folder('project');
     try {
@@ -117,6 +118,7 @@ class ProjectDocument extends ChangeNotifier {
       final missing = project.media?.missingPath;
       recordingProblem = problem ?? (missing == null ? null : 'Can’t find the linked recording:\n{file}'.fill({'file': missing}));
       _olderFormat = project.olderFormat;
+      missingMedia = project.media?.link;
       unreadTakes = project.state.foreign.containsKey(ProjectModules.takes.id) ? project.takes : null;
       unreadStems = project.state.foreign.containsKey(ProjectModules.stems.id) ? project.stems : null;
     } catch (_) {
@@ -126,6 +128,7 @@ class ProjectDocument extends ChangeNotifier {
     _mediaDirectory = mediaDirectory;
     _unreadTakes = unreadTakes;
     _unreadStems = unreadStems;
+    _missingMedia = missingMedia;
     ScratchSpace.release(previousMedia);
     _path = path;
     _isSample = false;
@@ -185,6 +188,7 @@ class ProjectDocument extends ChangeNotifier {
     _mediaDirectory = null;
     _unreadTakes = null;
     _unreadStems = null;
+    _missingMedia = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -238,6 +242,7 @@ class ProjectDocument extends ChangeNotifier {
     _mediaDirectory = null;
     _unreadTakes = null;
     _unreadStems = null;
+    _missingMedia = null;
     _path = null;
     _isSample = false;
     _olderFormat = false;
@@ -259,7 +264,9 @@ class ProjectDocument extends ChangeNotifier {
     notifyListeners();
     try {
       final revision = controller.editRevision.value;
-      await ProjectFile.write(target, _contents());
+      final contents = _contents();
+      await ProjectFile.write(target, contents);
+      if (contents.media != null) _missingMedia = null; // it has a recording now: the one it couldn't find is forgotten
       _path = target;
       _olderFormat = false;
       _markSaved(revision);
@@ -284,6 +291,7 @@ class ProjectDocument extends ChangeNotifier {
       scoreBytes: source.bytes,
       state: controller.projectState,
       media: track != null ? ProjectMedia(name: track.name, embedFrom: track.path) : focus == null ? null : media(focus),
+      missingMedia: _missingMedia,
       takes: _unreadTakes != null
           ? {for (final MapEntry(key: id, value: path) in _unreadTakes!.entries) id: ProjectMedia(name: fileNameOf(path), embedFrom: path)}
           : {
@@ -356,6 +364,10 @@ class ProjectDocument extends ChangeNotifier {
 
   /// The stems' files when the project's stems module is a newer build's, as [_unreadTakes].
   Map<String, String>? _unreadStems;
+
+  /// The recording the open project links to and couldn't find (one saved before recordings were
+  /// always embedded): a save keeps the link while the project has no recording.
+  MissingMedia? _missingMedia;
 
 
   @override
