@@ -255,17 +255,13 @@ class DawLink extends ChangeNotifier {
 
   /// The Attacca Capturers in [session]'s DAW: its own and those of the other connections from
   /// the same process (Attacca Capturer's VST3 is a bundle of its own, with its own connection).
-  List<DawCapturer> capturersOf(DawSession session) => [
-        for (final s in _sessions)
-          if (s == session || (session.pid > 0 && s.pid == session.pid)) ...s.capturers,
-      ];
+  List<DawCapturer> capturersOf(DawSession session) => [for (final s in _sameDaw(session)) ...s.capturers];
 
   /// The Attacca Capturer linked to the Attacca of [session]'s DAW (chosen in Attacca's window:
   /// [DawSession.linkedCapturer]), if it is there: Record from DAW… captures with it.
   DawCapturer? linkedCapturerOf(DawSession session) {
-    final daw = _sameDaw(session);
-    final linked = {for (final s in daw) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
-    return [for (final s in daw) ...s.capturers].where((c) => linked.contains(c.id)).firstOrNull;
+    final linked = {for (final s in _sameDaw(session)) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
+    return capturersOf(session).where((c) => linked.contains(c.id)).firstOrNull;
   }
 
   /// The connections from [session]'s DAW: itself, and the others from its process.
@@ -277,7 +273,7 @@ class DawLink extends ChangeNotifier {
   void _tellLinked() {
     for (final s in _sessions) {
       final daw = _sameDaw(s);
-      final capturers = [for (final o in daw) ...o.capturers];
+      final capturers = capturersOf(s);
       s._tellInserts([for (final c in capturers) c.id], [
         for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
       ]);
@@ -412,7 +408,7 @@ class DawSession extends ChangeNotifier {
         // What was asked of it and not yet written never will be (the plug-in lets its queue go
         // with it): told so, or Curator would wait on it while the DAW stays connected. A
         // capture is asked of the Capturer's connection from the same DAW.
-        for (final s in [this, for (final s in _link._sessions) if (pid != 0 && s.pid == pid && s != this) s]) {
+        for (final s in _link._sameDaw(this)) {
           s._fail((key) => key.$1 == id, 'gone');
         }
       case 'transport':
