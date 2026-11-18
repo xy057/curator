@@ -454,6 +454,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     _lifecycle.dispose();
     _homeKeys.dispose();
     _menus.dispose();
+    _attaccaLine.dispose();
     _recent.dispose();
     _typing.dispose();
     for (final p in _projects) {
@@ -510,7 +511,12 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   final _dawsSeen = Expando<bool>();
   final _dawProcessesSeen = <int>{};
 
+  /// File ▸ Attacca's first line as last shown ([_attaccaState]): the menus are built again
+  /// when it changes, not at every word from a DAW (a region dragged sends one an edit).
+  late final _attaccaLine = ValueNotifier(_attaccaState);
+
   void _dawsChanged() {
+    _attaccaLine.value = _attaccaState;
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
       if (_dawsSeen[session] == true || _dawProcessesSeen.contains(session.pid)) continue;
       final said = !session.supported
@@ -754,7 +760,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_recent, _menus, _typing, plugins, ?widget.dawLink]),
+      listenable: Listenable.merge([_recent, _menus, _typing, plugins, _attaccaLine]),
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
