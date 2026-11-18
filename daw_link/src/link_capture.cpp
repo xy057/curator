@@ -3,14 +3,12 @@
 #include "json.h"
 #include "link_files.h"
 
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <algorithm>
 #include <bit>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <thread>
 #include <vector>
 
@@ -45,7 +43,7 @@ struct Capture {
     int channels { 2 };
     double rate { 44100 };
     int64_t start { 0 }, frames { 0 };
-    int fd { -1 };
+    std::fstream file;  // the writer's alone, once it runs
 
     struct Block {
         int64_t at { 0 }, n { 0 };
@@ -271,18 +269,28 @@ void Capturer::start (const std::string& document, double from, double length, c
     if (capture->frames * capture->channels * 4 > int64_t { 0xffffffff } - 64)
         return reply ("error", "too long");
 
-    const std::string folder = curatorCacheFolder () + "/DAW Link/Captures/" + hashOf (document + "/" + std::to_string (capture->start));
+    const std::string folder = nativePath (curatorCacheFolder () + "/DAW Link/Captures/" + hashOf (document + "/" + std::to_string (capture->start)));
     makeFolders (folder);
-    capture->path = folder + "/" + safeName (name.empty () ? "Mix" : name) + ".wav";
+    capture->path = nativePath (folder + "/" + safeName (name.empty () ? "Mix" : name) + ".wav");
     const std::string partial = capture->path + ".part";
-    capture->fd = ::open (partial.c_str (), O_CREAT | O_TRUNC | O_RDWR, 0644);
-    const std::string header = wavHeader (capture->channels, capture->rate, capture->frames);
-    if (capture->fd < 0 || ::write (capture->fd, header.data (), header.size ()) != static_cast<ssize_t> (header.size ()) ||
-        ::ftruncate (capture->fd, wavHeaderBytes + capture->frames * capture->channels * 4) != 0)
+    // Its header, then as long as it will be (silence, which costs the disk nothing yet), then
+    // open for each block where it belongs.
+    std::error_code error;
     {
-        if (capture->fd >= 0)
-            ::close (capture->fd);
-        std::remove (partial.c_str ());
+        std::ofstream made (fileOf (partial), std::ios::binary | std::ios::trunc);
+        const std::string header = wavHeader (capture->channels, capture->rate, capture->frames);
+        made.write (header.data (), static_cast<std::streamsize> (header.size ()));
+        made.close ();
+        if (made.fail ())
+            error = std::make_error_code (std::errc::io_error);
+    }
+    if (!error)
+        std::filesystem::resize_file (fileOf (partial), static_cast<std::uintmax_t> (wavHeaderBytes + capture->frames * capture->channels * 4), error);
+    if (!error)
+        capture->file.open (fileOf (partial), std::ios::binary | std::ios::in | std::ios::out);
+    if (error || !capture->file.is_open ())
+    {
+        removeFile (partial);
         return reply ("error", "unwritable");
     }
 
@@ -337,7 +345,9 @@ void Capturer::start (const std::string& document, double from, double length, c
                 const auto block = c->blocks[slot];
                 const float* data = c->samples.data () + slot * static_cast<size_t> (blockFrames * c->channels);
                 const size_t bytes = static_cast<size_t> (block.n * c->channels) * sizeof (float);
-                ok = ::pwrite (c->fd, data, bytes, wavHeaderBytes + block.at * c->channels * 4) == static_cast<ssize_t> (bytes);
+                c->file.seekp (static_cast<std::streamoff> (wavHeaderBytes + block.at * c->channels * 4));
+                c->file.write (reinterpret_cast<const char*> (data), static_cast<std::streamsize> (bytes));
+                ok = c->file.good ();
                 c->hear (block.at, block.n);
                 c->tail.store (t + 1, std::memory_order_release);
             }
@@ -352,16 +362,16 @@ void Capturer::start (const std::string& document, double from, double length, c
         live_.store (nullptr);
         while (processing_.load () != 0)
             std::this_thread::sleep_for (std::chrono::milliseconds (1));
-        ok = ::close (c->fd) == 0 && ok;
-        c->fd = -1;
+        c->file.close ();
+        ok = !c->file.fail () && ok;
         const bool whole = ok && c->heardCount >= c->frames;
-        if (whole && std::rename (partial.c_str (), c->path.c_str ()) == 0)
+        if (const std::string put = whole ? putInPlace (partial, c->path) : std::string (); !put.empty ())
         {
-            reply ("path", c->path);
+            reply ("path", put);
         }
         else
         {
-            std::remove (partial.c_str ());
+            removeFile (partial);
             reply ("error", c->cancel.load () ? "cancelled" : "unwritable");
         }
         capturing.fetch_sub (1);

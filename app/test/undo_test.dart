@@ -516,6 +516,22 @@ void main() {
       expect(Directory('$plugIns/Components/Attacca.component').existsSync() || Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync(), isFalse,
           reason: 'uninstalled, all go');
 
+      // On Windows: the user's own VST3 folder (no administrator), the two VST3s as Windows has
+      // them (a DLL in a folder for its processor), the version from the file the bundle says it in.
+      expect(AttaccaPlugIns.plugInsFolderFor('windows', {'LocalAppData': r'C:\Users\me\AppData\Local', 'HOME': '/Users/me'}), r'C:\Users\me\AppData\Local\Programs\Common');
+      expect(AttaccaPlugIns.plugInsFolderFor('windows', {'USERPROFILE': r'D:\me'}), r'D:\me\AppData\Local\Programs\Common');
+      expect((AttaccaPlugIns.plugInsFolderFor('windows', {'HOME': '/Users/me'}), AttaccaPlugIns.plugInsFolderFor('macos', {})), (null, null), reason: 'no home: nowhere');
+      expect(AttaccaPlugIns.plugInsFolderFor('macos', {'HOME': '/Users/me'}), '/Users/me/Library/Audio/Plug-Ins');
+      final windowsZip = Archive()
+        ..add(ArchiveFile.string('Attacca.vst3/Contents/Resources/version.txt', '0.9.621+621\n'))
+        ..add(ArchiveFile.string('Attacca.vst3/Contents/x86_64-win/Attacca.vst3', 'program'))
+        ..add(ArchiveFile.string('Attacca Capturer.vst3/Contents/x86_64-win/Attacca Capturer.vst3', 'program'));
+      await AttaccaPlugIns.install(Uint8List.fromList(ZipEncoder().encode(windowsZip)), folder: plugIns);
+      expect((AttaccaPlugIns.installed(folder: plugIns), AttaccaPlugIns.installedBuild(folder: plugIns)), ('0.9.621 (621)', 621));
+      expect(File('$plugIns/VST3/Attacca Capturer.vst3/Contents/x86_64-win/Attacca Capturer.vst3').existsSync(), isTrue);
+      await AttaccaPlugIns.uninstall(folder: plugIns);
+      expect((AttaccaPlugIns.installed(folder: plugIns), Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync()), (null, false));
+
       // Attacca's cache cleared (Settings ▸ General ▸ DAW): the files the plug-in wrote go, one
       // half written too, and the folders left empty; one a recording open still plays stays.
       final cache = Directory('${folder.path}/DAW Link');

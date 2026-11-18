@@ -12,3 +12,4 @@ packages/score_engine/third_party/verovio/
 # Attacca: the SDKs `make daw-link` fetches, and its build
 /daw_link/third_party/
 /daw_link/build/
+/daw_link/build-windows/

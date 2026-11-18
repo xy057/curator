@@ -5684,3 +5684,7 @@ msgstr ""
 #: lib/web_export_dialog.dart
 msgid "As in Video tab"
 msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Quit your DAW first."
+msgstr ""

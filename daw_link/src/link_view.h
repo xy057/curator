@@ -1,5 +1,5 @@
-// Attacca's window in the DAW (link_view.mm): its name, whether Curator is connected (or why
-// not), and the projects following this DAW.
+// Attacca's window in the DAW (macOS: mac/link_view.mm; Windows: win/link_view.cpp): its name,
+// whether Curator is connected (or why not), and the projects following this DAW.
 #pragma once
 
 #include <functional>
@@ -12,12 +12,19 @@ namespace attacca {
 
 constexpr int statusViewWidth = 320, statusViewHeight = 124;
 
-// Puts the view in [parent] (an NSView), filling it; the handle lets it go again.
+// Puts the view in [parent] (macOS: an NSView; Windows: an HWND), filling it; the handle lets
+// it go again. Its size is [statusViewWidth] by [statusViewHeight] points; on Windows the DAW
+// may make it more pixels than that (a denser screen), and what it shows grows with it.
 // [capturer]: Attacca Capturer's window (link_capture.h), else Attacca's. [bound] says whether
 // Attacca's instance is bound to ARA (1), on an insert only (0), or not yet known (-1);
 // [capturerId] the Capturer's ID (whether it is linked: [LinkClient::linked]).
 void* attachStatusView (void* parent, bool capturer = false, std::function<int ()> bound = {}, std::function<std::string ()> capturerId = {});
 void detachStatusView (void* handle);
+#if defined(_WIN32)
+// Windows: the view made [width] by [height] pixels, when the DAW's window is (a child there
+// doesn't follow its parent by itself).
+void resizeStatusView (void* handle, int width, int height);
+#endif
 
 // The name of the Objective-C class that makes the Audio Unit's view (kAudioUnitProperty_CocoaUI).
 const char* statusViewFactoryClass ();

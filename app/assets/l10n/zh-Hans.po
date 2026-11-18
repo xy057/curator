@@ -5684,3 +5684,7 @@ msgstr "DAW 已将其停止。"
 #: lib/web_export_dialog.dart
 msgid "As in Video tab"
 msgstr "按“视频”标签页"
+
+#: lib/settings_dialog.dart
+msgid "Quit your DAW first."
+msgstr "请先退出 DAW。"

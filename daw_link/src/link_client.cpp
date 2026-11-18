@@ -2,16 +2,9 @@
 
 #include "json.h"
 #include "link_config.h"
+#include "link_socket.h"
+#include "link_system.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <cerrno>
-#include <csignal>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -30,51 +23,7 @@ constexpr size_t maxInbox = 1 << 20;
 
 using Clock = std::chrono::steady_clock;
 
-std::string home ()
-{
-    const char* h = std::getenv ("HOME");
-    return (h && *h == '/') ? std::string (h) : std::string ("/tmp");
-}
-
-#if !defined(__APPLE__)
-std::string xdg (const char* name, const char* fallback)
-{
-    const char* v = std::getenv (name);
-    return (v && *v == '/') ? std::string (v) : home () + fallback;
-}
-#endif
-
-std::string processName ()
-{
-#if defined(__APPLE__)
-    return getprogname ();
-#else
-    std::ifstream comm ("/proc/self/comm");
-    std::string name;
-    std::getline (comm, name);
-    return name;
-#endif
-}
-
 }  // namespace
-
-std::string curatorDataFolder ()
-{
-#if defined(__APPLE__)
-    return home () + "/Library/Application Support/Curator";
-#else
-    return xdg ("XDG_DATA_HOME", "/.local/share") + "/curator";
-#endif
-}
-
-std::string curatorCacheFolder ()
-{
-#if defined(__APPLE__)
-    return home () + "/Library/Caches/Curator";
-#else
-    return xdg ("XDG_CACHE_HOME", "/.cache") + "/curator";
-#endif
-}
 
 LinkClient& LinkClient::retain ()
 {
@@ -100,6 +49,7 @@ void LinkClient::release ()
 
 LinkClient::LinkClient ()
 {
+    net::begin ();
     thread_ = std::thread ([this] { run (); });
 }
 
@@ -112,6 +62,7 @@ LinkClient::~LinkClient ()
     wake_.notify_all ();
     if (thread_.joinable ())
         thread_.join ();
+    net::end ();
 }
 
 void LinkClient::publish (const std::string& key, std::string message)
@@ -279,7 +230,7 @@ std::string LinkClient::transportMessage ()
 bool LinkClient::tryConnect ()
 {
     // Curator writes where it listens when it starts, and removes the file when it quits.
-    std::ifstream file (curatorDataFolder () + "/daw-link.json");
+    std::ifstream file (fileOf (curatorDataFolder () + "/daw-link.json"));
     if (!file)
         return false;
     std::stringstream text;
@@ -293,29 +244,17 @@ bool LinkClient::tryConnect ()
     // A Curator that went without removing its file (it crashed): its port may be another
     // program's by now, which would be told the token and held as Curator for good.
     const long curator = std::strtol (found["pid"].c_str (), nullptr, 10);
-    if (curator > 0 && ::kill (static_cast<pid_t> (curator), 0) != 0 && errno == ESRCH)
+    if (curator > 0 && processGone (curator))
         return false;
 
-    const int fd = ::socket (AF_INET, SOCK_STREAM, 0);
+    // A Curator that stops reading (paused in a debugger) mustn't hold this thread for long:
+    // two seconds a send at most.
+    const net::Socket fd = net::open (2);
     if (fd < 0)
         return false;
-#if defined(SO_NOSIGPIPE)
-    int on = 1;
-    ::setsockopt (fd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof on);
-#endif
-    int noDelay = 1;
-    ::setsockopt (fd, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof noDelay);
-    // A Curator that stops reading (paused in a debugger) mustn't hold this thread for long.
-    timeval timeout { 2, 0 };
-    ::setsockopt (fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
-
-    sockaddr_in address {};
-    address.sin_family = AF_INET;
-    address.sin_port = htons (static_cast<uint16_t> (port));
-    address.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-    if (::connect (fd, reinterpret_cast<sockaddr*> (&address), sizeof address) != 0)
+    if (!net::connect (fd, static_cast<uint16_t> (port)))
     {
-        ::close (fd);
+        net::close (fd);
         return false;
     }
 
@@ -332,9 +271,9 @@ bool LinkClient::tryConnect ()
 
 void LinkClient::disconnect ()
 {
-    const int fd = fd_.exchange (-1);
+    const net::Socket fd = fd_.exchange (net::none);
     if (fd >= 0)
-        ::close (fd);
+        net::close (fd);
     {
         std::lock_guard<std::mutex> lock (mutex_);
         told_.clear ();
@@ -355,7 +294,7 @@ void LinkClient::deliver (const Message& message)
 
 bool LinkClient::sendLine (const std::string& line)
 {
-    const int fd = fd_.load ();
+    const net::Socket fd = fd_.load ();
     if (fd < 0)
         return false;
     std::string data = line;
@@ -363,13 +302,7 @@ bool LinkClient::sendLine (const std::string& line)
     size_t sent = 0;
     while (sent < data.size ())
     {
-#if defined(MSG_NOSIGNAL)
-        const ssize_t n = ::send (fd, data.data () + sent, data.size () - sent, MSG_NOSIGNAL);
-#else
-        const ssize_t n = ::send (fd, data.data () + sent, data.size () - sent, 0);
-#endif
-        if (n < 0 && errno == EINTR)
-            continue;
+        const long long n = net::send (fd, data.data () + sent, data.size () - sent);
         if (n <= 0)
             return false;
         sent += static_cast<size_t> (n);
@@ -379,11 +312,8 @@ bool LinkClient::sendLine (const std::string& line)
 
 void LinkClient::receive ()
 {
-    const int fd = fd_.load ();
     char buffer[4096];
-    const ssize_t n = ::recv (fd, buffer, sizeof buffer, 0);
-    if (n < 0 && errno == EINTR)
-        return;
+    const long long n = net::receive (fd_.load (), buffer, sizeof buffer);
     if (n <= 0)
     {
         disconnect ();
@@ -455,7 +385,7 @@ void LinkClient::run ()
                     .field ("plugin", LINK_VERSION)
                     .field ("build", static_cast<double> (LINK_BUILD))
                     .field ("host", host)
-                    .field ("pid", static_cast<double> (::getpid ()))
+                    .field ("pid", static_cast<double> (processId ()))
                     .endObject ();
                 lines.push_back (hello.text ());
                 for (auto& state : states_)
@@ -490,12 +420,8 @@ void LinkClient::run ()
             continue;
         }
 
-        pollfd p { fd_.load (), POLLIN, 0 };
-        if (p.fd >= 0 && ::poll (&p, 1, 15) > 0)
-        {
-            if (p.revents & (POLLIN | POLLHUP | POLLERR))
-                receive ();
-        }
+        if (const net::Socket fd = fd_.load (); fd >= 0 && net::readable (fd, 15))
+            receive ();
     }
     disconnect ();
 }

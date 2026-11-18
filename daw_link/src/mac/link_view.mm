@@ -1,11 +1,12 @@
-// Attacca's window in the DAW: its name, whether Curator is connected (or why not), and
-// the Curator projects following this DAW. Attacca Capturer's says whether it is capturing,
-// or that it needs Attacca on a track.
-#include "link_view.h"
+// Attacca's window in the DAW on macOS (link_view.h; Windows': win/link_view.cpp): its name,
+// whether Curator is connected (or why not), and the Curator projects following this DAW.
+// Attacca Capturer's says whether it is capturing, or that it needs Attacca on a track.
+#include "../link_view.h"
 
 #include "../link_capture.h"
 #include "../link_client.h"
 #include "../link_config.h"
+#include "../link_system.h"
 
 #import <AudioToolbox/AudioToolbox.h>
 #import <AudioUnit/AUCocoaUIView.h>

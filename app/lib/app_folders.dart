@@ -51,16 +51,19 @@ abstract final class AppFolders {
       };
 
   /// `%LocalAppData%` (not the roaming `%AppData%`: what is kept here is big and of this
-  /// machine), else the profile's `AppData\Local`. Windows names variables in any case.
-  static String _windowsLocal(Map<String, String> env, String temp) {
+  /// machine), else the profile's `AppData\Local`; null when [env] has neither. Windows names
+  /// variables in any case. (Attacca finds Curator's folders the same way: daw_link/src/link_system.cpp.)
+  static String? windowsLocal(Map<String, String> env) {
     final upper = {for (final e in env.entries) e.key.toUpperCase(): e.value};
     bool absolute(String? p) => p != null && RegExp(r'^([A-Za-z]:\\|\\\\)').hasMatch(p);
     final local = upper['LOCALAPPDATA'];
     if (absolute(local)) return local!;
     final profile = upper['USERPROFILE'];
     if (absolute(profile)) return _join(profile!, '\\', 'AppData\\Local');
-    return temp;
+    return null;
   }
+
+  static String _windowsLocal(Map<String, String> env, String temp) => windowsLocal(env) ?? temp;
 
   static String _home(Map<String, String> env, String temp) {
     final home = env['HOME'];

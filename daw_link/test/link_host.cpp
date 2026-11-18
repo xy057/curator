@@ -1,27 +1,37 @@
 // A DAW in miniature that checks Attacca as built:
-// `link_host "<path>/Attacca.vst3" "<path>/Attacca.component"`.
+// `link_host "<path>/Attacca.vst3" "<path>/Attacca Capturer.vst3"`, and on macOS
+// "<path>/Attacca.component" after them.
 //
 // It stands in for both ends the plug-in talks to. As Curator, it listens where a discovery file
-// in a home of its own says (HOME is pointed at a temporary folder, so the real Curator is never
-// reached); as the DAW, it loads the VST3, makes an ARA document with a tempo map, bar and key
-// signatures, a track and a recording placed in the song, and checks what Curator is told: the
-// document, the recording written as a file when asked for, the region played back where the song
-// has it, the transport, and the document closed. The Audio Unit (Logic's) is registered in this
-// process only and checked for its ARA factory and its playback. Exits non-zero, saying why, on the
-// first failure.
+// in a home of its own says (HOME, on Windows LOCALAPPDATA, is pointed at a temporary folder, so
+// the real Curator is never reached); as the DAW, it loads the VST3, makes an ARA document with a
+// tempo map, bar and key signatures, a track and a recording placed in the song, and checks what
+// Curator is told: the document, the recording written as a file when asked for, the region
+// played back where the song has it, the transport, and the document closed. The Audio Unit
+// (Logic's; macOS) is registered in this process only and checked for its ARA factory and its
+// playback. Exits non-zero, saying why, on the first failure.
+#include "../src/link_socket.h"
+
+#if defined(__APPLE__)
 #include "ARA_API/ARAAudioUnit.h"
+#endif
 #include "ARA_API/ARAInterface.h"
 #include "ExamplesCommon/PlugInHosting/VST3Loader.h"
 
+#if defined(__APPLE__)
 #include <AudioToolbox/AudioToolbox.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#endif
 
 #include "ARA_API/ARAVST3.h"
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/gui/iplugview.h"
+#include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivsteditcontroller.h"
@@ -32,13 +42,10 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include "../src/link_files.h"
 #include "public.sdk/source/common/memorystream.h"
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
+#if !defined(_WIN32)
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 #include <chrono>
 #include <cmath>
@@ -55,7 +62,9 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <vector>
 
 using namespace ARA;
+using attacca::fileOf;
 using attacca::readFlatObject;
+namespace net = attacca::net;
 
 namespace {
 
@@ -64,7 +73,71 @@ constexpr ARASampleCount sourceFrames = 5 * 44100;
 constexpr double toneHz = 441;
 
 // The recording: a sine whose phase says where in it a sample is.
-float toneAt (ARASamplePosition frame) { return static_cast<float> (0.5 * std::sin (2 * M_PI * toneHz * static_cast<double> (frame) / sourceRate)); }
+constexpr double pi = 3.14159265358979323846;
+float toneAt (ARASamplePosition frame) { return static_cast<float> (0.5 * std::sin (2 * pi * toneHz * static_cast<double> (frame) / sourceRate)); }
+
+// How this system writes a path, and where under the test's home (HOME; Windows: LOCALAPPDATA)
+// Curator keeps its files and what can be made again (app/lib/app_folders.dart): where the
+// plug-in must look for the one and write the other.
+#if defined(_WIN32)
+const std::string slash = "\\";
+std::string dataUnder (const std::string& home) { return home + "\\Curator"; }
+std::string cacheUnder (const std::string& home) { return home + "\\Curator\\Cache"; }
+#else
+const std::string slash = "/";
+std::string dataUnder (const std::string& home) { return home + "/Library/Application Support/Curator"; }
+std::string cacheUnder (const std::string& home) { return home + "/Library/Caches/Curator"; }
+#endif
+
+long thisProcess ()
+{
+#if defined(_WIN32)
+    return static_cast<long> (::GetCurrentProcessId ());
+#else
+    return static_cast<long> (::getpid ());
+#endif
+}
+
+// The number of a process that has ended: a child of this one, waited for.
+long processGone ()
+{
+#if defined(_WIN32)
+    wchar_t command[] = L"cmd.exe /c exit";
+    STARTUPINFOW startup {};
+    startup.cb = sizeof startup;
+    PROCESS_INFORMATION made {};
+    if (!::CreateProcessW (nullptr, command, nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup, &made))
+        return 0;
+    ::WaitForSingleObject (made.hProcess, INFINITE);
+    ::CloseHandle (made.hThread);
+    ::CloseHandle (made.hProcess);
+    return static_cast<long> (made.dwProcessId);
+#else
+    const pid_t gone = ::fork ();
+    if (gone == 0)
+        ::_exit (0);
+    int ended = 0;
+    ::waitpid (gone, &ended, 0);
+    return static_cast<long> (gone);
+#endif
+}
+
+// The program of the VST3 bundle at [bundle], as a DAW loads it: on macOS the bundle itself; on
+// Windows the DLL in its folder for this processor.
+std::string programOf (const std::string& bundle)
+{
+#if defined(_WIN32)
+#if defined(__aarch64__) || defined(_M_ARM64)
+    const char* processor = "arm64-win";
+#else
+    const char* processor = "x86_64-win";
+#endif
+    const size_t name = bundle.find_last_of ("\\/");
+    return bundle + "\\Contents\\" + processor + "\\" + bundle.substr (name == std::string::npos ? 0 : name + 1);
+#else
+    return bundle;
+#endif
+}
 
 [[noreturn]] void fail (const std::string& why)
 {
@@ -205,9 +278,9 @@ const ARAModelUpdateControllerInterface modelUpdates = { ARA_IMPLEMENTED_STRUCT_
 // MARK: Curator's side
 
 struct Curator {
-    int listener { -1 };
+    net::Socket listener { net::none };
     // A connection a bundle: Attacca's, and Attacca Capturer's (a VST3 of its own).
-    std::vector<int> connections;
+    std::vector<net::Socket> connections;
     std::vector<std::string> pending;
     // The connection the last message came on.
     size_t from { 0 };
@@ -219,33 +292,24 @@ struct Curator {
     // The discovery file written as the Curator whose process is [process] would.
     void announce (long process)
     {
-        std::ofstream (discovery + ".part") << "{\"port\":" << port << ",\"token\":\"t0k3n\",\"pid\":" << process << "}";
-        std::rename ((discovery + ".part").c_str (), discovery.c_str ());
+        std::ofstream (fileOf (discovery + ".part")) << "{\"port\":" << port << ",\"token\":\"t0k3n\",\"pid\":" << process << "}";
+        std::filesystem::rename (fileOf (discovery + ".part"), fileOf (discovery));
     }
 
     // Whether something asks to connect within [seconds].
-    bool knocked (double seconds)
-    {
-        pollfd p { listener, POLLIN, 0 };
-        return ::poll (&p, 1, static_cast<int> (seconds * 1000)) > 0;
-    }
+    bool knocked (double seconds) { return net::readable (listener, static_cast<int> (seconds * 1000)); }
 
-    // Listens, the discovery file saying so as the process [process] (this one, unless given).
-    void listen (const std::string& home, long process = ::getpid ())
+    // Listens, the discovery file (in Curator's data folder under [home]) saying so as the
+    // process [process].
+    void listen (const std::string& home, long process)
     {
-        listener = ::socket (AF_INET, SOCK_STREAM, 0);
-        sockaddr_in address {};
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
-        if (::bind (listener, reinterpret_cast<sockaddr*> (&address), sizeof address) != 0 || ::listen (listener, 4) != 0)
+        net::begin ();
+        listener = net::open ();
+        port = listener >= 0 ? net::listen (listener) : 0;
+        if (port == 0)
             fail ("can't listen on the loopback address");
-        socklen_t length = sizeof address;
-        ::getsockname (listener, reinterpret_cast<sockaddr*> (&address), &length);
-        const std::string folder = home + "/Library/Application Support/Curator";
-        for (const std::string part : { home + "/Library", home + "/Library/Application Support", folder })
-            ::mkdir (part.c_str (), 0755);
-        discovery = folder + "/daw-link.json";
-        port = ntohs (address.sin_port);
+        std::filesystem::create_directories (fileOf (dataUnder (home)));
+        discovery = dataUnder (home) + slash + "daw-link.json";
         announce (process);
     }
 
@@ -256,10 +320,9 @@ struct Curator {
         const auto end = std::chrono::steady_clock::now () + std::chrono::duration<double> (seconds);
         while (std::chrono::steady_clock::now () < end)
         {
-            pollfd p { listener, POLLIN, 0 };
-            if (::poll (&p, 1, 0) > 0)
+            if (net::readable (listener, 0))
             {
-                connections.push_back (::accept (listener, nullptr, nullptr));
+                connections.push_back (net::accept (listener));
                 pending.emplace_back ();
             }
             for (size_t c = 0; c < connections.size (); ++c)
@@ -282,16 +345,15 @@ struct Curator {
             }
             for (size_t c = 0; c < connections.size (); ++c)
             {
-                pollfd q { connections[c], POLLIN, 0 };
-                if (connections[c] >= 0 && ::poll (&q, 1, 10) > 0)
+                if (connections[c] >= 0 && net::readable (connections[c], 10))
                 {
                     char buffer[65536];
-                    const ssize_t n = ::recv (connections[c], buffer, sizeof buffer, 0);
+                    const long long n = net::receive (connections[c], buffer, sizeof buffer);
                     if (n <= 0)
                     {
                         // A bundle whose last instance went lets go (what it sent is read first).
-                        ::close (connections[c]);
-                        connections[c] = -1;
+                        net::close (connections[c]);
+                        connections[c] = net::none;
                     }
                     else
                     {
@@ -300,7 +362,7 @@ struct Curator {
                 }
             }
             if (connections.empty ())
-                ::poll (nullptr, 0, 20);
+                std::this_thread::sleep_for (std::chrono::milliseconds (20));
             if (idle)
                 idle ();
         }
@@ -311,7 +373,7 @@ struct Curator {
     void say (const std::string& line, size_t to = 0)
     {
         const std::string data = line + "\n";
-        if (to >= connections.size () || ::send (connections[to], data.data (), data.size (), 0) != static_cast<ssize_t> (data.size ()))
+        if (to >= connections.size () || net::send (connections[to], data.data (), data.size ()) != static_cast<long long> (data.size ()))
             fail ("can't write to Attacca");
     }
 
@@ -320,7 +382,68 @@ struct Curator {
 
 bool contains (const std::string& text, const std::string& part) { return text.find (part) != std::string::npos; }
 
+// MARK: The DAW's side of a VST3
 
+// The VST3 bundle at [path] loaded as a DAW loads one, for its factory.
+Steinberg::IPluginFactory* factoryOf (const char* path)
+{
+    using Factory = Steinberg::IPluginFactory* (PLUGIN_API*) ();
+#if defined(_WIN32)
+    const HMODULE library = ::LoadLibraryA (programOf (path).c_str ());
+    if (auto start = library ? reinterpret_cast<bool (PLUGIN_API*) ()> (reinterpret_cast<void*> (::GetProcAddress (library, "InitDll"))) : nullptr)
+        start ();
+    auto getFactory = library ? reinterpret_cast<Factory> (reinterpret_cast<void*> (::GetProcAddress (library, "GetPluginFactory"))) : nullptr;
+#else
+    CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
+    CFBundleRef bundle = CFBundleCreate (nullptr, url);
+    CFRelease (url);
+    // (The bundle stays loaded: the factory is its code.)
+    auto getFactory = bundle ? reinterpret_cast<Factory> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
+#endif
+    return getFactory ? getFactory () : nullptr;
+}
+
+// The DAW's window a plug-in's view is put in (macOS: an NSView, made through the Objective-C
+// runtime, this file being C++; Windows: a window never shown), how many views are in it, and
+// the window let go.
+#if defined(_WIN32)
+const Steinberg::FIDString viewType = Steinberg::kPlatformTypeHWND;
+
+void* newWindow ()
+{
+    return ::CreateWindowExW (0, L"STATIC", L"", WS_OVERLAPPED, 0, 0, 320, 124, nullptr, nullptr, ::GetModuleHandleW (nullptr), nullptr);
+}
+
+unsigned long viewsIn (void* window)
+{
+    unsigned long count = 0;
+    for (HWND child = ::GetWindow (static_cast<HWND> (window), GW_CHILD); child; child = ::GetWindow (child, GW_HWNDNEXT))
+        ++count;
+    return count;
+}
+
+void releaseWindow (void* window) { ::DestroyWindow (static_cast<HWND> (window)); }
+#else
+const Steinberg::FIDString viewType = Steinberg::kPlatformTypeNSView;
+
+void* newWindow ()
+{
+    return reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (reinterpret_cast<id> (objc_getClass ("NSView")), sel_registerName ("new"));
+}
+
+unsigned long viewsIn (void* window)
+{
+    const id subviews = reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (static_cast<id> (window), sel_registerName ("subviews"));
+    return reinterpret_cast<unsigned long (*) (id, SEL)> (objc_msgSend) (subviews, sel_registerName ("count"));
+}
+
+void releaseWindow (void* window)
+{
+    reinterpret_cast<void (*) (id, SEL)> (objc_msgSend) (static_cast<id> (window), sel_registerName ("release"));
+}
+#endif
+
+#if defined(__APPLE__)
 // MARK: The Audio Unit
 
 Boolean playingNow = true;
@@ -350,32 +473,13 @@ OSStatus beatAndTempo (void*, Float64* beat, Float64* tempo) noexcept
     return noErr;
 }
 
-// An NSView made, and how many views are in one, through the Objective-C runtime (this file is C++).
-id newView ()
-{
-    return reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (reinterpret_cast<id> (objc_getClass ("NSView")), sel_registerName ("new"));
-}
+#endif  // __APPLE__
 
-unsigned long subviewCount (id view)
-{
-    const id subviews = reinterpret_cast<id (*) (id, SEL)> (objc_msgSend) (view, sel_registerName ("subviews"));
-    return reinterpret_cast<unsigned long (*) (id, SEL)> (objc_msgSend) (subviews, sel_registerName ("count"));
-}
-
-void releaseObject (id object)
-{
-    reinterpret_cast<void (*) (id, SEL)> (objc_msgSend) (object, sel_registerName ("release"));
-}
-
-// The VST3's window, as a DAW opens it: the controller's editor view, put in an NSView and taken out.
+// The VST3's window, as a DAW opens it: the controller's editor view, put in the DAW's window and taken out.
 void checkVst3View (const char* path, Curator& curator)
 {
     using namespace Steinberg;
-    CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
-    CFBundleRef bundle = CFBundleCreate (nullptr, url);
-    CFRelease (url);
-    auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
-    IPluginFactory* factory = getFactory ? getFactory () : nullptr;
+    IPluginFactory* factory = factoryOf (path);
     check (factory != nullptr, "the VST3 gives its factory");
     // Attacca alone in its bundle, ARA only: no DAW offers it as an insert (OnlyARA).
     {
@@ -415,15 +519,30 @@ void checkVst3View (const char* path, Curator& curator)
     auto* controller = static_cast<Vst::IEditController*> (object);
     controller->initialize (nullptr);
     IPlugView* view = controller->createView (Vst::ViewType::kEditor);
-    check (view && view->isPlatformTypeSupported (kPlatformTypeNSView) == kResultTrue, "it has a window for macOS");
+    check (view && view->isPlatformTypeSupported (viewType) == kResultTrue, "it has a window for this system");
     ViewRect rect;
     check (view->getSize (&rect) == kResultOk && rect.getWidth () > 0 && rect.getHeight () > 0, "the window has a size");
-    const id parent = newView ();
-    check (view->attached (parent, kPlatformTypeNSView) == kResultOk && subviewCount (parent) == 1, "the window opens in the DAW's");
+    void* parent = newWindow ();
+    check (parent && view->attached (parent, viewType) == kResultOk && viewsIn (parent) == 1, "the window opens in the DAW's");
+#if defined(_WIN32)
+    // Windows: on a denser screen the DAW says how many pixels a point is, and the window is
+    // that many times its size.
+    {
+        IPlugViewContentScaleSupport* scale = nullptr;
+        ViewRect scaled;
+        check (view->queryInterface (IPlugViewContentScaleSupport::iid, reinterpret_cast<void**> (&scale)) == kResultOk && scale &&
+               scale->setContentScaleFactor (1.5f) == kResultTrue && view->getSize (&scaled) == kResultOk &&
+               scaled.getWidth () == rect.getWidth () * 3 / 2 && scaled.getHeight () == rect.getHeight () * 3 / 2,
+               "at 150 % it is half as big again");
+        if (scale)
+            scale->release ();
+        check (view->onSize (&scaled) == kResultOk, "and takes the size the DAW gives it");
+    }
+#endif
     view->removed ();
-    check (subviewCount (parent) == 0, "and closes");
+    check (viewsIn (parent) == 0, "and closes");
     view->release ();
-    releaseObject (parent);
+    releaseWindow (parent);
     controller->terminate ();
     controller->release ();
 
@@ -451,9 +570,9 @@ void checkVst3View (const char* path, Curator& curator)
     component->terminate ();
     component->release ();
     factory->release ();
-    CFRelease (bundle);
 }
 
+#if defined(__APPLE__)
 // Registered in this process alone (nothing is installed), made, given its host's transport and
 // bound to a document of its own ARA factory as playback renderer: it must play the region as the
 // VST3 does.
@@ -535,9 +654,9 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
         check (maker != nullptr, "which is in the bundle");
         const id window = maker ? reinterpret_cast<id (*) (id, SEL, AudioUnit, CGSize)> (objc_msgSend) (maker, sel_registerName ("uiViewForAudioUnit:withSize:"), unit, CGSize { 0, 0 })
                                 : nullptr;
-        check (window != nullptr && subviewCount (window) == 1, "and makes it");
+        check (window != nullptr && viewsIn (window) == 1, "and makes it");
         if (maker)
-            releaseObject (maker);
+            releaseWindow (maker);
         CFRelease (viewInfo.mCocoaAUViewBundleLocation);
         CFRelease (viewInfo.mCocoaAUViewClass[0]);
     }
@@ -603,6 +722,7 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
     AudioUnitUninitialize (capturer);
     AudioComponentInstanceDispose (capturer);
 }
+#endif  // __APPLE__
 
 }  // namespace
 
@@ -611,14 +731,10 @@ void checkAudioUnit (const char* path, const ARADocumentControllerHostInstance& 
 // works beside it; asked to capture (Record from DAW…), with the document's Attacca asked to
 // have the DAW play from a second before, what it hears is kept by song time however the span is
 // played (here its end first); asked to stop, the DAW is asked to stop.
-void checkCapturer (const char* path, Curator& curator, const std::string& document, const std::function<void ()>& idle)
+void checkCapturer (const char* path, Curator& curator, const std::string& document, const std::string& cache, const std::function<void ()>& idle)
 {
     using namespace Steinberg;
-    CFURLRef url = CFURLCreateFromFileSystemRepresentation (nullptr, reinterpret_cast<const UInt8*> (path), static_cast<CFIndex> (std::strlen (path)), true);
-    CFBundleRef bundle = CFBundleCreate (nullptr, url);
-    CFRelease (url);
-    auto getFactory = bundle ? reinterpret_cast<IPluginFactory* (*) ()> (CFBundleGetFunctionPointerForName (bundle, CFSTR ("GetPluginFactory"))) : nullptr;
-    IPluginFactory* factory = getFactory ? getFactory () : nullptr;
+    IPluginFactory* factory = factoryOf (path);
     check (factory != nullptr, "the VST3 gives its factory");
     TUID capturerID {};
     bool listed = false, ara = false;
@@ -749,9 +865,9 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     auto captured = curator.next ("captured", 10, idle);
     check (captured["error"].empty () && captured["capturer"] == savedCapturer, "captured without an error " + captured["error"]);
     const std::string file = captured["path"];
-    check (contains (file, "/Library/Caches/Curator/DAW Link/Captures/") && contains (file, "/Mix.wav"), "into Curator's cache, by the name asked");
+    check (contains (file, cache + slash + "DAW Link" + slash + "Captures" + slash) && contains (file, slash + "Mix.wav"), "into Curator's cache, by the name asked");
     {
-        std::ifstream wav (file, std::ios::binary);
+        std::ifstream wav (fileOf (file), std::ios::binary);
         std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
         check (bytes.size () == 56 + static_cast<size_t> (48000) * 2 * 4, "a stereo float WAV as long as asked");
         bool same = true;
@@ -775,9 +891,9 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     settle ();
     play (36000, 48000);
     auto region = curator.next ("captured", 10, idle);
-    check (region["error"].empty () && contains (region["path"], "/Region.wav"), "a region: done once it is heard " + region["error"]);
+    check (region["error"].empty () && contains (region["path"], slash + "Region.wav"), "a region: done once it is heard " + region["error"]);
     {
-        std::ifstream wav (region["path"], std::ios::binary);
+        std::ifstream wav (fileOf (region["path"]), std::ios::binary);
         std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
         bool right = bytes.size () == 56 + static_cast<size_t> (48000) * 2 * 4;
         for (int64_t k = 0; right && k < 48000; k += 7)
@@ -793,7 +909,7 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     // waits for it, and the Capturer would else say it captures until the DAW played the span.
     {
         curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Dropped\"}", capturerLine);
-        const std::filesystem::path captures = std::string (std::getenv ("HOME")) + "/Library/Caches/Curator/DAW Link/Captures";
+        const std::filesystem::path captures = fileOf (cache + slash + "DAW Link" + slash + "Captures");
         auto partial = [&] {
             std::error_code error;
             for (auto it = std::filesystem::recursive_directory_iterator (captures, error); !error && it != std::filesystem::recursive_directory_iterator (); it.increment (error))
@@ -814,8 +930,8 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
             return done ();
         };
         check (within (3, partial), "a capture begun");
-        ::close (curator.connections[capturerLine]);
-        curator.connections[capturerLine] = -1;
+        net::close (curator.connections[capturerLine]);
+        curator.connections[capturerLine] = net::none;
         check (within (3, [&] { return !partial (); }), "a capture let go as Curator's connection ends");
         curator.next ("capturers", 5, idle);  // connected again: its Capturers said anew
     }
@@ -827,14 +943,18 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
     component->release ();
     curator.next ("capturers", 5);
     check (contains (curator.lines.back (), "\"list\":[]"), "Curator is told it is gone");
-    CFRelease (bundle);
 }
 
 int main (int argc, const char* argv[])
 {
-    if (argc != 4)
+#if defined(__APPLE__)
+    constexpr int bundles = 3;
+#else
+    constexpr int bundles = 2;
+#endif
+    if (argc != 1 + bundles)
     {
-        std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca.component\" \"<path>/Attacca Capturer.vst3\"\n");
+        std::fprintf (stderr, "usage: link_host \"<path>/Attacca.vst3\" \"<path>/Attacca Capturer.vst3\"%s\n", bundles == 3 ? " \"<path>/Attacca.component\"" : "");
         return 2;
     }
     // A file's name from a recording's or a track's: marks no file may have left out, and cut to
@@ -848,24 +968,29 @@ int main (int argc, const char* argv[])
         check (attacca::safeName ("../Take\xe5 1: \xe5\xbc\xa6/a") == "Take 1 \xe5\xbc\xa6" "a", "a name's marks and stray bytes left out");
     }
 
-    char homeTemplate[] = "/tmp/attacca-host.XXXXXX";
-    const char* home = ::mkdtemp (homeTemplate);
-    if (!home)
+    // A home of its own, where the plug-in looks for Curator's files: nothing of the real one is
+    // read or written.
+    std::error_code homeError;
+    const std::filesystem::path homeFolder = std::filesystem::temp_directory_path (homeError) / ("attacca-host." + attacca::randomId ());
+    if (homeError || !std::filesystem::create_directories (homeFolder, homeError))
         fail ("no temporary folder");
-    ::setenv ("HOME", home, 1);
-    std::printf ("Attacca host test (home %s)\n", home);
+    const std::u8string homeText = homeFolder.u8string ();
+    const std::string home (homeText.begin (), homeText.end ());
+#if defined(_WIN32)
+    ::SetEnvironmentVariableW (L"LOCALAPPDATA", homeFolder.c_str ());
+#else
+    ::setenv ("HOME", home.c_str (), 1);
+#endif
+    const std::string cache = cacheUnder (home);
+    std::printf ("Attacca host test (home %s)\n", home.c_str ());
 
-    // The discovery file first as one a Curator left behind: its process gone (a child of this
-    // one, ended and waited for).
-    const pid_t gone = ::fork ();
-    if (gone == 0)
-        ::_exit (0);
-    int ended = 0;
-    ::waitpid (gone, &ended, 0);
+    // The discovery file first as one a Curator left behind: its process gone.
+    const long gone = processGone ();
+    check (gone > 0, "a process that has ended");
     Curator curator;
     curator.listen (home, gone);
 
-    VST3Binary binary = VST3LoadBinary (argv[1]);
+    VST3Binary binary = VST3LoadBinary (programOf (argv[1]).c_str ());
     if (!binary)
         fail (std::string ("can't load ") + argv[1]);
     const ARAFactory* factory = VST3GetARAFactory (binary, nullptr);
@@ -880,7 +1005,7 @@ int main (int argc, const char* argv[])
     VST3Effect insert = VST3CreateEffect (binary, nullptr);
     VST3StartRendering (insert, 2, 512, sourceRate);
     check (!curator.knocked (1.3), "a discovery file left by a Curator that is gone isn't followed");
-    curator.announce (::getpid ());
+    curator.announce (thisProcess ());
 
     const ARADocumentControllerHostInstance hostInstance = {
         ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
@@ -947,9 +1072,9 @@ int main (int argc, const char* argv[])
     auto exported = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
     check (exported["error"].empty (), "written without an error " + exported["error"]);
     const std::string path = exported["path"];
-    check (contains (path, std::string (home) + "/Library/Caches/Curator/DAW Link/") && contains (path, "/Take 1.wav"), "into Curator's cache, by the recording's name");
+    check (contains (path, cache + slash + "DAW Link" + slash) && contains (path, slash + "Take 1.wav"), "into Curator's cache, by the recording's name");
     {
-        std::ifstream wav (path, std::ios::binary);
+        std::ifstream wav (fileOf (path), std::ios::binary);
         std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
         check (bytes.size () == 56 + static_cast<size_t> (sourceFrames) * 4, "a float WAV of every frame");
         check (std::memcmp (bytes.data (), "RIFF", 4) == 0 && std::memcmp (bytes.data () + 8, "WAVE", 4) == 0, "RIFF WAVE");
@@ -967,6 +1092,19 @@ int main (int argc, const char* argv[])
             same = same && v == toneAt (i);
         }
         check (same, "the samples the host gave");
+
+        // Asked for again while Curator plays the first (it has the file open): a file by the
+        // same name, whole. Windows lets nothing take an open file's place, so it is put in a
+        // folder beside the first, which is left as it was.
+        std::ifstream playing (fileOf (path), std::ios::binary);
+        curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"take-1\"}");
+        auto again = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
+        std::error_code sizeError;
+        check (again["error"].empty () && contains (again["path"], slash + "Take 1.wav") &&
+               std::filesystem::file_size (fileOf (again["path"]), sizeError) == bytes.size (), "asked for again while the first is open, written whole " + again["error"]);
+#if defined(_WIN32)
+        check (again["path"] != path && std::filesystem::file_size (fileOf (path), sizeError) == bytes.size (), "beside the one open, which is left alone");
+#endif
     }
 
     std::printf ("Curator asks for the track as a stem\n");
@@ -981,9 +1119,9 @@ int main (int argc, const char* argv[])
     auto stemmed = curator.next ("stemmed", 10, [&] { dc->notifyModelUpdates (controller); });
     check (stemmed["error"].empty () && stemmed["track"] == trackID, "written without an error " + stemmed["error"]);
     const std::string stemPath = stemmed["path"];
-    check (contains (stemPath, std::string (home) + "/Library/Caches/Curator/DAW Link/Stems/") && contains (stemPath, "/Strings.wav"), "into Curator's cache, by the track's name");
+    check (contains (stemPath, cache + slash + "DAW Link" + slash + "Stems" + slash) && contains (stemPath, slash + "Strings.wav"), "into Curator's cache, by the track's name");
     {
-        std::ifstream wav (stemPath, std::ios::binary);
+        std::ifstream wav (fileOf (stemPath), std::ios::binary);
         std::vector<char> bytes ((std::istreambuf_iterator<char> (wav)), std::istreambuf_iterator<char> ());
         constexpr int64_t stemFrames = 2 * 44100;
         check (bytes.size () == 56 + static_cast<size_t> (stemFrames) * 4, "a float WAV as long as asked");
@@ -1003,7 +1141,7 @@ int main (int argc, const char* argv[])
     }
 
     std::printf ("Attacca Capturer captures the mix (Record from DAW…)\n");
-    checkCapturer (argv[3], curator, id, [&] { dc->notifyModelUpdates (controller); });
+    checkCapturer (argv[2], curator, id, cache, [&] { dc->notifyModelUpdates (controller); });
 
     std::printf ("The region plays where the song has it\n");
     VST3Effect effect = VST3CreateEffect (binary, nullptr);
@@ -1055,10 +1193,11 @@ int main (int argc, const char* argv[])
     checkVst3View (argv[1], curator);
     VST3UnloadBinary (binary);
 
-    checkAudioUnit (argv[2], hostInstance);
+#if defined(__APPLE__)
+    checkAudioUnit (argv[3], hostInstance);
+#endif
 
-    std::string clean = std::string ("rm -rf '") + home + "'";
-    std::system (clean.c_str ());
+    std::filesystem::remove_all (homeFolder, homeError);
     std::printf ("Attacca host test passed\n");
     return 0;
 }

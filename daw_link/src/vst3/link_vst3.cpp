@@ -4,13 +4,14 @@
 #include "../link_config.h"
 #include "../link_document.h"
 #include "../link_files.h"
-#include "../mac/link_view.h"
+#include "../link_view.h"
 
 #include "ARA_API/ARAVST3.h"
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 #include "base/source/fstring.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/gui/iplugviewcontentscalesupport.h"
 #include "pluginterfaces/vst/ivstchannelcontextinfo.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "public.sdk/source/common/pluginview.h"
@@ -20,6 +21,7 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 ARA_DISABLE_VST3_WARNINGS_END
 
 #include <atomic>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -32,8 +34,19 @@ namespace attacca {
 
 ARA_DISABLE_VST3_WARNINGS_BEGIN
 
+// What the DAW's window is to the plug-in's view: an NSView on macOS, an HWND on Windows.
+#if SMTG_OS_WINDOWS
+const FIDString viewPlatform = kPlatformTypeHWND;
+#else
+const FIDString viewPlatform = kPlatformTypeNSView;
+#endif
+
 // The window the DAW opens for the plug-in: its name, and whether Curator is connected.
-class LinkView : public CPluginView {
+class LinkView : public CPluginView
+#if SMTG_OS_WINDOWS
+, public IPlugViewContentScaleSupport
+#endif
+{
 public:
     LinkView (bool capturer, std::shared_ptr<std::atomic<int>> bound, std::function<std::string ()> capturerId = {})
         : CPluginView (nullptr), capturer_ (capturer), bound_ (std::move (bound)), capturerId_ (std::move (capturerId))
@@ -44,7 +57,7 @@ public:
 
     tresult PLUGIN_API isPlatformTypeSupported (FIDString type) override
     {
-        return type && std::strcmp (type, kPlatformTypeNSView) == 0 ? kResultTrue : kResultFalse;
+        return type && std::strcmp (type, viewPlatform) == 0 ? kResultTrue : kResultFalse;
     }
 
     tresult PLUGIN_API attached (void* parent, FIDString type) override
@@ -63,6 +76,35 @@ public:
         handle_ = nullptr;
         return CPluginView::removed ();
     }
+
+#if SMTG_OS_WINDOWS
+    tresult PLUGIN_API onSize (ViewRect* newSize) override
+    {
+        const tresult result = CPluginView::onSize (newSize);
+        if (handle_ && newSize)
+            resizeStatusView (handle_, newSize->getWidth (), newSize->getHeight ());
+        return result;
+    }
+
+    // Windows: how many pixels a point is on the screen the DAW's window is on (1.5 at 150 %).
+    // The view is that many times its size, and the DAW's window with it.
+    tresult PLUGIN_API setContentScaleFactor (ScaleFactor factor) override
+    {
+        if (!(factor >= 0.25f && factor <= 8.0f))
+            return kResultFalse;
+        ViewRect scaled (0, 0, static_cast<int32> (std::lround (statusViewWidth * factor)), static_cast<int32> (std::lround (statusViewHeight * factor)));
+        rect = scaled;
+        if (plugFrame)
+            plugFrame->resizeView (this, &scaled);
+        return kResultTrue;
+    }
+
+    OBJ_METHODS (LinkView, CPluginView)
+    DEFINE_INTERFACES
+        DEF_INTERFACE (IPlugViewContentScaleSupport)
+    END_DEFINE_INTERFACES (CPluginView)
+    REFCOUNT_METHODS (CPluginView)
+#endif
 
 private:
     void* handle_ = nullptr;

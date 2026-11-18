@@ -15,6 +15,15 @@ VST3_TAG := v3.8.0_build_66
 AU_SDK_TAG := AudioUnitSDK-1.4.0
 DAW_LINK_SDKS := daw_link/third_party
 DAW_LINK_ZIP := app/assets/daw_link/Attacca.zip
+# Attacca for Windows, built on a Mac (daw-link-windows): llvm-mingw (github.com/mstorsjo/llvm-mingw:
+# Clang, LLD and mingw-w64, which make Windows programs on a Mac), this release of it and the
+# SHA-256 of its macOS download; and the zip of the two VST3s, which the Release workflow hands
+# its Windows build as that app's Attacca.zip.
+LLVM_MINGW_VERSION := 20261020
+LLVM_MINGW_SHA256 := e9c13e4ede38e715003ffc674d4d00a1088df8235439d1f0c16188ff0704c17e
+LLVM_MINGW := $(DAW_LINK_SDKS)/llvm-mingw-$(LLVM_MINGW_VERSION)
+DAW_LINK_WINDOWS := daw_link/build-windows
+DAW_LINK_WINDOWS_ZIP := $(DAW_LINK_WINDOWS)/Attacca.zip
 APP_VERSION = $(shell sed -n 's/^version: *\([0-9.]*\)+.*/\1/p' app/pubspec.yaml)
 APP_BUILD = $(shell sed -n 's/^version: *[0-9.]*+\([0-9]*\).*/\1/p' app/pubspec.yaml)
 # The release's patch, kept apart from the build (the version's patch): updater.dart's appReleasePatch.
@@ -22,7 +31,7 @@ APP_RELEASE_PATCH = $(shell sed -n "s/^const appReleasePatch = '\(.*\)';/\1/p" a
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player daw-link l10n extension-docs plugin-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player daw-link daw-link-windows l10n extension-docs plugin-docs test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -30,6 +39,7 @@ help:
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
 	@echo "make daw-link – build Attacca, the ARA plug-in (VST3, AU) for DAWs (run and build do when it is out of date)"
+	@echo "make daw-link-windows – build Attacca for Windows (VST3, x86_64) on this Mac, into $(DAW_LINK_WINDOWS_ZIP)"
 	@echo "make l10n    – put new interface text into the translation files (app/assets/l10n, synced with Crowdin)"
 	@echo "make extension-docs – write docs/extension-api.md from the guide and the extension API's own list"
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
@@ -91,11 +101,33 @@ DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DA
 $(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
 	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
-	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca.component" "daw_link/build/out/Attacca Capturer.vst3"
+	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca Capturer.vst3" "daw_link/build/out/Attacca.component"
 	rm -f $@
 	cd daw_link/build/out && zip -qry "$(CURDIR)/$@" "Attacca.vst3" "Attacca Capturer.vst3" "Attacca.component"
 
 daw-link: $(DAW_LINK_ZIP)
+
+# Attacca for Windows (docs/daw-link.md ▸ Building and checking it): the same sources, built here
+# with llvm-mingw for x86_64 Windows as two VST3 bundles (no Audio Unit there), nothing but
+# Windows' own libraries needed where a DAW loads them. The DAW in miniature is built beside them
+# (link_host.exe): it runs on Windows (the Release workflow runs it there before the app is built).
+$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++:
+	mkdir -p $(LLVM_MINGW)
+	curl -fL --retry 3 -o $(LLVM_MINGW).tar.xz https://github.com/mstorsjo/llvm-mingw/releases/download/$(LLVM_MINGW_VERSION)/llvm-mingw-$(LLVM_MINGW_VERSION)-ucrt-macos-universal.tar.xz
+	echo "$(LLVM_MINGW_SHA256)  $(LLVM_MINGW).tar.xz" | shasum -a 256 -c -
+	tar -xf $(LLVM_MINGW).tar.xz -C $(LLVM_MINGW) --strip-components 1
+	rm $(LLVM_MINGW).tar.xz
+
+$(DAW_LINK_WINDOWS_ZIP): $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DAW_LINK_SDKS)/vst3sdk/public.sdk/source/main/macmain.cpp \
+		$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++ $(shell find daw_link/src daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
+	cmake -S daw_link -B $(DAW_LINK_WINDOWS) -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+		-DCMAKE_C_COMPILER=$(CURDIR)/$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang -DCMAKE_CXX_COMPILER=$(CURDIR)/$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++ \
+		-DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH)
+	cmake --build $(DAW_LINK_WINDOWS) -j 8
+	rm -f $@
+	cd $(DAW_LINK_WINDOWS)/out && zip -qr "$(CURDIR)/$@" "Attacca.vst3" "Attacca Capturer.vst3"
+
+daw-link-windows: $(DAW_LINK_WINDOWS_ZIP)
 
 # The interface's text: new `.tr` / `.fill` texts into the template Crowdin translates from
 # (app/assets/l10n/curator.pot), and every language's file in step with it (tool/l10n.dart;

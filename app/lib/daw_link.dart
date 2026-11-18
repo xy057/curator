@@ -189,7 +189,8 @@ class DawLink extends ChangeNotifier {
   /// DAWs without ARA among them).
   static const supportedDaws = ['Cubase', 'Nuendo', 'Studio One', 'Studio Pro', 'REAPER'];
 
-  /// Whether the DAW whose process is named [host] ("Cubase 15") is one of [supportedDaws].
+  /// Whether the DAW whose process is named [host] ("Cubase 15"; on Windows "Cubase15", its
+  /// program without ".exe") is one of [supportedDaws].
   static bool supports(String host) {
     final name = host.toLowerCase();
     return supportedDaws.any((d) => name.contains(d.toLowerCase()));
@@ -596,31 +597,48 @@ abstract final class AttaccaPlugIns {
   static List<String> _bundlesIn(String folder) =>
       ['$folder/VST3/$vst3', '$folder/VST3/$capturerVst3', '$folder/Components/$component', for (final b in _formerly) '$folder/$b'];
 
-  /// Whether this system can have it: macOS. Elsewhere Settings say it isn't available and
-  /// Connect Attacca… is greyed out; Curator doesn't listen.
-  static bool get supported => debugSupported ?? Platform.isMacOS;
+  /// Whether this system can have it: macOS, and Windows (its two VST3s: Audio Units are
+  /// macOS's). Elsewhere Settings say it isn't available and Connect Attacca… is greyed out;
+  /// Curator doesn't listen.
+  static bool get supported => debugSupported ?? (Platform.isMacOS || Platform.isWindows);
 
   /// Stands in for the system in tests; null: the real one.
   @visibleForTesting
   static bool? debugSupported;
 
-  /// `~/Library/Audio/Plug-Ins`, or null without a home.
-  static String? get plugInsFolder {
-    final home = Platform.environment['HOME'];
+  /// Where DAWs look for the user's own plug-ins, `VST3` in it (and on macOS `Components`):
+  /// `~/Library/Audio/Plug-Ins`; on Windows `%LocalAppData%\Programs\Common`, the user's own
+  /// VST3 folder there, written without an administrator. Null without a home.
+  static String? get plugInsFolder => plugInsFolderFor(Platform.operatingSystem, Platform.environment);
+
+  /// [plugInsFolder] on [os] (`Platform.operatingSystem`) with [env].
+  @visibleForTesting
+  static String? plugInsFolderFor(String os, Map<String, String> env) {
+    if (os == 'windows') {
+      final local = AppFolders.windowsLocal(env);
+      return local == null ? null : '$local${local.endsWith('\\') ? '' : '\\'}Programs\\Common';
+    }
+    final home = env['HOME'];
     return home == null || !home.startsWith('/') ? null : '$home/Library/Audio/Plug-Ins';
   }
 
   /// The version installed ("0.9.0 (468)", the VST3's) in [folder] ([plugInsFolder]), or null
-  /// when there is none.
+  /// when there is none. A macOS bundle says it in its Info.plist, a Windows one in
+  /// Contents/Resources/version.txt ("0.9.0+468": daw_link/CMakeLists.txt).
   static String? installed({String? folder}) {
     folder ??= plugInsFolder;
     if (folder == null) return null;
-    final plist = File('$folder/VST3/$vst3/Contents/Info.plist');
-    if (!plist.existsSync()) return null;
-    final text = plist.readAsStringSync();
-    String? value(String key) => RegExp('<key>$key</key>\\s*<string>([^<]*)</string>').firstMatch(text)?.group(1);
-    final version = value('CFBundleShortVersionString'), build = value('CFBundleVersion');
-    return version == null ? '' : build == null ? version : '$version ($build)';
+    final contents = '$folder/VST3/$vst3/Contents';
+    final plist = File('$contents/Info.plist'), text = File('$contents/Resources/version.txt');
+    if (plist.existsSync()) {
+      final said = plist.readAsStringSync();
+      String? value(String key) => RegExp('<key>$key</key>\\s*<string>([^<]*)</string>').firstMatch(said)?.group(1);
+      final version = value('CFBundleShortVersionString'), build = value('CFBundleVersion');
+      return version == null ? '' : build == null ? version : '$version ($build)';
+    }
+    if (!text.existsSync()) return null;
+    final said = RegExp(r'^([0-9A-Za-z.-]+)\+(\d+)\s*$').firstMatch(text.readAsStringSync());
+    return said == null ? '' : '${said[1]} (${said[2]})';
   }
 
   /// The build installed in [folder] ([plugInsFolder]): the VST3's CFBundleVersion; null when
@@ -632,19 +650,39 @@ abstract final class AttaccaPlugIns {
 
   /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there (and any by its
   /// former name). Throws a
-  /// [FileSystemException] when it can't.
+  /// [FileSystemException] when it can't, and on Windows [AttaccaInUse] while a DAW has it.
   static Future<void> uninstall({String? folder}) async {
     folder ??= plugInsFolder;
     if (folder == null) return;
+    _checkFree(folder);
     for (final bundle in _bundlesIn(folder)) {
       final dir = Directory(bundle);
       if (dir.existsSync()) await dir.delete(recursive: true);
     }
   }
 
+  /// Windows lets no program replace or remove a plug-in a DAW has loaded (macOS does, the DAW
+  /// keeping the one it loaded): throws [AttaccaInUse] when one in [folder] can't be written
+  /// now, before anything there is touched (a bundle half removed is one no DAW can load).
+  static void _checkFree(String folder) {
+    if (!Platform.isWindows) return;
+    for (final bundle in _bundlesIn(folder)) {
+      final dir = Directory(bundle);
+      if (!dir.existsSync()) continue;
+      for (final file in dir.listSync(recursive: true).whereType<File>()) {
+        if (!file.path.toLowerCase().endsWith('.vst3')) continue;
+        try {
+          file.openSync(mode: FileMode.append).closeSync();
+        } on FileSystemException {
+          throw const AttaccaInUse();
+        }
+      }
+    }
+  }
+
   /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle (and any by its former name) removed whole,
   /// then written anew, its program made executable. Throws a [FileSystemException] when it
-  /// can't write there. Unpacked and written on another isolate: the bundles are megabytes.
+  /// can't write there, and on Windows [AttaccaInUse] while a DAW has it. Unpacked and written on another isolate: the bundles are megabytes.
   static Future<void> install(Uint8List bytes, {String? folder}) async {
     final to = folder ?? plugInsFolder;
     if (to == null) throw const FileSystemException('No home folder.');
@@ -668,4 +706,12 @@ abstract final class AttaccaPlugIns {
     }
     if (programs.isNotEmpty) await Process.run('chmod', ['755', ...programs]);
   }
+}
+
+/// Attacca can't be installed, updated or removed now: a DAW has it loaded (Windows).
+class AttaccaInUse implements Exception {
+  const AttaccaInUse();
+
+  @override
+  String toString() => 'AttaccaInUse';
 }
