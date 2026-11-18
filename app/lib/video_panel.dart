@@ -149,29 +149,16 @@ class _Menu<T> extends StatelessWidget {
   final Color? swatch;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return OverlaySemantics(
-      child: AppPopupMenuButton<T>(
+  Widget build(BuildContext context) => ToolbarValueMenu<T>(
         tooltip: tooltip,
-        position: PopupMenuPosition.under,
-        style: toolbarMenuStyle(context, left: 6),
+        label: label,
+        icon: icon,
+        swatch: swatch,
         onSelected: onSelected,
-        itemBuilder: (context) => [
+        items: (context) => [
           for (final v in values) checkedMenuItem(context, value: v, checked: v == chosen, child: Text(name(v))),
         ],
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon case final icon?) ...[Icon(icon.of(context), size: 16, color: colors.textMuted), const SizedBox(width: 5)],
-          if (swatch case final swatch?) ...[
-            Container(width: 10, height: 10, decoration: BoxDecoration(color: swatch, borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 6),
-          ],
-          Text(label, style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
-        ]),
-      ),
-    );
-  }
+      );
 }
 
 /// The Video tab's lanes: View, the stretches of the performance showing something other than

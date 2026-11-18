@@ -62,6 +62,43 @@ ButtonStyle toolbarMenuStyle(BuildContext context, {double left = 8}) => TextBut
       shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
     );
 
+/// A toolbar's setting shown as its value, chosen from a menu: "⏲ 100% ▾", with an [icon] or a
+/// [swatch] of colour before it; [style] the button's ([toolbarMenuStyle], left 6, unless given).
+class ToolbarValueMenu<T> extends StatelessWidget {
+  const ToolbarValueMenu(
+      {super.key, required this.tooltip, required this.label, required this.items, required this.onSelected, this.icon, this.swatch, this.style});
+
+  final String tooltip, label;
+  final List<PopupMenuEntry<T>> Function(BuildContext context) items;
+  final ValueChanged<T> onSelected;
+  final AppIcon? icon;
+  final Color? swatch;
+  final ButtonStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<T>(
+        tooltip: tooltip,
+        position: PopupMenuPosition.under,
+        style: style ?? toolbarMenuStyle(context, left: 6),
+        onSelected: onSelected,
+        itemBuilder: items,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon case final icon?) ...[Icon(icon.of(context), size: 16, color: colors.textMuted), const SizedBox(width: 5)],
+          if (swatch case final swatch?) ...[
+            Container(width: 10, height: 10, decoration: BoxDecoration(color: swatch, borderRadius: BorderRadius.circular(3))),
+            const SizedBox(width: 6),
+          ],
+          Text(label, style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
+          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
+        ]),
+      ),
+    );
+  }
+}
+
 /// A [PopupMenuButton] that opens and shuts in the style's time ([AppStyle.menuOpen]; the material
 /// menu takes 300 ms), its rows set close. Fill it with [menuItem] and [checkedMenuItem].
 class AppPopupMenuButton<T> extends StatelessWidget {
