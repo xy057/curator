@@ -11,7 +11,7 @@ import 'l10n/l10n.dart';
 const _majorMinor = '0.9';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
-const appBuild = 549;
+const appBuild = 550;
 
 /// The patch of the release this build is (or comes after): kept apart from the build, and
 /// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
@@ -24,6 +24,9 @@ const appVersion = '$_majorMinor.$appBuild';
 /// The release this build is: major.minor.[appReleasePatch]. The Release workflow tags it `v` +
 /// this and names the downloads with it; the updater compares releases with it.
 const appRelease = '$_majorMinor.$appReleasePatch';
+
+/// This build as the app names it: its release, then its build ("0.9.0 (528)").
+const appReleaseBuild = '$appRelease ($appBuild)';
 
 /// The commit this app was built from (`make run`, `make build` and the Release workflow pass
 /// it); empty for a plain `flutter run`.

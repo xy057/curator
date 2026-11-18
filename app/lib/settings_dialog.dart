@@ -1043,7 +1043,7 @@ Future<void> showUpdate(BuildContext context, Updater updater, Release release) 
     showUpdateDialog(context, updater: updater, release: release, groupColor: _groupColor);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
-String get _versionText => '$appRelease ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
+String get _versionText => '$appReleaseBuild${appCommit.isEmpty ? '' : ' · $appCommit'}';
 
 /// `macOS 15.6 (24G84) · arm64`.
 String get _systemText {
@@ -2758,7 +2758,7 @@ class _AboutPage extends StatelessWidget {
               Row(mainAxisAlignment: MainAxisAlignment.center, spacing: 6, children: [
                 // As wide as Copy, so the version sits under the name's middle.
                 const SizedBox(width: _CopyButton.size),
-                SelectableText('Version {version}'.fill({'version': '$appRelease ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                SelectableText('Version {version}'.fill({'version': appReleaseBuild}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
                 if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
                 const _CopyButton(),
               ]),
