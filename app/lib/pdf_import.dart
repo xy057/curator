@@ -509,8 +509,13 @@ class _PdfImportState extends State<PdfImport> {
     });
   }
 
+  /// Whether the pointer is held on the page: a drag or a rectangle being drawn. Undo and Redo
+  /// wait for it (a drag's step undone under it would leave what it does next no step at all,
+  /// and its system perhaps not there).
+  bool get _gesturing => _drag != null || _drawFrom != null;
+
   void _undoStep() {
-    if (_undo.isEmpty) return;
+    if (_undo.isEmpty || _gesturing) return;
     _typing = null;
     setState(() {
       _redo.add(layout);
@@ -521,7 +526,7 @@ class _PdfImportState extends State<PdfImport> {
   }
 
   void _redoStep() {
-    if (_redo.isEmpty) return;
+    if (_redo.isEmpty || _gesturing) return;
     _typing = null;
     setState(() {
       _undo.add(layout);
@@ -592,6 +597,7 @@ class _PdfImportState extends State<PdfImport> {
   Iterable<(int, PdfSystem)> get _onPage => layout.systems.indexed.where((e) => e.$2.page == _page);
 
   void _remove() {
+    if (_gesturing) return; // (the barline being dragged, deleted, would leave the drag none to move)
     switch (_selection) {
       case _BarlineSelection(:final system, :final barline):
         final s = layout.systems[system];
