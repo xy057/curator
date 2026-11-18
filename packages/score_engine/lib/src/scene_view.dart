@@ -5,13 +5,14 @@ import 'package:flutter/foundation.dart';
 
 import 'automation.dart';
 
-/// What a frame shows: the score, the player map, both side by side, or the score with the map
-/// in a corner.
+/// What a frame shows: the score, the player map, both side by side, the score with the map
+/// in a corner, or the score's notes in rows (the MIDI view, [LoadedScore.rows]) where it is.
 enum ViewKind {
   score(scoreWhole: true),
   map,
   split(hasSide: true),
-  inset(hasCorner: true, scoreWhole: true);
+  inset(hasCorner: true, scoreWhole: true),
+  midi;
 
   const ViewKind({this.hasSide = false, this.hasCorner = false, this.scoreWhole = false});
 
@@ -22,8 +23,14 @@ enum ViewKind {
   final bool hasCorner;
 
   /// Whether the score is drawn in the whole frame, where it always is (the map over it, if
-  /// any).
+  /// any), as it is engraved.
   final bool scoreWhole;
+
+  /// Whether it draws the player map.
+  bool get showsMap => this != score && this != midi;
+
+  /// Whether it draws the score's notes in rows, not the score as it is engraved.
+  bool get showsRows => this == midi;
 
   /// Whether a [SceneView] of it says how big the map is ([SceneView.size]).
   bool get sized => hasSide || hasCorner;
@@ -53,6 +60,7 @@ class SceneView {
 
   static const score = SceneView(ViewKind.score);
   static const map = SceneView(ViewKind.map);
+  static const midi = SceneView(ViewKind.midi);
 
   static const defaultShare = 0.4, defaultInset = 0.32;
   static const minSize = 0.2, maxShare = 0.6, maxInset = 0.5;
@@ -61,7 +69,11 @@ class SceneView {
   static const shares = [0.3, 0.4, 0.5, 0.6], insets = [0.25, 0.32, 0.4, 0.5];
 
   /// Whether it draws the player map.
-  bool get showsMap => kind != ViewKind.score;
+  bool get showsMap => kind.showsMap;
+
+  /// This view where there is no player map ([map] false) or the score's notes can't be drawn
+  /// in rows ([rows] false): the score in its place, as it is engraved.
+  SceneView where({required bool map, required bool rows}) => (kind.showsMap && !map) || (kind.showsRows && !rows) ? score : this;
 
   SceneView copyWith({ViewKind? kind, MapSide? side, MapCorner? corner, double? size}) {
     final k = kind ?? this.kind;
@@ -74,15 +86,17 @@ class SceneView {
     final full = ui.Offset.zero & frame;
     switch (kind) {
       case ViewKind.score:
-        return (score: full, scoreLayout: frame, map: null, inset: false);
+        return (score: full, scoreLayout: frame, rows: false, map: null, inset: false);
+      case ViewKind.midi:
+        return (score: full, scoreLayout: frame, rows: true, map: null, inset: false);
       case ViewKind.map:
-        return (score: null, scoreLayout: frame, map: full, inset: false);
+        return (score: null, scoreLayout: frame, rows: false, map: full, inset: false);
       case ViewKind.inset:
         final h = frame.height * size.clamp(minSize, maxInset), w = math.min(frame.width * 0.5, h * 1.6);
         final m = frame.shortestSide * 0.03;
         final left = corner == MapCorner.bottomLeft || corner == MapCorner.topLeft, top = corner == MapCorner.topLeft || corner == MapCorner.topRight;
         final map = ui.Rect.fromLTWH(left ? m : frame.width - m - w, top ? m : frame.height - m - h, w, h);
-        return (score: full, scoreLayout: frame, map: map, inset: true);
+        return (score: full, scoreLayout: frame, rows: false, map: map, inset: true);
       case ViewKind.split:
         final share = size.clamp(minSize, maxShare);
         switch (side) {
@@ -90,7 +104,13 @@ class SceneView {
             final w = frame.width * share, right = side == MapSide.right;
             final score = ui.Rect.fromLTWH(right ? 0 : w, 0, frame.width - w, frame.height);
             // Laid out at its own width, the full height: the staves as tall as ever.
-            return (score: score, scoreLayout: score.size, map: ui.Rect.fromLTWH(right ? frame.width - w : 0, 0, w, frame.height), inset: false);
+            return (
+              score: score,
+              scoreLayout: score.size,
+              rows: false,
+              map: ui.Rect.fromLTWH(right ? frame.width - w : 0, 0, w, frame.height),
+              inset: false,
+            );
           case MapSide.bottom || MapSide.top:
             final h = frame.height * share, bottom = side == MapSide.bottom;
             final score = ui.Rect.fromLTWH(0, bottom ? 0 : h, frame.width, frame.height - h);
@@ -100,6 +120,7 @@ class SceneView {
             return (
               score: score,
               scoreLayout: ui.Size(score.width / scale, frame.height),
+              rows: false,
               map: ui.Rect.fromLTWH(0, bottom ? frame.height - h : 0, frame.width, h),
               inset: false,
             );
@@ -149,9 +170,9 @@ class SceneView {
 }
 
 /// Where a [SceneView] puts things in a frame: the score drawn in [score] (laid out at
-/// [scoreLayout], scaled to fit it; null: no score), the map in [map] (null: none), over the
-/// score when [inset].
-typedef ViewPlacement = ({ui.Rect? score, ui.Size scoreLayout, ui.Rect? map, bool inset});
+/// [scoreLayout], scaled to fit it; null: no score), as its notes in rows with [rows]; the map
+/// in [map] (null: none), over the score when [inset].
+typedef ViewPlacement = ({ui.Rect? score, ui.Size scoreLayout, bool rows, ui.Rect? map, bool inset});
 
 /// The automation of what a frame shows ([SceneView]): the Video tab's View lane.
 abstract final class SceneViews {

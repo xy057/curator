@@ -280,7 +280,7 @@ void main() {
             });
       final unpitched = {for (final (i, p) in parts.indexed) if (p.isUnpitchedPercussion) i + 1};
       bool pitched((int, int, int, int) n) => !unpitched.contains(n.$1);
-      expect((midi.partCount, midi.noteCount), (21, played(score.musicXML, pitches: false).length));
+      expect((midi.rowCount, midi.noteCount), (21, played(score.musicXML, pitches: false).length));
       expect(midi.barLengths, List.filled(44, 3.0));
       expect(played(midi.musicXML, pitches: true).where(pitched), played(score.musicXML, pitches: true).where(pitched));
       expect(played(midi.musicXML, pitches: false), played(score.musicXML, pitches: false), reason: 'the drums too, when they sound');
@@ -309,6 +309,27 @@ void main() {
       expect(look.beats(1).beats(-1), look);
       expect(MidiLook.fromJson(look.toJson()), look);
       expect(MidiLook.fromJson({'rowHeight': 99, 'beatWidth': 'wide'}), const MidiLook(rowHeight: 8));
+
+      // A score that is notation has the same view of its own notes, beside its engraving: a row
+      // for each staff, a note from where it starts to where what is tied to it ends, the bars
+      // and the timeline the engraving's own (one sync and one curation show both); a MIDI
+      // project's score is rows already.
+      expect((score.hasRows, rows.hasRows), (true, false));
+      final own = score.rows(look), ownNotes = MidiScore.ofScore(score.musicXML, score.metadata, starts);
+      expect((own.isRoll, own.hasNotes, own.request.midi, own.condensed.isEmpty), (true, true, look, true));
+      expect((identical(own.metadata, score.metadata), identical(own.timeline, score.timeline)), (true, true));
+      expect([for (final s in own.engraving.staves) s.n], [for (final p in parts) ...p.staffNumbers]);
+      expect(ownNotes.noteCount, soundingNotes(score.musicXML, starts, unpitched: true).where((n) => !n.tied).length);
+      expect(ownNotes.barLengths, midi.barLengths);
+      expect(own.engraving.commandCount, ownNotes.noteCount + ownNotes.rowCount * 45);
+      expect((await score.rowsApart(look)).engraving.commandCount, own.engraving.commandCount, reason: 'read on another isolate, the same');
+      // Drawn as the score is, by a scene of its own with the score's settings: the same bar under the pointer.
+      final ownScene = CuratedScene(own)..settings = const SceneSettings(barNumbers: true, sections: true);
+      final shown = Curation(parts.map((p) => p.id))..setLanes({for (final p in parts.take(6)) p.id: [Region(0, starts.last)]});
+      ownScene.renderFrame(400, 240, time: 12, curation: shown, devicePixelRatio: 1).dispose();
+      expect(ownScene.axis.quarterAt(ownScene.scrollMap.xAt(12)), closeTo(score.timeline.quarterAtSeconds(12), 0.5));
+      ownScene.dispose();
+      shown.dispose();
 
       // The web page's: the rows read back from an engraving file, drawn in their instruments' colours.
       final page = LoadedScore.engraved(rows.musicXML, rows.request, EngravingFile.read(EngravingFile.write(drawn)), roll: true);
@@ -390,6 +411,16 @@ void main() {
     curation.setLanes({rh: [const Region(0, 2)], lh: [const Region(0, 8)]});
     expect([for (final r in curation.lane('P2')) '${r.start}–${r.end} ${r.hiddenStaves}'], ['0.0–2.0 []', '2.0–8.0 [1]']);
     pianoScene.dispose();
+    // In the MIDI view its hands are a row each, as they are written, named as one and not braced.
+    {
+      final rows = piano.rows(const MidiLook()), scene = CuratedScene(rows);
+      final lanes = Curation(['P1', 'P2'])..setLanes({'P1': [const Region(0, 8)], 'P2': [const Region(0, 8)]});
+      final laid = scene.layoutAt(at(1), lanes, tall);
+      expect([for (final s in rows.engraving.staves) s.n], [1, 2, 3]);
+      expect((laid.placements.length, laid.labels.length, laid.braces.isEmpty, laid.joins.isEmpty), (3, 2, true, true));
+      scene.renderFrame(400, 200, time: at(1), curation: lanes, devicePixelRatio: 1).dispose();
+      scene.dispose();
+    }
     // A staff's own room is its lane's, numbered among all its instrument's staves: with a
     // first staff that never plays (left out of the view), room under the second is between the
     // two shown, not under the third.

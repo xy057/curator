@@ -160,9 +160,10 @@ enum KeyCommand {
   maximizePreview('Maximize Preview', 'View', KeyPlace.menus, [], editable: true),
   maximizeTimeline('Maximize Timeline', 'View', KeyPlace.menus, [], editable: true),
   showPlayerMap('Score / Player Map', 'View', KeyPlace.menus, [_K(_L.keyM, command: true, shift: true)], editable: true),
+  showMidiView('Score / MIDI View', 'View', KeyPlace.menus, [], editable: true),
   showTabBar('Hide / Show Tab Bar', 'View', KeyPlace.menus, [_K(_L.keyT, command: true, shift: true)], editable: true),
   showAllTabs('Show All Tabs', 'View', KeyPlace.menus, [_K(_L.backslash, command: true, shift: true)], editable: true),
-  // A MIDI project's: the MIDI menu, in the menu bar while one shows.
+  // A MIDI project's, and a score's in its MIDI view: the MIDI menu, in the menu bar while one shows.
   midiVelocity('Shade Notes by Velocity', 'MIDI', KeyPlace.menus, [], editable: true),
   midiSharedRange('Shared Pitch Range', 'MIDI', KeyPlace.menus, [], editable: true),
   midiTallerRows('Taller Rows', 'MIDI', KeyPlace.menus, [], editable: true),

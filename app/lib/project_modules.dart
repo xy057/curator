@@ -1036,15 +1036,16 @@ final class _LilyPond extends ProjectModule {
   }
 }
 
-/// A MIDI project's ([ProjectKind.midi]) view: how its rows are drawn ([EditState.midiLook], the
-/// MIDI menu's); any other project's is empty. Optional: a Curator that knows nothing of it
-/// can't read a MIDI project's score, and loses nothing of any other's.
+/// The MIDI view: how a MIDI project's ([ProjectKind.midi]) rows are drawn, and a score's in
+/// its own MIDI view ([EditState.midiLook], the MIDI menu's); empty for a project that never
+/// changed it. Optional: a Curator that knows nothing of it can't read a MIDI project's score,
+/// and loses nothing of any other's.
 final class _Midi extends ProjectModule {
   const _Midi() : super('midi', optional: true);
 
   @override
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files) =>
-      state.kind == ProjectKind.midi ? {'look': state.edits.midiLook.toJson()} : const {};
+      state.kind == ProjectKind.midi || state.edits.midiLook != const MidiLook() ? {'look': state.edits.midiLook.toJson()} : const {};
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) =>

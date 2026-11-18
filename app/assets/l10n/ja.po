@@ -4528,6 +4528,9 @@ msgstr "タイムラインを隠す / 表示"
 msgid "Score / Player Map"
 msgstr "楽譜 / 奏者配置図"
 
+msgid "Score / MIDI View"
+msgstr "楽譜 / MIDI ビュー"
+
 msgid "Hide / Show Tab Bar"
 msgstr "タブバーを隠す / 表示"
 
@@ -5346,7 +5349,7 @@ msgstr "ファイルのテンポを使う"
 msgid "MIDI view ({key})"
 msgstr "MIDI ビュー（{key}）"
 
-#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr "MIDI ビュー"
 

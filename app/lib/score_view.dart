@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatf
 import 'package:flutter/gestures.dart' show DragStartBehavior, PointerScrollEvent, PointerScrollInertiaCancelEvent, kPrimaryButton;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode, HorizontalSpacer, ScenePatch, VerticalSpacer;
+import 'package:score_engine/score_engine.dart' show CuratedScene, ExtensionRuntime, GraphNode, HorizontalSpacer, ScenePatch, VerticalSpacer;
 
 import 'app_colors.dart';
 import 'editor_controller.dart';
@@ -103,7 +103,8 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
   /// still (before the music, at rest after it) or jumps (a warp), a quarter of its average
   /// speed, so that a swipe still gets somewhere.
   double _speedAt(double time, VideoFrame frame) {
-    final scene = c.scene!, size = frame.layout, end = math.max(1.0, c.playback.duration);
+    // (As the MIDI view moves while the toolbar has it: its beats are as wide as each other.)
+    final scene = (c.showsMidiView ? c.rowsScene : null) ?? c.scene!, size = frame.layout, end = math.max(1.0, c.playback.duration);
     double x(double t) => scene.frameXAtQuarter(0, t, size);
     const dt = 1 / 120;
     final slowest = math.max(1.0, (x(0) - x(end)) / end / 4);
@@ -403,24 +404,27 @@ class _ScorePainter extends CustomPainter {
       ..clipRect(Offset.zero & size)
       ..scale(scale);
     final time = controller.playback.time.value, end = controller.playback.duration;
-    final map = controller.playerMap.map;
-    final mix = controller.automation.viewsTimed.at(time);
+    final map = controller.playerMap.map, rows = controller.rowsScene;
+    final mix = controller.automation.shown;
+    void paint(CuratedScene scene, Canvas canvas, Size layout) => scene.paint(
+          canvas,
+          layout,
+          time: time,
+          curation: curation,
+          // The frame's, even where a split draws it smaller: the renderer keeps its tiles for one
+          // pixel ratio, and a change between views would draw them again every frame.
+          devicePixelRatio: devicePixelRatio * scale,
+          end: end,
+          paper: colors.scorePaper,
+          ink: colors.scoreInk,
+        );
     paintViews(
       canvas,
       size / scale,
       mix,
-      score: (canvas, layout) => scene.paint(
-        canvas,
-        layout,
-        time: time,
-        curation: curation,
-        // The frame's, even where a split draws it smaller: the renderer keeps its tiles for one
-        // pixel ratio, and a change between views would draw them again every frame.
-        devicePixelRatio: devicePixelRatio * scale,
-        end: end,
-        paper: colors.scorePaper,
-        ink: colors.scoreInk,
-      ),
+      score: (canvas, layout) => paint(scene, canvas, layout),
+      // The score's notes in rows (the MIDI view), once laid out: until then, the score.
+      rows: rows == null ? null : (canvas, layout) => paint(rows, canvas, layout),
       map: map == null || !(mix.from.showsMap || mix.to.showsMap)
           ? null
           : (canvas, size) => PlayerMapPainter(map: map, pulses: controller.playerMap.pulses, time: controller.playback.time, textDirection: textDirection)

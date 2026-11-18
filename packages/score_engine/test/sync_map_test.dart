@@ -61,7 +61,11 @@ void main() {
     final curve = CurveLane(const _Level(), const [AutoPoint(8, 3), AutoPoint(0, 1, shape: CurveShape.smooth)]);
     expect([curve.valueAt(-1), curve.valueAt(2), curve.valueAt(20), CurveLane(const _Level()).valueAt(5), curve.valueInTime(once, 3)], [1, 1.3125, 3, 0.5, 1.3125]);
     const frame = ui.Size(960, 540);
-    expect(SceneView(ViewKind.split, size: 0.4).place(frame), (score: const ui.Rect.fromLTWH(0, 0, 576, 540), scoreLayout: const ui.Size(576, 540), map: const ui.Rect.fromLTWH(576, 0, 384, 540), inset: false));
+    expect(SceneView(ViewKind.split, size: 0.4).place(frame), (score: const ui.Rect.fromLTWH(0, 0, 576, 540), scoreLayout: const ui.Size(576, 540), rows: false, map: const ui.Rect.fromLTWH(576, 0, 384, 540), inset: false));
+    // The MIDI view: the score's notes in rows where the score is, kept as JSON; the score itself where there are none to draw (as a map's view is with no map).
+    expect(SceneView.midi.place(frame), (score: ui.Offset.zero & frame, scoreLayout: frame, rows: true, map: null, inset: false));
+    expect((SceneView.fromJson(SceneView.midi.toJson(), 'view'), SceneView.midi.showsMap), (SceneView.midi, false));
+    expect([SceneView.midi.where(map: false, rows: true), SceneView.midi.where(map: true, rows: false), SceneView.map.where(map: false, rows: true)], [SceneView.midi, SceneView.score, SceneView.score]);
     final below = const SceneView(ViewKind.split, side: MapSide.bottom, size: 0.4).place(frame);
     expect((below.score, below.scoreLayout.width, below.map), (const ui.Rect.fromLTWH(0, 0, 960, 324), 1600, const ui.Rect.fromLTWH(0, 324, 960, 216)));
 

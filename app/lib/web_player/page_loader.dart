@@ -60,12 +60,13 @@ class LoadedPage {
     for (final (:family, :bytes) in fonts) {
       await ui.loadFontFromList(bytes, fontFamily: family);
     }
+    // A MIDI project's: rows of notes, each in its instrument's colour.
+    final roll = manifest.string('kind') == ProjectKind.midi.name;
     final score = switch (state.pdf) {
       // A PDF score: its systems as printed, cut as in the app.
-      final layout? => LoadedScore.fromPdf(PdfScoreArt(layout, _PageSystems(fetch)), WebPage.requestOf(edits)),
-      null => LoadedScore.engraved(musicXML, WebPage.requestOf(edits), EngravingFile.read(engravingBytes),
-          // A MIDI project's: rows of notes, each in its instrument's colour.
-          roll: manifest.string('kind') == ProjectKind.midi.name,
+      final layout? => LoadedScore.fromPdf(PdfScoreArt(layout, _PageSystems(fetch)), WebPage.requestOf(edits, rows: false)),
+      null => LoadedScore.engraved(musicXML, WebPage.requestOf(edits, rows: roll), EngravingFile.read(engravingBytes),
+          roll: roll,
           textFontFound:
               page.fonts.any((f) => f.family == TextFonts.familyOf(edits.fonts.text)) || edits.fonts.text == TextFonts.academico),
     };

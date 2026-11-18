@@ -79,8 +79,8 @@ class WebPage {
   /// how fast it plays (pitch kept);
   final WebChoice<double> speed;
 
-  /// and what shows in its frame ([PageShows]; only where the project has a player map: without
-  /// one, the score).
+  /// and what shows in its frame ([PageShows]; the map only where the project has one, the MIDI
+  /// view only of a score with notes that isn't rows already: else the score).
   final WebChoice<PageShows> view;
 
   /// The speeds a viewer may pick.
@@ -165,8 +165,9 @@ class WebPage {
     }
   }
 
-  /// What a score with [edits] (an exported project's: every setting its own) is engraved with.
-  static EngraveRequest requestOf(EditState edits) => EngraveRequest(
+  /// What a score with [edits] (an exported project's: every setting its own) is engraved with;
+  /// with [rows] (a MIDI project's), how its rows are drawn.
+  static EngraveRequest requestOf(EditState edits, {required bool rows}) => EngraveRequest(
         textEdits: edits.textEdits,
         pairs: edits.pairs,
         fonts: edits.fonts,
@@ -177,7 +178,7 @@ class WebPage {
         dynamicsBetween: edits.dynamicsBetween ?? false,
         spacers: edits.spacers,
         gaps: edits.gaps,
-        midi: edits.midiLook,
+        midi: rows ? edits.midiLook : const MidiLook(),
       );
 }
 
@@ -199,9 +200,10 @@ class WebChoice<T> {
 }
 
 /// What a page shows in its frame: the views as the project's Video tab has them ([SceneView];
-/// the score where it has none), the score throughout (a MIDI project's rows), or the player map
-/// in its place.
-enum PageShows { views, score, map }
+/// the score where it has none), the score throughout (a MIDI project's rows), the player map
+/// in its place, or the score's notes in rows throughout (the MIDI view of a score that is
+/// notation, [LoadedScore.rows]).
+enum PageShows { views, score, map, midi }
 
 /// How an instrument shows on a page: as its lane says, always, or never.
 enum PartShown { curated, shown, hidden }

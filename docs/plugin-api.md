@@ -491,6 +491,7 @@ View:
 - `maximizePreview`: Maximize Preview
 - `maximizeTimeline`: Maximize Timeline
 - `showPlayerMap`: Score / Player Map
+- `showMidiView`: Score / MIDI View
 - `showTabBar`: Hide / Show Tab Bar
 - `showAllTabs`: Show All Tabs
 

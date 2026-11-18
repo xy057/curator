@@ -23,7 +23,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
 | `daw_document.dart` | A DAW's document as Attacca sends it (see docs/daw-link.md): its musical contexts (`DawContext`: the tempo map, `secondsAt` / `quarterAt` as ARA reads it, the bar a bar number starts at, `barStart`; keys), tracks, recordings (`DawSource`) and the regions placing them in the song (`DawRegion`: song time ↔ the recording's); the tempo a region's recording plays by as a `MidiTempoMap` and where the score starts in it (`DawContext.tempoFor`); the transport (`DawTransport`) |
 | `midi_tempo.dart` | A Standard MIDI File's tempo map (Set Tempo events only), and the anchors that make a `SyncMap` follow it; `MidiInScore`, where its quarters fall in the score |
-| `midi_file.dart`, `midi_score.dart` | A Standard MIDI File read whole (`MidiFile`: each channel of each track's notes, the meters, keys and names; its chunks and events are the one reader the tempo map uses too), and a MIDI project's score (see *A MIDI project is its notes*): `MidiScore`, the MusicXML written for the file and the rows of notes it is drawn as, as `MidiLook` says |
+| `midi_file.dart`, `midi_score.dart` | A Standard MIDI File read whole (`MidiFile`: each channel of each track's notes, the meters, keys and names; its chunks and events are the one reader the tempo map uses too), and a MIDI project's score (see *A MIDI project is its notes*): `MidiScore`, the MusicXML written for the file and the rows of notes it is drawn as, as `MidiLook` says; a score that is notation has the same rows of its own notes (`MidiScore.ofScore`, `LoadedScore.rows`) |
 | `engraving_writer.dart` | `CommandWriter`: an engraving written in Dart as recorded commands (a LilyPond score's shapes, a MIDI project's rows), which everything that draws Verovio's draws |
 | `scroll_map.dart` | Playback time → the score x under the pointer: beat to beat, every onset on time, or a blend; `ClippedTimeline`, part of a performance as if it were all |
 | `take_splice.dart` | `TakeSplice`: a performance spliced from several recordings' syncs by their lanes, and its sound as crossfaded `SoundChunk`s |
@@ -51,7 +51,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `plugin/runtime.dart` | `PluginRuntime`: one plugin running over a `PluginHost` (the app): main.lua run once, the commands it added (`PluginCommand`, `PluginKey`), what it changed of the app's own (`hidden`, `titles`, `keys`, `wraps`), what it listens to (`emit`); `checkPlugin` |
 | `plugin/api.dart` | `PluginApi`: every function, event, command and setting of the plugin API with what it does and the level it came with; it only grows. `curator.has`, the plugin editor's reference and docs are made from it |
 | `extension/lua_json.dart`, `extension/markers.dart`, `extension/values.dart` | Lua values to JSON and back (`LuaJson`); markers in time (`markerSpans`: what a markers lane draws, `score.spans`); a colour as Lua gives one (`luaColor`: "#rrggbb" or {r, g, b}) and a score's music as Lua takes it (`readScoreMusic`, `scoreMusicTable`: `score.music`) |
-| `automation.dart`, `scene_view.dart` | What changes over a performance (see *What changes over a performance is automation*): a lane per `AutomationTarget`, values held over stretches (`StepLane`, `AutoStretch`) or a number through points (`CurveLane`), in a performance's time (`TimedSteps`), saved as JSON (`Automation`); what a frame shows (`SceneView`: score, map, side by side, inset) and where each goes in it (`place`), the View lane's target (`SceneViews.target`) |
+| `automation.dart`, `scene_view.dart` | What changes over a performance (see *What changes over a performance is automation*): a lane per `AutomationTarget`, values held over stretches (`StepLane`, `AutoStretch`) or a number through points (`CurveLane`), in a performance's time (`TimedSteps`), saved as JSON (`Automation`); what a frame shows (`SceneView`: score, map, side by side, inset, the score's notes in rows) and where each goes in it (`place`), the View lane's target (`SceneViews.target`) |
 | `score_band.dart`, `key_signatures.dart` | A stretch of the band along a frame's top (`ScoreBand`: what a `band` socket gives the scene); a score's key signatures at concert pitch (`concertKeySignatures`) |
 | `score_motion.dart` | How the score moves (`ScoreMotion`): every curve (`MotionCurve`, an equation in t) and length of time the scene animates with |
 | `score_typography.dart` | How each kind of text and music symbol in the score looks (`ScoreTypography`: a `TextLook` per `TextKind`), the engraved kinds written into the MusicXML for Verovio, the symbols' sizes as Verovio options |
@@ -128,7 +128,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `updater.dart` | Settings ▸ About: `appVersion` (major.minor.build), `appBuild`, `appRelease` (major.minor.`appReleasePatch`), `appCommit`, the newest GitHub release on the update channel (`UpdateChannel`: the releases, or pre-releases too), what its description says is new, its download into Downloads |
 | `update_dialog.dart` | The update window (`showUpdateDialog`; About's Update… and the launch notice's): a release's version, its notes, Download, then how far that has got; `updateHelp`, where the updates stand in a line |
 | `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
-| `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score); MIDI, only while a MIDI project shows (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
+| `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score, and for a score with notes Show MIDI View / Show Score); MIDI, only while a MIDI project shows, or a score in its MIDI view (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
@@ -1146,11 +1146,13 @@ version, map); imported, its links are found again among this score's instrument
 while the name agrees (`PlayerMap.relinked`), and Replace Score carries it as the other part ids
 (`ScoreSwap`). A web page has it in its project: `WebPage.view` says what the viewer sees first
 (`PageShows`: the Video tab's views as they come, the score throughout, or the map in its place) and
-whether they may switch (the export's View row, only with a map; As in Video tab only where the View
-lane has views, and with Viewer can change off the page keeps to them; a MIDI project's score is
-named MIDI View there and on the page; a page written before the row says `playerMap`, the map or
-not, and one without either follows the views), and the player reads the notes and dynamics itself
-the first time it shows the map, again for each recording's timeline. In a video only as the Video tab's View lane has it (below).
+whether they may switch (the export's View row, with a map or a score whose notes can be drawn in
+rows; As in Video tab only where the View lane has views the page can show, and with Viewer can
+change off the page keeps to them; MIDI View, `PageShows.midi`, the score's notes in rows
+throughout, for a score that is notation, see *A score has a MIDI view too* below; a MIDI
+project's score is named MIDI View there and on the page; a page written before the row says
+`playerMap`, the map or not, and one without either follows the views), and the player reads the
+notes and dynamics itself the first time it shows the map, again for each recording's timeline. In a video only as the Video tab's View lane has it (below).
 
 **What changes over a performance is automation** (`Automation`, the project's: `EditState.automation`,
 an edit; the optional `automation` module, `{lanes: {<target id>: lane}}`, so an older Curator opens
@@ -1168,16 +1170,18 @@ changes on the first bar); each change centred on its edge, as long as the stret
 (going back to the base, the one going out), never longer than the time to the changes either side,
 eased (half a cosine); `at(seconds)` the two values and how far between. The first target is
 `SceneViews.target` (`view`): what a frame shows, a `SceneView` (score, player map, both side by side
-with the map on any side and its share 20–60%, or the map inset in a corner, 20–50% of the
-height), whose `place` says where the score and the map go in a frame. A split at the left or right
+with the map on any side and its share 20–60%, the map inset in a corner, 20–50% of the
+height, or the MIDI view: the score's notes in rows where the score is, `ViewKind.midi`), whose
+`place` says where the score and the map go in a frame, and whether the score is its rows. A split at the left or right
 lays the score out at its own width and the frame's height; above or below, at the frame's height
 and scaled into its room, so its staves are as they are full-frame, and the scene keeps the plan
 (and the bar row's rises) of the size before too (`_otherPlan`, `_otherLift`), so a change between
 two views draws both without planning again; its tiles stay at the frame's pixel ratio whatever the
 scale. `paintViews` (`scene_views.dart`, no dart:io) draws a frame from it: one view, or two each in
 a layer added by their shares (`BlendMode.plus`, exact on see-through paper too), the map on paper
-(an inset one on a card edged in ink) fading at the end with the score (`CuratedScene.endFadeAt`); no
-map, the score throughout. The preview (`ScoreView`), a video's frames (`VideoExport`: the lane as
+(an inset one on a card edged in ink) fading at the end with the score (`CuratedScene.endFadeAt`); a
+view with the map is the score alone where there is no map, as the MIDI view is where there are no
+rows to draw (`SceneView.where`). The preview (`ScoreView`), a video's frames (`VideoExport`: the lane as
 it was when the export began, in the timeline shown, the notes read for the map before the first
 frame, `PlayerMapEditing.notes`) and a web page (`PageShows.views`: the export's default where the
 project has views and a map, the viewer's Auto beside Score and Player Map where the switch is
@@ -1639,6 +1643,35 @@ settings_dialog.dart): Project Settings ▸ Sections, Condensing and Flags are g
 sidebar (`_Category.enabled`), Engraving keeps only what is drawn (the text font; the names',
 bar numbers' and captions' typography), and Project Info ▸ Score ▸ Edit… is greyed out. The file
 isn't played: a recording is added on the Audio tab, as for any score.
+
+**A score has a MIDI view too.** A score that is notation and has notes (not a PDF's, nor a MIDI
+project's, which is rows already: `LoadedScore.hasRows`, `EditorController.hasMidiView`) is shown
+as a MIDI project is, beside its engraving: `MidiScore.ofScore` reads its notes (`soundingNotes`:
+concert pitch, a note from where it starts to where what is tied to it ends, unpitched percussion
+where it is written, each as loud as its part's dynamics say there, `ScoreDynamics`, which is what
+a velocity is to a file's), a row for each staff (a piano's hands apart, named as one and not
+braced), and `LoadedScore.rows` (`rowsApart`, off the main isolate) makes a second `LoadedScore`
+of them: `isRoll`, its engraving the rows, and everything else the score's own (the same
+metadata, texts, beat grid and timeline, which reads only the bars' lengths), so one curation,
+one sync and one set of scene settings draw both; no staff is shared in it (a condensed pair's
+rows show wherever either plays). It is drawn by a second `CuratedScene` wherever the first is:
+the editor's (`EditorController.rowsScene`, kept the open score's by `_followRows` while the
+toolbar's switch or a stretch of the View lane shows it, laid out again when the score is
+engraved again or the look changes, the rows before showing until then; `rows` gives a video or
+a page the same, laid out there and then if need be), a video's (`VideoExport._rows`, only where
+a view shows it) and a web page's, which lays them out itself from the project's MusicXML
+(`_PagePlayerState._rowsScene`: before it shows where the page starts on them or a view has them,
+else when the viewer first asks). Three things show it: the toolbar's switch (Score / MIDI View /
+Player Map; View ▸ Show MIDI View, `KeyCommand.showMidiView`, no key of its own;
+`AppSettings.midiView`, the window's and not an edit, `EditorController.showsMidiView`), the rows
+throughout whatever the lane has (`AutomationEditing.shown`); the View lane's MIDI View
+(`SceneView.midi`), crossfading with the others; and a page's View row and its viewer's switch
+(`PageShows.midi`). While the toolbar has it the MIDI menu is in the bar (Use File’s Tempo
+greyed out: there is no file), and the look is the project's `EditState.midiLook`, an Undo step
+saved in the `midi` module once it isn't the standard one. It is no part of the score's
+engraving (`_requestFor`'s `rows`, `WebPage.requestOf`'s): changing it lays out the rows, never
+engraves. The preview's images, spacers and menu are handled only on the engraved score
+(`scoreInPlace`), as while a map shows.
 
 **What the engraving leaves out is said, not only logged.** The bridge keeps Verovio's
 warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;

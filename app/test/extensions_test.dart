@@ -320,6 +320,23 @@ void main() {
         ('✓ Use File’s Tempo', false),
       ]);
       expect([for (final i in flat(midi.firstWhere((m) => m.label == 'View').menus)) i.label], contains('Show MIDI View'));
+      // A score that is notation has its notes in rows beside its engraving: an item shows them
+      // and goes back, and the map's names what is under it; no such item for another project.
+      List<String> view({required bool map, bool? rows}) => [
+            for (final i in flat(AppMenus(
+              does: {'showPlayerMap': () {}, 'showMidiView': () {}},
+              playerMapShown: map,
+              midiViewShown: rows,
+              child: const SizedBox(),
+            ).menus.whereType<PlatformMenu>().firstWhere((m) => m.label == 'View').menus))
+              if (const {'Show Player Map', 'Show MIDI View', 'Show Score'}.contains(i.label)) i.label,
+          ];
+      expect([view(map: false, rows: false), view(map: false, rows: true), view(map: true, rows: true), view(map: true)], [
+        ['Show Player Map', 'Show MIDI View'],
+        ['Show Player Map', 'Show Score'],
+        ['Show MIDI View', 'Show Score'],
+        ['Show Score'],
+      ]);
 
       // File ▸ Attacca: how it stands (greyed out), Connect Attacca… ticked while followed, Record
       // from DAW… while it is, Capture Stems… greyed out for now, its Settings….

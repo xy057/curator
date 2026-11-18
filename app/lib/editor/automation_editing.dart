@@ -137,14 +137,19 @@ class AutomationEditing {
 
   final _viewsTimed = TimedStepsCache<SceneView>();
 
-  /// Whether the preview shows the score where it always is (in the whole frame, nothing mid-
-  /// change), so what is clicked on it is where it looks: images and spacers are handled only
-  /// then. Kept up as the playhead moves.
+  /// Whether the preview shows the score where it always is (in the whole frame, as engraved,
+  /// nothing mid-change), so what is clicked on it is where it looks: images and spacers are
+  /// handled only then. Kept up as the playhead moves.
   final scoreInPlace = ValueNotifier(true);
+
+  /// What the preview shows now: the View lane's views, or with the toolbar on MIDI View
+  /// ([EditorController.showsMidiView]) the score's notes in rows throughout.
+  StepMix<SceneView> get shown =>
+      _editor.showsMidiView ? (from: SceneView.midi, to: SceneView.midi, mix: 0.0) : viewsTimed.at(_editor.playback.time.value);
 
   void _followTime() {
     if (_editor._score == null || _editor._sync == null || _editor._disposed) return;
-    final m = viewsTimed.at(_editor.playback.time.value);
+    final m = shown;
     scoreInPlace.value = m.from.kind.scoreWhole && (m.mix == 0 || m.to.kind.scoreWhole);
   }
 

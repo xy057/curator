@@ -10,7 +10,9 @@ import 'midi_file.dart';
 import 'midi_tempo.dart';
 import 'musicxml_kit.dart' show xmlEscaped;
 import 'number_text.dart';
+import 'score_dynamics.dart';
 import 'score_metadata.dart';
+import 'sounding_notes.dart';
 import 'spacers.dart';
 
 /// How a MIDI score's rows are drawn (the MIDI menu's): equal looks draw it the same.
@@ -80,25 +82,31 @@ class MidiLook {
 /// that reads a score reads (curation, sync, Align, Find Phrase); what is drawn is not
 /// notation but its notes as bars of ink in a row an instrument ([engraving]), as long as
 /// they sound and as high as they are.
+///
+/// A score that is notation has the same view of its own notes ([MidiScore.ofScore]): a row for
+/// each staff, beside its engraving.
 class MidiScore {
-  MidiScore._(this.musicXML, this.barLengths, this._drums, this._part, this._start, this._end, this._key, this._velocity);
+  MidiScore._(this.musicXML, this.barLengths, this._rows, this._drums, this._row, this._start, this._end, this._key, this._velocity);
 
   /// What the file is, as a score written for it ([ScoreMetadata] reads it): a part a channel
-  /// of a track (`P1`…), its notes in voices none of which plays two at once.
+  /// of a track (`P1`…), its notes in voices none of which plays two at once. A score's own
+  /// ([MidiScore.ofScore]): that score.
   final String musicXML;
 
   /// Each bar's length, in quarter notes.
   final List<double> barLengths;
 
-  // Every note: its part (0 the first), where it starts and ends (quarter notes from the
-  // start), its key and velocity; and whether each part is drums.
+  // The rows: each a part's id and which of its staves (0 its first; a MIDI file's parts have
+  // one), and whether it is drums. Every note: its row, where it starts and ends (quarter notes
+  // from the start), its key and velocity.
+  final List<(String, int)> _rows;
   final List<bool> _drums;
-  final Uint16List _part;
+  final Uint16List _row;
   final Float64List _start, _end;
   final Uint8List _key, _velocity;
 
-  /// How many instruments it has, and notes.
-  int get partCount => _drums.length;
+  /// How many rows it has (a MIDI file's: its instruments), and notes.
+  int get rowCount => _rows.length;
   int get noteCount => _key.length;
 
   /// The most instruments a file may have, and bars: far more than any real piece's.
@@ -272,8 +280,49 @@ class MidiScore {
       out.write('  </part>\n');
     }
     out.write('</score-partwise>\n');
-    return MidiScore._(out.toString(), [for (final b in bars) b.length / divisions], [for (final v in voices) v.isDrums], part, starts, ends,
-        keys, velocities);
+    return MidiScore._(out.toString(), [for (final b in bars) b.length / divisions], [for (var i = 0; i < voices.length; i++) ('P${i + 1}', 0)],
+        [for (final v in voices) v.isDrums], part, starts, ends, keys, velocities);
+  }
+
+  /// The notes of a score that is notation, as a MIDI file's are: [musicXML]'s, whose bars
+  /// [measureStarts] puts in quarter notes, a row for each staff of each of [metadata]'s parts
+  /// (a piano's hands apart, as they are written). Each note runs from where it starts to where
+  /// what is tied to it ends, at concert pitch (unpitched percussion where it is written), as
+  /// loud as its part's dynamics say there ([ScoreDynamics]): what a velocity is to a file's.
+  factory MidiScore.ofScore(String musicXML, ScoreMetadata metadata, List<double> measureStarts) {
+    final rows = <(String, int)>[], drums = <bool>[];
+    final rowsOf = <String, List<int>>{}; // a part's staves' rows
+    for (final part in metadata.parts) {
+      if (Spacers.isSpacer(part.id) || part.staffNumbers.isEmpty) continue;
+      rowsOf[part.id] = [for (var s = 0; s < part.staffNumbers.length; s++) rows.length + s];
+      for (var s = 0; s < part.staffNumbers.length; s++) {
+        rows.add((part.id, s));
+        drums.add(part.isUnpitchedPercussion);
+      }
+    }
+    final loud = ScoreDynamics.read(musicXML, measureStarts);
+    final row = <int>[], keys = <int>[], velocities = <int>[];
+    final starts = <double>[], ends = <double>[];
+    // Each note once: one a tie carries on is the note before, longer.
+    final open = <(int, String, int), int>{};
+    for (final n in soundingNotes(musicXML, measureStarts, unpitched: true)) {
+      final staves = rowsOf[n.partId];
+      if (staves == null) continue;
+      final r = staves[(n.staff - 1).clamp(0, staves.length - 1)], key = n.midi.clamp(0, 127);
+      final at = (r, n.voice, key);
+      if (open[at] case final i? when n.tied && (ends[i] - n.start).abs() < 1e-6) {
+        ends[i] = n.end;
+        continue;
+      }
+      open[at] = row.length;
+      row.add(r);
+      keys.add(key);
+      velocities.add((loud.at(n.partId, n.start).clamp(0.0, 1.0) * 127).round());
+      starts.add(n.start);
+      ends.add(n.end);
+    }
+    return MidiScore._(musicXML, [for (var b = 0; b + 1 < measureStarts.length; b++) measureStarts[b + 1] - measureStarts[b]], rows, drums,
+        Uint16List.fromList(row), Float64List.fromList(starts), Float64List.fromList(ends), Uint8List.fromList(keys), Uint8List.fromList(velocities));
   }
 
   /// A name for each of [voices]: its track's, with what its channel plays when the track has
@@ -406,8 +455,8 @@ class MidiScore {
   static const unit = 20.0;
   static const _lead = 2 * unit, _rowGap = 2 * unit;
 
-  /// The engraving it is drawn as with [look]: a row for each of [metadata]'s parts (the score
-  /// written for it, with any vertical spacers' parts after its own, each an empty row), the
+  /// The engraving it is drawn as with [look]: a row for each staff of [metadata]'s parts (the
+  /// score written for it, with any vertical spacers' parts after its own, each an empty row), the
   /// bars end to end, as wide as they are long. Each row holds its bars' barlines, faint, and
   /// its notes, on the paper an engraved score is on (no ground of its own); nothing in it is a
   /// clef, a key or a time signature, so the frozen zone has no room to keep.
@@ -426,21 +475,21 @@ class MidiScore {
     }
     final right = _lead + at * quarter;
 
-    // Each part's lowest and highest key; with [MidiLook.sharedRange], the pitched parts' own
+    // Each row's lowest and highest key; with [MidiLook.sharedRange], the pitched rows' own
     // are all the piece's (a drum's keys are no pitches).
-    final lows = List.filled(partCount, 127), highs = List.filled(partCount, 0);
+    final lows = List.filled(rowCount, 127), highs = List.filled(rowCount, 0);
     for (var i = 0; i < noteCount; i++) {
-      lows[_part[i]] = math.min(lows[_part[i]], _key[i]);
-      highs[_part[i]] = math.max(highs[_part[i]], _key[i]);
+      lows[_row[i]] = math.min(lows[_row[i]], _key[i]);
+      highs[_row[i]] = math.max(highs[_row[i]], _key[i]);
     }
     if (look.sharedRange) {
       var low = 127, high = 0;
-      for (var p = 0; p < partCount; p++) {
+      for (var p = 0; p < rowCount; p++) {
         if (_drums[p]) continue;
         low = math.min(low, lows[p]);
         high = math.max(high, highs[p]);
       }
-      for (var p = 0; p < partCount; p++) {
+      for (var p = 0; p < rowCount; p++) {
         if (_drums[p]) continue;
         lows[p] = low;
         highs[p] = high;
@@ -450,28 +499,30 @@ class MidiScore {
     final w = CommandWriter()..fontNames = const [];
     final barline = w.classOf('midiBarline'), note = w.classOf('midiNote');
     final staves = <StaffInfo>[];
-    final tops = <int, double>{}; // part → its row's top
-    final numbers = <int, int>{}; // part → its staff number
-    for (final (row, part) in metadata.parts.indexed) {
-      final n = part.staffNumbers.first, top = row * (height + _rowGap);
-      staves.add(StaffInfo(n: n, top: top, height: height, lines: 0));
-      if (Spacers.isSpacer(part.id)) continue;
-      final index = (int.tryParse(part.id.substring(1)) ?? 0) - 1;
-      if (index < 0 || index >= partCount) continue;
-      tops[index] = top;
-      numbers[index] = n;
-      const line = 0.05 * unit; // half a barline's width
-      for (final m in measures) {
-        w.rect(n, barline, ui.Rect.fromLTRB(m.left - line, top, m.left + line, top + height), fade: 0.8);
+    final rowOf = {for (final (i, r) in _rows.indexed) r: i};
+    final tops = <int, double>{}; // row → its top
+    final numbers = <int, int>{}; // row → its staff number
+    for (final part in metadata.parts) {
+      for (final (s, n) in part.staffNumbers.indexed) {
+        final top = staves.length * (height + _rowGap);
+        staves.add(StaffInfo(n: n, top: top, height: height, lines: 0));
+        final index = Spacers.isSpacer(part.id) ? null : rowOf[(part.id, s)];
+        if (index == null) continue;
+        tops[index] = top;
+        numbers[index] = n;
+        const line = 0.05 * unit; // half a barline's width
+        for (final m in measures) {
+          w.rect(n, barline, ui.Rect.fromLTRB(m.left - line, top, m.left + line, top + height), fade: 0.8);
+        }
+        w.rect(n, barline, ui.Rect.fromLTRB(right - line, top, right + line, top + height), fade: 0.8);
       }
-      w.rect(n, barline, ui.Rect.fromLTRB(right - line, top, right + line, top + height), fade: 0.8);
     }
 
     // A note's bar is as thick as a key's share of the row, within reason; a row spans an
     // octave at least, so two notes a step apart aren't its top and bottom.
     const pad = 0.2 * unit;
     for (var i = 0; i < noteCount; i++) {
-      final p = _part[i], top = tops[p], n = numbers[p];
+      final p = _row[i], top = tops[p], n = numbers[p];
       if (top == null || n == null) continue;
       var low = lows[p], high = highs[p];
       if (high - low < 12) {

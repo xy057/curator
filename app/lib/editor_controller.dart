@@ -123,7 +123,87 @@ class EditorController extends ChangeNotifier {
   void _applyTimeline() {
     if (!_timelineStale) return;
     _timelineStale = false;
-    if (_sync != null) _scene?.setTimeline(timeline);
+    if (_sync == null) return;
+    _scene?.setTimeline(timeline);
+    _rowsScene?.setTimeline(timeline);
+  }
+
+  // MARK: The MIDI view of a score
+
+  /// Whether the open score's notes can be shown in rows where it is engraved (the MIDI view of
+  /// a score that is notation, [LoadedScore.rows]: the toolbar's switch, the View lane's MIDI
+  /// View, a web page's): it has notes, and isn't a MIDI project's rows already.
+  bool get hasMidiView => _score?.hasRows ?? false;
+
+  /// Whether the preview shows the MIDI view throughout (the toolbar's switch, View ▸ Show MIDI
+  /// View), whatever the View lane has. Not the project's: the window's.
+  bool get showsMidiView => _showsMidiView && hasMidiView;
+  bool _showsMidiView = false;
+  set showsMidiView(bool on) {
+    if (on == _showsMidiView) return;
+    _showsMidiView = on;
+    if (_score == null) return; // nothing shows either way: the next score opened finds it set
+    _followRows();
+    automation._followTime();
+    playback._markDirty();
+    notifyListeners();
+  }
+
+  /// The score's notes in rows as the preview draws them, beside [scene]: null while nothing
+  /// shows the MIDI view, and until they are laid out (the score shows in their place).
+  CuratedScene? get rowsScene {
+    _applyTimeline();
+    return _rowsScene;
+  }
+
+  CuratedScene? _rowsScene;
+
+  /// The score's notes in rows as they are now ([midiLook]), for a video or a page that shows
+  /// them: the preview's when it has them, else laid out here and now. Null without
+  /// [hasMidiView].
+  LoadedScore? get rows {
+    final score = _score;
+    if (score == null || !score.hasRows) return null;
+    if (_rowsScene case final scene? when _rowsShown == (score, _doc.midiLook)) return scene.score;
+    return score.rows(_doc.midiLook);
+  }
+
+  /// The score and look the rows are being laid out for (or were), and those [_rowsScene] is of.
+  (LoadedScore, MidiLook)? _rowsOf, _rowsShown;
+  final _rowsTurns = Latest();
+
+  /// Keeps [_rowsScene] the open score's while something shows the MIDI view (the toolbar's
+  /// switch, a stretch of the View lane): laid out again, off this isolate, when the score is
+  /// engraved again or its look changes, the rows before showing until then. Once laid out
+  /// they are kept while they are this score's, so the switch back finds them.
+  void _followRows() {
+    final score = _score;
+    if (score == null || !score.hasRows) return _dropRows();
+    final now = (score, _doc.midiLook);
+    if (_rowsOf == now) return;
+    if (!_showsMidiView && !automation.views.stretches.any((s) => s.value.kind.showsRows)) return _dropRows();
+    _rowsOf = now;
+    final turn = _rowsTurns.start();
+    unawaited(() async {
+      try {
+        final rows = await score.rowsApart(now.$2);
+        if (!turn.isLatest || _disposed) return;
+        _rowsScene?.dispose();
+        _rowsScene = _makeScene(rows);
+        _rowsShown = now;
+        playback._markDirty();
+        notifyListeners();
+      } catch (_) {
+        // Notes that can't be read are no rows: the score shows in their place.
+      }
+    }());
+  }
+
+  void _dropRows() {
+    _rowsTurns.cancel();
+    _rowsOf = _rowsShown = null;
+    _rowsScene?.dispose();
+    _rowsScene = null;
   }
 
   /// When each instrument is shown. Edited in the Instruments tab; read by the preview.
@@ -226,7 +306,7 @@ class EditorController extends ChangeNotifier {
   Future<void> openMidi(String name, Uint8List bytes) async {
     final (:score, :tempo) = await _startLoading(() => _readMidi(name, bytes, tempo: true));
     final edits = (await _newProjectEdits()).copyWith(colorNames: true, midi: tempo);
-    final loaded = await _engrave('', _requestFor(edits), midi: score, measure: autoCurateImported);
+    final loaded = await _engrave('', _requestFor(edits, rows: true), midi: score, measure: autoCurateImported);
     await _install(name, bytes, loaded, ProjectState(edits: edits, kind: ProjectKind.midi));
   }
 
@@ -239,15 +319,16 @@ class EditorController extends ChangeNotifier {
   /// of its notes, with nothing engraved to set or edit.
   bool get isMidi => _score != null && _kind == ProjectKind.midi;
 
-  /// How a MIDI project's rows are drawn (the MIDI menu's).
+  /// How a MIDI project's rows are drawn (the MIDI menu's), and a score's in its MIDI view.
   MidiLook get midiLook => _doc.midiLook;
 
-  /// Draws a MIDI project's rows as [look] says: one Undo step. The future completes when
-  /// they are laid out again.
+  /// Draws a MIDI project's rows, or a score's in its MIDI view, as [look] says: one Undo step.
+  /// The future completes when a MIDI project's are laid out again (a score's follow,
+  /// [_followRows]: its engraving is as it was).
   Future<void> setMidiLook(MidiLook look) async {
-    if (!isMidi || look == _doc.midiLook) return;
+    if (!(isMidi || hasMidiView) || look == _doc.midiLook) return;
     _doc = _doc.copyWith(midiLook: look);
-    final engraved = _reengrave();
+    final engraved = isMidi ? _reengrave() : null;
     _edited(); // one Undo step, right away
     await engraved;
   }
@@ -443,7 +524,7 @@ class EditorController extends ChangeNotifier {
       score = await _engrave('', _requestFor(edits), lilypond: await _readLilyPond(lilypond));
     } else if (state.kind == ProjectKind.midi) {
       pages = null;
-      score = await _engrave('', _requestFor(edits), midi: (await _startLoading(() => _readMidi(name, scoreBytes))).score);
+      score = await _engrave('', _requestFor(edits, rows: true), midi: (await _startLoading(() => _readMidi(name, scoreBytes))).score);
     } else {
       pages = null;
       score = await _engrave(ScoreFile.decodeMusicXML(scoreBytes), _requestFor(edits));
@@ -494,7 +575,7 @@ class EditorController extends ChangeNotifier {
     final LoadedScore score;
     try {
       score = await _engrave(
-          xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs))),
+          xml, _requestFor(_editState.copyWith(textEdits: swap.textEdits(_doc.textEdits), pairs: swap.pairs(_doc.pairs)), rows: midi),
           pdf: art,
           lilypond: drawn,
           midi: rows);
@@ -676,6 +757,7 @@ class EditorController extends ChangeNotifier {
     _joinLanes();
     _curation!.setSplit(_splitCounts);
     _scene = _makeScene(score);
+    _followRows();
     // A new score's lanes fit the video's frame (before anyone listens: it's no edit).
     if (edits.lanes == null && autoCurateImported && canAutoCurate) {
       _curation!.setLanes(lanes._curated([for (final p in laneParts) if (!isBlankLane(p.id)) p.id])!);
@@ -731,6 +813,7 @@ class EditorController extends ChangeNotifier {
     automation._clearSelection(); // (an index: another project's stretch by the same number)
     _scene?.dispose();
     _scene = null;
+    _dropRows();
     _curation?.removeListener(_curationEdited);
     _curation?.dispose();
     _curation = null;
@@ -878,8 +961,12 @@ class EditorController extends ChangeNotifier {
       spacers: extensions.hasSpacers ? _doc.spacers : const [],
       bands: extensions.bands);
 
-  /// Gives the scene [sceneSettings] again, after a change of any of them.
-  void _showSettings() => _scene?.settings = sceneSettings;
+  /// Gives the scene [sceneSettings] again (and the MIDI view's), after a change of any of them.
+  void _showSettings() {
+    final settings = sceneSettings;
+    _scene?.settings = settings;
+    _rowsScene?.settings = settings;
+  }
 
   /// [next] as the document, shown at once: one Undo step (its setter has checked it is new).
   void _showEdit(EditState next) {
@@ -1363,6 +1450,7 @@ class EditorController extends ChangeNotifier {
       }
       _scene?.dispose();
       _scene = _makeScene(edited);
+      _followRows();
       playback._markDirty();
       engravingFailure.value = null;
     } catch (e) {
@@ -1393,8 +1481,10 @@ class EditorController extends ChangeNotifier {
   }
 
   /// What a score with [edits] is engraved with: their texts, pairs of players, fonts and
-  /// engraving options (over the app's), and flags and typography (the project's, else the app's).
-  EngraveRequest _requestFor(EditState edits) => EngraveRequest(
+  /// engraving options (over the app's), and flags and typography (the project's, else the app's);
+  /// with [rows] (a MIDI project's), how its rows are drawn. A score's own look in its MIDI
+  /// view is no part of its engraving.
+  EngraveRequest _requestFor(EditState edits, {bool rows = false}) => EngraveRequest(
       textEdits: edits.textEdits,
       pairs: edits.pairs,
       fonts: edits.fonts,
@@ -1406,11 +1496,10 @@ class EditorController extends ChangeNotifier {
       // Only while an extension that turns them on is (Attach Image).
       spacers: socketOn(edits, extensions._carried, 'spacers') ? edits.spacers : const [],
       gaps: socketOn(edits, extensions._carried, 'spacers') ? edits.gaps : const [],
-      midi: edits.midiLook);
+      midi: rows ? edits.midiLook : const MidiLook());
 
   /// What the score is to be engraved with now (an engraving may still be catching up).
-  EngraveRequest get _wanted =>
-      _requestFor(_doc);
+  EngraveRequest get _wanted => _requestFor(_doc, rows: _kind == ProjectKind.midi);
 
   /// Why the latest re-engraving failed, the score showing as it was before; null once one
   /// succeeds. Undo can step back from the edit that caused it.
@@ -1855,6 +1944,7 @@ class EditorController extends ChangeNotifier {
     if (value != _staffSpace) {
       _staffSpace = value;
       _scene?.setStaffSpace(value);
+      _rowsScene?.setStaffSpace(value);
       _staffSpaceChanged = true;
       _holdBarRow();
       playback._markDirty();
@@ -2498,6 +2588,7 @@ class EditorController extends ChangeNotifier {
     final scene = _scene, hold = _gestures > 0 || _staffSpaceChanged;
     if (scene == null || scene.holdBarRow == hold) return;
     scene.holdBarRow = hold;
+    _rowsScene?.holdBarRow = hold;
     if (!hold) playback._markDirty();
   }
 
@@ -2560,6 +2651,7 @@ class EditorController extends ChangeNotifier {
   /// at every move of a drag) they are told only of a step recorded.
   void _edited({bool notify = true}) {
     editRevision.value++;
+    _followRows(); // (the look, or the View lane's first MIDI View)
     playback._markDirty();
     if (_record() || notify) notifyListeners();
   }
@@ -2597,6 +2689,7 @@ class EditorController extends ChangeNotifier {
     _loadStage.dispose();
     _engravings.cancel(); // an engraving still running finds nothing to update
     playback._dispose();
+    _dropRows();
     _scene?.dispose();
     _score?.pdf?.dispose();
     _pdfPages?.close();

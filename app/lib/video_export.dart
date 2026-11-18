@@ -424,7 +424,8 @@ typedef ExportSound = ({String path, double from, double at, double end, double 
 
 /// Makes a video of the open project: the curated score scrolling past the pointer in time
 /// with the recording, exactly as the preview plays it, showing what the Video tab's View lane
-/// has when (the player map too, swelling with the notes, [paintViews]).
+/// has when (the player map too, swelling with the notes, and the score's notes in rows where
+/// it has the MIDI view, [paintViews]).
 ///
 /// It works on a copy of the curation and the sync taken when it is made, with its own scene
 /// (its own tile cache, at the video's pixel density), so the editor's view is untouched and
@@ -432,8 +433,9 @@ typedef ExportSound = ({String path, double from, double at, double end, double 
 /// dialog; [dispose] it when done.
 class VideoExport {
   VideoExport._(this._scene, this._curation, this._sync, this._releaseImages, this._extensions,
-      {required this.duration, required this.sounds, required StepLane<SceneView> views, PlayerMap? map, Future<PlayerNotes>? notes})
+      {required this.duration, required this.sounds, required StepLane<SceneView> views, CuratedScene? rows, PlayerMap? map, Future<PlayerNotes>? notes})
       : _views = views, // ignore: prefer_initializing_formals
+        _rows = rows, // ignore: prefer_initializing_formals
         _map = map, // ignore: prefer_initializing_formals
         _reading = notes {
     unawaited(notes?.then((n) => _notes = n));
@@ -457,8 +459,15 @@ class VideoExport {
     // The views as they are now; the map only where one shows it, and the notes it swells with.
     final views = editor.automation.views;
     final map = views.stretches.any((s) => s.value.showsMap) ? editor.playerMap.map : null;
+    // The score's notes in rows, where a view is the MIDI view: a scene of their own, as the score's.
+    final rows = views.stretches.any((s) => s.value.kind.showsRows) ? editor.rows : null;
+    final rowsScene = rows == null
+        ? null
+        : (CuratedScene(rows, style: RenderStyle(staffSpace: editor.staffSpace))
+          ..settings = scene.settings
+          ..setTimeline(timeline));
     return VideoExport._(scene, copy, timeline, editor.images.hold(), extensions,
-        duration: duration, views: views, map: map, notes: map == null ? null : editor.playerMap.notes(), sounds: [
+        duration: duration, views: views, rows: rowsScene, map: map, notes: map == null ? null : editor.playerMap.notes(), sounds: [
       for (final c in chunks)
         if (files[c.take] case final path?) (path: path, from: c.from, at: c.at, end: c.end, fadeIn: c.fadeIn, fadeOut: c.fadeOut),
     ]);
@@ -467,7 +476,10 @@ class VideoExport {
   /// What each frame shows when (the View lane, as when this was made).
   final StepLane<SceneView> _views;
 
-  /// The project's player map, where a view shows it; null: every frame is the score.
+  /// The score's notes in rows ([LoadedScore.rows]), where a view is the MIDI view; null: none is.
+  final CuratedScene? _rows;
+
+  /// The project's player map, where a view shows it; null: none does.
   final PlayerMap? _map;
 
   /// The score's notes, being read for the map; [_notes] once they are.
@@ -497,13 +509,15 @@ class VideoExport {
   /// Draws the frame at [time] into [size] (layout points): the views as the lane has them.
   void _paintFrame(ui.Canvas canvas, ui.Size size,
       {required double time, required double devicePixelRatio, required ui.Color paper, required ui.Color ink}) {
-    final map = _map;
+    final map = _map, rows = _rows;
+    void draw(CuratedScene scene, ui.Canvas canvas, ui.Size layout) =>
+        scene.paint(canvas, layout, time: time, curation: _curation, devicePixelRatio: devicePixelRatio, end: span.end, paper: paper, ink: ink);
     paintViews(
       canvas,
       size,
       _timed.at(time),
-      score: (canvas, layout) => _scene.paint(canvas, layout,
-          time: time, curation: _curation, devicePixelRatio: devicePixelRatio, end: span.end, paper: paper, ink: ink),
+      score: (canvas, layout) => draw(_scene, canvas, layout),
+      rows: rows == null ? null : (canvas, layout) => draw(rows, canvas, layout),
       map: map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: _pulses, time: _mapTime).paintAt(canvas, size, time),
       paper: paper,
       ink: ink,
@@ -551,7 +565,10 @@ class VideoExport {
   bool showBars(int first, int last) {
     final c = _clip(first, last);
     if (c == null) return false;
-    if (_shown != (first, last)) _scene.setTimeline(c.timeline);
+    if (_shown != (first, last)) {
+      _scene.setTimeline(c.timeline);
+      _rows?.setTimeline(c.timeline);
+    }
     _shown = (first, last);
     span = (start: c.start, end: c.end);
     _musicEnd = c.musicEnd;
@@ -637,7 +654,10 @@ class VideoExport {
 
   /// The score size, as in the editor's toolbar.
   double get staffSpace => _scene.style.staffSpace;
-  set staffSpace(double value) => _scene.setStaffSpace(value);
+  set staffSpace(double value) {
+    _scene.setStaffSpace(value);
+    _rows?.setStaffSpace(value);
+  }
 
   /// Draws the frame at [time] into [size] (points), for a still preview in the dialog;
   /// [transparent]: without the paper, its ink only.
@@ -867,6 +887,7 @@ class VideoExport {
     _disposed = true;
     cancel();
     _scene.dispose();
+    _rows?.dispose();
     _curation.dispose();
     _mapTime.dispose();
     _releaseImages();

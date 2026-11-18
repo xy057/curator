@@ -17,6 +17,7 @@ String viewName(ViewKind kind) => switch (kind) {
       ViewKind.map => 'Player Map'.tr,
       ViewKind.split => 'Side by Side'.tr,
       ViewKind.inset => 'Map Inset'.tr,
+      ViewKind.midi => 'MIDI View'.tr,
     };
 
 String _sideName(MapSide side) => switch (side) {
@@ -44,6 +45,7 @@ Color _viewColor(ViewKind kind) => switch (kind) {
       ViewKind.map => const Color(0xFF3E6BD6),
       ViewKind.split => const Color(0xFF23907F),
       ViewKind.inset => const Color(0xFF8656C9),
+      ViewKind.midi => const Color(0xFFB9772B),
     };
 
 /// The Video tab's toolbar: the lanes' tools; the view the stretch selected shows (with nothing
@@ -68,7 +70,11 @@ class VideoToolbar extends StatelessWidget {
               tooltip: stretch != null ? 'View'.trIn('video') : 'View to draw'.tr,
               label: viewName(view.kind),
               swatch: _viewColor(view.kind),
-              values: ViewKind.values,
+              // The MIDI view only of a score whose notes can be drawn in rows (not one that is rows already).
+              values: [
+                for (final k in ViewKind.values)
+                  if (!k.showsRows || c.hasMidiView || k == view.kind) k,
+              ],
               chosen: view.kind,
               name: viewName,
               onSelected: (k) => set(view.copyWith(kind: k)),
