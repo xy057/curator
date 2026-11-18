@@ -560,10 +560,7 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
 void LinkDocumentController::onMessage (const Message& message)
 {
     // On the connection's thread: only noted here, taken up on the host's main thread.
-    auto field = [&] (const char* key) -> const std::string* {
-        auto found = message.find (key);
-        return found == message.end () ? nullptr : &found->second;
-    };
+    auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string* t = field ("t");
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
@@ -573,7 +570,7 @@ void LinkDocumentController::onMessage (const Message& message)
     if (*t == "play" || *t == "stop" || *t == "seek")
     {
         auto* playback = getHostPlaybackController ();
-        const double at = field ("at") ? std::strtod (field ("at")->c_str (), nullptr) : NAN;
+        const double at = numberOf (message, "at", NAN);
         if (!playback)
             return;
         if (*t != "stop" && std::isfinite (at))
@@ -593,8 +590,8 @@ void LinkDocumentController::onMessage (const Message& message)
     {
         job.stem = true;
         job.id = *field ("track");
-        job.from = std::strtod (field ("from")->c_str (), nullptr);
-        job.length = std::strtod (field ("length")->c_str (), nullptr);
+        job.from = numberOf (message, "from", 0);
+        job.length = numberOf (message, "length", 0);
         if (!std::isfinite (job.from) || !std::isfinite (job.length))
             return;
     }

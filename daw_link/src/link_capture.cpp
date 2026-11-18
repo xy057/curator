@@ -220,19 +220,16 @@ void Capturer::process (const float* const* in, int channels, int64_t frames, bo
 
 void Capturer::onMessage (const Message& message)
 {
-    auto field = [&] (const char* key) -> const std::string* {
-        auto found = message.find (key);
-        return found == message.end () ? nullptr : &found->second;
-    };
+    auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string *t = field ("t"), *capturer = field ("capturer"), *document = field ("document");
     if (!t || !capturer || *capturer != id () || !document)
         return;
     if (*t == "capture" && field ("from") && field ("length"))
     {
-        const double from = std::strtod (field ("from")->c_str (), nullptr), length = std::strtod (field ("length")->c_str (), nullptr);
+        const double from = numberOf (message, "from", 0), length = numberOf (message, "length", 0);
         // What the DAW plays of it (`start`, `end`; the whole of it when unsaid).
-        double played = field ("start") ? std::strtod (field ("start")->c_str (), nullptr) : from;
-        double playedEnd = field ("end") ? std::strtod (field ("end")->c_str (), nullptr) : from + length;
+        double played = numberOf (message, "start", from);
+        double playedEnd = numberOf (message, "end", from + length);
         if (!std::isfinite (played) || !std::isfinite (playedEnd))
             played = from, playedEnd = from + length;
         if (std::isfinite (from) && std::isfinite (length))

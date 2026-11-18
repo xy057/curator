@@ -4,6 +4,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <map>
@@ -17,6 +18,20 @@ namespace attacca {
 
 // What Curator says, a message's top-level fields (see readFlatObject).
 using Message = std::map<std::string, std::string>;
+
+// [message]'s field [key]; null when it hasn't one.
+inline const std::string* fieldOf (const Message& message, const char* key)
+{
+    const auto found = message.find (key);
+    return found == message.end () ? nullptr : &found->second;
+}
+
+// [message]'s field [key] as a number; [otherwise] when it hasn't one.
+inline double numberOf (const Message& message, const char* key, double otherwise)
+{
+    const std::string* field = fieldOf (message, key);
+    return field ? std::strtod (field->c_str (), nullptr) : otherwise;
+}
 
 // The connection to Curator, kept up on a thread of its own: Curator listens on the loopback
 // address at the port its discovery file names (daw-link.json in its data folder, with a token
