@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -317,10 +316,8 @@ abstract final class ScoreFile {
   /// the largest real score, and a limit on what a damaged or hostile file can take.
   static const maxBytes = 256 << 20;
 
-  /// Reads .musicxml / .xml directly and unpacks compressed .mxl archives.
-  static Future<String> readMusicXML(String path) async => decodeMusicXML(await File(path).readAsBytes());
-
-  /// The same for a file's bytes (e.g. the source score stored inside a project).
+  /// A score file's bytes as MusicXML: .musicxml / .xml as they are, a compressed .mxl unpacked
+  /// (e.g. the source score stored inside a project).
   static String decodeMusicXML(Uint8List bytes) {
     if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
       try {

@@ -43,9 +43,6 @@ class SceneView {
   /// Whether it draws the player map.
   bool get showsMap => kind != ViewKind.score;
 
-  /// Whether it draws the score.
-  bool get showsScore => kind != ViewKind.map;
-
   SceneView copyWith({ViewKind? kind, MapSide? side, MapCorner? corner, double? size}) {
     final k = kind ?? this.kind;
     // A size goes with its kind: another kind takes its own default.

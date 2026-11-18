@@ -328,9 +328,6 @@ class DawSession extends ChangeNotifier {
   /// Connect Attacca… refuses its recordings unless ⌥ is held.
   bool get supported => DawLink.supports(host);
 
-  /// The plug-in's version (Curator's, when they came together).
-  String plugin = '';
-
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;
 
@@ -390,7 +387,6 @@ class DawSession extends ChangeNotifier {
       if (type != 'hello' || message['token'] != _link._token || message['protocol'] != DawLink.protocol) return _close();
       _greeted = true;
       host = (message['host'] as String?) ?? '';
-      plugin = (message['plugin'] as String?) ?? '';
       build = (message['build'] as num?)?.toInt() ?? 0;
       pid = (message['pid'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);

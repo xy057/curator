@@ -88,9 +88,6 @@ abstract final class ProjectModules {
   /// before they were packages: the extension's id → that module.
   static const Map<String, ProjectModule> ownData = {'attachImage': images, 'captions': captions, 'chapters': chapters, 'tonality': tonality};
 
-  /// Whether [id] can be a stem's ([Stem.id]): `stem-1`, `stem-2`…, safe as a folder's name.
-  static bool isStemId(String id) => Stem.isId(id);
-
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
 

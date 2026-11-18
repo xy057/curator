@@ -43,8 +43,8 @@ class ExtensionRuntime extends ScriptRuntime {
     _loadWired();
   }
 
-  /// The steps a call that draws a frame may take, and any other.
-  static const frameSteps = ScriptRuntime.frameSteps, eventSteps = ScriptRuntime.eventSteps;
+  /// The steps a call may take (every port's is an event's: none draws a frame).
+  static const eventSteps = ScriptRuntime.eventSteps;
 
   final ExtensionPackage package;
   final ExtensionHost host;

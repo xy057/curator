@@ -206,7 +206,7 @@ abstract final class ProjectFile {
       for (final (i, value) in manifest.list('stems').indexed) {
         final t = JsonReader(value, 'manifest.stems[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
-        if (!ProjectModules.isStemId(id) || stems.containsKey(id)) continue;
+        if (!Stem.isId(id) || stems.containsKey(id)) continue;
         if (!unreadStems && !state.edits.stems.any((stem) => stem.id == id)) continue;
         if (unpack(entry, t.string('name', required: true)!, _join(_join(mediaDirectory, 'stems'), id)) case final playable?) stems[id] = playable;
       }
