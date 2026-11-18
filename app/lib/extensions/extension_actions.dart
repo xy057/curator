@@ -76,7 +76,8 @@ abstract final class ExtensionActions {
   }
 
   /// Opens [package] in the extension editor: one the project carries is edited there (Run
-  /// hands it to the project as it stands, Done keeps it). One of Curator's own is edited too,
+  /// hands it to the project as it stands, Done keeps it, and Cancel puts back the one it had,
+  /// run since or not). One of Curator's own is edited too,
   /// as the sample project is: it runs as changed while the project is open
   /// ([ExtensionEditing.tryOut]) and is never saved; Duplicate keeps a copy.
   static Future<void> edit(BuildContext context, EditorController controller, ExtensionPackage package) async {
@@ -97,6 +98,10 @@ abstract final class ExtensionActions {
     if (edited != null) {
       controller.extensions.clearProblems(edited.id);
       own ? controller.extensions.tryOut(edited) : controller.extensions.add(edited);
+    } else if (controller.extensions.package(package.id) case final ran? when ran != package) {
+      // Left without keeping it, after Run handed the project another: the one it had is back.
+      controller.extensions.clearProblems(package.id);
+      own ? controller.extensions.tryOut(package) : controller.extensions.add(package);
     }
   }
 

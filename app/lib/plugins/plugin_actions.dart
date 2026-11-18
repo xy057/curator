@@ -92,11 +92,13 @@ abstract final class PluginActions {
   }
 
   /// Opens [package] in the plugin editor. One the user added is edited there: Run keeps it as
-  /// it stands and starts it again (turning it on), Done keeps it. One of Curator's own is
+  /// it stands and starts it again (turning it on), Done keeps it, and Cancel puts back the one
+  /// there was, run since or not. One of Curator's own is
   /// read there; Duplicate makes a copy to change.
   static Future<void> edit(BuildContext context, Plugins plugins, PluginPackage package) async {
     final own = plugins.isOwn(package.id);
     package = plugins.package(package.id) ?? package;
+    final on = plugins.isOn(package.id);
     final edited = await showPluginEditor(
       context,
       package,
@@ -118,7 +120,15 @@ abstract final class PluginActions {
       problems: plugins.problems,
       log: plugins.log,
     );
-    if (edited != null && context.mounted) await _keep(context, plugins, edited);
+    if (!context.mounted) return;
+    if (edited != null) {
+      await _keep(context, plugins, edited);
+    } else if (!own && plugins.package(package.id) != package) {
+      // Left without keeping it, after Run kept another: the one there was is back, on or off
+      // as it was.
+      await _keep(context, plugins, package);
+      if (plugins.isOn(package.id) != on) plugins.turn(package.id, on);
+    }
   }
 
   /// Saves [package] as a .cgp file where the user says.
