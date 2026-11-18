@@ -23,10 +23,13 @@ class ShortcutKeys extends StatelessWidget {
   Widget build(BuildContext context) {
     final keys = settings.keys;
     if (!command.editable) return KeyCaps(keys.labelsOf(command));
+    // Its own keys another command has since been given: not reset onto that one's.
+    final other = keys.isChanged(command) ? keys.ownTakenBy(command) : null;
     return Row(mainAxisSize: MainAxisSize.min, children: [
       ResetSlot(
         changed: keys.isChanged(command),
         color: context.colors.textMuted,
+        refused: other == null ? null : 'Used by {command}'.fill({'command': other.label.tr}),
         onReset: () => settings.keys = settings.keys.reset(command),
       ),
       const SizedBox(width: 4),
