@@ -197,7 +197,7 @@ class _PdfImportState extends State<PdfImport> {
   /// Pages read with AI so far, and of how many.
   int _aiDone = 0, _aiOf = 0;
 
-  /// What went wrong reading with AI, until the next edit.
+  /// What went wrong reading with AI or finding a page's staves again, until the next edit.
   String? _aiError;
 
   /// Whether the import is measuring or reading with AI: nothing is edited meanwhile.
@@ -625,7 +625,14 @@ class _PdfImportState extends State<PdfImport> {
   /// has begun (they work on the systems as they were).
   Future<void> _detectAgain() async {
     final page = _page;
-    final found = await pages.detectAgain(page, [for (final i in layout.instruments) if (!i.blank) i]);
+    final List<PdfSystem> found;
+    try {
+      found = await pages.detectAgain(page, [for (final i in layout.instruments) if (!i.blank) i]);
+    } on Object catch (e) {
+      // The page couldn't be read again: it stays as it is, and the status line says why.
+      if (mounted) setState(() => _aiError = '$e');
+      return;
+    }
     if (!mounted || _busy) return;
     final systems = [...layout.systems.where((s) => s.page < page), ...found, ...layout.systems.where((s) => s.page > page)];
     _edit(layout.copyWith(systems: systems));
@@ -1028,7 +1035,8 @@ class _PdfImportState extends State<PdfImport> {
     final page = _page;
     final area = rect.intersect(Offset.zero & layout.pages[page]);
     if (area.width <= 2 || area.height <= 2) return;
-    final found = await pages.staffIn(page, area);
+    // (A page that can't be read has no staff found: the region is where it was drawn.)
+    final found = await pages.staffIn(page, area).then<({double top, double space})?>((staff) => staff, onError: (Object _) => null);
     if (!mounted || _page != page || _busy) return;
     final here = _onPage.toList();
     double off((int, PdfSystem) e) => math.max(0, math.max(e.$2.top - area.center.dy, area.center.dy - e.$2.bottom));
