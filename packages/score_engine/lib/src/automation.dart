@@ -159,6 +159,19 @@ class StepLane<T> {
 /// it is outside a change; 1: [to] alone).
 typedef StepMix<T> = ({T from, T to, double mix});
 
+/// [StepLane.inTime] kept for the last lane and timeline asked: what draws each frame asks
+/// again with the same two, and it is made again only when either changes.
+class TimedStepsCache<T> {
+  (StepLane<T>, ScoreTimeline, TimedSteps<T>)? _kept;
+
+  TimedSteps<T> of(StepLane<T> lane, ScoreTimeline timeline) {
+    if (_kept case (final l, final t, final timed) when identical(l, lane) && identical(t, timeline)) return timed;
+    final timed = lane.inTime(timeline);
+    _kept = (lane, timeline, timed);
+    return timed;
+  }
+}
+
 /// A [StepLane] in a performance's time: each stretch once in every pass that plays it, the
 /// base between them, and where the value changes, a change [AutoStretch.fade] long centred on
 /// it. A stretch where the performance starts (or ends) holds from before it (and on after it),

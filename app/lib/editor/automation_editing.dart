@@ -21,7 +21,6 @@ class AutomationEditing {
     final next = automation.withSteps(lane);
     if (next == automation) return;
     _editor._doc = _editor._doc.copyWith(automation: next.isEmpty ? null : next);
-    _viewsTimed = null;
     _edited();
   }
 
@@ -134,16 +133,9 @@ class AutomationEditing {
   // MARK: In time
 
   /// The View lane in the editor's performance: what the preview shows at each time.
-  TimedSteps<SceneView> get viewsTimed {
-    final tl = _editor.timeline;
-    final kept = _viewsTimed;
-    if (kept != null && identical(kept.$1, tl) && identical(kept.$2, views)) return kept.$3;
-    final timed = views.inTime(tl);
-    _viewsTimed = (tl, views, timed);
-    return timed;
-  }
+  TimedSteps<SceneView> get viewsTimed => _viewsTimed.of(views, _editor.timeline);
 
-  (ScoreTimeline, StepLane<SceneView>, TimedSteps<SceneView>)? _viewsTimed;
+  final _viewsTimed = TimedStepsCache<SceneView>();
 
   /// Whether the preview shows the score where it always is (in the whole frame, nothing mid-
   /// change), so what is clicked on it is where it looks: images and spacers are handled only

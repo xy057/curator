@@ -478,15 +478,9 @@ class VideoExport {
   final _mapTime = ValueNotifier(0.0);
 
   /// The View lane in the timeline shown ([showBars]'s), made again only when that changes.
-  TimedSteps<SceneView> get _timed {
-    final tl = _scene.timeline;
-    if (_timedViews case (final kept, final timed) when identical(kept, tl)) return timed;
-    final timed = _views.inTime(tl);
-    _timedViews = (tl, timed);
-    return timed;
-  }
+  TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
 
-  (ScoreTimeline, TimedSteps<SceneView>)? _timedViews;
+  final _timedViews = TimedStepsCache<SceneView>();
 
   /// How swollen the map's players are, as the timeline shown plays the notes.
   PlayerPulses get _pulses {
