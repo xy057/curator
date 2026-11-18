@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
@@ -626,10 +627,14 @@ abstract final class AttaccaPlugIns {
 
   /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle (and any by its former name) removed whole,
   /// then written anew, its program made executable. Throws a [FileSystemException] when it
-  /// can't write there.
+  /// can't write there. Unpacked and written on another isolate: the bundles are megabytes.
   static Future<void> install(Uint8List bytes, {String? folder}) async {
-    folder ??= plugInsFolder;
-    if (folder == null) throw const FileSystemException('No home folder.');
+    final to = folder ?? plugInsFolder;
+    if (to == null) throw const FileSystemException('No home folder.');
+    await Isolate.run(() => _install(bytes, to));
+  }
+
+  static Future<void> _install(Uint8List bytes, String folder) async {
     final files = ZipDecoder().decodeBytes(bytes).files;
     String? target(String name) => name.startsWith('$vst3/') || name.startsWith('$capturerVst3/')
         ? '$folder/VST3/$name'
