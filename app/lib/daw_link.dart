@@ -68,7 +68,7 @@ class DawLink extends ChangeNotifier {
   void _tellFollowers() {
     for (final s in _sessions) {
       final names = {for (final f in _followers.values) if (s._documents.containsKey(f.document)) f.name}.toList()..sort();
-      s._tellFollowers(names.join('\n'));
+      s._tell({'t': 'followers', 'names': names.join('\n')});
     }
   }
 
@@ -280,12 +280,16 @@ class DawLink extends ChangeNotifier {
     for (final s in _sessions) {
       final daw = _sameDaw(s);
       final capturers = capturersOf(s);
-      s._tellInserts([for (final c in capturers) c.id], [
-        for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
-      ]);
+      s._tell({
+        't': 'inserts',
+        'ids': [for (final c in capturers) c.id].join('\n'),
+        'names': [
+          for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
+        ].join('\n'),
+      });
       if (s.capturers.isEmpty) continue;
       final linked = {for (final o in daw) if (o._documents.isNotEmpty && o.linkedCapturer.isNotEmpty) o.linkedCapturer};
-      s._tellLinked([for (final c in s.capturers) if (linked.contains(c.id)) c.id]);
+      s._tell({'t': 'linked', 'ids': [for (final c in s.capturers) if (linked.contains(c.id)) c.id].join('\n')});
     }
   }
 }
@@ -453,31 +457,23 @@ class DawSession extends ChangeNotifier {
     _link.notifyListeners();
   }
 
-  /// What this DAW was last told follows it: the projects' names, one a line.
-  String _followers = '';
+  /// What this connection was last told of a state, by the message's type: the projects
+  /// following its DAW (`followers`: their names, one a line), its Capturers linked (`linked`)
+  /// and its DAW's Capturers (`inserts`). Each is sent only when it changes; none followers or
+  /// inserts is what it starts with (said only once there were some), none linked is said.
+  final _told = <String, String>{
+    for (final none in [
+      {'t': 'followers', 'names': ''},
+      {'t': 'inserts', 'ids': '', 'names': ''},
+    ])
+      none['t']!: jsonEncode(none),
+  };
 
-  /// What this connection was last told: its Capturers linked, its DAW's Capturers.
-  String? _linked;
-  String _inserts = '';
-
-  void _tellLinked(List<String> ids) {
-    final said = ids.join('\n');
-    if (said == _linked) return;
-    _linked = said;
-    _send({'t': 'linked', 'ids': said});
-  }
-
-  void _tellInserts(List<String> ids, List<String> names) {
-    final said = '${ids.join('\n')}\u0000${names.join('\n')}';
-    if (said == _inserts || (_inserts.isEmpty && ids.isEmpty)) return;
-    _inserts = said;
-    _send({'t': 'inserts', 'ids': ids.join('\n'), 'names': names.join('\n')});
-  }
-
-  void _tellFollowers(String names) {
-    if (names == _followers) return;
-    _followers = names;
-    _send({'t': 'followers', 'names': names});
+  void _tell(Map<String, String> state) {
+    final said = jsonEncode(state);
+    if (_told[state['t']] == said) return;
+    _told[state['t']!] = said;
+    _send(state);
   }
 
   void _send(Map<String, Object?> message) {
