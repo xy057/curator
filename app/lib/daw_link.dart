@@ -635,10 +635,7 @@ abstract final class AttaccaPlugIns {
         : name.startsWith('$component/')
             ? '$folder/Components/$name'
             : null;
-    for (final bundle in _bundlesIn(folder)) {
-      final dir = Directory(bundle);
-      if (dir.existsSync()) await dir.delete(recursive: true);
-    }
+    await uninstall(folder: folder);
     final programs = <String>[];
     for (final f in files) {
       final path = target(f.name);
