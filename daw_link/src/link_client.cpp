@@ -139,6 +139,21 @@ void LinkClient::retract (const std::string& key, std::string message)
     wake_.notify_all ();
 }
 
+void LinkClient::answer (const char* type, const std::string& document, const char* kind, const std::string& id, const char* key,
+                         const std::string& value)
+{
+    JsonWriter w;
+    w.object ().field ("t", type).field ("document", document).field (kind, id).field (key, value).endObject ();
+    send (w.text ());
+}
+
+void LinkClient::progress (const std::string& document, const char* kind, const std::string& id, double done)
+{
+    JsonWriter w;
+    w.object ().field ("t", "progress").field ("document", document).field (kind, id).field ("done", done).endObject ();
+    send (w.text ());
+}
+
 void LinkClient::send (std::string message)
 {
     {

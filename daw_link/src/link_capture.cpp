@@ -248,11 +248,7 @@ void Capturer::start (const std::string& document, double from, double length, c
 {
     std::lock_guard<std::mutex> lock (mutex_);
     const std::string me = id ();
-    auto reply = [this, document, me] (const std::string& key, const std::string& value) {
-        JsonWriter w;
-        w.object ().field ("t", "captured").field ("document", document).field ("capturer", me).field (key.c_str (), value).endObject ();
-        client_.send (w.text ());
-    };
+    auto reply = [this, document, me] (const char* key, const std::string& value) { client_.answer ("captured", document, "capturer", me, key, value); };
 
     // One at a time: one under way ends first.
     if (capture_)
@@ -348,14 +344,8 @@ void Capturer::start (const std::string& document, double from, double length, c
             if (std::chrono::steady_clock::now () - said > std::chrono::milliseconds (100))
             {
                 said = std::chrono::steady_clock::now ();
-                JsonWriter progress;
-                progress.object ()
-                    .field ("t", "progress")
-                    .field ("document", c->document)
-                    .field ("capturer", me)
-                    .field ("done", static_cast<double> (c->heardCount - c->heardAtStart) / static_cast<double> (std::max<int64_t> (1, c->frames - c->heardAtStart)))
-                    .endObject ();
-                client_.send (progress.text ());
+                client_.progress (c->document, "capturer", me,
+                                  static_cast<double> (c->heardCount - c->heardAtStart) / static_cast<double> (std::max<int64_t> (1, c->frames - c->heardAtStart)));
             }
         }
         // The audio thread lets go of it before it goes.

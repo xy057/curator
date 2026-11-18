@@ -624,11 +624,7 @@ void LinkDocumentController::startPendingExport ()
 
 void LinkDocumentController::startRecording (const std::string& sourceID)
 {
-    auto reply = [this, sourceID] (const std::string& key, const std::string& value) {
-        JsonWriter w;
-        w.object ().field ("t", "exported").field ("document", id_).field ("source", sourceID).field (key.c_str (), value).endObject ();
-        client_.send (w.text ());
-    };
+    auto reply = [this, sourceID] (const char* key, const std::string& value) { client_.answer ("exported", id_, "source", sourceID, key, value); };
 
     LinkAudioSource* found = nullptr;
     for (auto* source : getDocument ()->getAudioSources<LinkAudioSource> ())
@@ -667,9 +663,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
                         block[static_cast<size_t> (i * channels + c)] = found->channel (c)[at + i];
             },
             [this, sourceID] (double done) {
-                JsonWriter progress;
-                progress.object ().field ("t", "progress").field ("document", id_).field ("source", sourceID).field ("done", done).endObject ();
-                client_.send (progress.text ());
+                client_.progress (id_, "source", sourceID, done);
             });
         if (ok)
             reply ("path", path);
@@ -682,11 +676,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
 void LinkDocumentController::startStem (const ExportJob& job)
 {
     const std::string trackID = job.id;
-    auto reply = [this, trackID] (const std::string& key, const std::string& value) {
-        JsonWriter w;
-        w.object ().field ("t", "stemmed").field ("document", id_).field ("track", trackID).field (key.c_str (), value).endObject ();
-        client_.send (w.text ());
-    };
+    auto reply = [this, trackID] (const char* key, const std::string& value) { client_.answer ("stemmed", id_, "track", trackID, key, value); };
 
     const ARA::PlugIn::RegionSequence* track = nullptr;
     for (const auto* t : getDocument ()->getRegionSequences ())
@@ -755,9 +745,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
                 }
             },
             [this, trackID] (double done) {
-                JsonWriter progress;
-                progress.object ().field ("t", "progress").field ("document", id_).field ("track", trackID).field ("done", done).endObject ();
-                client_.send (progress.text ());
+                client_.progress (id_, "track", trackID, done);
             });
         if (ok)
             reply ("path", path);

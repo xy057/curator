@@ -40,6 +40,12 @@ public:
     // Sent now if Curator is there, else dropped.
     void send (std::string message);
 
+    // To Curator about what it asked of [document], the [kind] [id] ("source", "track",
+    // "capturer"): what came of it, {t: [type], [key]: [value]} ("path", or "error" and why),
+    // and how far it has got, {t: "progress", done: 0–1}.
+    void answer (const char* type, const std::string& document, const char* kind, const std::string& id, const char* key, const std::string& value);
+    void progress (const std::string& document, const char* kind, const std::string& id, double done);
+
     // Where the DAW is: from the audio thread, lock-free.
     void setTransport (bool playing, double seconds, double quarters, double tempo) noexcept;
 
