@@ -61,6 +61,9 @@ class DawEditing {
       });
       if (seconds == _seekSent) return;
       _seekSent = seconds;
+      _sinceSeek
+        ..reset()
+        ..start();
     } else {
       _seekTimer?.cancel();
       _seekSent = null;
@@ -71,6 +74,12 @@ class DawEditing {
 
   Timer? _seekTimer;
   double? _seekTo, _seekSent;
+
+  /// Since a seek was last asked of the DAW. Stopped, it says where it stands after each one:
+  /// for [_echo] after, that is its answer to one asked a moment ago (where the playhead was
+  /// then), not a move of its own, and the playhead doesn't go back to it.
+  final _sinceSeek = Stopwatch();
+  static const _echo = Duration(milliseconds: 250);
 
   /// The DAW document followed and its DAW, as last sent; null when it is gone (or nothing is
   /// followed).
@@ -98,6 +107,9 @@ class DawEditing {
     _session?.transport.removeListener(_transportChanged);
     _session = null;
     _follow = null;
+    _sinceSeek
+      ..stop()
+      ..reset();
     _editor.playback._dawStopped();
     _editor._changed();
   }
@@ -158,6 +170,7 @@ class DawEditing {
     if (f == null || !f.transport || t == null || found == null) return;
     final region = found.$2.regionAt(f.source, t.seconds);
     if (region == null) return;
+    if (!t.playing && !_editor.playback.followsDaw && _sinceSeek.isRunning && _sinceSeek.elapsed < _echo) return;
     _editor.playback._fromDaw(playing: t.playing, seconds: region.sourceAt(t.seconds));
   }
 }

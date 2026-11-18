@@ -286,6 +286,14 @@ void main() {
       Future<Object?> next() async => (await heard.moveNext()) ? jsonDecode(heard.current) : null;
       c.playback.seek(2);
       expect(await next(), {'t': 'seek', 'document': 'doc', 'at': 2.5});
+      // Where the DAW says it stands a moment after is its answer to a seek before: the playhead
+      // stays where it was put. Later it is the DAW's own move, followed.
+      say({'t': 'transport', 'playing': false, 'seconds': 1.0, 'quarters': 2, 'tempo': 120});
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(c.playback.time.value, 2);
+      say({'t': 'transport', 'playing': false, 'seconds': 2.5, 'quarters': 5, 'tempo': 120});
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.playback.time.value, 2);
       c.playback.togglePlay();
       expect(await next(), {'t': 'play', 'document': 'doc', 'at': 2.5});
       expect(c.playback.isPlaying, isFalse, reason: 'the DAW plays, not Curator');
