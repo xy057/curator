@@ -329,6 +329,15 @@ void main() {
       expect([for (final n in again.voices.single.notes) (n.key, n.start, n.end)],
           [(62, 0, 960), (60, 0, 960), (62, 480, 1440), (60, 480, 960), (60, 1920, 2400), (64, 7200, 7680)]);
 
+      // Many instruments over many bars are refused before each one's every bar is written out:
+      // 500 tracks of a note each, the last four hours in.
+      final one = <int>[0, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0, 0xff, 0x2f, 0], far = <int>[0x87, 0xd4, 0xc0, 0x00, 0x90, 60, 80, 0x83, 0x60, 0x80, 60, 0, 0, 0xff, 0x2f, 0];
+      final wide = Uint8List.fromList([
+        ...'MThd'.codeUnits, 0, 0, 0, 6, 0, 1, 500 >> 8, 500 & 0xff, 1, 0xe0, //
+        for (var t = 0; t < 500; t++) ...[...'MTrk'.codeUnits, 0, 0, 0, (t == 499 ? far : one).length, ...(t == 499 ? far : one)],
+      ]);
+      expect(() => MidiScore.read(wide), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file is too long.')));
+
       // A file that plays nothing is no score.
       final silent = Uint8List.fromList([...'MThd'.codeUnits, 0, 0, 0, 6, 0, 0, 0, 1, 1, 0xe0, ...'MTrk'.codeUnits, 0, 0, 0, 4, 0, 0xff, 0x2f, 0]);
       expect(() => MidiScore.read(silent), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'This MIDI file has no notes.')));
