@@ -658,10 +658,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         if (c.takes.length > 1) ...[
           const SizedBox(width: 4),
-          ToolGroup(children: [
-            for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.toolsIn(context).entries)
-              ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
-          ]),
+          InstrumentsToolbar.toolGroup(context, c),
           const SizedBox(width: 4),
           _CrossfadeMenu(controller: c),
         ],

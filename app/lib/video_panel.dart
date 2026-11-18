@@ -62,10 +62,7 @@ class VideoToolbar extends StatelessWidget {
           final view = stretch?.value ?? a.drawing;
           void set(SceneView v) => stretch != null ? a.setSelectedView(v) : a.drawing = v;
           return Row(children: [
-            ToolGroup(children: [
-              for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.toolsIn(context).entries)
-                ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
-            ]),
+            InstrumentsToolbar.toolGroup(context, c),
             const SizedBox(width: 6),
             _Menu<ViewKind>(
               tooltip: stretch != null ? 'View'.trIn('video') : 'View to draw'.tr,

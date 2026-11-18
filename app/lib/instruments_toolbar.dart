@@ -15,6 +15,13 @@ class InstrumentsToolbar extends StatelessWidget {
   const InstrumentsToolbar({super.key, required this.controller});
   final EditorController controller;
 
+  /// The lanes' tools as buttons, the one in use [EditorController.lanes]' selected: every tab
+  /// with lanes shows them.
+  static Widget toolGroup(BuildContext context, EditorController c) => ToolGroup(children: [
+        for (final MapEntry(key: tool, value: (icon, tip)) in toolsIn(context).entries)
+          ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
+      ]);
+
   /// Each tool's icon and hover text: its name and key (as set where [context] is), then what
   /// each key held changes.
   static Map<LaneTool, (AppIcon, String)> toolsIn(BuildContext context) => {
@@ -46,10 +53,7 @@ class InstrumentsToolbar extends StatelessWidget {
         final status = _status(c, score, c.lanes.selection, lanes);
         return Row(
           children: [
-            ToolGroup(children: [
-              for (final MapEntry(key: tool, value: (icon, tip)) in toolsIn(context).entries)
-                ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
-            ]),
+            toolGroup(context, c),
             const SizedBox(width: 10),
             Expanded(child: FadingText(status, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
             FadeSlideSwitcher(
