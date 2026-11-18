@@ -457,7 +457,13 @@ void main() {
       await until(() => c.playback.followsDaw);
       daw.destroy();
       await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
+      // One that connected and never said hello is let go as listening stops: it can't say it
+      // after, to a link that listens no more.
+      final mute = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       await link.stop();
+      await mute.drain<void>().timeout(const Duration(seconds: 2));
+      mute.destroy();
       expect(File('${folder.path}/daw-link.json').existsSync(), isFalse, reason: 'its discovery file goes with it');
       // Asked to listen and, before it does, to stop (the switch flicked on and off): it ends off.
       unawaited(link.start());
