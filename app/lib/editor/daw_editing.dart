@@ -107,6 +107,8 @@ class DawEditing {
     _session?.transport.removeListener(_transportChanged);
     _session = null;
     _follow = null;
+    _seekTimer?.cancel();
+    _seekTo = _seekSent = null;
     _sinceSeek
       ..stop()
       ..reset();
@@ -171,6 +173,8 @@ class DawEditing {
     final region = found.$2.regionAt(f.source, t.seconds);
     if (region == null) return;
     if (!t.playing && !_editor.playback.followsDaw && _sinceSeek.isRunning && _sinceSeek.elapsed < _echo) return;
+    // The DAW is where it says, not where it was last asked to be: that place asked again is asked.
+    _seekSent = null;
     _editor.playback._fromDaw(playing: t.playing, seconds: region.sourceAt(t.seconds));
   }
 }
