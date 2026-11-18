@@ -113,15 +113,16 @@ private:
     std::atomic<int> fd_ { -1 };
     std::atomic<int> curatorBuild_ { 0 };
     std::string linkedCapturer_;
-    std::string insertIds_, insertNames_;
-    bool linkedSaid_ { false };
-    std::string linkedIds_;
+    // What Curator last told of a state, by the message's type (`followers`, `linked`,
+    // `inserts`: told); none while it hasn't, or isn't connected.
+    std::map<std::string, Message> told_;
+    // A field of what was told of [type]; empty when it wasn't. Under [mutex_].
+    std::string toldOf (const char* type, const char* key) const;
     std::string token_;
     bool sendAll_ { false };
     std::map<std::string, std::string> states_;
     std::deque<std::string> outbox_;
     std::string inbox_;
-    std::string followers_;
 
     std::mutex handlersMutex_;
     std::map<int, std::function<void (const Message&)>> handlers_;

@@ -213,10 +213,17 @@ void LinkClient::setLinkedCapturer (const std::string& id)
     publish ("link", w.text ());
 }
 
+std::string LinkClient::toldOf (const char* type, const char* key) const
+{
+    const auto said = told_.find (type);
+    const std::string* field = said == told_.end () ? nullptr : fieldOf (said->second, key);
+    return field ? *field : std::string ();
+}
+
 std::vector<std::pair<std::string, std::string>> LinkClient::inserts ()
 {
     std::lock_guard<std::mutex> lock (mutex_);
-    const auto ids = linesOf (insertIds_), names = linesOf (insertNames_);
+    const auto ids = linesOf (toldOf ("inserts", "ids")), names = linesOf (toldOf ("inserts", "names"));
     std::vector<std::pair<std::string, std::string>> out;
     for (size_t i = 0; i < ids.size (); ++i)
         out.emplace_back (ids[i], i < names.size () ? names[i] : ids[i]);
@@ -226,9 +233,9 @@ std::vector<std::pair<std::string, std::string>> LinkClient::inserts ()
 int LinkClient::linked (const std::string& id)
 {
     std::lock_guard<std::mutex> lock (mutex_);
-    if (!linkedSaid_ || fd_.load () < 0)
+    if (!told_.count ("linked") || fd_.load () < 0)
         return -1;
-    for (const auto& linked : linesOf (linkedIds_))
+    for (const auto& linked : linesOf (toldOf ("linked", "ids")))
     {
         if (linked == id)
             return 1;
@@ -239,7 +246,7 @@ int LinkClient::linked (const std::string& id)
 std::string LinkClient::followers ()
 {
     std::lock_guard<std::mutex> lock (mutex_);
-    return followers_;
+    return toldOf ("followers", "names");
 }
 
 int LinkClient::listen (std::function<void (const Message&)> handler)
@@ -328,16 +335,9 @@ void LinkClient::disconnect ()
     const int fd = fd_.exchange (-1);
     if (fd >= 0)
         ::close (fd);
-    {
-        std::lock_guard<std::mutex> lock (mutex_);
-        linkedSaid_ = false;
-        linkedIds_.clear ();
-        insertIds_.clear ();
-        insertNames_.clear ();
-    }
     std::lock_guard<std::mutex> lock (mutex_);
+    told_.clear ();
     outbox_.clear ();
-    followers_.clear ();
 }
 
 bool LinkClient::sendLine (const std::string& line)
@@ -385,24 +385,11 @@ void LinkClient::receive ()
         Message message;
         if (!readFlatObject (line, message))
             continue;
-        if (message["t"] == "followers")
+        // A state told: kept, for what asks after it.
+        if (const std::string* t = fieldOf (message, "t"); t && (*t == "followers" || *t == "linked" || *t == "inserts"))
         {
             std::lock_guard<std::mutex> lock (mutex_);
-            followers_ = message["names"];
-            continue;
-        }
-        if (message["t"] == "linked")
-        {
-            std::lock_guard<std::mutex> lock (mutex_);
-            linkedSaid_ = true;
-            linkedIds_ = message["ids"];
-            continue;
-        }
-        if (message["t"] == "inserts")
-        {
-            std::lock_guard<std::mutex> lock (mutex_);
-            insertIds_ = message["ids"];
-            insertNames_ = message["names"];
+            told_[*t] = std::move (message);
             continue;
         }
         std::lock_guard<std::mutex> lock (handlersMutex_);
