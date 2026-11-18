@@ -144,6 +144,13 @@ void main() {
       states.add(written());
       expect(score.keyAt(0, 8, Frac.zero).fifths, 3);
       expect(score.keyAt(0, 0, Frac.zero).fifths, key);
+      // A B♭ clarinet in F♯ major is written in A♭ (four flats), never past seven sharps.
+      final clarinet = EditableScore.parse('<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Clarinet</part-name>'
+          '</score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>2</fifths></key><time><beats>4</beats>'
+          '<beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose>'
+          '</attributes><note><rest measure="yes"/><duration>4</duration></note></measure></part></score-partwise>');
+      clarinet.setKey(0, KeySig.parse('F#')!);
+      expect(RegExp(r'<fifths>(-?\d+)</fifths>').firstMatch(clarinet.toMusicXML())?[1], '-4');
       score.deleteBars(0, 1);
       states.add(written());
       for (var i = states.length - 2; i >= 0; i--) {

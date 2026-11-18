@@ -2975,7 +2975,11 @@ class EditableScore {
         for (final (i, p) in parts.indexed) {
           final context = _contextAt(i, m, Frac.zero);
           if (context.clefs.values.isNotEmpty && context.clefs.values.every((c) => c.isPercussion)) continue;
-          final written = (key.fifths + _fifthsOf(context.transpose)).clamp(-7, 7);
+          // Past seven sharps or flats, the same key spelled the other way (F♯ major for a B♭
+          // clarinet is A♭, not C♯), as concertKeySignatures reads it back.
+          var written = key.fifths + _fifthsOf(context.transpose);
+          if (written > 7) written -= 12;
+          if (written < -7) written += 12;
           final content = _mutable(i, m);
           final a = _startAttributes(content);
           _removeChildren(a, 'key');
