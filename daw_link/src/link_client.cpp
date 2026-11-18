@@ -335,9 +335,22 @@ void LinkClient::disconnect ()
     const int fd = fd_.exchange (-1);
     if (fd >= 0)
         ::close (fd);
-    std::lock_guard<std::mutex> lock (mutex_);
-    told_.clear ();
-    outbox_.clear ();
+    {
+        std::lock_guard<std::mutex> lock (mutex_);
+        told_.clear ();
+        outbox_.clear ();
+    }
+    // What Curator asked and no longer waits for (it failed it as `disconnected`) is let go: a
+    // capture would else wait for the DAW to play its span, its Capturer saying it captures.
+    if (fd >= 0)
+        deliver ({ { "t", "disconnected" } });
+}
+
+void LinkClient::deliver (const Message& message)
+{
+    std::lock_guard<std::mutex> lock (handlersMutex_);
+    for (auto& handler : handlers_)
+        handler.second (message);
 }
 
 bool LinkClient::sendLine (const std::string& line)
@@ -392,9 +405,7 @@ void LinkClient::receive ()
             told_[*t] = std::move (message);
             continue;
         }
-        std::lock_guard<std::mutex> lock (handlersMutex_);
-        for (auto& handler : handlers_)
-            handler.second (message);
+        deliver (message);
     }
     if (inbox_.size () > maxInbox)
         disconnect ();

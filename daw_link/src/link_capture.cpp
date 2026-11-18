@@ -222,6 +222,9 @@ void Capturer::onMessage (const Message& message)
 {
     auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string *t = field ("t"), *capturer = field ("capturer"), *document = field ("document");
+    // Curator gone: no one waits for what it asked.
+    if (t && *t == "disconnected")
+        return finish ();
     if (!t || !capturer || *capturer != id () || !document)
         return;
     if (*t == "capture" && field ("from") && field ("length"))

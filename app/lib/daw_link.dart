@@ -370,9 +370,9 @@ class DawSession extends ChangeNotifier {
   /// Where it is playing, as it last said; null until it has.
   final transport = ValueNotifier<DawTransport?>(null);
 
-  /// The Attacca Capturers in it (inserts, usually last on its output): while it has one, a
-  /// recording is captured there as the DAW plays it ([DawLink.capture]), and Attacca's own
-  /// capture (a recording or a track as a file) is off.
+  /// The Attacca Capturers in it (inserts, usually last on its output): Record from DAW…
+  /// captures the mix with the one linked ([DawLink.capture]); Attacca's own files (a recording
+  /// or a track, through ARA) are written whether or not there is one.
   List<DawCapturer> capturers = const [];
 
   /// Files asked for and not yet written, by document, kind ("source", "track") and id.
@@ -428,8 +428,12 @@ class DawSession extends ChangeNotifier {
         _documents.remove(id);
         // What was asked of it and not yet written never will be (the plug-in lets its queue go
         // with it): told so, or Curator would wait on it while the DAW stays connected. A
-        // capture is asked of the Capturer's connection from the same DAW.
+        // capture is asked of the Capturer's connection from the same DAW, and is cancelled
+        // there: the Capturer would else wait for the DAW to play its span.
         for (final s in _link._sameDaw(this)) {
+          for (final (_, kind, capturer) in [for (final key in s._recordings.keys) if (key.$1 == id) key]) {
+            if (kind == 'capturer') s._send({'t': 'cancel', 'document': id, 'capturer': capturer});
+          }
           s._fail((key) => key.$1 == id, 'gone');
         }
       case 'transport':

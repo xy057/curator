@@ -64,8 +64,9 @@ public:
     // Where the DAW is: from the audio thread, lock-free.
     void setTransport (bool playing, double seconds, double quarters, double tempo) noexcept;
 
-    // Calls [handler] with each message Curator sends, on the connection's thread. After
-    // unlisten returns, the handler isn't running and won't be called again.
+    // Calls [handler] with each message Curator sends, on the connection's thread, and with
+    // {t: "disconnected"} when the connection ends (what Curator asked is no longer awaited).
+    // After unlisten returns, the handler isn't running and won't be called again.
     int listen (std::function<void (const Message&)> handler);
     void unlisten (int id);
 
@@ -103,6 +104,8 @@ private:
     void disconnect ();
     bool sendLine (const std::string& line);
     void receive ();
+    // [message] to every handler, under [handlersMutex_] (never with [mutex_] held).
+    void deliver (const Message& message);
     std::string transportMessage ();
 
     std::thread thread_;

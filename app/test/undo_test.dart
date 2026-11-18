@@ -453,6 +453,16 @@ void main() {
       mixerSays({'t': 'captured', 'document': 'doc', 'capturer': 'cap', 'error': 'cancelled'});
       await expectLater(cancelled, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'cancelled')));
       expect(await told(heard), {'t': 'stop', 'document': 'doc'}, reason: 'cancelled before ready: never played, stopped');
+      // The document closing under a capture: it fails as gone, and the Capturer is told to let it go.
+      final orphan = link.capture(session, 'doc', capturer, from: 0.5, length: 60, name: 'Take 1');
+      expect(await told(toMixer), containsPair('t', 'capture'));
+      expect(await told(heard), containsPair('t', 'stop'));
+      say({'t': 'closed', 'id': 'doc'});
+      await expectLater(orphan, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'gone')));
+      expect(await told(toMixer), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
+      expect([await told(heard), await told(heard)], [{'t': 'followers', 'names': ''}, {'t': 'stop', 'document': 'doc'}]);
+      say(song([[0, 0], [3, 6], [8, 15]]));
+      expect(await told(heard), containsPair('t', 'followers'), reason: 'followed again as it comes back');
       mixer.destroy();
       await until(() => link.capturersOf(session).isEmpty);
       // The mix recorded goes in place of the Attacca take, an ordinary recording from then on.

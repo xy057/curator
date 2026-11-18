@@ -1,7 +1,7 @@
 // Attacca Capturer: an insert (on the DAW's output, in its last slot) that keeps what it hears
-// by song time, for Curator. With Attacca on a track, Curator's recording is taken from here,
-// as the mix sounds, and Attacca's own capture (a recording or a track written from the samples
-// the DAW hands it) is off while a Capturer is in the DAW (see docs/daw-link.md).
+// by song time, for Curator: Record from DAW… takes the mix from the one linked in Attacca's
+// window. Attacca's own files (a recording or a track written from the samples the DAW hands it)
+// are written through ARA whether or not a Capturer is there (see docs/daw-link.md).
 #pragma once
 
 #include "link_client.h"

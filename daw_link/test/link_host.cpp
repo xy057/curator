@@ -45,6 +45,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <map>
@@ -786,6 +787,37 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
             right = l == (k >= 12000 && k < 24000 ? heard (24000 + k, 0) : 0.0f);
         }
         check (right, "as long as the recording, silent outside the region");
+    }
+
+    // A capture under way when Curator's connection ends is let go (its file with it): no one
+    // waits for it, and the Capturer would else say it captures until the DAW played the span.
+    {
+        curator.say ("{\"t\":\"capture\",\"document\":\"" + document + "\",\"capturer\":\"" + savedCapturer + "\",\"from\":0.5,\"length\":1,\"name\":\"Dropped\"}", capturerLine);
+        const std::filesystem::path captures = std::string (std::getenv ("HOME")) + "/Library/Caches/Curator/DAW Link/Captures";
+        auto partial = [&] {
+            std::error_code error;
+            for (auto it = std::filesystem::recursive_directory_iterator (captures, error); !error && it != std::filesystem::recursive_directory_iterator (); it.increment (error))
+            {
+                if (it->path ().filename () == "Dropped.wav.part")
+                    return true;
+            }
+            return false;
+        };
+        auto within = [&] (double seconds, const std::function<bool ()>& done) {
+            for (auto end = std::chrono::steady_clock::now () + std::chrono::duration<double> (seconds); std::chrono::steady_clock::now () < end;)
+            {
+                if (done ())
+                    return true;
+                idle ();
+                std::this_thread::sleep_for (std::chrono::milliseconds (20));
+            }
+            return done ();
+        };
+        check (within (3, partial), "a capture begun");
+        ::close (curator.connections[capturerLine]);
+        curator.connections[capturerLine] = -1;
+        check (within (3, [&] { return !partial (); }), "a capture let go as Curator's connection ends");
+        curator.next ("capturers", 5, idle);  // connected again: its Capturers said anew
     }
 
     processor->setProcessing (false);
