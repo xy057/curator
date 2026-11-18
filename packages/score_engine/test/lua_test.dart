@@ -273,6 +273,12 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
         expect(() => lua.run('${start}while true do keep[#keep + 1] = $make end', steps: 68000), throwsA(isA<LuaLimit>()), reason: make);
         expect(lua.run('return #keep').single, lessThan(10), reason: make);
       }
+      // A list written out at length is paid for each time it is made, with keys or without.
+      for (final written in ['("0,"):rep(6400)', '("[{}]=0,"):rep(6400)']) {
+        final lua = Lua();
+        expect(() => lua.run('keep = {}\nlocal make = load("return {" .. $written .. "}")\nwhile true do keep[#keep + 1] = make() end', steps: 10000), throwsA(isA<LuaLimit>()), reason: written);
+        expect(lua.run('return #keep').single, lessThan(100), reason: written);
+      }
       // What the host makes for a script is paid for the same: a string by its length, a table a
       // step and what it holds in turn (one held twice, once).
       final lua = Lua()..steps = 1000;
