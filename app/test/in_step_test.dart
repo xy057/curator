@@ -75,6 +75,10 @@ void main() {
     final po = read(AppLanguage.of('zh-Hant').file!);
     expect(PoFile.parse(po.toString()).toString(), po.toString());
     expect(po.table['Align\nSet the anchors from the recording'], contains('\n'));
+    // A guess (fuzzy) is left out with a context as without one, and its places are kept.
+    final guessed = PoFile.parse('msgid ""\nmsgstr ""\n\n#: a.dart\n#, fuzzy\nmsgctxt "verb"\nmsgid "Record"\nmsgstr "x"\n#, fuzzy\nmsgid "Stop"\nmsgstr "y"\n');
+    expect(guessed.table, isEmpty);
+    expect([for (final e in guessed.entries) '${e.key} ${e.fuzzy} ${e.references}'], ['verb\u0004Record true [a.dart]', 'Stop true []']);
 
     // docs/extension-api.md is the guide and the API as they are now.
     final guide = File('assets/help/extensions.md').readAsStringSync();
