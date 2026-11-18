@@ -278,8 +278,9 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
 }
 
 /// Bar numbers at the times they sound (so a tempo change is visible as uneven bars), time
-/// ticks, and the playhead. Click or drag to move the playhead (the selection stays). While notation runs off the
-/// video's frame it is red, and a warning by its name says at which bars.
+/// ticks, and the playhead. Click or drag to move the playhead (the selection stays). In the
+/// Instruments tab, while what the preview shows (the score, or its MIDI view; never the player
+/// map) runs off the video's frame, it is red there, and a warning by its name says at which bars.
 class BarRuler extends StatelessWidget {
   const BarRuler({super.key, required this.controller});
   final EditorController controller;
@@ -289,6 +290,8 @@ class BarRuler extends StatelessWidget {
     final c = controller;
     final colors = context.colors;
     final warn = Theme.of(context).colorScheme.error;
+    // (The panel builds it again as its tab changes.)
+    final warns = c.tab == BottomTab.instruments;
     return SizedBox(
       height: kRulerHeight,
       child: Row(children: [
@@ -306,7 +309,7 @@ class BarRuler extends StatelessWidget {
             const Spacer(),
             Select(
               listenable: Listenable.merge([c, c.curation]),
-              select: () => overflowBars(c),
+              select: () => warns ? overflowBars(c, shown: true) : null,
               equals: listEquals,
               builder: (context, bars) => bars == null
                   ? const SizedBox.shrink()
@@ -336,7 +339,7 @@ class BarRuler extends StatelessWidget {
               handle: true,
               child: CustomPaint(
                 size: Size.infinite,
-                painter: _RulerPainter(c, colors, warn),
+                painter: _RulerPainter(c, colors, warns ? warn : null),
               ),
             ),
           ),
@@ -351,8 +354,8 @@ class _RulerPainter extends CustomPainter {
   final EditorController c;
   final AppColors colors;
 
-  /// Where notation runs off the video's frame.
-  final Color warn;
+  /// Where notation runs off the video's frame; null where the ruler doesn't warn.
+  final Color? warn;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -361,12 +364,14 @@ class _RulerPainter extends CustomPainter {
     canvas.clipRect(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, Paint()..color = colors.chrome);
     canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5), Paint()..color = colors.line);
-    for (final o in c.overflowing) {
-      final x0 = math.max(v.x(o.start), -1.0), x1 = math.min(v.x(o.end), size.width + 1);
-      if (x1 <= x0) continue;
-      canvas
-        ..drawRect(Rect.fromLTRB(x0, 0, x1, size.height), Paint()..color = warn.withValues(alpha: 0.18))
-        ..drawRect(Rect.fromLTRB(x0, size.height - 2, x1, size.height), Paint()..color = warn);
+    if (warn case final warn?) {
+      for (final o in c.overflowingShown) {
+        final x0 = math.max(v.x(o.start), -1.0), x1 = math.min(v.x(o.end), size.width + 1);
+        if (x1 <= x0) continue;
+        canvas
+          ..drawRect(Rect.fromLTRB(x0, 0, x1, size.height), Paint()..color = warn.withValues(alpha: 0.18))
+          ..drawRect(Rect.fromLTRB(x0, size.height - 2, x1, size.height), Paint()..color = warn);
+      }
     }
 
     final starts = tl.measureStarts;
@@ -399,11 +404,12 @@ class _RulerPainter extends CustomPainter {
   bool shouldRepaint(_RulerPainter old) => true;
 }
 
-/// The bars where notation runs off the video's frame ([EditorController.overflowing]),
-/// as runs ("12–18", or "30" alone), each pass its own; only those [within] a stretch of the
-/// performance, when given. Null where they all fit.
-List<String>? overflowBars(EditorController c, {({double start, double end})? within}) {
-  final stretches = c.overflowing;
+/// The bars where notation runs off the video's frame ([EditorController.overflowing], or
+/// [EditorController.overflowingShown] when [shown]), as runs ("12–18", or "30" alone), each
+/// pass its own; only those [within] a stretch of the performance, when given. Null where they
+/// all fit.
+List<String>? overflowBars(EditorController c, {({double start, double end})? within, bool shown = false}) {
+  final stretches = shown ? c.overflowingShown : c.overflowing;
   if (stretches.isEmpty || c.score == null) return null;
   final tl = c.timeline, lastBar = tl.measureStarts.length - 2;
   final (start, end) = (math.max(0.0, within?.start ?? 0), math.min(tl.endSeconds, within?.end ?? double.infinity));
