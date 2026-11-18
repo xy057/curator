@@ -88,9 +88,7 @@ abstract final class ExtensionActions {
       unsaved: own,
       onRun: (p) {
         controller.extensions.clearProblems(p.id);
-        if (own) return controller.extensions.tryOut(p);
-        controller.extensions.add(p);
-        controller.extensions.restart(p.id);
+        controller.extensions.run(p);
       },
       calls: () => controller.extensions.runtime(package.id)?.calls,
       problems: controller.extensions.problems,

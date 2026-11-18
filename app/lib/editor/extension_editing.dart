@@ -54,6 +54,13 @@ class ExtensionEditing {
     restart(package.id);
   }
 
+  /// Run in the extension editor: [package] as it stands in place of the one with its id (the
+  /// project's, or one of Curator's own tried out), started again once, changed or not.
+  void run(ExtensionPackage package) {
+    if (this.package(package.id) == package) return restart(package.id);
+    BundledExtensions.byId(package.id) == null ? add(package) : tryOut(package);
+  }
+
   /// Curator's own extension [id] as it came.
   void revert(String id) {
     if (_tried.remove(id) != null) restart(id);

@@ -183,6 +183,14 @@ void main() {
       expect(c2.extensions.items(again, again.graph.node('notes')!), [(at: 8.0, label: 'Note 1')]);
       expect(c2.extensions.problems.value, isEmpty);
 
+      // Run in the editor keeps one changed and starts it, and starts one that hasn't again.
+      final edited = notes(version: '1.5.0');
+      c2.extensions.run(edited);
+      expect((c2.extensions.carried.values.single, c2.extensions.runtime('com.example.notes')!.package), (edited, edited));
+      final before = c2.extensions.runtime('com.example.notes');
+      c2.extensions.run(edited);
+      expect(c2.extensions.runtime('com.example.notes'), isNot(same(before)));
+
       // Off: nothing of it runs, what it saved stays.
       c2.setExtension('com.example.notes', false);
       expect(c2.extensions.running, isEmpty);
@@ -228,6 +236,11 @@ void main() {
       expect(c.extensions.lanes.single.node.props['title'], 'Sections');
       expect(c.projectState.packages, isEmpty, reason: 'not the project’s to keep');
       expect(Extensions.byId('chapters')!.label, 'Chapters', reason: 'Curator’s own is as it was');
+      // Run starts it again once, whether or not it has changed since it last ran.
+      final ran = c.extensions.runtime('chapters')!;
+      c.extensions.run(changed);
+      expect(c.extensions.runtime('chapters'), isNot(same(ran)), reason: 'started again as it is');
+      expect(c.extensions.runtime('chapters')!.package, changed);
       c.extensions.revert('chapters');
       expect((c.extensions.tried('chapters'), c.extensions.runtime('chapters')!.package), (false, own));
       // As it came is no change; a project closed forgets one.
