@@ -97,7 +97,8 @@ void _openBase(Lua lua) {
     if (n == '#') return [a.length - 1];
     final i = a.integer(0, 'select');
     if (i < 0) {
-      if (-i > a.length - 1) a.bad(0, 'select', 'index out of range');
+      // (Not -i: the least integer has no opposite, and would pass.)
+      if (i < 1 - a.length) a.bad(0, 'select', 'index out of range');
       lua.spend(-i);
       return a.sublist(a.length + i);
     }
@@ -272,7 +273,8 @@ void _openTable(Lua lua) {
       final from = a.table(0, 'move'), f = a.integer(1, 'move'), e = a.integer(2, 'move'), t = a.integer(3, 'move');
       final to = a.tableOr(4, 'move') ?? from;
       if (e >= f) {
-        if (e - f > Lua.maxLength) throw lua._tooBig();
+        // (Below 0 when the span is too wide for an integer: it wrapped round.)
+        if (e - f < 0 || e - f > Lua.maxLength) throw lua._tooBig();
         lua.steps -= e - f; // a value at a time, as a loop moving them would spend
         if (lua.steps < 0) throw lua._tooLong();
         if (t > e || t <= f || !identical(to, from)) {
@@ -295,7 +297,7 @@ void _openTable(Lua lua) {
 List<Object?> _unpack(Lua lua, List<Object?> a, String fn) {
   final t = a.table(0, fn), i = a.integerOr(1, fn) ?? 1, j = a.integerOr(2, fn) ?? t.length;
   if (j < i) return _none;
-  if (j - i >= 1000000) throw LuaError('too many results to unpack');
+  if (j - i < 0 || j - i >= 1000000) throw LuaError('too many results to unpack'); // (below 0: wrapped round)
   lua.spend(j - i + 1);
   return List<Object?>.generate(j - i + 1, (k) => t[i + k], growable: false);
 }

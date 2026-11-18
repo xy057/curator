@@ -15,9 +15,11 @@ void _openString(Lua lua) {
     'lower': (a) => [lua._made(a.string(0, 'lower').toLowerCase())],
     'rep': (a) {
       final s = a.string(0, 'rep'), n = a.integer(1, 'rep'), sep = a.stringOr(2, 'rep') ?? '';
-      if (n <= 0) return const [''];
-      if ((s.length + sep.length) * n > Lua.maxLength) throw lua._tooBig();
-      lua.steps -= ((s.length + sep.length) * n) >> 6;
+      final unit = s.length + sep.length;
+      if (n <= 0 || unit == 0) return const [''];
+      // (Divided, not multiplied: the product of a large count wraps round, below the limit.)
+      if (n > Lua.maxLength ~/ unit) throw lua._tooBig();
+      lua.steps -= (unit * n) >> 6;
       return [sep.isEmpty ? s * n : List.filled(n, s).join(sep)];
     },
     'reverse': (a) => [lua._made(String.fromCharCodes(a.string(0, 'reverse').codeUnits.reversed))],

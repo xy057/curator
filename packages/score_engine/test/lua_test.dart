@@ -230,6 +230,10 @@ string]], [==[a]]b]==]'''), ['tab\tnew\\ AAHend', 'long\nstring', 'a]]b']);
       expect(fails('local s = "x" while true do s = s .. s end'), contains('grew too long'));
       expect(fails('return ("x"):rep(1e9)'), contains('grew too long'));
       expect(fails('return ("a"):rep(40):match(("a*"):rep(40) .. "b")', steps: 100000), contains('ran too long'));
+      // A count too wide for an integer, wrapping round below 0, buys no steps.
+      for (final buy in ['table.move({}, -2^62, 3*2^61, 1)', 'table.unpack({}, -2^62, 3*2^61)', 'string.rep("ab", 2^62)', 'string.rep("abcd", math.tointeger(2^62) + 1)', 'select(math.mininteger, 1)']) {
+        expect(fails('pcall(function() return $buy end) while true do end', steps: 10000), contains('too long'), reason: buy);
+      }
       // After it, the same world runs again.
       final lua = Lua();
       expect(() => lua.run('while true do end', steps: 1000), throwsA(isA<LuaLimit>()));
