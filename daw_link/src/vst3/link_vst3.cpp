@@ -112,13 +112,12 @@ bool readState (IBStream* stream, std::string& text)
     return textOfState (state, text);
 }
 
-// The editing side: no parameters, only the window (Attacca's, or [capturer] its Capturer's).
+// The editing side: no parameters, only the window (Attacca's; its Capturer's makes its own).
 class LinkController : public Vst::EditController {
 public:
-    explicit LinkController (bool capturer = false) : capturer_ (capturer) {}
     IPlugView* PLUGIN_API createView (FIDString name) override
     {
-        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView (capturer_, capturer_ ? nullptr : bound_) : nullptr;
+        return name && std::strcmp (name, Vst::ViewType::kEditor) == 0 ? new LinkView (false, bound_) : nullptr;
     }
 
     // Attacca's audio side says whether it is bound to ARA: an instance never bound is on an
@@ -135,7 +134,6 @@ public:
     }
 
 protected:
-    bool capturer_;
     std::shared_ptr<std::atomic<int>> bound_ = std::make_shared<std::atomic<int>> (-1);
 };
 
@@ -144,8 +142,6 @@ protected:
 // Attacca's Capturer menu).
 class CaptureController : public LinkController, public Vst::ChannelContext::IInfoListener {
 public:
-    CaptureController () : LinkController (true) {}
-
     IPlugView* PLUGIN_API createView (FIDString name) override
     {
         auto id = id_;
