@@ -65,13 +65,6 @@ std::pair<int64_t, int64_t> framesWithin (double from, double to, double rate, d
     return { first > 0 ? static_cast<int64_t> (std::min (first, n)) : 0, last < n ? static_cast<int64_t> (std::max (last, 0.0)) : frames };
 }
 
-void put16 (std::FILE* f, uint16_t v) { const unsigned char b[2] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8) }; std::fwrite (b, 1, 2, f); }
-void put32 (std::FILE* f, uint32_t v)
-{
-    const unsigned char b[4] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8), static_cast<unsigned char> (v >> 16), static_cast<unsigned char> (v >> 24) };
-    std::fwrite (b, 1, 4, f);
-}
-
 }  // namespace
 
 // MARK: - LinkAudioSource
@@ -513,22 +506,8 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
         // A RIFF file holds under 4 GB: the length is read as at most that.
         const uint32_t dataBytes = static_cast<uint32_t> (std::min<uint64_t> (bytes, 0xffffffffu - 64));
         const int64_t written = static_cast<int64_t> (dataBytes / (static_cast<uint32_t> (channels) * 4));
-        std::fwrite ("RIFF", 1, 4, f);
-        put32 (f, 4 + (8 + 16) + (8 + 4) + 8 + dataBytes);
-        std::fwrite ("WAVE", 1, 4, f);
-        std::fwrite ("fmt ", 1, 4, f);
-        put32 (f, 16);
-        put16 (f, 3);  // IEEE float
-        put16 (f, static_cast<uint16_t> (channels));
-        put32 (f, static_cast<uint32_t> (std::lround (rate)));
-        put32 (f, static_cast<uint32_t> (std::lround (rate)) * static_cast<uint32_t> (channels) * 4);
-        put16 (f, static_cast<uint16_t> (channels * 4));
-        put16 (f, 32);
-        std::fwrite ("fact", 1, 4, f);
-        put32 (f, 4);
-        put32 (f, static_cast<uint32_t> (written));
-        std::fwrite ("data", 1, 4, f);
-        put32 (f, dataBytes);
+        const std::string header = wavHeader (channels, rate, written);
+        std::fwrite (header.data (), 1, header.size (), f);
 
         std::vector<float> block (static_cast<size_t> (chunkFrames * channels));
         auto lastSaid = std::chrono::steady_clock::now ();
