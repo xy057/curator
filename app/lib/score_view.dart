@@ -31,7 +31,8 @@ typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double q
 /// The curated score preview, drawn by CuratedScene.paint: a frame is a function of the
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport). It shows
 /// what the Video tab's View lane has at the time ([paintViews]): the score, the player map,
-/// both, or a change between them; images and spacers are handled while the score is in its
+/// both, or a change between them (on the toolbar's MIDI View and Player Map too, while the
+/// music plays: [AutomationEditing.playsViews]); images and spacers are handled while the score is in its
 /// place ([AutomationEditing.scoreInPlace]).
 ///
 /// It shows the video's frame: its [aspectRatio], laid out like the video and scaled to fit
@@ -104,7 +105,7 @@ class ScoreViewState extends State<ScoreView> with _SpacerHandles, _AttachImage,
   /// speed, so that a swipe still gets somewhere.
   double _speedAt(double time, VideoFrame frame) {
     // (As the MIDI view moves while the toolbar has it: its beats are as wide as each other.)
-    final scene = (c.showsMidiView ? c.rowsScene : null) ?? c.scene!, size = frame.layout, end = math.max(1.0, c.playback.duration);
+    final scene = (c.automation.rowsThroughout ? c.rowsScene : null) ?? c.scene!, size = frame.layout, end = math.max(1.0, c.playback.duration);
     double x(double t) => scene.frameXAtQuarter(0, t, size);
     const dt = 1 / 120;
     final slowest = math.max(1.0, (x(0) - x(end)) / end / 4);

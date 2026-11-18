@@ -25,6 +25,18 @@ class Playback {
 
   bool _playing = false;
   bool get isPlaying => _playing;
+
+  /// Whether the clock runs: Curator plays, or the DAW followed does ([followsDaw]).
+  bool get runs => _playing || _daw;
+
+  /// The clock started or stopped: what the preview shows may be another view (the View lane's
+  /// while it runs, [AutomationEditing.playsViews]).
+  void _ranChanged() {
+    if (_editor._disposed) return;
+    _editor.automation._followTime();
+    _markDirty();
+    _editor._changed();
+  }
   Duration _playAnchor = Duration.zero;
   double _timeAnchor = 0;
 
@@ -61,7 +73,7 @@ class Playback {
     _timeAnchor = time.value;
     _ranFrom(time.value);
     if (!_scrubbing) _audio.play(time.value);
-    _editor._changed();
+    _ranChanged();
   }
 
   void pause() {
@@ -73,11 +85,11 @@ class Playback {
   void _pauseHere() {
     _playing = false;
     _audio.stop();
-    _editor._changed();
+    _ranChanged();
   }
 
   /// Playing (or the DAW playing, followed): pauses; else plays.
-  void togglePlay() => _playing || _daw ? pause() : play();
+  void togglePlay() => runs ? pause() : play();
 
   // MARK: The DAW's clock
 
@@ -99,14 +111,16 @@ class Playback {
         _timeAnchor = seconds;
         _playAnchor = elapsed;
         _ranFrom(seconds);
-        _wake();
+        _ranChanged();
       } else {
         _glide(seconds, _clockAt(elapsed), elapsed, jump: 0.1, rate: 0.2);
       }
     } else if (_daw || seconds != _dawAt) {
+      final ran = _daw;
       _daw = false;
       _seekHere(seconds);
       _editor.viewport.follow(time.value);
+      if (ran) _ranChanged();
     }
     _dawAt = seconds;
   }
@@ -115,7 +129,7 @@ class Playback {
   void _dawStopped() {
     if (!_daw) return;
     _daw = false;
-    _markDirty();
+    _ranChanged();
   }
 
   // MARK: Metronome

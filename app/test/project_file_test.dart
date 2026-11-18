@@ -165,6 +165,18 @@ void main() {
       expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.score, true));
       c2.showsMidiView = true;
       expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.midi, false));
+      // …until the music plays: then the lane's views show, on the toolbar's MIDI View and its
+      // Player Map alike (the score in bar 1, the map in bar 4), and the rows again once it stops.
+      c2.showsPlayerMap = true;
+      expect(c2.automation.playsViews, false);
+      c2.playback.play();
+      expect((c2.automation.playsViews, c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (true, ViewKind.score, true));
+      c2.playback.seek(c2.timeline.secondsAtQuarter(starts[3]));
+      expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.map, false));
+      c2.playback.pause();
+      expect((c2.automation.playsViews, c2.automation.shown.from.kind), (false, ViewKind.midi));
+      c2.playback.seek(0);
+      c2.showsPlayerMap = false;
       c2.showsMidiView = false;
       expect(c2.curation!.lane(parts[1].id), const [Region(0, 6, hiddenStaves: [2]), Region(6, 9)]);
       expect(c2.spacingOf(parts[2].id), (above: 2.5, below: -1.0));

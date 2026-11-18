@@ -1932,12 +1932,17 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       aspectRatio: settings.videoFormat.aspectRatio,
     );
     // The toolbar's switch (View ▸ Show Player Map): the map in the score's place. The score is
-    // kept, offstage, so it comes back as it was.
+    // kept, offstage, so it comes back as it was, and shows while the music plays what the
+    // Video tab's View lane has.
     final score = Expanded(
-      child: Stack(fit: StackFit.expand, children: [
-        Offstage(offstage: settings.playerMap, child: view),
-        if (settings.playerMap) PlayerMapPanel(controller: controller),
-      ]),
+      child: Select<bool>(
+        listenable: controller,
+        select: () => settings.playerMap && !controller.automation.playsViews,
+        builder: (context, map) => Stack(fit: StackFit.expand, children: [
+          Offstage(offstage: map, child: view),
+          if (map) PlayerMapPanel(controller: controller),
+        ]),
+      ),
     );
     // Working in the timeline leaves the image selected in the score.
     // Keyed so it keeps its state when the preview is hidden or shown around it.

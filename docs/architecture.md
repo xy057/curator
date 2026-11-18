@@ -1090,7 +1090,7 @@ window is still there.
 
 **A player map shows who plays** (the toolbar's Score / Player Map switch, View ▸ Show Player Map /
 Show Score, ⇧⌘M; `AppSettings.playerMap`, not an edit). In the score's place (the score kept offstage,
-so it comes back as it was), the stage the players sit on, as Beethoven 9's orchestra view has it:
+so it comes back as it was, and shown while the music plays what the Video tab's View lane has), the stage the players sit on, as Beethoven 9's orchestra view has it:
 `PlayerMap`, the project's (`EditState.playerMap`, an edit; the optional `playermap` module, so an
 older Curator opens the project without it and keeps it), sections of dots on a stage of 16:9 (places
 0–1 across and down, so a map fits any view), each section a name, a colour, a size and its seats,
@@ -1189,8 +1189,11 @@ frame, `PlayerMapEditing.notes`) and a web page (`PageShows.views`: the export's
 project has views and a map, the viewer's Auto beside Score and Player Map where the switch is
 theirs) all draw through it. The preview handles images,
 spacers and its menu only while the score is in its place (`AutomationEditing.scoreInPlace`: the
-score or an inset map, nothing mid-change), kept up as the playhead moves. The toolbar's Score /
-Player Map switch still shows the map alone; on Score the preview follows the lane. The Video tab
+score or an inset map, nothing mid-change), kept up as the playhead moves. On the toolbar's Score
+the preview follows the lane; on its MIDI View and Player Map it does while the music plays
+(Curator's, or a DAW's followed: `Playback.runs`) and the lane has a view
+(`AutomationEditing.playsViews`), and stopped they show the rows throughout and the map alone
+again (`rowsThroughout`; the window's `PlayerMapPanel`). The Video tab
 (`BottomTab.video`, `video_panel.dart`) holds the lanes: View, a `SpanLane` that paints, each
 stretch in its view's colour, drawn, moved, trimmed and erased with the lanes' tools (live: a drag
 one Undo step), Add View at the playhead; its toolbar sets the stretch selected (view, where the map
@@ -1666,7 +1669,8 @@ a view shows it) and a web page's, which lays them out itself from the project's
 else when the viewer first asks). Three things show it: the toolbar's switch (Score / MIDI View /
 Player Map; View ▸ Show MIDI View, `KeyCommand.showMidiView`, no key of its own;
 `AppSettings.midiView`, the window's and not an edit, `EditorController.showsMidiView`), the rows
-throughout whatever the lane has (`AutomationEditing.shown`); the View lane's MIDI View
+throughout but for the lane's views while the music plays (`AutomationEditing.shown`,
+`rowsThroughout`); the View lane's MIDI View
 (`SceneView.midi`), crossfading with the others; and a page's View row and its viewer's switch
 (`PageShows.midi`). While the toolbar has it the MIDI menu is in the bar (Use File’s Tempo
 greyed out: there is no file), and the look is the project's `EditState.midiLook`, an Undo step
