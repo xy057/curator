@@ -80,16 +80,15 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
         name: source.name.isEmpty ? 'Recording'.tr : source.name,
         progress: progress),
     onCancel: () => link.cancelCapture(document.id, capturer),
-    linked: false,
   );
 }
 
-/// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got
-/// (a capture, [onCancel] given, can be cancelled), then loaded into the project's Attacca take;
-/// false when it couldn't be. Not [linked] (the DAW's mix recorded), the take becomes an ordinary
-/// recording, no longer the DAW's.
+/// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got,
+/// then loaded into the project's Attacca take; false when it couldn't be. A capture ([onCancel]
+/// given, which cancels it) is the DAW's mix recorded: the take becomes an ordinary recording,
+/// no longer the DAW's.
 Future<bool> _take(BuildContext context, EditorController c, DawSession session, DawSource source,
-    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel, bool linked = true}) async {
+    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel}) async {
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
   // While the DAW writes the recording out, or Attacca Capturer hears it as the DAW plays it.
@@ -103,7 +102,7 @@ Future<bool> _take(BuildContext context, EditorController c, DawSession session,
   }
   if (path == null) return false;
   try {
-    await c.loadAudio(path, daw: linked ? (host: session.host, source: source.id, name: source.name) : null, intoAttacca: true);
+    await c.loadAudio(path, daw: capturing ? null : (host: session.host, source: source.id, name: source.name), intoAttacca: true);
   } catch (e) {
     say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
     return false;
