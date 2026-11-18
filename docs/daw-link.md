@@ -186,7 +186,8 @@ itself never plays there from a stop); then it says it is ready (or after a seco
 run, or eight seconds that never fall quiet), and Curator asks the DAW to play from a second
 before the region and to stop once every moment of it was heard; a DAW that doesn't let a
 plug-in start it (or one that stops early) is played by hand, and the span may be played in pieces or out of order. The progress bar
-is how much of it was heard; Cancel stops. It captures with the Capturer linked: without one in
+is how much of it was heard; Cancel stops. So does Curator going (the Capturer lets the capture
+go when the connection ends) or the DAW's document closing (Curator cancels it). It captures with the Capturer linked: without one in
 the DAW it says to put one on the output, and with none linked to choose it in Attacca's window.
 
 **Listen for Attacca** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
