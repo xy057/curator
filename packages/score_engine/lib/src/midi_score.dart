@@ -8,6 +8,7 @@ import 'engraving.dart';
 import 'engraving_writer.dart';
 import 'midi_file.dart';
 import 'midi_tempo.dart';
+import 'musicxml_kit.dart' show xmlEscaped;
 import 'number_text.dart';
 import 'score_metadata.dart';
 import 'spacers.dart';
@@ -152,7 +153,7 @@ class MidiScore {
         '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n'
         '<score-partwise version="4.0">\n');
     final heading = file.title.isNotEmpty ? file.title : title;
-    if (heading.isNotEmpty) out.write('  <work><work-title>${_escape(heading)}</work-title></work>\n');
+    if (heading.isNotEmpty) out.write('  <work><work-title>${xmlEscaped(heading)}</work-title></work>\n');
     out.write('  <part-list>\n');
     for (final (i, v) in voices.indexed) {
       // The name says the family where it can; else the program does.
@@ -161,8 +162,8 @@ class MidiScore {
           : v.isDrums
               ? 'drum.group.set'
               : switch (v.program) { final p? => _sound(p), null => null };
-      out.write('    <score-part id="P${i + 1}"><part-name>${_escape(names[i])}</part-name>'
-          '${sound == null ? '' : '<score-instrument id="P${i + 1}-I1"><instrument-name>${_escape(names[i])}</instrument-name>'
+      out.write('    <score-part id="P${i + 1}"><part-name>${xmlEscaped(names[i])}</part-name>'
+          '${sound == null ? '' : '<score-instrument id="P${i + 1}-I1"><instrument-name>${xmlEscaped(names[i])}</instrument-name>'
               '<instrument-sound>$sound</instrument-sound></score-instrument>'}</score-part>\n');
     }
     out.write('  </part-list>\n');
@@ -289,7 +290,6 @@ class MidiScore {
     ];
   }
 
-  static String _escape(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
   /// [key] spelled for a key of [fifths]: with flats in a flat key, else sharps.
   static String _pitch(int key, int fifths) {
