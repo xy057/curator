@@ -89,6 +89,9 @@ class ExtensionEditing {
       _stop(id);
       _carried = Map.unmodifiable({..._carried}..remove(id));
     });
+    // Its switch goes from the project and from every state Undo keeps: added again, it is off
+    // until turned on, as any other just added.
+    _editor._everywhere((state) => state.extensions.containsKey(id) ? state.copyWith(extensions: Map.unmodifiable({...state.extensions}..remove(id))) : state);
     _packagesChanged();
   }
 

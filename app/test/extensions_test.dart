@@ -200,6 +200,12 @@ void main() {
       c2.extensions.remove('com.example.notes');
       expect(Extensions.of(c2).map((e) => e.id), isNot(contains('com.example.notes')));
       expect(c2.extensions.data('com.example.notes'), isNotNull);
+      // Its switch went with it, from what Undo keeps too: added again, it is off.
+      expect(c2.extensionChosen('com.example.notes'), isFalse);
+      c2.extensions.add(package);
+      c2.undo();
+      expect(c2.extensionOn('com.example.notes'), isFalse);
+      expect(c2.extensions.running, isEmpty);
     }
 
     // One of Curator’s own, changed, runs in the project while it is open and is never saved.
