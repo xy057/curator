@@ -90,6 +90,9 @@ bool getText (Vst::IMessage* message, const char* key, std::string& text)
     return true;
 }
 
+// Whether [message] is the one called [id].
+bool isMessage (Vst::IMessage* message, const char* id) { return message && message->getMessageID () && std::strcmp (message->getMessageID (), id) == 0; }
+
 // A plug-in's saved state ([stateOf]) written to and read from the DAW's stream.
 tresult writeState (IBStream* stream, const std::string& text)
 {
@@ -123,8 +126,7 @@ public:
     tresult PLUGIN_API notify (Vst::IMessage* message) override
     {
         int64 bound = 0;
-        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), boundMessage) == 0 && message->getAttributes () &&
-            message->getAttributes ()->getInt ("bound", bound) == kResultOk)
+        if (isMessage (message, boundMessage) && message->getAttributes () && message->getAttributes ()->getInt ("bound", bound) == kResultOk)
         {
             bound_->store (bound != 0 ? 1 : 0);
             return kResultOk;
@@ -157,7 +159,7 @@ public:
     tresult PLUGIN_API notify (Vst::IMessage* message) override
     {
         std::string id;
-        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), capturerIdMessage) == 0 && getText (message, "id", id))
+        if (isMessage (message, capturerIdMessage) && getText (message, "id", id))
         {
             std::lock_guard<std::mutex> lock (id_->first);
             id_->second = id;
@@ -192,23 +194,10 @@ private:
     std::shared_ptr<std::pair<std::mutex, std::string>> id_ = std::make_shared<std::pair<std::mutex, std::string>> ();
 };
 
-// The audio side: plays the regions it is given (as an ARA playback renderer), else passes
-// what comes in; tells Curator where the DAW is playing.
-class LinkProcessor : public Vst::AudioEffect, public ARA::IPlugInEntryPoint, public ARA::IPlugInEntryPoint2 {
+// What both audio sides are: one stereo bus in and one out (any layout, the same each way),
+// 32-bit samples.
+class LinkEffect : public Vst::AudioEffect {
 public:
-    static const FUID classID () { return FUID (0xAFB4775C, 0x839D4BA3, 0x8447247E, 0x8ED44D1E); }
-    static const FUID controllerID () { return FUID (0x83F3EE18, 0x3745449B, 0x87759A19, 0x5CFB7E21); }
-
-    LinkProcessor () : client_ (LinkClient::retain ())
-    {
-        setControllerClass (controllerID ());
-        processContextRequirements.needTransportState ().needProjectTimeMusic ().needTempo ();
-    }
-    ~LinkProcessor () override { LinkClient::release (); }
-
-    static FUnknown* create (void*) { return static_cast<Vst::IAudioProcessor*> (new LinkProcessor); }
-    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new LinkController); }
-
     tresult PLUGIN_API initialize (FUnknown* context) override
     {
         const tresult result = AudioEffect::initialize (context);
@@ -228,6 +217,38 @@ public:
     }
 
     tresult PLUGIN_API canProcessSampleSize (int32 size) override { return size == Vst::kSample32 ? kResultTrue : kResultFalse; }
+
+protected:
+    // What comes in, passed out as it is.
+    static void passThrough (Vst::ProcessData& data)
+    {
+        if (!data.inputs || data.numInputs == 0 || !data.outputs || data.numOutputs == 0)
+            return;
+        auto &in = data.inputs[0], &out = data.outputs[0];
+        for (int32 c = 0; c < out.numChannels && c < in.numChannels; ++c)
+        {
+            if (out.channelBuffers32[c] != in.channelBuffers32[c])
+                std::memcpy (out.channelBuffers32[c], in.channelBuffers32[c], sizeof (float) * static_cast<size_t> (data.numSamples));
+        }
+    }
+};
+
+// The audio side: plays the regions it is given (as an ARA playback renderer), else passes
+// what comes in; tells Curator where the DAW is playing.
+class LinkProcessor : public LinkEffect, public ARA::IPlugInEntryPoint, public ARA::IPlugInEntryPoint2 {
+public:
+    static const FUID classID () { return FUID (0xAFB4775C, 0x839D4BA3, 0x8447247E, 0x8ED44D1E); }
+    static const FUID controllerID () { return FUID (0x83F3EE18, 0x3745449B, 0x87759A19, 0x5CFB7E21); }
+
+    LinkProcessor () : client_ (LinkClient::retain ())
+    {
+        setControllerClass (controllerID ());
+        processContextRequirements.needTransportState ().needProjectTimeMusic ().needTempo ();
+    }
+    ~LinkProcessor () override { LinkClient::release (); }
+
+    static FUnknown* create (void*) { return static_cast<Vst::IAudioProcessor*> (new LinkProcessor); }
+    static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new LinkController); }
 
     tresult PLUGIN_API process (Vst::ProcessData& data) override
     {
@@ -251,14 +272,8 @@ public:
             const double rate = data.processContext && data.processContext->sampleRate > 0 ? data.processContext->sampleRate : processSetup.sampleRate;
             renderer->render (out.channelBuffers32, out.numChannels, rate, at, data.numSamples, playing);
         }
-        else if (data.inputs && data.numInputs > 0)
-        {
-            for (int32 c = 0; c < out.numChannels && c < data.inputs[0].numChannels; ++c)
-            {
-                if (out.channelBuffers32[c] != data.inputs[0].channelBuffers32[c])
-                    std::memcpy (out.channelBuffers32[c], data.inputs[0].channelBuffers32[c], sizeof (float) * static_cast<size_t> (data.numSamples));
-            }
-        }
+        else
+            passThrough (data);
         return kResultTrue;
     }
 
@@ -320,7 +335,7 @@ private:
 
 // Attacca Capturer: an insert, no ARA, usually the last on the DAW's output. It passes what it
 // hears through untouched and keeps it for Curator by song time (link_capture.h).
-class CaptureProcessor : public Vst::AudioEffect {
+class CaptureProcessor : public LinkEffect {
 public:
     static const FUID classID () { return FUID (0x33C549EF, 0x2C9F4786, 0x82D20196, 0xA52ABC73); }
     static const FUID controllerID () { return FUID (0x6E77B57C, 0xA80D4D82, 0xA2AAA1AB, 0x1C69B2E6); }
@@ -333,23 +348,6 @@ public:
 
     static FUnknown* create (void*) { return static_cast<Vst::IAudioProcessor*> (new CaptureProcessor); }
     static FUnknown* createController (void*) { return static_cast<Vst::IEditController*> (new CaptureController); }
-
-    tresult PLUGIN_API initialize (FUnknown* context) override
-    {
-        const tresult result = AudioEffect::initialize (context);
-        if (result != kResultOk)
-            return result;
-        addAudioInput (STR16 ("Stereo In"), Vst::SpeakerArr::kStereo);
-        addAudioOutput (STR16 ("Stereo Out"), Vst::SpeakerArr::kStereo);
-        return kResultOk;
-    }
-
-    tresult PLUGIN_API setBusArrangements (Vst::SpeakerArrangement* inputs, int32 numIns, Vst::SpeakerArrangement* outputs, int32 numOuts) override
-    {
-        if (numIns == 1 && numOuts == 1 && inputs[0] == outputs[0] && Vst::SpeakerArr::getChannelCount (outputs[0]) != 0)
-            return AudioEffect::setBusArrangements (inputs, numIns, outputs, numOuts);
-        return kResultFalse;
-    }
 
     tresult PLUGIN_API setActive (TBool state) override
     {
@@ -386,15 +384,13 @@ public:
     tresult PLUGIN_API notify (Vst::IMessage* message) override
     {
         std::string name;
-        if (message && message->getMessageID () && std::strcmp (message->getMessageID (), channelMessage) == 0 && getText (message, "name", name))
+        if (isMessage (message, channelMessage) && getText (message, "name", name))
         {
             capturer_.setName (name);
             return kResultOk;
         }
         return AudioEffect::notify (message);
     }
-
-    tresult PLUGIN_API canProcessSampleSize (int32 size) override { return size == Vst::kSample32 ? kResultTrue : kResultFalse; }
 
     tresult PLUGIN_API process (Vst::ProcessData& data) override
     {
@@ -404,15 +400,7 @@ public:
         if (const auto* context = data.processContext)
             capturer_.process (in.channelBuffers32, in.numChannels, data.numSamples, (context->state & Vst::ProcessContext::kPlaying) != 0,
                                context->projectTimeSamples);
-        if (data.outputs && data.numOutputs > 0)
-        {
-            auto& out = data.outputs[0];
-            for (int32 c = 0; c < out.numChannels && c < in.numChannels; ++c)
-            {
-                if (out.channelBuffers32[c] != in.channelBuffers32[c])
-                    std::memcpy (out.channelBuffers32[c], in.channelBuffers32[c], sizeof (float) * static_cast<size_t> (data.numSamples));
-            }
-        }
+        passThrough (data);
         return kResultTrue;
     }
 
