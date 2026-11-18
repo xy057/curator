@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
@@ -46,7 +47,7 @@ class DawLink extends ChangeNotifier {
   /// Every document of every DAW connected.
   Iterable<(DawSession, DawDocument)> get documents sync* {
     for (final s in _sessions) {
-      for (final d in s.documents) {
+      for (final d in s._documents.values) {
         yield (s, d);
       }
     }
@@ -67,7 +68,7 @@ class DawLink extends ChangeNotifier {
   void _tellFollowers() {
     for (final s in _sessions) {
       final names = {for (final f in _followers.values) if (s._documents.containsKey(f.document)) f.name}.toList()..sort();
-      s._tellFollowers(names.join('\n'));
+      s._tell({'t': 'followers', 'names': names.join('\n')});
     }
   }
 
@@ -76,7 +77,12 @@ class DawLink extends ChangeNotifier {
   bool get busy => _sessions.any((s) => s._recordings.isNotEmpty);
 
   /// The document [id] and the DAW it is in, or null when it isn't open (any longer).
-  (DawSession, DawDocument)? find(String id) => documents.where((e) => e.$2.id == id).firstOrNull;
+  (DawSession, DawDocument)? find(String id) {
+    for (final s in _sessions) {
+      if (s._documents[id] case final d?) return (s, d);
+    }
+    return null;
+  }
 
   /// [start] and [stop], one after the other in the order asked: one asked while another is under
   /// way waits for it, so the last asked holds (the switch flicked on and off ends off, and two
@@ -255,17 +261,13 @@ class DawLink extends ChangeNotifier {
 
   /// The Attacca Capturers in [session]'s DAW: its own and those of the other connections from
   /// the same process (Attacca Capturer's VST3 is a bundle of its own, with its own connection).
-  List<DawCapturer> capturersOf(DawSession session) => [
-        for (final s in _sessions)
-          if (s == session || (session.pid > 0 && s.pid == session.pid)) ...s.capturers,
-      ];
+  List<DawCapturer> capturersOf(DawSession session) => [for (final s in _sameDaw(session)) ...s.capturers];
 
   /// The Attacca Capturer linked to the Attacca of [session]'s DAW (chosen in Attacca's window:
   /// [DawSession.linkedCapturer]), if it is there: Record from DAW… captures with it.
   DawCapturer? linkedCapturerOf(DawSession session) {
-    final daw = _sameDaw(session);
-    final linked = {for (final s in daw) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
-    return [for (final s in daw) ...s.capturers].where((c) => linked.contains(c.id)).firstOrNull;
+    final linked = {for (final s in _sameDaw(session)) if (s.linkedCapturer.isNotEmpty) s.linkedCapturer};
+    return capturersOf(session).where((c) => linked.contains(c.id)).firstOrNull;
   }
 
   /// The connections from [session]'s DAW: itself, and the others from its process.
@@ -277,13 +279,17 @@ class DawLink extends ChangeNotifier {
   void _tellLinked() {
     for (final s in _sessions) {
       final daw = _sameDaw(s);
-      final capturers = [for (final o in daw) ...o.capturers];
-      s._tellInserts([for (final c in capturers) c.id], [
-        for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
-      ]);
+      final capturers = capturersOf(s);
+      s._tell({
+        't': 'inserts',
+        'ids': [for (final c in capturers) c.id].join('\n'),
+        'names': [
+          for (final (i, c) in capturers.indexed) c.name.isNotEmpty ? c.name : capturers.length > 1 ? 'Attacca Capturer ${i + 1}' : 'Attacca Capturer',
+        ].join('\n'),
+      });
       if (s.capturers.isEmpty) continue;
       final linked = {for (final o in daw) if (o._documents.isNotEmpty && o.linkedCapturer.isNotEmpty) o.linkedCapturer};
-      s._tellLinked([for (final c in s.capturers) if (linked.contains(c.id)) c.id]);
+      s._tell({'t': 'linked', 'ids': [for (final c in s.capturers) if (linked.contains(c.id)) c.id].join('\n')});
     }
   }
 }
@@ -326,9 +332,6 @@ class DawSession extends ChangeNotifier {
   /// Whether Attacca supports this DAW ([DawLink.supports]); one that isn't is told of, and
   /// Connect Attacca… refuses its recordings unless ⌥ is held.
   bool get supported => DawLink.supports(host);
-
-  /// The plug-in's version (Curator's, when they came together).
-  String plugin = '';
 
   /// The plug-in's build (0: one that doesn't say).
   int build = 0;
@@ -389,7 +392,6 @@ class DawSession extends ChangeNotifier {
       if (type != 'hello' || message['token'] != _link._token || message['protocol'] != DawLink.protocol) return _close();
       _greeted = true;
       host = (message['host'] as String?) ?? '';
-      plugin = (message['plugin'] as String?) ?? '';
       build = (message['build'] as num?)?.toInt() ?? 0;
       pid = (message['pid'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);
@@ -412,7 +414,7 @@ class DawSession extends ChangeNotifier {
         // What was asked of it and not yet written never will be (the plug-in lets its queue go
         // with it): told so, or Curator would wait on it while the DAW stays connected. A
         // capture is asked of the Capturer's connection from the same DAW.
-        for (final s in [this, for (final s in _link._sessions) if (pid != 0 && s.pid == pid && s != this) s]) {
+        for (final s in _link._sameDaw(this)) {
           s._fail((key) => key.$1 == id, 'gone');
         }
       case 'transport':
@@ -455,31 +457,23 @@ class DawSession extends ChangeNotifier {
     _link.notifyListeners();
   }
 
-  /// What this DAW was last told follows it: the projects' names, one a line.
-  String _followers = '';
+  /// What this connection was last told of a state, by the message's type: the projects
+  /// following its DAW (`followers`: their names, one a line), its Capturers linked (`linked`)
+  /// and its DAW's Capturers (`inserts`). Each is sent only when it changes; none followers or
+  /// inserts is what it starts with (said only once there were some), none linked is said.
+  final _told = <String, String>{
+    for (final none in [
+      {'t': 'followers', 'names': ''},
+      {'t': 'inserts', 'ids': '', 'names': ''},
+    ])
+      none['t']!: jsonEncode(none),
+  };
 
-  /// What this connection was last told: its Capturers linked, its DAW's Capturers.
-  String? _linked;
-  String _inserts = '';
-
-  void _tellLinked(List<String> ids) {
-    final said = ids.join('\n');
-    if (said == _linked) return;
-    _linked = said;
-    _send({'t': 'linked', 'ids': said});
-  }
-
-  void _tellInserts(List<String> ids, List<String> names) {
-    final said = '${ids.join('\n')}\u0000${names.join('\n')}';
-    if (said == _inserts || (_inserts.isEmpty && ids.isEmpty)) return;
-    _inserts = said;
-    _send({'t': 'inserts', 'ids': ids.join('\n'), 'names': names.join('\n')});
-  }
-
-  void _tellFollowers(String names) {
-    if (names == _followers) return;
-    _followers = names;
-    _send({'t': 'followers', 'names': names});
+  void _tell(Map<String, String> state) {
+    final said = jsonEncode(state);
+    if (_told[state['t']] == said) return;
+    _told[state['t']!] = said;
+    _send(state);
   }
 
   void _send(Map<String, Object?> message) {
@@ -629,20 +623,21 @@ abstract final class AttaccaPlugIns {
 
   /// The zip [bytes] (the asset) unpacked over what is installed in [folder] ([plugInsFolder]): each bundle (and any by its former name) removed whole,
   /// then written anew, its program made executable. Throws a [FileSystemException] when it
-  /// can't write there.
+  /// can't write there. Unpacked and written on another isolate: the bundles are megabytes.
   static Future<void> install(Uint8List bytes, {String? folder}) async {
-    folder ??= plugInsFolder;
-    if (folder == null) throw const FileSystemException('No home folder.');
+    final to = folder ?? plugInsFolder;
+    if (to == null) throw const FileSystemException('No home folder.');
+    await Isolate.run(() => _install(bytes, to));
+  }
+
+  static Future<void> _install(Uint8List bytes, String folder) async {
     final files = ZipDecoder().decodeBytes(bytes).files;
     String? target(String name) => name.startsWith('$vst3/') || name.startsWith('$capturerVst3/')
         ? '$folder/VST3/$name'
         : name.startsWith('$component/')
             ? '$folder/Components/$name'
             : null;
-    for (final bundle in _bundlesIn(folder)) {
-      final dir = Directory(bundle);
-      if (dir.existsSync()) await dir.delete(recursive: true);
-    }
+    await uninstall(folder: folder);
     final programs = <String>[];
     for (final f in files) {
       final path = target(f.name);

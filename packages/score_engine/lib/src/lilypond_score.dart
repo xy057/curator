@@ -7,7 +7,7 @@ import 'display_list.dart';
 import 'engraving.dart';
 import 'engraving_writer.dart';
 import 'lilypond_svg.dart';
-import 'musicxml_kit.dart' show writtenFifthsOf;
+import 'musicxml_kit.dart' show writtenFifthsOf, xmlEscaped;
 import 'native/constants.dart';
 import 'number_text.dart';
 import 'score_editing.dart' show Frac;
@@ -827,8 +827,6 @@ class _MusicXmlWriter {
     return lcm > 1 << 20 ? 10080 : lcm;
   }
 
-  static String _x(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-
   String write() {
     final parts = r.parts;
     // Each voice: its part (that of the staff it first plays on) and its events.
@@ -869,8 +867,8 @@ class _MusicXmlWriter {
       }
       open = chain;
       final (name, short) = _names(p.key, p.staves);
-      out.write('<score-part id="P${i + 1}"><part-name>${_x(name)}</part-name>'
-          '${short.isEmpty ? '' : '<part-abbreviation>${_x(short)}</part-abbreviation>'}</score-part>\n');
+      out.write('<score-part id="P${i + 1}"><part-name>${xmlEscaped(name)}</part-name>'
+          '${short.isEmpty ? '' : '<part-abbreviation>${xmlEscaped(short)}</part-abbreviation>'}</score-part>\n');
     }
     for (final g in open.reversed) {
       out.write('<part-group type="stop" number="${numbers[g]}"/>\n');
@@ -976,11 +974,11 @@ class _MusicXmlWriter {
       final record = _measureAt[start];
       final pickup = bar == 0 && (_whole(record?['pos']) ?? Frac.zero) < Frac.zero;
       final number = pickup ? '0' : '${record?['bar'] ?? bar + 1}';
-      out.write('<measure number="${_x(number)}"${pickup ? ' implicit="yes"' : ''}>\n');
+      out.write('<measure number="${xmlEscaped(number)}"${pickup ? ' implicit="yes"' : ''}>\n');
       if (forward.contains(bar) || volta.containsKey(bar)) {
         out.write('<barline location="left">');
         for (final v in volta[bar] ?? const <_Rec>[]) {
-          out.write('<ending number="${endingNumbers(v)}" type="start">${_x('${v['text'] ?? ''}')}</ending>');
+          out.write('<ending number="${endingNumbers(v)}" type="start">${xmlEscaped('${v['text'] ?? ''}')}</ending>');
         }
         if (forward.contains(bar)) out.write('<repeat direction="forward"/>');
         out.write('</barline>\n');
@@ -1063,7 +1061,7 @@ class _MusicXmlWriter {
         final count = double.tryParse(RegExp(r'[\d.]+').firstMatch('${d['count'] ?? ''}')?.group(0) ?? '');
         if (text.isEmpty && (unit == null || count == null)) return;
         out.write('<direction placement="above" id="ly-tempo-$c">');
-        if (text.isNotEmpty) out.write('<direction-type><words>${_x(text)}</words></direction-type>');
+        if (text.isNotEmpty) out.write('<direction-type><words>${xmlEscaped(text)}</words></direction-type>');
         final beat = unit == null ? null : _beatUnit(unit);
         if (beat != null && count != null) {
           out.write('<direction-type><metronome><beat-unit>${beat.$1}</beat-unit>${'<beat-unit-dot/>' * beat.$2}'
@@ -1074,15 +1072,15 @@ class _MusicXmlWriter {
         out.write('</direction>\n');
       case 'RehearsalMark':
         if (text.isEmpty) return;
-        out.write('<direction placement="above" id="ly-mark-$c"><direction-type><rehearsal>${_x(text)}</rehearsal>'
+        out.write('<direction placement="above" id="ly-mark-$c"><direction-type><rehearsal>${xmlEscaped(text)}</rehearsal>'
             '</direction-type>$at</direction>\n');
       case 'TextScript' || 'TextMark' || 'SectionLabel':
         if (text.isEmpty) return;
-        out.write('<direction placement="above" id="ly-text-$c"><direction-type><words>${_x(text)}</words></direction-type>'
+        out.write('<direction placement="above" id="ly-text-$c"><direction-type><words>${xmlEscaped(text)}</words></direction-type>'
             '$at$staff</direction>\n');
       case 'DynamicText':
         if (text.isEmpty) return;
-        final mark = _dynamics.contains(text) ? '<$text/>' : '<other-dynamics>${_x(text)}</other-dynamics>';
+        final mark = _dynamics.contains(text) ? '<$text/>' : '<other-dynamics>${xmlEscaped(text)}</other-dynamics>';
         out.write('<direction placement="below"><direction-type><dynamics>$mark</dynamics></direction-type>$at$staff</direction>\n');
     }
   }

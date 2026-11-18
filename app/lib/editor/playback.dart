@@ -101,13 +101,7 @@ class Playback {
         _ranFrom(seconds);
         _wake();
       } else {
-        final error = seconds - (_timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6);
-        if (error.abs() > 0.1) {
-          _timeAnchor = seconds;
-          _playAnchor = elapsed;
-        } else {
-          _timeAnchor += error * 0.2;
-        }
+        _glide(seconds, _clockAt(elapsed), elapsed, jump: 0.1, rate: 0.2);
       }
     } else if (_daw || seconds != _dawAt) {
       _daw = false;
@@ -264,6 +258,22 @@ class Playback {
     _wake();
   }
 
+  /// The clock at [elapsed]: from where it was set going, at [speed].
+  double _clockAt(Duration elapsed, [double speed = 1]) => _timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6 * speed;
+
+  /// The clock, at [clock] now, brought towards [heard] (the audio engine's or the DAW's): put
+  /// there when more than [jump] seconds off (true), else moved [rate] of the way.
+  bool _glide(double heard, double clock, Duration elapsed, {required double jump, required double rate}) {
+    final error = heard - clock;
+    if (error.abs() <= jump) {
+      _timeAnchor += error * rate;
+      return false;
+    }
+    _timeAnchor = heard;
+    _playAnchor = elapsed;
+    return true;
+  }
+
   void _wake() {
     if (!_ticker.isActive) _ticker.start();
   }
@@ -271,19 +281,10 @@ class Playback {
   void _onTick(Duration _) {
     final elapsed = _now;
     if (_playing && !_scrubbing) {
-      var t = _timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6 * _audio.speed;
-      // Follow the audio engine's clock: jump if far off, otherwise glide towards it.
+      var t = _clockAt(elapsed, _audio.speed);
+      // Follow the audio engine's clock.
       final heard = _audio.position;
-      if (heard != null) {
-        final error = heard - t;
-        if (error.abs() > 0.06) {
-          _timeAnchor = heard;
-          _playAnchor = elapsed;
-          t = heard;
-        } else {
-          _timeAnchor += error * 0.05;
-        }
-      }
+      if (heard != null && _glide(heard, t, elapsed, jump: 0.06, rate: 0.05)) t = heard;
       if (t >= duration) {
         time.value = duration;
         pause();
@@ -296,7 +297,7 @@ class Playback {
       _dirty = true;
     }
     if (_daw) {
-      time.value = (_timeAnchor + (elapsed - _playAnchor).inMicroseconds / 1e6).clamp(0, math.max(0, duration));
+      time.value = _clockAt(elapsed).clamp(0, math.max(0, duration));
       _editor.viewport.follow(time.value);
       _dirty = true;
     }

@@ -228,22 +228,12 @@ class AudioTrack {
         final whole = to >= total, at = frameAt(from / rate);
         final count = to > from ? (whole ? total : frameAt(to / rate)) - at : 0;
         if (count <= 0) return out; // past the recording's end: silence
-        final buffer = malloc<Float>(count), name = path.toNativeUtf8();
-        try {
-          final samples = buffer.asTypedList(count)..fillRange(0, count, 0);
-          final error = soloud.readSamplesFromFile(name.cast(), from / rate, whole ? -1 : to / rate, count, false, buffer);
-          if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
-            throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
-          }
+        _withSamples(path, from / rate, whole ? -1 : to / rate, count, (samples) {
           final model = BasicPitch(weights);
           for (var c = first; c < end; c++) {
             out.setAll((c - first) * size, AudioNotes.chunk(model, c, samples, from: at, sampleRate: rate.toDouble()));
           }
-        } finally {
-          malloc
-            ..free(buffer)
-            ..free(name);
-        }
+        });
         return out;
       });
 }
@@ -338,25 +328,9 @@ class AudioEngine {
     }
   }
 
-  /// [count] samples of the recording at [path], spread evenly over it (as SoLoud's
-  /// readSamplesFromFile, which never frees what it reads into: 14 MB for five minutes, every
-  /// time a recording is read), on an isolate.
-  static Future<Float32List> _readEvenly(String path, int count) => Isolate.run(() {
-        if (count <= 0) return Float32List(0);
-        final buffer = malloc<Float>(count), name = path.toNativeUtf8();
-        try {
-          buffer.asTypedList(count).fillRange(0, count, 0);
-          final error = soloud.readSamplesFromFile(name.cast(), 0, -1, count, false, buffer);
-          if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
-            throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
-          }
-          return Float32List.fromList(buffer.asTypedList(count));
-        } finally {
-          malloc
-            ..free(buffer)
-            ..free(name);
-        }
-      });
+  /// [count] samples of the recording at [path], spread evenly over it, on an isolate.
+  static Future<Float32List> _readEvenly(String path, int count) => Isolate.run(
+      () => count <= 0 ? Float32List(0) : _withSamples(path, 0, -1, count, Float32List.fromList));
 
   /// Makes [track] take [id]'s recording, letting go of the one it had. Once [close]d, lets go
   /// of [track] instead: one read as its window closed is held by nothing.
@@ -571,5 +545,25 @@ class AudioEngine {
       data.setInt16(44 + i * 2, (v * 32767).round(), Endian.little);
     }
     return data.buffer.asUint8List();
+  }
+}
+
+/// [use] given [count] samples of the recording at [path] from [from] to [to] seconds (-1:
+/// its end), spread evenly, as SoLoud's readSamplesFromFile reads them: into memory of our
+/// own, freed after (its own wrapper never frees what it reads into: 14 MB for five minutes,
+/// every time a recording is read). Throws what it says went wrong.
+T _withSamples<T>(String path, double from, double to, int count, T Function(Float32List samples) use) {
+  final buffer = malloc<Float>(count), name = path.toNativeUtf8();
+  try {
+    final samples = buffer.asTypedList(count)..fillRange(0, count, 0);
+    final error = soloud.readSamplesFromFile(name.cast(), from, to, count, false, buffer);
+    if (error != soloud.ReadSamplesErrors.readSamplesNoError) {
+      throw SoLoudCppException.fromReadSampleError(ReadSamplesErrors.fromValue(error.value));
+    }
+    return use(samples);
+  } finally {
+    malloc
+      ..free(buffer)
+      ..free(name);
   }
 }

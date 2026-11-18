@@ -51,7 +51,7 @@ class _UpdateDialog extends StatelessWidget {
     final style = AppStyle.of(context);
     final size = MediaQuery.sizeOf(context);
     final muted = TextStyle(fontSize: 12.5, color: colors.textMuted);
-    final have = 'You have {version}'.fill({'version': '$appRelease ($appBuild)'});
+    final have = 'You have {version}'.fill({'version': appReleaseBuild});
     return ListenableBuilder(
       listenable: updater,
       builder: (context, _) {

@@ -65,12 +65,68 @@ std::pair<int64_t, int64_t> framesWithin (double from, double to, double rate, d
     return { first > 0 ? static_cast<int64_t> (std::min (first, n)) : 0, last < n ? static_cast<int64_t> (std::max (last, 0.0)) : frames };
 }
 
-void put16 (std::FILE* f, uint16_t v) { const unsigned char b[2] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8) }; std::fwrite (b, 1, 2, f); }
-void put32 (std::FILE* f, uint32_t v)
+// A region as it plays its source: [start, end) of the song, [offset] from song time to the
+// source's, over what the source holds of it ([sourceStart, sourceEnd)).
+struct RegionPlay
 {
-    const unsigned char b[4] { static_cast<unsigned char> (v), static_cast<unsigned char> (v >> 8), static_cast<unsigned char> (v >> 16), static_cast<unsigned char> (v >> 24) };
-    std::fwrite (b, 1, 4, f);
-}
+    const LinkAudioSource* source;
+    double start, end, offset, sourceStart, sourceEnd;
+
+    static RegionPlay of (const ARA::PlugIn::PlaybackRegion* region) noexcept
+    {
+        return { region->getAudioModification ()->getAudioSource<const LinkAudioSource> (), region->getStartInPlaybackTime (),
+                 region->getEndInPlaybackTime (), region->getStartInAudioModificationTime () - region->getStartInPlaybackTime (),
+                 std::max (0.0, region->getStartInAudioModificationTime ()), region->getEndInAudioModificationTime () };
+    }
+
+    // The song's time between which it may be heard: within the region and the source.
+    double from () const noexcept { return std::max (start, sourceStart - offset); }
+    double to () const noexcept { return std::min (end, sourceEnd - offset); }
+
+    // What it plays at frames [first, last) of a block, frame i at song time songAt (i), into
+    // [channels]: add (i, c, value) for each. Its source's first [available] frames are heard,
+    // at its own speed, resampled linearly; a source of another layout averaged into every
+    // channel.
+    template <typename SongAt, typename Add>
+    void mix (int64_t available, int channels, int64_t first, int64_t last, SongAt songAt, Add add) const noexcept
+    {
+        const double rate = source->getSampleRate ();
+        const int sourceChannels = source->channels ();
+        for (int64_t i = first; i < last; ++i)
+        {
+            const double song = songAt (i);
+            if (song < start || song >= end)
+                continue;
+            const double at = song + offset;
+            if (at < sourceStart || at >= sourceEnd)
+                continue;
+            const double position = at * rate;
+            const int64_t index = static_cast<int64_t> (position);
+            if (index < 0 || index >= available)
+                continue;
+            const float fraction = static_cast<float> (position - static_cast<double> (index));
+            const int64_t next = std::min (index + 1, available - 1);
+            auto sample = [&] (int c) {
+                const float* data = source->channel (c);
+                return data[index] + (data[next] - data[index]) * fraction;
+            };
+            if (sourceChannels == channels)
+            {
+                for (int c = 0; c < channels; ++c)
+                    add (i, c, sample (c));
+            }
+            else
+            {
+                float mono = 0;
+                for (int c = 0; c < sourceChannels; ++c)
+                    mono += sample (c);
+                mono /= static_cast<float> (sourceChannels);
+                for (int c = 0; c < channels; ++c)
+                    add (i, c, mono);
+            }
+        }
+    }
+};
 
 }  // namespace
 
@@ -160,58 +216,15 @@ void LinkPlaybackRenderer::render (float* const* out, int channels, double sampl
         return;
     for (const auto* region : getPlaybackRegions ())
     {
-        const auto* modification = region->getAudioModification ();
-        const auto* source = modification->getAudioSource<const LinkAudioSource> ();
-        const int64_t available = source->framesRead ();
-        const int sourceChannels = source->channels ();
-        if (available <= 0 || sourceChannels <= 0)
+        const auto play = RegionPlay::of (region);
+        const int64_t available = play.source->framesRead ();
+        if (available <= 0 || play.source->channels () <= 0)
             continue;
-
-        const double rate = source->getSampleRate ();
-        // Song time to the source's: where the region starts in each, and the region's ends.
-        const double regionStart = region->getStartInPlaybackTime ();
-        const double regionEnd = region->getEndInPlaybackTime ();
-        const double offset = region->getStartInAudioModificationTime () - regionStart;
-        const double sourceStart = std::max (0.0, region->getStartInAudioModificationTime ());
-        const double sourceEnd = region->getEndInAudioModificationTime ();
-
         // Only the frames the region can reach: a track of many regions costs a block little.
-        const auto [first, last] = framesWithin (std::max (regionStart, sourceStart - offset), std::min (regionEnd, sourceEnd - offset), songRate,
-                                                 static_cast<double> (songSample), frames);
-        for (int64_t i = first; i < last; ++i)
-        {
-            const double song = static_cast<double> (songSample + i) / songRate;
-            if (song < regionStart || song >= regionEnd)
-                continue;
-            const double at = song + offset;
-            if (at < sourceStart || at >= sourceEnd)
-                continue;
-            const double position = at * rate;
-            const int64_t index = static_cast<int64_t> (position);
-            if (index < 0 || index >= available)
-                continue;
-            const float fraction = static_cast<float> (position - static_cast<double> (index));
-            const int64_t next = std::min (index + 1, available - 1);
-            auto sample = [&] (int c) {
-                const float* data = source->channel (c);
-                return data[index] + (data[next] - data[index]) * fraction;
-            };
-            if (sourceChannels == channels)
-            {
-                for (int c = 0; c < channels; ++c)
-                    out[c][i] += sample (c);
-            }
-            else
-            {
-                // Another layout: the source's channels averaged, the same in each output channel.
-                float mono = 0;
-                for (int c = 0; c < sourceChannels; ++c)
-                    mono += sample (c);
-                mono /= static_cast<float> (sourceChannels);
-                for (int c = 0; c < channels; ++c)
-                    out[c][i] += mono;
-            }
-        }
+        const auto [first, last] = framesWithin (play.from (), play.to (), songRate, static_cast<double> (songSample), frames);
+        play.mix (
+            available, channels, first, last, [&] (int64_t i) { return static_cast<double> (songSample + i) / songRate; },
+            [out] (int64_t i, int c, float v) { out[c][i] += v; });
     }
     controller->rendererDidAccessModel ();
 }
@@ -486,12 +499,8 @@ std::string LinkDocumentController::snapshot ()
 
 void LinkDocumentController::publish ()
 {
-    std::string state = snapshot ();
     dirty_ = false;
-    if (state == published_)
-        return;
-    published_ = state;
-    client_.publish (id_, std::move (state));
+    client_.publish (id_, snapshot ());  // sent only when it differs from the last (LinkClient::publish)
 }
 
 // MARK: Files for Curator
@@ -513,22 +522,8 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
         // A RIFF file holds under 4 GB: the length is read as at most that.
         const uint32_t dataBytes = static_cast<uint32_t> (std::min<uint64_t> (bytes, 0xffffffffu - 64));
         const int64_t written = static_cast<int64_t> (dataBytes / (static_cast<uint32_t> (channels) * 4));
-        std::fwrite ("RIFF", 1, 4, f);
-        put32 (f, 4 + (8 + 16) + (8 + 4) + 8 + dataBytes);
-        std::fwrite ("WAVE", 1, 4, f);
-        std::fwrite ("fmt ", 1, 4, f);
-        put32 (f, 16);
-        put16 (f, 3);  // IEEE float
-        put16 (f, static_cast<uint16_t> (channels));
-        put32 (f, static_cast<uint32_t> (std::lround (rate)));
-        put32 (f, static_cast<uint32_t> (std::lround (rate)) * static_cast<uint32_t> (channels) * 4);
-        put16 (f, static_cast<uint16_t> (channels * 4));
-        put16 (f, 32);
-        std::fwrite ("fact", 1, 4, f);
-        put32 (f, 4);
-        put32 (f, static_cast<uint32_t> (written));
-        std::fwrite ("data", 1, 4, f);
-        put32 (f, dataBytes);
+        const std::string header = wavHeader (channels, rate, written);
+        std::fwrite (header.data (), 1, header.size (), f);
 
         std::vector<float> block (static_cast<size_t> (chunkFrames * channels));
         auto lastSaid = std::chrono::steady_clock::now ();
@@ -561,10 +556,7 @@ bool writeFloatWav (const std::string& path, int channels, double rate, int64_t 
 void LinkDocumentController::onMessage (const Message& message)
 {
     // On the connection's thread: only noted here, taken up on the host's main thread.
-    auto field = [&] (const char* key) -> const std::string* {
-        auto found = message.find (key);
-        return found == message.end () ? nullptr : &found->second;
-    };
+    auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string* t = field ("t");
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
@@ -574,7 +566,7 @@ void LinkDocumentController::onMessage (const Message& message)
     if (*t == "play" || *t == "stop" || *t == "seek")
     {
         auto* playback = getHostPlaybackController ();
-        const double at = field ("at") ? std::strtod (field ("at")->c_str (), nullptr) : NAN;
+        const double at = numberOf (message, "at", NAN);
         if (!playback)
             return;
         if (*t != "stop" && std::isfinite (at))
@@ -594,8 +586,8 @@ void LinkDocumentController::onMessage (const Message& message)
     {
         job.stem = true;
         job.id = *field ("track");
-        job.from = std::strtod (field ("from")->c_str (), nullptr);
-        job.length = std::strtod (field ("length")->c_str (), nullptr);
+        job.from = numberOf (message, "from", 0);
+        job.length = numberOf (message, "length", 0);
         if (!std::isfinite (job.from) || !std::isfinite (job.length))
             return;
     }
@@ -625,11 +617,7 @@ void LinkDocumentController::startPendingExport ()
 
 void LinkDocumentController::startRecording (const std::string& sourceID)
 {
-    auto reply = [this, sourceID] (const std::string& key, const std::string& value) {
-        JsonWriter w;
-        w.object ().field ("t", "exported").field ("document", id_).field ("source", sourceID).field (key.c_str (), value).endObject ();
-        client_.send (w.text ());
-    };
+    auto reply = [this, sourceID] (const char* key, const std::string& value) { client_.answer ("exported", id_, "source", sourceID, key, value); };
 
     LinkAudioSource* found = nullptr;
     for (auto* source : getDocument ()->getAudioSources<LinkAudioSource> ())
@@ -668,9 +656,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
                         block[static_cast<size_t> (i * channels + c)] = found->channel (c)[at + i];
             },
             [this, sourceID] (double done) {
-                JsonWriter progress;
-                progress.object ().field ("t", "progress").field ("document", id_).field ("source", sourceID).field ("done", done).endObject ();
-                client_.send (progress.text ());
+                client_.progress (id_, "source", sourceID, done);
             });
         if (ok)
             reply ("path", path);
@@ -683,11 +669,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
 void LinkDocumentController::startStem (const ExportJob& job)
 {
     const std::string trackID = job.id;
-    auto reply = [this, trackID] (const std::string& key, const std::string& value) {
-        JsonWriter w;
-        w.object ().field ("t", "stemmed").field ("document", id_).field ("track", trackID).field (key.c_str (), value).endObject ();
-        client_.send (w.text ());
-    };
+    auto reply = [this, trackID] (const char* key, const std::string& value) { client_.answer ("stemmed", id_, "track", trackID, key, value); };
 
     const ARA::PlugIn::RegionSequence* track = nullptr;
     for (const auto* t : getDocument ()->getRegionSequences ())
@@ -699,11 +681,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
         return reply ("error", "gone");
 
     // What the track plays, copied out of the model: the thread writing it reads no more of it.
-    struct Piece {
-        const LinkAudioSource* source;
-        double start, end, offset, sourceStart, sourceEnd;
-    };
-    std::vector<Piece> pieces;
+    std::vector<RegionPlay> pieces;
     std::vector<const LinkAudioSource*> sources;
     double rate = 0;
     int channels = 0;
@@ -714,9 +692,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
             return reply ("error", source->problem ());
         if (source->frames () <= 0 || !source->isSampleAccessEnabled ())
             return reply ("error", "unreadable");
-        pieces.push_back ({ source, region->getStartInPlaybackTime (), region->getEndInPlaybackTime (),
-                            region->getStartInAudioModificationTime () - region->getStartInPlaybackTime (),
-                            std::max (0.0, region->getStartInAudioModificationTime ()), region->getEndInAudioModificationTime () });
+        pieces.push_back (RegionPlay::of (region));
         if (std::find (sources.begin (), sources.end (), source) == sources.end ())
             sources.push_back (source);
         rate = std::max (rate, source->getSampleRate ());
@@ -755,51 +731,14 @@ void LinkDocumentController::startStem (const ExportJob& job)
                 std::fill (block, block + n * channels, 0.0f);
                 for (const auto& p : pieces)
                 {
-                    const double sourceRate = p.source->getSampleRate ();
-                    const int64_t available = p.source->frames ();
-                    const int sourceChannels = p.source->channels ();
-                    const auto [first, last] = framesWithin (std::max (p.start, p.sourceStart - p.offset), std::min (p.end, p.sourceEnd - p.offset), rate,
-                                                             from * rate + static_cast<double> (at), n);
-                    for (int64_t i = first; i < last; ++i)
-                    {
-                        const double song = from + static_cast<double> (at + i) / rate;
-                        if (song < p.start || song >= p.end)
-                            continue;
-                        const double time = song + p.offset;
-                        if (time < p.sourceStart || time >= p.sourceEnd)
-                            continue;
-                        const double position = time * sourceRate;
-                        const int64_t index = static_cast<int64_t> (position);
-                        if (index < 0 || index >= available)
-                            continue;
-                        const float fraction = static_cast<float> (position - static_cast<double> (index));
-                        const int64_t next = std::min (index + 1, available - 1);
-                        auto sample = [&] (int c) {
-                            const float* data = p.source->channel (c);
-                            return data[index] + (data[next] - data[index]) * fraction;
-                        };
-                        float* frame = block + i * channels;
-                        if (sourceChannels == channels)
-                        {
-                            for (int c = 0; c < channels; ++c)
-                                frame[c] += sample (c);
-                        }
-                        else
-                        {
-                            float mono = 0;
-                            for (int c = 0; c < sourceChannels; ++c)
-                                mono += sample (c);
-                            mono /= static_cast<float> (sourceChannels);
-                            for (int c = 0; c < channels; ++c)
-                                frame[c] += mono;
-                        }
-                    }
+                    const auto [first, last] = framesWithin (p.from (), p.to (), rate, from * rate + static_cast<double> (at), n);
+                    p.mix (
+                        p.source->frames (), channels, first, last, [&] (int64_t i) { return from + static_cast<double> (at + i) / rate; },
+                        [block, channels] (int64_t i, int c, float v) { block[i * channels + c] += v; });
                 }
             },
             [this, trackID] (double done) {
-                JsonWriter progress;
-                progress.object ().field ("t", "progress").field ("document", id_).field ("track", trackID).field ("done", done).endObject ();
-                client_.send (progress.text ());
+                client_.progress (id_, "track", trackID, done);
             });
         if (ok)
             reply ("path", path);

@@ -12,7 +12,7 @@ import 'error_text.dart';
 import 'export_dialog.dart';
 import 'l10n/l10n.dart';
 import 'ui_kit.dart';
-import 'updater.dart' show appBuild, appRelease;
+import 'updater.dart' show appReleaseBuild;
 import 'video_export.dart';
 import 'web_export.dart';
 import 'web_guide.dart';
@@ -147,7 +147,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
       title: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
         Expanded(child: Text('Export to Web'.tr)),
         // The Curator that writes the page, and so its player.
-        Text('Curator $appRelease ($appBuild)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal, color: context.colors.textMuted)),
+        Text('Curator $appReleaseBuild', style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal, color: context.colors.textMuted)),
       ]),
       content: SizedBox(
         width: dialogWidth(context, 440),

@@ -1255,8 +1255,7 @@ class EditableScore {
     old.replace(written);
     p._measures[m] = written;
     _indexMeasure(part, m, written);
-    _changed.add(m);
-    _carriedChanged(m, old, written);
+    _barReplaced(m, old, written);
     _contextsStaleFrom(p, m);
   }
 
@@ -1268,9 +1267,11 @@ class EditableScore {
             if (const {'clef', 'key', 'time', 'transpose', 'staves'}.contains(c.name.local)) c.toXmlString(),
       ].join();
 
-  /// Every bar after [m] changed too when what it goes on with did (a clef set, or taken back):
-  /// each is engraved with what is in force at its start.
-  void _carriedChanged(int m, XmlElement was, XmlElement now) {
+  /// Bar [m], [was], is [now] in its place: it is written again in the engraving, and so is
+  /// every bar after it when what it goes on with changed (a clef set, or taken back), as each
+  /// is engraved with what is in force at its start.
+  void _barReplaced(int m, XmlElement was, XmlElement now) {
+    _changed.add(m);
     if (_carried(was) != _carried(now)) _markFrom(m + 1);
   }
 
@@ -1358,8 +1359,11 @@ class EditableScore {
         back.whole[i] = List.of(now);
         // Bars that differ are written again in the engraving.
         for (var m = 0; m < math.max(now.length, all.length); m++) {
-          if (m >= now.length || m >= all.length || !identical(now[m], all[m])) _changed.add(m);
-          if (m < now.length && m < all.length && !identical(now[m], all[m])) _carriedChanged(m, now[m], all[m]);
+          if (m >= now.length || m >= all.length) {
+            _changed.add(m);
+          } else if (!identical(now[m], all[m])) {
+            _barReplaced(m, now[m], all[m]);
+          }
         }
         p.element.children.clear();
         p.element.children.addAll(all);
@@ -1376,8 +1380,7 @@ class EditableScore {
           old.replace(bar);
           now[m] = bar;
           _indexMeasure(i, m, bar);
-          _changed.add(m);
-          _carriedChanged(m, old, bar);
+          _barReplaced(m, old, bar);
         }
       }
       if (all != null || p.divisions != step.divisions[i]) {
@@ -2412,8 +2415,15 @@ class EditableScore {
   /// Notes of [ids] given the letter [step] (0–6: C–B), each at the octave nearest the pitch it
   /// had, as the key spells it (A–G outside note input). Each stays the note it was: its id, its
   /// lyrics, marks and slurs; a note whose pitch changes is untied, both ends. Notes of a chord
-  /// that come to one pitch are one note, the first.
+  /// that come to one pitch are one note, the first. A rest of [ids] becomes a note, at the
+  /// octave nearest the pitch before it (these first, so the notes' are as they were).
   void setStep(Iterable<String> ids, int step) => edit(() {
+        for (final e in eventsOf(ids)) {
+          if (!e.isRest) continue;
+          final fifths = keyAt(e.position.part, e.position.measure, e.position.time).fifths;
+          final pitch = Pitch.nearest(step, pitchBefore(e.position), alter: Pitch.keyAlter(step, fifths));
+          input(e.position, [InputItem(e.rhythm ?? Rhythm.express(e.length).first, [pitch])]);
+        }
         final chosen = {...ids};
         for (final e in eventsOf(ids)) {
           if (e.isRest) continue;

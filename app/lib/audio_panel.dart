@@ -259,12 +259,12 @@ class _AudioLanesState extends State<AudioLanes> with LaneCursor<AudioLanes> {
                   Text('Recording'.tr),
                   if (track != null)
                     Row(children: [
-                      if (c.takes.where((t) => t.id == c.focus).firstOrNull?.daw case final daw?) ...[
+                      if (c.focusTake?.daw case final daw?) ...[
                         AttaccaMark(daw: daw, size: 11),
                         const SizedBox(width: 3),
                       ],
                       Flexible(
-                        child: Text(c.takes.where((t) => t.id == c.focus).firstOrNull?.label ?? track.name,
+                        child: Text(c.focusTake?.label ?? track.name,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, color: colors.textMuted)),
                       ),
@@ -658,10 +658,7 @@ class AudioToolbar extends StatelessWidget {
         ),
         if (c.takes.length > 1) ...[
           const SizedBox(width: 4),
-          ToolGroup(children: [
-            for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.toolsIn(context).entries)
-              ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
-          ]),
+          InstrumentsToolbar.toolGroup(context, c),
           const SizedBox(width: 4),
           _CrossfadeMenu(controller: c),
         ],
@@ -725,8 +722,8 @@ class AudioToolbar extends StatelessWidget {
   }
 }
 
-/// A setting shown as its value, chosen from a menu: "⏲ 100% ▾". The Audio tab's menus are all
-/// this one, so they look and line up alike.
+/// The Audio tab's menus: a [ToolbarValueMenu] as tall as its controls, so they look and line
+/// up alike.
 class _ValueMenu<T> extends StatelessWidget {
   const _ValueMenu({required this.tooltip, this.icon, required this.label, required this.items, required this.onSelected});
   final String tooltip;
@@ -736,30 +733,18 @@ class _ValueMenu<T> extends StatelessWidget {
   final ValueChanged<T> onSelected;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return OverlaySemantics(
-      child: AppPopupMenuButton<T>(
+  Widget build(BuildContext context) => ToolbarValueMenu<T>(
         tooltip: tooltip,
-        position: PopupMenuPosition.under,
+        icon: icon,
+        label: label,
+        items: items,
+        onSelected: onSelected,
         style: TextButton.styleFrom(
           minimumSize: Size(0, AppStyle.of(context).control),
           padding: EdgeInsets.only(left: icon == null ? 8 : 6, right: 2),
           shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
         ),
-        onSelected: onSelected,
-        itemBuilder: items,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon case final icon?) ...[
-            Icon(icon.of(context), size: 16, color: colors.textMuted),
-            const SizedBox(width: 5),
-          ],
-          Text(label, style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
-        ]),
-      ),
-    );
-  }
+      );
 }
 
 /// The sync's less used settings, in a menu at the toolbar's right end: following a MIDI tempo

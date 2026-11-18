@@ -112,9 +112,8 @@ private:
     LinkClient& client_;
     int listener_ { 0 };
 
-    // The last state published: a new one is sent only when it differs. [dirty_]: something
-    // changed outside an edit, to be published when the DAW next asks for model updates.
-    std::string published_;
+    // Something changed outside an edit, to be published when the DAW next asks for model
+    // updates.
     bool dirty_ { false };
 
     // Files Curator asked for, and the one being written (one at a time): the recordings it

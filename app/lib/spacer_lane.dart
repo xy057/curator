@@ -115,7 +115,4 @@ class _HorizontalSpacers extends SpanLaneModel {
 
   @override
   String? label(int index) => '+${plainNumber(c.spacers.horizontal[index].width)} sp';
-
-  @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
 }

@@ -4,6 +4,9 @@ import 'package:xml/xml.dart';
 
 // What reading and writing MusicXML takes again and again, for the engine's own readers.
 
+/// [s] as MusicXML text or an attribute's value: `&`, `<`, `>` and `"` escaped.
+String xmlEscaped(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
 /// The whole number [e] holds; null: none, or it isn't one.
 int? xmlInt(XmlElement? e) => int.tryParse(e?.innerText.trim() ?? '');
 

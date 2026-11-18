@@ -115,7 +115,7 @@ class _TakeRegions extends SpanLaneModel {
   final EditorController c;
   final String id;
 
-  List<Region> get _regions => c.takes.where((t) => t.id == id).firstOrNull?.regions ?? const [];
+  List<Region> get _regions => c.take(id)?.regions ?? const [];
 
   @override
   List<Span> get spans => [for (final r in _regions) (start: r.start, end: r.end)];
@@ -159,9 +159,6 @@ class _TakeRegions extends SpanLaneModel {
 
   @override
   String? label(int index) => null;
-
-  @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
 }
 
 /// The sign of a recording Attacca took from a DAW ([Take.daw]), beside its name: a link, and

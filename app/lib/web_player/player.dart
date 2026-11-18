@@ -55,15 +55,9 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
           : _Shows.score;
 
   /// The views in the recording heard's time.
-  TimedSteps<SceneView> get _timed {
-    final tl = _scene.timeline;
-    if (_timedViews case (final kept, final timed) when identical(kept, tl)) return timed;
-    final timed = _views.inTime(tl);
-    _timedViews = (tl, timed);
-    return timed;
-  }
+  TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
 
-  (ScoreTimeline, TimedSteps<SceneView>)? _timedViews;
+  final _timedViews = TimedStepsCache<SceneView>();
 
   late final CuratedScene _scene = CuratedScene(_loaded.score, style: RenderStyle(staffSpace: _page.staffSpace));
   late Curation _curation = _loaded.curation(_shown);
@@ -117,7 +111,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     final score = _loaded.score, starts = score.timeline.measureStarts;
     _notes ??= !score.hasNotes
         ? PlayerNotes.none
-        : PlayerNotes.of(soundingNotes(score.musicXML, starts, unpitched: true), dynamics: ScoreDynamics.read(score.musicXML, starts));
+        : PlayerNotes.ofScore(score.musicXML, starts);
     return _pulses ??= PlayerPulses(_notes!, _scene.timeline);
   }
 

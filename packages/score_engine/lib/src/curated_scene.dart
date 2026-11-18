@@ -243,7 +243,7 @@ class LoadedScore {
 
   /// Engraves [musicXML] as [request] asks; with [pdf], lays out that PDF score instead
   /// ([fromPdf]); with [lilypond], takes the score LilyPond engraved ([fromLilyPond]); with
-  /// [midi], draws that MIDI file's notes in rows ([fromMidi]).
+  /// [midi], draws that MIDI file's notes in rows ([MidiScore]).
   ///
   /// Reading the file is done on other isolates, so a large score keeps the app drawing
   /// meanwhile; with [measure], what each bar plays ([salience], for auto-curation) is worked
@@ -326,13 +326,7 @@ class LoadedScore {
   static LoadedScore fromLilyPond(LilyPondScore lilypond, EngraveRequest request, {double? tempo}) =>
       _fromDrawn(_DrawnLilyPond(lilypond).read(request), request, tempo: tempo, lilypond: lilypond);
 
-  /// The score a MIDI file is ([MidiScore]): the score written for it, drawn as rows of its
-  /// notes the way [request]'s [EngraveRequest.midi] says, with an empty row for each vertical
-  /// spacer. Its fonts must be loaded already ([prepareFonts]).
-  static LoadedScore fromMidi(MidiScore midi, EngraveRequest request, {double? tempo}) =>
-      _fromDrawn(_DrawnMidi(midi).read(request), request, tempo: tempo, midi: midi);
-
-  /// A drawn score ([fromPdf], [fromLilyPond], [fromMidi]) read on another isolate (the main one only
+  /// A drawn score ([fromPdf], [fromLilyPond], a MIDI file's rows) read on another isolate (the main one only
   /// waits); with [measure], what each bar plays measured there too. [textFontFound] false:
   /// the text font isn't installed here, and Academico draws the text.
   static Future<LoadedScore> _fromDrawnApart(_Drawn drawn, EngraveRequest request,
@@ -1861,13 +1855,19 @@ class CuratedScene {
       double end = double.infinity,
       ui.Color? paper,
       ui.Color? ink}) {
+    return drawFrame(width, height, devicePixelRatio,
+        (canvas, size) => paint(canvas, size, time: time, curation: curation, devicePixelRatio: devicePixelRatio, end: end, paper: paper, ink: ink));
+  }
+
+  /// A [width] × [height] pixel image of what [draw] draws, given a canvas in layout points
+  /// ([devicePixelRatio] pixels each) clipped to the frame, and the frame's size in them.
+  static ui.Image drawFrame(int width, int height, double devicePixelRatio, void Function(ui.Canvas canvas, ui.Size size) draw) {
     final size = ui.Size(width / devicePixelRatio, height / devicePixelRatio);
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder)
       ..scale(devicePixelRatio)
       ..clipRect(ui.Offset.zero & size);
-    paint(canvas, size,
-        time: time, curation: curation, devicePixelRatio: devicePixelRatio, end: end, paper: paper, ink: ink);
+    draw(canvas, size);
     final picture = recorder.endRecording();
     try {
       return picture.toImageSync(width, height);

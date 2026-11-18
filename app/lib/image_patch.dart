@@ -302,16 +302,8 @@ class RasterArt implements PatchArt {
   ui.Image frameAt(double time) {
     if (!animated || !time.isFinite) return image;
     final t = (time * 1000).floor() % _ends.last;
-    var lo = 0, hi = _ends.length - 1;
-    while (lo < hi) {
-      final mid = (lo + hi) >> 1;
-      if (_ends[mid] <= t) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
-      }
-    }
-    return frames[lo];
+    // The first to end after it (one does: t is before the last's end).
+    return frames[lastAtOrBefore(_ends.length, t.toDouble(), (i) => _ends[i].toDouble()) + 1];
   }
 
   @override

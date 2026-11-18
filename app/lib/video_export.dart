@@ -478,15 +478,9 @@ class VideoExport {
   final _mapTime = ValueNotifier(0.0);
 
   /// The View lane in the timeline shown ([showBars]'s), made again only when that changes.
-  TimedSteps<SceneView> get _timed {
-    final tl = _scene.timeline;
-    if (_timedViews case (final kept, final timed) when identical(kept, tl)) return timed;
-    final timed = _views.inTime(tl);
-    _timedViews = (tl, timed);
-    return timed;
-  }
+  TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
 
-  (ScoreTimeline, TimedSteps<SceneView>)? _timedViews;
+  final _timedViews = TimedStepsCache<SceneView>();
 
   /// How swollen the map's players are, as the timeline shown plays the notes.
   PlayerPulses get _pulses {
@@ -778,18 +772,12 @@ class VideoExport {
         final ui.Image image;
         try {
           await _scene.ready(start + format.timeOf(i), frameSize, holder: hold);
-          final recorder = ui.PictureRecorder();
-          final canvas = ui.Canvas(recorder)
-            ..scale(format.devicePixelRatio)
-            ..clipRect(ui.Offset.zero & frameSize);
-          _paintFrame(canvas, frameSize,
-              time: start + format.timeOf(i), devicePixelRatio: format.devicePixelRatio, paper: format.paperColor, ink: format.paper.ink);
-          final picture = recorder.endRecording();
-          try {
-            image = picture.toImageSync(format.width, format.height);
-          } finally {
-            picture.dispose();
-          }
+          image = CuratedScene.drawFrame(
+              format.width,
+              format.height,
+              format.devicePixelRatio,
+              (canvas, size) => _paintFrame(canvas, size,
+                  time: start + format.timeOf(i), devicePixelRatio: format.devicePixelRatio, paper: format.paperColor, ink: format.paper.ink));
         } finally {
           pdf?.release(hold);
         }

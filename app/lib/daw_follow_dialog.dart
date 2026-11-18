@@ -46,26 +46,18 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
   final (session, document) = found;
   final source = document.sources.where((s) => s.id == follow.source).firstOrNull;
   // The region followed: the DAW plays only it of the recording.
-  final region = document.region(follow.region) ?? document.regionsOf(follow.source).firstOrNull;
+  final region = c.daw.region;
   // The one linked to the DAW's Attacca, in its window.
   final capturer = link.linkedCapturerOf(session);
   if (source == null || region == null || capturer == null) {
-    await showAppDialog<void>(
-      context: context,
-      builder: (context) => AppDialog(
-        title: Text('Record from DAW'.tr),
-        content: SizedBox(
-          width: dialogWidth(context, 360),
-          child: Text(capturer != null
-              ? 'The recording followed isn’t in the DAW.'.tr
-              : link.capturersOf(session).isEmpty
-                  ? 'Put Attacca Capturer on the DAW’s output.'.tr
-                  : 'Choose the Capturer in Attacca’s window in the DAW.'.tr),
-        ),
-        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-      ),
-    );
-    return;
+    return showNotice(
+        context,
+        'Record from DAW'.tr,
+        capturer != null
+            ? 'The recording followed isn’t in the DAW.'.tr
+            : link.capturersOf(session).isEmpty
+                ? 'Put Attacca Capturer on the DAW’s output.'.tr
+                : 'Choose the Capturer in Attacca’s window in the DAW.'.tr);
   }
   await _take(
     context,
@@ -80,42 +72,38 @@ Future<void> recordFromDaw(BuildContext context, EditorController c) async {
         name: source.name.isEmpty ? 'Recording'.tr : source.name,
         progress: progress),
     onCancel: () => link.cancelCapture(document.id, capturer),
-    linked: false,
   );
 }
 
-/// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got
-/// (a capture, [onCancel] given, can be cancelled), then loaded into the project's Attacca take;
-/// false when it couldn't be. Not [linked] (the DAW's mix recorded), the take becomes an ordinary
-/// recording, no longer the DAW's.
+/// [source] of [session] fetched as a file by [fetch] while a dialog shows how far it has got,
+/// then loaded into the project's Attacca take; false when it couldn't be. A capture ([onCancel]
+/// given, which cancels it) is the DAW's mix recorded: the take becomes an ordinary recording,
+/// no longer the DAW's.
 Future<bool> _take(BuildContext context, EditorController c, DawSession session, DawSource source,
-    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel, bool linked = true}) async {
+    Future<String> Function(void Function(double) progress) fetch, {VoidCallback? onCancel}) async {
   final messenger = ScaffoldMessenger.of(context);
   void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
-  final done = ValueNotifier<double>(0);
-  final dialog = showAppDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => _Fetching(done: done, capturing: onCancel != null, onCancel: onCancel),
-  );
+  // While the DAW writes the recording out, or Attacca Capturer hears it as the DAW plays it.
+  final capturing = onCancel != null;
   String? path;
   try {
-    path = await fetch((d) => done.value = d);
+    path = await withProgress(context, capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr, fetch,
+        note: capturing ? 'Play it in the DAW if it doesn’t start.'.tr : null, onCancel: onCancel);
   } on DawLinkException catch (e) {
     if (e.reason != 'cancelled') say('Couldn’t get the recording from the DAW. {error}'.fill({'error': dawProblem(e.reason)}));
   }
-  if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-  await dialog;
-  done.dispose();
   if (path == null) return false;
   try {
-    await c.loadAudio(path, daw: linked ? (host: session.host, source: source.id, name: source.name) : null, intoAttacca: true);
+    await c.loadAudio(path, daw: capturing ? null : (host: session.host, source: source.id, name: source.name), intoAttacca: true);
   } catch (e) {
     say('Couldn’t load the recording. {error}'.fill({'error': describeError(e)}));
     return false;
   }
   return true;
 }
+
+/// That Attacca doesn't support [daw] (its name as the DAW says it; '' unsaid).
+String attaccaUnsupported(String daw) => daw.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': daw});
 
 /// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
 /// the newer one is installed already (a DAW keeps the one it loaded until then), else update it.
@@ -199,6 +187,20 @@ class _FollowDialogState extends State<_FollowDialog> {
           final chosen = recordings.where((r) => (r.document.id, r.source.id) == _key).firstOrNull ?? recordings.firstOrNull;
           final muted = TextStyle(fontSize: 12, color: context.colors.textMuted);
           // A DAW whose Attacca is older than Curator: said, whatever else is.
+          // A notice: what is so, and what to do (muted), then [extra].
+          Widget notice(String said, String hint, {List<Widget> extra = const [], List<Widget> actions = const []}) => AppDialog(
+                title: Text('Connect Attacca'.tr),
+                content: SizedBox(
+                  width: dialogWidth(context, 360),
+                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(said),
+                    const SizedBox(height: 6),
+                    Text(hint, style: muted),
+                    ...extra,
+                  ]),
+                ),
+                actions: [...actions, FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
+              );
           final outdated = [
             for (final s in {for (final s in widget.link.sessions) if (s.outdated) s.host: s}.values)
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(attaccaOutdated(s), style: muted)),
@@ -206,38 +208,14 @@ class _FollowDialogState extends State<_FollowDialog> {
           // Only DAWs Attacca doesn't support are here: said so; ⌥ shows Connect Anyway.
           final unsupported = {for (final s in widget.link.sessions) if (!s.supported && s.documents.isNotEmpty) s.host};
           if (chosen == null && !_anyDaw && unsupported.isNotEmpty) {
-            final name = unsupported.where((h) => h.isNotEmpty).join(', ');
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': name})),
-                  const SizedBox(height: 6),
-                  Text('Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}), style: muted),
-                ]),
-              ),
-              actions: [
-                if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr)),
-                FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr)),
-              ],
-            );
+            return notice(attaccaUnsupported(unsupported.where((h) => h.isNotEmpty).join(', ')),
+                'Attacca works in {daws}.'.fill({'daws': DawLink.supportedDaws.join(', ')}),
+                actions: [if (_option) TextButton(onPressed: () => setState(() => _anyDaw = true), child: Text('Connect Anyway'.tr))]);
           }
           final bound = widget.bound;
           if (chosen == null && bound != null && widget.link.sessions.isNotEmpty) {
             // Its own Attacca recording isn't in the DAWs connected: no other is offered.
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('This project’s Attacca recording isn’t open in a DAW.'.tr),
-                  const SizedBox(height: 6),
-                  Text([bound.name, if (bound.host.isNotEmpty) bound.host].join(' · '), style: muted),
-                ]),
-              ),
-              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-            );
+            return notice('This project’s Attacca recording isn’t open in a DAW.'.tr, [bound.name, if (bound.host.isNotEmpty) bound.host].join(' · '));
           }
           if (chosen == null) {
             // Connected, yet no recording: Attacca is on an insert only (or on no track) there.
@@ -248,19 +226,7 @@ class _FollowDialogState extends State<_FollowDialog> {
                     ? ('No DAW connected.'.tr, 'Put Attacca on a track in your DAW.'.tr)
                     : (connected.isEmpty ? 'Attacca isn’t on a recording in the DAW.'.tr : 'Attacca isn’t on a recording in {daw}.'.fill({'daw': connected}),
                         'Add it to a track as an ARA extension, not as an insert.'.tr);
-            return AppDialog(
-              title: Text('Connect Attacca'.tr),
-              content: SizedBox(
-                width: dialogWidth(context, 360),
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(said),
-                  const SizedBox(height: 6),
-                  Text(hint, style: muted),
-                  ...outdated,
-                ]),
-              ),
-              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('OK'.tr))],
-            );
+            return notice(said, hint, extra: outdated);
           }
           final bar = _barValue;
           final hosts = {for (final r in recordings) r.session.host}.length;
@@ -320,33 +286,5 @@ class _FollowDialogState extends State<_FollowDialog> {
             ],
           );
         },
-      );
-}
-
-/// While the DAW writes the recording out, or ([capturing]) Attacca Capturer hears it as the
-/// DAW plays it: how far it has got; a capture can be cancelled.
-class _Fetching extends StatelessWidget {
-  const _Fetching({required this.done, this.capturing = false, this.onCancel});
-  final ValueNotifier<double> done;
-  final bool capturing;
-  final VoidCallback? onCancel;
-
-  @override
-  Widget build(BuildContext context) => AppDialog(
-        title: Text(capturing ? 'Capturing the Recording'.tr : 'Getting the Recording'.tr),
-        content: SizedBox(
-          width: dialogWidth(context, 320),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ValueListenableBuilder<double>(
-              valueListenable: done,
-              builder: (context, d, _) => LinearProgressIndicator(value: d > 0 ? d : null),
-            ),
-            if (capturing) ...[
-              const SizedBox(height: 10),
-              Text('Play it in the DAW if it doesn’t start.'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
-            ],
-          ]),
-        ),
-        actions: [if (onCancel case final cancel?) TextButton(onPressed: cancel, child: Text('Cancel'.tr))],
       );
 }

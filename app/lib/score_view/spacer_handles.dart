@@ -150,7 +150,7 @@ mixin _SpacerHandles on State<ScoreView> {
     if (!c.spacers.enabled) return _spacerPanEnd(commit: false); // turned off under it
     final p = frame.toLayout(d.localPosition), delta = p - drag.origin, sp = scene.style.staffSpace;
     final time = c.playback.time.value, r = drag.rect;
-    drag.moved |= delta.distance >= 3;
+    drag.moved |= delta.distance >= dragStart;
     switch ((drag.vertical, drag.grip)) {
       case (final id?, _Grip.body):
         // Dropped before the first staff shown whose middle is below the pointer.

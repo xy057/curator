@@ -62,10 +62,7 @@ class VideoToolbar extends StatelessWidget {
           final view = stretch?.value ?? a.drawing;
           void set(SceneView v) => stretch != null ? a.setSelectedView(v) : a.drawing = v;
           return Row(children: [
-            ToolGroup(children: [
-              for (final MapEntry(key: tool, value: (icon, tip)) in InstrumentsToolbar.toolsIn(context).entries)
-                ToolbarButton(icon: icon.of(context), tooltip: tip, selected: c.lanes.tool == tool, onPressed: () => c.lanes.tool = tool),
-            ]),
+            InstrumentsToolbar.toolGroup(context, c),
             const SizedBox(width: 6),
             _Menu<ViewKind>(
               tooltip: stretch != null ? 'View'.trIn('video') : 'View to draw'.tr,
@@ -76,7 +73,7 @@ class VideoToolbar extends StatelessWidget {
               name: viewName,
               onSelected: (k) => set(view.copyWith(kind: k)),
             ),
-            if (view.kind == ViewKind.split)
+            if (view.kind.hasSide)
               _Menu<MapSide>(
                 tooltip: 'Where the map goes'.tr,
                 label: _sideName(view.side),
@@ -85,7 +82,7 @@ class VideoToolbar extends StatelessWidget {
                 name: _sideName,
                 onSelected: (s) => set(view.copyWith(side: s)),
               ),
-            if (view.kind == ViewKind.inset)
+            if (view.kind.hasCorner)
               _Menu<MapCorner>(
                 tooltip: 'Where the map goes'.tr,
                 label: _cornerName(view.corner),
@@ -94,11 +91,11 @@ class VideoToolbar extends StatelessWidget {
                 name: _cornerName,
                 onSelected: (s) => set(view.copyWith(corner: s)),
               ),
-            if (view.kind == ViewKind.split || view.kind == ViewKind.inset)
+            if (view.kind.sized)
               _Menu<double>(
                 tooltip: 'Map size'.tr,
                 label: _percent(view.size),
-                values: {...view.kind == ViewKind.split ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
+                values: {...view.kind.hasSide ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
                 chosen: view.size,
                 name: _percent,
                 onSelected: (s) => set(view.copyWith(size: s)),
@@ -149,29 +146,16 @@ class _Menu<T> extends StatelessWidget {
   final Color? swatch;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return OverlaySemantics(
-      child: AppPopupMenuButton<T>(
+  Widget build(BuildContext context) => ToolbarValueMenu<T>(
         tooltip: tooltip,
-        position: PopupMenuPosition.under,
-        style: toolbarMenuStyle(context, left: 6),
+        label: label,
+        icon: icon,
+        swatch: swatch,
         onSelected: onSelected,
-        itemBuilder: (context) => [
+        items: (context) => [
           for (final v in values) checkedMenuItem(context, value: v, checked: v == chosen, child: Text(name(v))),
         ],
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon case final icon?) ...[Icon(icon.of(context), size: 16, color: colors.textMuted), const SizedBox(width: 5)],
-          if (swatch case final swatch?) ...[
-            Container(width: 10, height: 10, decoration: BoxDecoration(color: swatch, borderRadius: BorderRadius.circular(3))),
-            const SizedBox(width: 6),
-          ],
-          Text(label, style: TextStyle(fontSize: 12.5, color: colors.text, fontFeatures: const [FontFeature.tabularFigures()])),
-          Icon(AppIcon.dropDown.of(context), size: 18, color: colors.textMuted),
-        ]),
-      ),
-    );
-  }
+      );
 }
 
 /// The Video tab's lanes: View, the stretches of the performance showing something other than
@@ -259,9 +243,6 @@ class _ViewStretches extends SpanLaneModel {
       _ => viewName(v.kind),
     };
   }
-
-  @override
-  InlineSpan labelSpan(String label, TextStyle style) => TextSpan(text: label, style: style);
 
   @override
   Color? color(int index) => _viewColor(_stretches[index].value.kind);

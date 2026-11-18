@@ -88,9 +88,6 @@ abstract final class ProjectModules {
   /// before they were packages: the extension's id → that module.
   static const Map<String, ProjectModule> ownData = {'attachImage': images, 'captions': captions, 'chapters': chapters, 'tonality': tonality};
 
-  /// Whether [id] can be a stem's ([Stem.id]): `stem-1`, `stem-2`…, safe as a folder's name.
-  static bool isStemId(String id) => Stem.isId(id);
-
   /// Whether [id] can be a take's ([Take.id]): `take-1`, `take-2`…, safe as a folder's name.
   static bool isTakeId(String id) => _Takes.isTakeId(id);
 
@@ -179,8 +176,8 @@ final class _ExtensionData extends ProjectModule {
 FormatException _damaged(String what) => FormatException('The project is damaged: $what');
 
 /// "#A86B3C"; null for anything else.
-Color? _color(Object? hex) => switch (hex) {
-      final String s when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s) => Color(0xFF000000 | int.parse(s.substring(1), radix: 16)),
+Color? _color(Object? hex) => switch (argbOfHex(hex)) {
+      final argb? => Color(argb),
       _ => null,
     };
 

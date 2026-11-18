@@ -454,6 +454,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     _lifecycle.dispose();
     _homeKeys.dispose();
     _menus.dispose();
+    _attaccaLine.dispose();
     _recent.dispose();
     _typing.dispose();
     for (final p in _projects) {
@@ -510,11 +511,16 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
   final _dawsSeen = Expando<bool>();
   final _dawProcessesSeen = <int>{};
 
+  /// File ▸ Attacca's first line as last shown ([_attaccaState]): the menus are built again
+  /// when it changes, not at every word from a DAW (a region dragged sends one an edit).
+  late final _attaccaLine = ValueNotifier(_attaccaState);
+
   void _dawsChanged() {
+    _attaccaLine.value = _attaccaState;
     for (final session in widget.dawLink?.sessions ?? const <DawSession>[]) {
       if (_dawsSeen[session] == true || _dawProcessesSeen.contains(session.pid)) continue;
       final said = !session.supported
-          ? (session.host.isEmpty ? 'This DAW isn’t supported by Attacca.'.tr : '{daw} isn’t supported by Attacca.'.fill({'daw': session.host}))
+          ? attaccaUnsupported(session.host)
           : session.outdated
               ? attaccaOutdated(session)
               : null;
@@ -754,7 +760,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_recent, _menus, _typing, plugins, ?widget.dawLink]),
+      listenable: Listenable.merge([_recent, _menus, _typing, plugins, _attaccaLine]),
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
@@ -827,63 +833,16 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           plugins: plugins,
           free: free,
           typing: _typing.value,
-          onOpen: does['open'],
-          onImport: does['importScore'],
-          onNewProject: does['newProject'],
-          onNewLilyPond: does['newLilyPond'],
-          onSave: does['save'],
-          onSaveAs: does['saveAs'],
-          onSettings: _settings,
-          onAbout: does['about'],
+          does: does,
           recentFiles: _recent.value,
           onOpenRecent: free ? _openPath : null,
           onClearRecent: settings.clearRecent,
-          onClose: does['close'],
-          onProjectSettings: does['projectSettings'],
-          onExportVideo: does['exportVideo'],
-          onExportWeb: does['exportWeb'],
-          onUndo: does['undo'],
-          onRedo: does['redo'],
-          onCut: does['cut'],
-          onCopy: does['copy'],
-          onPaste: does['paste'],
-          onDelete: does['delete'],
-          onSelectAll: does['selectAll'],
-          onFindPhrase: does['findPhrase'],
           previewShown: page?._previewShown ?? true,
           timelineShown: page?._timelineShown ?? true,
-          onShowPreview: open ? page._showPreview : null,
-          onShowTimeline: open ? page._showTimeline : null,
-          onMaximizePreview: does['maximizePreview'],
-          onMaximizeTimeline: does['maximizeTimeline'],
           playerMapShown: settings.playerMap,
-          onShowPlayerMap: open ? (on) => settings.playerMap = on : null,
-          onNextTab: does['nextTab'],
-          onPreviousTab: does['previousTab'],
           tabBarShown: _tabBar,
-          onShowTabBar: (on) => settings.tabBar = on,
-          attacca: (
-            state: _attaccaState,
-            following: open && page._followsDaw.value,
-            onFollow: does['followDaw'],
-            onRecord: does['recordFromDaw'],
-            onCaptureStems: does['captureStems'],
-            onSettings: does['attaccaSettings'],
-          ),
-          midi: midi == null
-              ? null
-              : (
-                  velocity: midi.look.velocity,
-                  sharedRange: midi.look.sharedRange,
-                  fileTempo: midi.fileTempo,
-                  onVelocity: does['midiVelocity'],
-                  onSharedRange: does['midiSharedRange'],
-                  onTallerRows: does['midiTallerRows'],
-                  onShorterRows: does['midiShorterRows'],
-                  onWiderBeats: does['midiWiderBeats'],
-                  onNarrowerBeats: does['midiNarrowerBeats'],
-                  onFileTempo: does['midiFileTempo'],
-                ),
+          attacca: (state: _attaccaState, following: open && page._followsDaw.value),
+          midi: midi == null ? null : (velocity: midi.look.velocity, sharedRange: midi.look.sharedRange, fileTempo: midi.fileTempo),
           child: window!,
         );
       },

@@ -90,7 +90,7 @@ class PlayerMapEditing {
 
   /// Static, so the isolate is sent the score's text and bars alone, never the controller.
   static Future<PlayerNotes> _notesOff(String xml, List<double> starts) =>
-      Isolate.run(() => PlayerNotes.of(soundingNotes(xml, starts, unpitched: true), dynamics: ScoreDynamics.read(xml, starts)));
+      Isolate.run(() => PlayerNotes.ofScore(xml, starts));
 
   void _read(LoadedScore score) {
     final xml = score.musicXML;

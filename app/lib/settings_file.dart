@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
@@ -7,7 +6,6 @@ import 'package:score_engine/score_engine.dart' show ZipEntries;
 
 import 'legacy_project.dart';
 import 'project_archive.dart';
-import 'project_file.dart' show ProjectFile;
 import 'project_modules.dart';
 import 'project_state.dart';
 
@@ -55,22 +53,8 @@ abstract final class SettingsFile {
   static Future<({EditState settings, bool olderFormat})> read(String path) => Isolate.run(() => _read(path));
 
   static void _write(String path, EditState settings) {
-    final temp = '$path.saving';
-    final out = OutputFileStream(temp);
-    final zip = ZipEncoder()..startEncode(out, level: DeflateLevel.defaultCompression); // as a project ([ProjectFile])
-    try {
-      ProjectArchive.write(zip, ProjectState(edits: settings), mimeType: mimeType, stub: 'settings.json', modules: ProjectModules.settings);
-      zip.endEncode();
-      out.closeSync();
-      File(temp).renameSync(path);
-    } catch (_) {
-      ProjectFile.letGo(out.closeSync); // (as a project's, each step on its own)
-      ProjectFile.letGo(() {
-        final f = File(temp);
-        if (f.existsSync()) f.deleteSync();
-      });
-      rethrow;
-    }
+    ProjectArchive.writeFile(path,
+        (zip, _) => ProjectArchive.write(zip, ProjectState(edits: settings), mimeType: mimeType, stub: 'settings.json', modules: ProjectModules.settings));
   }
 
   static ({EditState settings, bool olderFormat}) _read(String path) {

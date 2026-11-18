@@ -7,7 +7,27 @@ import 'automation.dart';
 
 /// What a frame shows: the score, the player map, both side by side, or the score with the map
 /// in a corner.
-enum ViewKind { score, map, split, inset }
+enum ViewKind {
+  score(scoreWhole: true),
+  map,
+  split(hasSide: true),
+  inset(hasCorner: true, scoreWhole: true);
+
+  const ViewKind({this.hasSide = false, this.hasCorner = false, this.scoreWhole = false});
+
+  /// Whether a [SceneView] of it says the map's side ([SceneView.side]: a split's).
+  final bool hasSide;
+
+  /// Whether a [SceneView] of it says the map's corner ([SceneView.corner]: an inset's).
+  final bool hasCorner;
+
+  /// Whether the score is drawn in the whole frame, where it always is (the map over it, if
+  /// any).
+  final bool scoreWhole;
+
+  /// Whether a [SceneView] of it says how big the map is ([SceneView.size]).
+  bool get sized => hasSide || hasCorner;
+}
 
 /// Where a split view puts the map: the score takes the rest.
 enum MapSide { right, left, bottom, top }
@@ -42,9 +62,6 @@ class SceneView {
 
   /// Whether it draws the player map.
   bool get showsMap => kind != ViewKind.score;
-
-  /// Whether it draws the score.
-  bool get showsScore => kind != ViewKind.map;
 
   SceneView copyWith({ViewKind? kind, MapSide? side, MapCorner? corner, double? size}) {
     final k = kind ?? this.kind;
@@ -94,24 +111,22 @@ class SceneView {
   bool operator ==(Object other) =>
       other is SceneView &&
       other.kind == kind &&
-      (kind != ViewKind.split || other.side == side) &&
-      (kind != ViewKind.inset || other.corner == corner) &&
-      (!_sized || other.size == size);
-
-  bool get _sized => kind == ViewKind.split || kind == ViewKind.inset;
+      (!kind.hasSide || other.side == side) &&
+      (!kind.hasCorner || other.corner == corner) &&
+      (!kind.sized || other.size == size);
 
   @override
-  int get hashCode => Object.hash(kind, kind == ViewKind.split ? side : null, kind == ViewKind.inset ? corner : null, _sized ? size : null);
+  int get hashCode => Object.hash(kind, kind.hasSide ? side : null, kind.hasCorner ? corner : null, kind.sized ? size : null);
 
   @override
-  String toString() => 'SceneView(${kind.name}${kind == ViewKind.split ? ' ${side.name}' : ''}${kind == ViewKind.inset ? ' ${corner.name}' : ''}'
-      '${_sized ? ' $size' : ''})';
+  String toString() => 'SceneView(${kind.name}${kind.hasSide ? ' ${side.name}' : ''}${kind.hasCorner ? ' ${corner.name}' : ''}'
+      '${kind.sized ? ' $size' : ''})';
 
   Map<String, Object?> toJson() => {
         'kind': kind.name,
-        if (kind == ViewKind.split) 'side': side.name,
-        if (kind == ViewKind.inset) 'corner': corner.name,
-        if (_sized) 'size': size,
+        if (kind.hasSide) 'side': side.name,
+        if (kind.hasCorner) 'corner': corner.name,
+        if (kind.sized) 'size': size,
       };
 
   static SceneView fromJson(Object? json, String where) {

@@ -254,15 +254,11 @@ void main() {
       AppMenus menus() => AppMenus(
             keys: plugins.keysOver(settings.keys),
             plugins: plugins,
-            onOpen: () {},
-            onImport: () {},
-            onSave: window.commands['save'],
-            onSaveAs: () {},
-            onSettings: () {},
-            onExportVideo: window.commands['exportVideo'],
-            onExportWeb: () {},
-            onFindPhrase: () {},
-            onSelectAll: () {},
+            does: {
+              for (final id in ['open', 'importScore', 'saveAs', 'settings', 'exportWeb', 'findPhrase', 'selectAll']) id: () {},
+              'save': window.commands['save'],
+              'exportVideo': window.commands['exportVideo'],
+            },
             child: const SizedBox(),
           );
       List<PlatformMenuItem> flat(List<PlatformMenuItem> items) => [for (final i in items) if (i is PlatformMenuItemGroup) ...flat(i.members) else i];
@@ -287,25 +283,12 @@ void main() {
       // can't be done greyed out, and the score's place named the MIDI view.
       expect(menus().menus.map((m) => m.label), isNot(contains('MIDI')));
       final midi = AppMenus(
-        onOpen: () {},
-        onImport: () {},
-        onSave: () {},
-        onSaveAs: () {},
-        onSettings: () {},
+        does: {
+          for (final id in ['open', 'importScore', 'save', 'saveAs', 'settings', 'showPlayerMap']) id: () {},
+          for (final id in ['midiVelocity', 'midiSharedRange', 'midiShorterRows', 'midiWiderBeats', 'midiNarrowerBeats']) id: () {},
+        },
         playerMapShown: true,
-        onShowPlayerMap: (_) {},
-        midi: (
-          velocity: true,
-          sharedRange: false,
-          fileTempo: true,
-          onVelocity: () {},
-          onSharedRange: () {},
-          onTallerRows: null,
-          onShorterRows: () {},
-          onWiderBeats: () {},
-          onNarrowerBeats: () {},
-          onFileTempo: null,
-        ),
+        midi: (velocity: true, sharedRange: false, fileTempo: true),
         child: const SizedBox(),
       ).menus.whereType<PlatformMenu>().toList();
       expect([for (final i in flat(midi.firstWhere((m) => m.label == 'MIDI').menus)) (i.label, i.onSelected != null)], [
@@ -322,12 +305,8 @@ void main() {
       // File ▸ Attacca: how it stands (greyed out), Connect Attacca… ticked while followed, Record
       // from DAW… while it is, Capture Stems… greyed out for now, its Settings….
       final link = AppMenus(
-        onOpen: () {},
-        onImport: () {},
-        onSave: () {},
-        onSaveAs: () {},
-        onSettings: () {},
-        attacca: (state: 'Connected: Logic Pro', following: true, onFollow: () {}, onRecord: () {}, onCaptureStems: null, onSettings: () {}),
+        does: {for (final id in ['open', 'importScore', 'save', 'saveAs', 'settings', 'followDaw', 'recordFromDaw', 'attaccaSettings']) id: () {}},
+        attacca: (state: 'Connected: Logic Pro', following: true),
         child: const SizedBox(),
       ).menus.whereType<PlatformMenu>().toList();
       final fileMenu = flat(link.firstWhere((m) => m.label == 'File').menus);

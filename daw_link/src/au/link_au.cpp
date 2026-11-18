@@ -48,12 +48,12 @@ bool restoredText (CFPropertyListRef data, std::string& text)
 
 }  // namespace
 
-// The audio side: plays the regions it is given (as an ARA playback renderer), else passes
-// what comes in; tells Curator where the DAW is playing.
-class LinkAudioUnit : public ausdk::AUEffectBase {
+// What both Audio Units are: any layout, the same in as out, with a tail; their window, made
+// by a class in Attacca's bundle (the factory tells a Capturer's by the name); the host's
+// transport read; what comes in passed out.
+class AttaccaEffect : public ausdk::AUEffectBase {
 public:
-    explicit LinkAudioUnit (AudioComponentInstance component) : AUEffectBase (component), client_ (LinkClient::retain ()) { CreateElements (); }
-    ~LinkAudioUnit () override { LinkClient::release (); }
+    using AUEffectBase::AUEffectBase;
 
     UInt32 SupportedNumChannels (const AUChannelInfo** info) override
     {
@@ -62,6 +62,64 @@ public:
             *info = &any;
         return 1;
     }
+
+    bool SupportsTail () override { return true; }
+
+    OSStatus GetPropertyInfo (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, UInt32& size, bool& writable) override
+    {
+        if (scope == kAudioUnitScope_Global && id == kAudioUnitProperty_CocoaUI)
+        {
+            writable = false;
+            size = sizeof (AudioUnitCocoaViewInfo);
+            return noErr;
+        }
+        return AUEffectBase::GetPropertyInfo (id, scope, element, size, writable);
+    }
+
+    OSStatus GetProperty (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, void* data) override
+    {
+        if (scope == kAudioUnitScope_Global && id == kAudioUnitProperty_CocoaUI)
+        {
+            // The window: a class in this bundle that makes it (the host releases both).
+            CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.attacca.component"));
+            if (!bundle)
+                return kAudioUnitErr_InvalidProperty;
+            auto* info = static_cast<AudioUnitCocoaViewInfo*> (data);
+            info->mCocoaAUViewBundleLocation = CFBundleCopyBundleURL (bundle);
+            info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
+            return noErr;
+        }
+        return AUEffectBase::GetProperty (id, scope, element, data);
+    }
+
+protected:
+    // Whether the host is playing, and where: by its newer callback where it gives one (the SDK
+    // asks only the older).
+    void readTransport (Boolean& playing, Float64& sample)
+    {
+        const HostCallbackInfo& host = GetHostCallbackInfo ();
+        if (host.transportStateProc2)
+            host.transportStateProc2 (host.hostUserData, &playing, nullptr, nullptr, &sample, nullptr, nullptr, nullptr);
+        else
+            CallHostTransportState (&playing, nullptr, &sample, nullptr, nullptr, nullptr);
+    }
+
+    static void passThrough (const AudioBufferList& in, AudioBufferList& out, UInt32 frames)
+    {
+        for (UInt32 c = 0; c < out.mNumberBuffers && c < in.mNumberBuffers; ++c)
+        {
+            if (out.mBuffers[c].mData != in.mBuffers[c].mData)
+                std::memcpy (out.mBuffers[c].mData, in.mBuffers[c].mData, sizeof (float) * frames);
+        }
+    }
+};
+
+// The audio side: plays the regions it is given (as an ARA playback renderer), else passes
+// what comes in; tells Curator where the DAW is playing.
+class LinkAudioUnit : public AttaccaEffect {
+public:
+    explicit LinkAudioUnit (AudioComponentInstance component) : AttaccaEffect (component), client_ (LinkClient::retain ()) { CreateElements (); }
+    ~LinkAudioUnit () override { LinkClient::release (); }
 
     OSStatus GetPropertyInfo (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, UInt32& size, bool& writable) override
     {
@@ -77,10 +135,6 @@ public:
                     writable = false;
                     size = sizeof (ARA::ARAAudioUnitPlugInExtensionBinding);
                     return noErr;
-                case kAudioUnitProperty_CocoaUI:
-                    writable = false;
-                    size = sizeof (AudioUnitCocoaViewInfo);
-                    return noErr;
                 case audioUnitPropertyBoundToARA:
                     writable = false;
                     size = sizeof (UInt32);
@@ -89,7 +143,7 @@ public:
                     break;
             }
         }
-        return AUEffectBase::GetPropertyInfo (id, scope, element, size, writable);
+        return AttaccaEffect::GetPropertyInfo (id, scope, element, size, writable);
     }
 
     OSStatus GetProperty (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, void* data) override
@@ -117,17 +171,6 @@ public:
                         return kAudioUnitErr_CannotDoInCurrentContext;
                     return noErr;
                 }
-                case kAudioUnitProperty_CocoaUI:
-                {
-                    // The window: a class in this bundle that makes it (the host releases both).
-                    CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.attacca.component"));
-                    if (!bundle)
-                        return kAudioUnitErr_InvalidProperty;
-                    auto* info = static_cast<AudioUnitCocoaViewInfo*> (data);
-                    info->mCocoaAUViewBundleLocation = CFBundleCopyBundleURL (bundle);
-                    info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
-                    return noErr;
-                }
                 case audioUnitPropertyBoundToARA:
                     // For its window: an instance never bound is on an insert only.
                     *static_cast<UInt32*> (data) = extension_.isBoundToARA () ? 1 : 0;
@@ -136,19 +179,14 @@ public:
                     break;
             }
         }
-        return AUEffectBase::GetProperty (id, scope, element, data);
+        return AttaccaEffect::GetProperty (id, scope, element, data);
     }
 
     OSStatus ProcessBufferLists (AudioUnitRenderActionFlags&, const AudioBufferList& in, AudioBufferList& out, UInt32 frames) override
     {
-        // The host's transport: by its newer callback where it gives one (the SDK asks only the older).
         Boolean playing = false;
         Float64 sample = 0;
-        const HostCallbackInfo& host = GetHostCallbackInfo ();
-        if (host.transportStateProc2)
-            host.transportStateProc2 (host.hostUserData, &playing, nullptr, nullptr, &sample, nullptr, nullptr, nullptr);
-        else
-            CallHostTransportState (&playing, nullptr, &sample, nullptr, nullptr, nullptr);
+        readTransport (playing, sample);
         Float64 beat = -1, tempo = 0;
         if (CallHostBeatAndTempo (&beat, &tempo) != noErr)
             beat = -1, tempo = 0;
@@ -166,11 +204,7 @@ public:
         }
         else
         {
-            for (UInt32 c = 0; c < n && c < in.mNumberBuffers; ++c)
-            {
-                if (outputs[c] != in.mBuffers[c].mData)
-                    std::memcpy (outputs[c], in.mBuffers[c].mData, sizeof (float) * frames);
-            }
+            passThrough (in, out, frames);
         }
         return noErr;
     }
@@ -186,8 +220,6 @@ public:
         }
         return AUEffectBase::Render (flags, time, frames);
     }
-
-    bool SupportsTail () override { return true; }
 
     // The Attacca Capturer linked (in its window's Capturer menu) kept in the DAW's project.
     OSStatus SaveState (CFPropertyListRef* data) override
@@ -213,9 +245,9 @@ private:
 
 // Attacca Capturer: an insert, no ARA, usually the last on the DAW's output. It passes what it
 // hears through untouched and keeps it for Curator by song time (link_capture.h).
-class CaptureAudioUnit : public ausdk::AUEffectBase {
+class CaptureAudioUnit : public AttaccaEffect {
 public:
-    explicit CaptureAudioUnit (AudioComponentInstance component) : AUEffectBase (component) { CreateElements (); }
+    explicit CaptureAudioUnit (AudioComponentInstance component) : AttaccaEffect (component) { CreateElements (); }
 
     OSStatus Initialize () override
     {
@@ -224,51 +256,26 @@ public:
         return result;
     }
 
-    UInt32 SupportedNumChannels (const AUChannelInfo** info) override
-    {
-        static const AUChannelInfo any { -1, -1 };
-        if (info)
-            *info = &any;
-        return 1;
-    }
-
     OSStatus GetPropertyInfo (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, UInt32& size, bool& writable) override
     {
-        if (scope == kAudioUnitScope_Global && id == kAudioUnitProperty_CocoaUI)
-        {
-            writable = false;
-            size = sizeof (AudioUnitCocoaViewInfo);
-            return noErr;
-        }
         if (scope == kAudioUnitScope_Global && id == audioUnitPropertyCapturerID)
         {
             writable = false;
             size = sizeof (CFStringRef);
             return noErr;
         }
-        return AUEffectBase::GetPropertyInfo (id, scope, element, size, writable);
+        return AttaccaEffect::GetPropertyInfo (id, scope, element, size, writable);
     }
 
     OSStatus GetProperty (AudioUnitPropertyID id, AudioUnitScope scope, AudioUnitElement element, void* data) override
     {
-        if (scope == kAudioUnitScope_Global && id == kAudioUnitProperty_CocoaUI)
-        {
-            // The same window as Attacca's, made for a Capturer (the factory tells by the name).
-            CFBundleRef bundle = CFBundleGetBundleWithIdentifier (CFSTR ("com.curatedscore.attacca.component"));
-            if (!bundle)
-                return kAudioUnitErr_InvalidProperty;
-            auto* info = static_cast<AudioUnitCocoaViewInfo*> (data);
-            info->mCocoaAUViewBundleLocation = CFBundleCopyBundleURL (bundle);
-            info->mCocoaAUViewClass[0] = CFStringCreateWithCString (kCFAllocatorDefault, statusViewFactoryClass (), kCFStringEncodingUTF8);
-            return noErr;
-        }
         if (scope == kAudioUnitScope_Global && id == audioUnitPropertyCapturerID)
         {
             // For its window (whether it is linked); the caller releases it.
             *static_cast<CFStringRef*> (data) = CFStringCreateWithCString (kCFAllocatorDefault, capturer_.id ().c_str (), kCFStringEncodingUTF8);
             return noErr;
         }
-        return AUEffectBase::GetProperty (id, scope, element, data);
+        return AttaccaEffect::GetProperty (id, scope, element, data);
     }
 
     // Its ID kept in the DAW's project, so the Attacca it was linked to finds it again.
@@ -292,25 +299,15 @@ public:
     {
         Boolean playing = false;
         Float64 sample = 0;
-        const HostCallbackInfo& host = GetHostCallbackInfo ();
-        if (host.transportStateProc2)
-            host.transportStateProc2 (host.hostUserData, &playing, nullptr, nullptr, &sample, nullptr, nullptr, nullptr);
-        else
-            CallHostTransportState (&playing, nullptr, &sample, nullptr, nullptr, nullptr);
+        readTransport (playing, sample);
         const float* inputs[64];
         const UInt32 n = std::min<UInt32> (in.mNumberBuffers, 64);
         for (UInt32 c = 0; c < n; ++c)
             inputs[c] = static_cast<const float*> (in.mBuffers[c].mData);
         capturer_.process (inputs, static_cast<int> (n), frames, playing, static_cast<int64_t> (sample));
-        for (UInt32 c = 0; c < out.mNumberBuffers && c < in.mNumberBuffers; ++c)
-        {
-            if (out.mBuffers[c].mData != in.mBuffers[c].mData)
-                std::memcpy (out.mBuffers[c].mData, in.mBuffers[c].mData, sizeof (float) * frames);
-        }
+        passThrough (in, out, frames);
         return noErr;
     }
-
-    bool SupportsTail () override { return true; }
 
 private:
     Capturer capturer_;

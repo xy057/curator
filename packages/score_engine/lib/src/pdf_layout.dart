@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import 'engraving.dart' show ClefShape;
+import 'musicxml_kit.dart' show xmlEscaped;
 import 'spacers.dart' show SpacerKey;
 
 /// A clef an instrument of a PDF score is read in: the frozen zone draws it, and the score
@@ -964,12 +965,12 @@ class PdfScoreLayout {
     final out = StringBuffer('<?xml version="1.0" encoding="UTF-8"?>\n'
         '<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n'
         '<score-partwise version="4.0">\n');
-    if (title.isNotEmpty) out.write('  <work><work-title>${_escape(title)}</work-title></work>\n');
+    if (title.isNotEmpty) out.write('  <work><work-title>${xmlEscaped(title)}</work-title></work>\n');
     out.write('  <part-list>\n');
     for (final i in instruments) {
       for (final p in i.players) {
-        out.write('    <score-part id="${_escape(p.id)}"><part-name>${_escape(p.name)}</part-name>'
-            '${p.abbreviation.isEmpty ? '' : '<part-abbreviation>${_escape(p.abbreviation)}</part-abbreviation>'}</score-part>\n');
+        out.write('    <score-part id="${xmlEscaped(p.id)}"><part-name>${xmlEscaped(p.name)}</part-name>'
+            '${p.abbreviation.isEmpty ? '' : '<part-abbreviation>${xmlEscaped(p.abbreviation)}</part-abbreviation>'}</score-part>\n');
       }
     }
     out.write('  </part-list>\n');
@@ -979,7 +980,7 @@ class PdfScoreLayout {
       for (final i in instruments)
         for (final p in i.players) (i, p),
     ]) {
-      out.write('  <part id="${_escape(player.id)}">\n');
+      out.write('  <part id="${xmlEscaped(player.id)}">\n');
       final playing = played[player.id] ?? const [];
       for (var bar = 0; bar < bars.length; bar++) {
         final implicit = bar == 0 && pickup > 0;
@@ -1009,7 +1010,7 @@ class PdfScoreLayout {
         if (player.id == (instruments.where((i) => !i.blank).firstOrNull ?? instruments.first).id &&
             (bar == 0 || tempos.containsKey(bar))) {
           final mark = tempos[bar], speed = bar == 0 ? tempo : mark?.bpm;
-          final words = mark == null || mark.words.isEmpty ? '<words/>' : '<words>${_escape(mark.words)}</words>';
+          final words = mark == null || mark.words.isEmpty ? '<words/>' : '<words>${xmlEscaped(mark.words)}</words>';
           out.write('      <direction id="${tempoId(bar)}" placement="above"><direction-type>$words</direction-type>'
               '${speed == null ? '' : '<sound tempo="${_round(speed)}"/>'}</direction>\n');
         }
@@ -1181,9 +1182,6 @@ class PdfScoreLayout {
 }
 
 double _round(double v) => (v * 100).roundToDouble() / 100;
-
-String _escape(String s) =>
-    s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 FormatException _bad(String what) => FormatException('$what is damaged.');
 

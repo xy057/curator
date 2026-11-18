@@ -594,7 +594,7 @@ final _projectCategories = <_Category>[
     _Item(
       'Recording',
       // (Attacca's, taken from a DAW, says so.)
-      (c) => switch ((c.controller!.track?.name, c.controller!.takes.where((t) => t.id == c.controller!.focus).firstOrNull?.daw)) {
+      (c) => switch ((c.controller!.track?.name, c.controller!.focusTake?.daw)) {
         (null, _) => 'None.'.tr,
         (final name?, null) => name,
         (final name?, _) => '$name · Attacca',
@@ -1043,7 +1043,7 @@ Future<void> showUpdate(BuildContext context, Updater updater, Release release) 
     showUpdateDialog(context, updater: updater, release: release, groupColor: _groupColor);
 
 /// `0.3.0 (17)`, then the commit when the build knows it.
-String get _versionText => '$appRelease ($appBuild)${appCommit.isEmpty ? '' : ' · $appCommit'}';
+String get _versionText => '$appReleaseBuild${appCommit.isEmpty ? '' : ' · $appCommit'}';
 
 /// `macOS 15.6 (24G84) · arm64`.
 String get _systemText {
@@ -1818,6 +1818,10 @@ class _SaveDefaultButton extends StatelessWidget {
   }
 }
 
+/// A row's own button (Install, Uninstall, Clear, the PDF import's model): a field's height.
+final _rowButtonStyle =
+    OutlinedButton.styleFrom(minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact);
+
 /// A button beside a page's title: slimmer than the rows' buttons, as it belongs to the page, not
 /// to a setting.
 ButtonStyle _pageButtonStyle(BuildContext context) {
@@ -2031,8 +2035,6 @@ class _Dropdown<T> extends StatelessWidget {
       );
 }
 
-/// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
-/// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
 /// What Attacca wrote for Curator ([AttaccaCache]): how much, and Clear, which leaves what a
 /// project open still plays (off while a DAW is writing one).
 class _AttaccaCache extends StatefulWidget {
@@ -2077,8 +2079,7 @@ class _AttaccaCacheState extends State<_AttaccaCache> {
           if (_bytes case final bytes?) Text(_size(bytes), style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
           const SizedBox(width: 10),
           OutlinedButton(
-            style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            style: _rowButtonStyle,
             onPressed: _busy || (_bytes ?? 0) == 0 || DawLink.shared.busy ? null : _clear,
             child: Text('Clear'.tr),
           ),
@@ -2151,16 +2152,14 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
           const SizedBox(width: 10),
           if (_installed != null) ...[
             OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+              style: _rowButtonStyle,
               onPressed: _busy ? null : _uninstall,
               child: Text('Uninstall'.tr),
             ),
             const SizedBox(width: 8),
           ],
           OutlinedButton(
-            style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+            style: _rowButtonStyle,
             onPressed: _busy ? null : _install,
             child: Text(_installed == null
                 ? 'Install'.tr
@@ -2174,6 +2173,8 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
   }
 }
 
+/// The model the PDF import's Read with AI asks ("model · provider", names as they are, and its
+/// exam's result), or None: a click chooses one ([showPdfAiModelDialog]).
 class _PdfAiModel extends StatelessWidget {
   const _PdfAiModel({required this.settings});
   final AppSettings settings;
@@ -2183,8 +2184,7 @@ class _PdfAiModel extends StatelessWidget {
     final chosen = settings.pdfAi;
     final result = chosen == null ? null : settings.pdfAiExam(settings.pdfAiModel);
     return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 12), visualDensity: VisualDensity.compact),
+      style: _rowButtonStyle,
       onPressed: () => showPdfAiModelDialog(context, settings),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Flexible(
@@ -2758,7 +2758,7 @@ class _AboutPage extends StatelessWidget {
               Row(mainAxisAlignment: MainAxisAlignment.center, spacing: 6, children: [
                 // As wide as Copy, so the version sits under the name's middle.
                 const SizedBox(width: _CopyButton.size),
-                SelectableText('Version {version}'.fill({'version': '$appRelease ($appBuild)'}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                SelectableText('Version {version}'.fill({'version': appReleaseBuild}), style: TextStyle(fontSize: 13, color: colors.textMuted)),
                 if (appCommit.isNotEmpty) _Pill(appCommit, mono: true),
                 const _CopyButton(),
               ]),

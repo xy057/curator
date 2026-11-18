@@ -4,6 +4,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <map>
@@ -17,6 +18,20 @@ namespace attacca {
 
 // What Curator says, a message's top-level fields (see readFlatObject).
 using Message = std::map<std::string, std::string>;
+
+// [message]'s field [key]; null when it hasn't one.
+inline const std::string* fieldOf (const Message& message, const char* key)
+{
+    const auto found = message.find (key);
+    return found == message.end () ? nullptr : &found->second;
+}
+
+// [message]'s field [key] as a number; [otherwise] when it hasn't one.
+inline double numberOf (const Message& message, const char* key, double otherwise)
+{
+    const std::string* field = fieldOf (message, key);
+    return field ? std::strtod (field->c_str (), nullptr) : otherwise;
+}
 
 // The connection to Curator, kept up on a thread of its own: Curator listens on the loopback
 // address at the port its discovery file names (daw-link.json in its data folder, with a token
@@ -39,6 +54,12 @@ public:
     void retract (const std::string& key, std::string message);
     // Sent now if Curator is there, else dropped.
     void send (std::string message);
+
+    // To Curator about what it asked of [document], the [kind] [id] ("source", "track",
+    // "capturer"): what came of it, {t: [type], [key]: [value]} ("path", or "error" and why),
+    // and how far it has got, {t: "progress", done: 0–1}.
+    void answer (const char* type, const std::string& document, const char* kind, const std::string& id, const char* key, const std::string& value);
+    void progress (const std::string& document, const char* kind, const std::string& id, double done);
 
     // Where the DAW is: from the audio thread, lock-free.
     void setTransport (bool playing, double seconds, double quarters, double tempo) noexcept;
@@ -92,15 +113,16 @@ private:
     std::atomic<int> fd_ { -1 };
     std::atomic<int> curatorBuild_ { 0 };
     std::string linkedCapturer_;
-    std::string insertIds_, insertNames_;
-    bool linkedSaid_ { false };
-    std::string linkedIds_;
+    // What Curator last told of a state, by the message's type (`followers`, `linked`,
+    // `inserts`: told); none while it hasn't, or isn't connected.
+    std::map<std::string, Message> told_;
+    // A field of what was told of [type]; empty when it wasn't. Under [mutex_].
+    std::string toldOf (const char* type, const char* key) const;
     std::string token_;
     bool sendAll_ { false };
     std::map<std::string, std::string> states_;
     std::deque<std::string> outbox_;
     std::string inbox_;
-    std::string followers_;
 
     std::mutex handlersMutex_;
     std::map<int, std::function<void (const Message&)>> handlers_;

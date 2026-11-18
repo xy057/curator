@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'hex_color.dart';
 import 'score_dynamics.dart';
 import 'score_metadata.dart';
 import 'search.dart';
@@ -517,10 +518,7 @@ class MapSection {
     final m = _map(json, where);
     final name = m['name'] ?? '';
     if (name is! String) throw FormatException('$where.name is not text.');
-    final color = switch (m['color']) {
-      final String hex when RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(hex) => 0xFF000000 | int.parse(hex.substring(1), radix: 16),
-      _ => throw FormatException('$where.color is not a colour.'),
-    };
+    final color = argbOfHex(m['color']) ?? (throw FormatException('$where.color is not a colour.'));
     final size = _number(m['size'] ?? defaultSize, '$where.size');
     if (size < minSize || size > maxSize) throw FormatException('$where.size is out of range.');
     final label = _numbers(m['label'], '$where.label', 2);
@@ -833,6 +831,11 @@ class PlayerNotes {
 
   /// By [PlayerLink.key].
   final Map<String, _Spans> _spans;
+
+  /// The notes of the score [musicXML], whose bars start at [measureStarts], unpitched ones too,
+  /// each as loud as its dynamics say: what the app, a video and a web page pulse the map with.
+  factory PlayerNotes.ofScore(String musicXML, List<double> measureStarts) =>
+      PlayerNotes.of(soundingNotes(musicXML, measureStarts, unpitched: true), dynamics: ScoreDynamics.read(musicXML, measureStarts));
 
   /// [notes] (each as [soundingNotes] reads it, ties carried on), each as loud as [dynamics]
   /// says (none: all mf).

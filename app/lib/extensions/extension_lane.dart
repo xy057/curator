@@ -134,7 +134,7 @@ class _ExtensionLaneState extends State<ExtensionLane> with LaneCursor<Extension
     final p = e.localPosition;
     final i = drag.index;
     if (i == null) return c.playback.scrub(c.viewport.seconds(p.dx));
-    drag.moved |= (p - drag.downAt).distance >= 3;
+    drag.moved |= (p - drag.downAt).distance >= dragStart;
     final items = this.items;
     if (!drag.moved || i >= items.length) return;
     // Never past the items either side: which is which stays.
