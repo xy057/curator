@@ -1271,6 +1271,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
     final shift = keys.isShiftPressed, alt = keys.isAltPressed, command = keys.isMetaPressed || keys.isControlPressed;
     final key = event.logicalKey;
     final char = event.character?.toLowerCase();
+    // The letter on the key, as typed with no modifier: with ⌥ on a Mac the character is another
+    // (⌥⇧A types Å).
+    final letter = _letterOf(key);
     final input = _caret != null;
 
     VoidCallback? action;
@@ -1311,10 +1314,9 @@ class _ScoreEditorState extends State<ScoreEditor> {
         final ids = _selectedNotes;
         if (ids.isNotEmpty) _edit(() => score.respell(ids, up: key == LogicalKeyboardKey.equal));
       };
-    } else if (alt && shift && char != null && 'abcdefg'.contains(char) && char.length == 1) {
-      action = () => _letter('cdefgab'.indexOf(char), chord: true);
+    } else if (alt && shift && letter != null && 'abcdefg'.contains(letter)) {
+      action = () => _letter('cdefgab'.indexOf(letter), chord: true);
     } else {
-      final letter = _letterOf(key);
       action = switch (key) {
         LogicalKeyboardKey.escape => () {
             if (_held != null) {
