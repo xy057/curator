@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.9.536+536
+version: 0.9.537+537
 
 environment:
   sdk: ^3.13.4

@@ -179,8 +179,8 @@ final class _ExtensionData extends ProjectModule {
 FormatException _damaged(String what) => FormatException('The project is damaged: $what');
 
 /// "#A86B3C"; null for anything else.
-Color? _color(Object? hex) => switch (hex) {
-      final String s when RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(s) => Color(0xFF000000 | int.parse(s.substring(1), radix: 16)),
+Color? _color(Object? hex) => switch (argbOfHex(hex)) {
+      final argb? => Color(argb),
       _ => null,
     };
 

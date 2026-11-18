@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'hex_color.dart';
 import 'midi_tempo.dart';
 import 'search.dart';
 
@@ -228,7 +229,7 @@ class DawTrack {
         id: _string(json, 'id') ?? '',
         name: _string(json, 'name') ?? '',
         order: (json['order'] as num?)?.toInt() ?? 0,
-        color: _color(json['color']),
+        color: argbOfHex(json['color']),
         context: _string(json, 'context'),
       );
 }
@@ -300,7 +301,7 @@ class DawRegion {
       span: number('span'),
       name: _string(json, 'name') ?? '',
       track: _string(json, 'track'),
-      color: _color(json['color']),
+      color: argbOfHex(json['color']),
     );
   }
 }
@@ -324,8 +325,3 @@ List<Object?> _list(Map<String, Object?> json, String key) => switch (json[key])
       final List<Object?> list => list,
       _ => throw FormatException('$key is not a list.'),
     };
-
-int? _color(Object? value) {
-  if (value is! String || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) return null;
-  return 0xff000000 | int.parse(value.substring(1), radix: 16);
-}
