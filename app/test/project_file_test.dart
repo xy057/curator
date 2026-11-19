@@ -163,21 +163,31 @@ void main() {
       expect((rows.isRoll, rows.request.midi, identical(rows.metadata, c2.score!.metadata), identical(c2.rows, rows)),
           (true, const MidiLook().rows(1), true, true));
       expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.score, true));
+      // An image goes in, and is handled, on the toolbar's Score page alone: on another none is
+      // added or pasted, and the one selected is let go of (Delete would take what nobody sees).
+      final images = c2.images.patches.length;
+      c2.images.select(0);
+      expect((c2.images.canInsert, c2.commands.pastesImage, c2.images.selected), (true, true, 0));
       c2.showsMidiView = true;
       expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.midi, false));
+      await c2.images.add(ImageKind.raster, png, quarter: starts[2], top: 2);
+      expect((c2.images.canInsert, c2.commands.pastesImage, c2.images.selected, c2.images.patches.length), (false, false, null, images));
       // …until the music plays: then the lane's views show, on the toolbar's MIDI View and its
       // Player Map alike (the score in bar 1, the map in bar 4), and the rows again once it stops.
       c2.showsPlayerMap = true;
       expect(c2.automation.playsViews, false);
       c2.playback.play();
-      expect((c2.automation.playsViews, c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (true, ViewKind.score, true));
+      // (The score shows, on a page that isn't Score: still nothing of it is handled.)
+      expect((c2.automation.playsViews, c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (true, ViewKind.score, false));
       c2.playback.seek(c2.timeline.secondsAtQuarter(starts[3]));
       expect((c2.automation.shown.from.kind, c2.automation.scoreInPlace.value), (ViewKind.map, false));
       c2.playback.pause();
       expect((c2.automation.playsViews, c2.automation.shown.from.kind), (false, ViewKind.midi));
       c2.playback.seek(0);
       c2.showsPlayerMap = false;
+      expect(c2.images.canInsert, false); // MIDI View still
       c2.showsMidiView = false;
+      expect((c2.automation.scoreInPlace.value, c2.images.canInsert), (true, true));
       expect(c2.curation!.lane(parts[1].id), const [Region(0, 6, hiddenStaves: [2]), Region(6, 9)]);
       expect(c2.spacingOf(parts[2].id), (above: 2.5, below: -1.0));
       expect(c2.condensed, {'cond-P2-P3', 'cond-P6-P12'});

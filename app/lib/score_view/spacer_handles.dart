@@ -127,6 +127,13 @@ mixin _SpacerHandles on State<ScoreView> {
     return _spacerGripAt(view, frame)?.cursor;
   }
 
+  /// No spacer is under the pointer (the score isn't in its place there).
+  void _spacerLeft() {
+    if (_hoveredSpacer == null) return;
+    _hoveredSpacer = null;
+    _spacerTick.value++;
+  }
+
   void _spacerPanStart(DragStartDetails d, VideoFrame frame) {
     final s = _selectedSpacer(frame), grip = _spacerGripAt(d.localPosition, frame);
     if (s == null || grip == null) return;

@@ -32,8 +32,8 @@ typedef _MenuAt = ({int? patch, int? caption, String? spacer, int? gap, double q
 /// time alone, which video export reuses (CuratedScene.renderFrame, VideoExport). It shows
 /// what the Video tab's View lane has at the time ([paintViews]): the score, the player map,
 /// both, or a change between them (on the toolbar's MIDI View and Player Map too, while the
-/// music plays: [AutomationEditing.playsViews]); images and spacers are handled while the score is in its
-/// place ([AutomationEditing.scoreInPlace]).
+/// music plays: [AutomationEditing.playsViews]); images and spacers are put in and handled while the
+/// score is in its place on the toolbar's Score page ([AutomationEditing.scoreInPlace]).
 ///
 /// It shows the video's frame: its [aspectRatio], laid out like the video and scaled to fit
 /// ([VideoFrame]), so resizing the window never changes what the score shows.

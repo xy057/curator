@@ -421,6 +421,12 @@ msgstr "Adjuntar imagen"
 msgid "Attach Image is off"
 msgstr "La opción «Adjuntar imagen» está desactivada"
 
+msgid "Images go on the score"
+msgstr ""
+
+msgid "Show the score first"
+msgstr ""
+
 msgid "Attach Image is off for now."
 msgstr "Por ahora, la opción «Adjuntar imagen» está desactivada."
 

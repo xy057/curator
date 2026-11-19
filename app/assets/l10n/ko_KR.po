@@ -419,6 +419,12 @@ msgstr ""
 msgid "Attach Image is off"
 msgstr ""
 
+msgid "Images go on the score"
+msgstr ""
+
+msgid "Show the score first"
+msgstr ""
+
 msgid "Attach Image is off for now."
 msgstr ""
 
