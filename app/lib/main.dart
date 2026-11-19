@@ -1808,7 +1808,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
                     ),
                     // Until it has opened, too: the score is read before it is engraved.
                     _Busy(visible: controller.isLoading || controller.score == null, stage: controller.loadStage),
-                    _DropHint(area: _lastDrop, visible: _drop != null, rect: _dropRect(_lastDrop), attachImage: controller.images.enabled),
+                    _DropHint(
+                        area: _lastDrop,
+                        visible: _drop != null,
+                        rect: _dropRect(_lastDrop),
+                        attachImage: controller.images.enabled,
+                        onScore: controller.automation.scoreInPlace.value),
                   ],
                 ),
               ),
@@ -2107,13 +2112,16 @@ class _BusyState extends State<_Busy> {
 enum _DropArea { home, image, project, audio }
 
 class _DropHint extends StatelessWidget {
-  const _DropHint({required this.area, required this.visible, required this.rect, required this.attachImage});
+  const _DropHint({required this.area, required this.visible, required this.rect, required this.attachImage, this.onScore = true});
   final _DropArea area;
   final bool visible;
 
   /// Where it is drawn; null: the whole page.
   final Rect? rect;
-  final bool attachImage;
+
+  /// Whether Attach Image is on, and whether the preview is the score in its place on the
+  /// toolbar's Score page ([AutomationEditing.scoreInPlace]): an image goes in only with both.
+  final bool attachImage, onScore;
 
   @override
   Widget build(BuildContext context) {
@@ -2122,8 +2130,9 @@ class _DropHint extends StatelessWidget {
       _DropArea.home => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
       _DropArea.project => (AppIcon.drop.of(context), 'Drop to open', 'A project, or a MusicXML, PDF or LilyPond score'),
       _DropArea.audio => (AppIcon.audio.of(context), 'Drop to add', 'A MIDI tempo map or a recording'),
-      _DropArea.image when attachImage => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG, GIF, JPEG…'),
-      _DropArea.image => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),
+      _DropArea.image when !attachImage => (AppIcon.noImage.of(context), 'Attach Image is off', 'Turn on in Project Settings ▸ Extensions'),
+      _DropArea.image when !onScore => (AppIcon.noImage.of(context), 'Images go on the score', 'Show the score first'),
+      _DropArea.image => (AppIcon.image.of(context), 'Drop to add an image', 'SVG, PNG, GIF, JPEG…'),
     };
     final hint = IgnorePointer(
       child: AnimatedOpacity(

@@ -1189,7 +1189,10 @@ frame, `PlayerMapEditing.notes`) and a web page (`PageShows.views`: the export's
 project has views and a map, the viewer's Auto beside Score and Player Map where the switch is
 theirs) all draw through it. The preview handles images,
 spacers and its menu only while the score is in its place (`AutomationEditing.scoreInPlace`: the
-score or an inset map, nothing mid-change), kept up as the playhead moves. On the toolbar's Score
+score or an inset map, nothing mid-change, on the toolbar's Score page: `EditorController.onScorePage`),
+kept up as the playhead moves and the switch is set. Only then does an image go in at all
+(`ImageEditing.canInsert`: a drop, Paste, Add Image…; a drop elsewhere is told Images go on the
+score), and an image selected is let go of as the score leaves its place. On the toolbar's Score
 the preview follows the lane; on its MIDI View and Player Map it does while the music plays
 (Curator's, or a DAW's followed: `Playback.runs`) and the lane has a view
 (`AutomationEditing.playsViews`), and stopped they show the rows throughout and the map alone

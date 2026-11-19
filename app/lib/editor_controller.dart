@@ -780,6 +780,7 @@ class EditorController extends ChangeNotifier {
     _committed = _editState; // a fresh document: nothing to undo
     anchors._restoreView(view);
     playback._seekHere(view.time ?? 0);
+    automation._followTime(); // (this project's views, where the playhead was before too)
     viewport.requestFit();
     notifyListeners();
   }
@@ -2001,8 +2002,14 @@ class EditorController extends ChangeNotifier {
   set showsPlayerMap(bool on) {
     if (on == _showsPlayerMap) return;
     _showsPlayerMap = on;
+    automation._followTime();
     notifyListeners();
   }
+
+  /// Whether the toolbar is on Score (its switch: neither MIDI View nor Player Map; a MIDI
+  /// project's rows are its score). Images and spacers are put in and handled on this page
+  /// alone ([AutomationEditing.scoreInPlace]): the others are for looking.
+  bool get onScorePage => !_showsPlayerMap && !showsMidiView;
 
   // MARK: MIDI tempo map
 

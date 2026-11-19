@@ -421,6 +421,12 @@ msgstr "画像を添付"
 msgid "Attach Image is off"
 msgstr "「画像を添付」はオフです"
 
+msgid "Images go on the score"
+msgstr "画像は楽譜の上に置きます"
+
+msgid "Show the score first"
+msgstr "先に楽譜を表示してください"
+
 msgid "Attach Image is off for now."
 msgstr "「画像を添付」は今はオフです。"
 

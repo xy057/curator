@@ -50,6 +50,8 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
 
   void _onPointerDown(PointerDownEvent e, VideoFrame frame) {
     if (!c.images.enabled || e.buttons != kPrimaryButton) return;
+    // Only where the score is in its place: elsewhere what is pressed isn't where the score has it.
+    if (!c.automation.scoreInPlace.value) return;
     if (_gripAt(e.localPosition, frame) != null) return; // the selected one, to drag
     final hit = _patchAt(frame.toLayout(e.localPosition), frame);
     if (hit == null && _spacerPointerDown(e.localPosition, frame)) return c.images.select(null);
@@ -91,7 +93,9 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
   }
 
   void _onHover(PointerHoverEvent e, VideoFrame frame) {
-    final cursor = c.images.enabled
+    final handled = c.images.enabled && c.automation.scoreInPlace.value;
+    if (!handled) _spacerLeft();
+    final cursor = handled
         ? (_gripAt(e.localPosition, frame)?.cursor ?? _spacerHover(e.localPosition, frame) ?? MouseCursor.defer)
         : MouseCursor.defer;
     if (cursor != _cursor) setState(() => _cursor = cursor);
@@ -126,6 +130,7 @@ mixin _AttachImage on State<ScoreView>, _SpacerHandles {
     final scene = c.scene, frame = _frame, box = context.findRenderObject() as RenderBox?;
     if (scene == null || frame == null || box == null) return;
     if (!c.images.enabled) return _say('Attach Image is off for now.');
+    if (!c.images.canInsert) return; // not on the score's own page: the drop's hint said so
     final kind = ImageKind.ofPath(path);
     if (kind == null) return _say('That needs to be an image file.');
     final r = frame.rect, local = box.globalToLocal(global);

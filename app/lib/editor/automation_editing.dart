@@ -138,8 +138,10 @@ class AutomationEditing {
   final _viewsTimed = TimedStepsCache<SceneView>();
 
   /// Whether the preview shows the score where it always is (in the whole frame, as engraved,
-  /// nothing mid-change), so what is clicked on it is where it looks: images and spacers are
-  /// handled only then. Kept up as the playhead moves.
+  /// nothing mid-change) on the toolbar's Score page ([EditorController.onScorePage]: not MIDI
+  /// View, not Player Map, whatever plays there), so what is clicked on it is where it looks:
+  /// images and spacers are put in and handled only then. Kept up as the playhead moves and the
+  /// toolbar's switch is set.
   final scoreInPlace = ValueNotifier(true);
 
   /// Whether the preview shows the lane's views whatever the toolbar's switch is on: the lane
@@ -159,7 +161,12 @@ class AutomationEditing {
   void _followTime() {
     if (_editor._score == null || _editor._sync == null || _editor._disposed) return;
     final m = shown;
-    scoreInPlace.value = m.from.kind.scoreWhole && (m.mix == 0 || m.to.kind.scoreWhole);
+    final inPlace = _editor.onScorePage && m.from.kind.scoreWhole && (m.mix == 0 || m.to.kind.scoreWhole);
+    if (inPlace == scoreInPlace.value) return;
+    scoreInPlace.value = inPlace;
+    // An image selected is let go of with its handles: Delete takes no image nobody sees selected.
+    if (!inPlace) _editor.images._deselect();
+    _editor._changed(); // (what the menus and a drop offer follows it)
   }
 
   void _clearSelection() => _selected = null;

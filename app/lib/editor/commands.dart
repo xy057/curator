@@ -28,8 +28,9 @@ class EditCommands {
   /// Whether Paste puts copied regions in (in the Instruments tab while there are some).
   bool get pastesRegions => _curating && _lanes.canPaste;
 
-  /// Whether Paste is Attach Image's: an image from the clipboard (see [ImageEditing.paste]).
-  bool get pastesImage => _open && !pastesRegions && _editor.images.enabled;
+  /// Whether Paste is Attach Image's: an image from the clipboard (see [ImageEditing.paste]),
+  /// where one can be put in ([ImageEditing.canInsert]: the toolbar's Score page).
+  bool get pastesImage => _open && !pastesRegions && _editor.images.canInsert;
 
   bool get canPaste => pastesRegions || pastesImage;
 

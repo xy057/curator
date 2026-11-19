@@ -12,6 +12,12 @@ class ImageEditing {
   /// Whether an extension that puts pictures on the score is on.
   bool get enabled => _editor.extensions.hasImages;
 
+  /// Whether an image can be put in now (dropped, pasted, added from a file): one is on
+  /// ([enabled]) and the preview shows the score where it always is, on the toolbar's Score
+  /// page ([AutomationEditing.scoreInPlace]). Not on MIDI View or Player Map, nor while a view
+  /// of the Video tab's lane has the frame: where it would go is the score's to say.
+  bool get canInsert => enabled && _editor.automation.scoreInPlace.value;
+
   /// On the score, bottom to top: as the extension lists them.
   List<ImagePatch> get patches => _editor.extensions.pictures;
 
@@ -63,10 +69,10 @@ class ImageEditing {
 
   /// Adds an image of [kind] from [bytes] (a file of type [extension]), its top-left corner
   /// at score quarter [quarter] and [top] staff spaces down, and selects it. One Undo step
-  /// (the extension's: how big it comes in is its to say). Throws a [FormatException] when the
-  /// bytes are not such an image.
+  /// (the extension's: how big it comes in is its to say). Nothing while none can be put in
+  /// ([canInsert]). Throws a [FormatException] when the bytes are not such an image.
   Future<void> add(ImageKind kind, Uint8List bytes, {required double quarter, required double top, String extension = ''}) async {
-    if (!enabled || _editor._score == null) return;
+    if (!canInsert || _editor._score == null) return;
     (:bytes, :extension) = await PatchImage.portable(bytes, extension);
     // The same file again is the same image: the project keeps it once.
     final same = _images.values.where((i) => i.kind == kind && _arts.containsKey(i.id) && listEquals(i.bytes, bytes)).firstOrNull;
@@ -85,10 +91,10 @@ class ImageEditing {
 
   /// Pastes the image on the clipboard (a PNG, SVG text, or a copied SVG / PNG / JPEG file)
   /// at score quarter [quarter] (by default the one under the pointer now) and [top] staff
-  /// spaces down. False when there is no image to paste.
+  /// spaces down. False when there is no image to paste (or none can be put in: [canInsert]).
   Future<bool> paste({double? quarter, double top = 4}) async {
     final scene = _editor.scene;
-    if (!enabled || scene == null) return false;
+    if (!canInsert || scene == null) return false;
     final image = await readClipboardImage();
     if (image == null) return false;
     await add(image.kind, image.bytes,

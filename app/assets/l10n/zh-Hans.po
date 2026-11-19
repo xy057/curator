@@ -421,6 +421,12 @@ msgstr "附加图像"
 msgid "Attach Image is off"
 msgstr "“附加图像”已关闭"
 
+msgid "Images go on the score"
+msgstr "图像要放在乐谱上"
+
+msgid "Show the score first"
+msgstr "请先显示乐谱"
+
 msgid "Attach Image is off for now."
 msgstr "“附加图像”目前已关闭。"
 
