@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-18 20:31\n"
+"PO-Revision-Date: 2026-11-19 02:30\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -416,6 +416,12 @@ msgid "Attach Image"
 msgstr ""
 
 msgid "Attach Image is off"
+msgstr ""
+
+msgid "Images go on the score"
+msgstr ""
+
+msgid "Show the score first"
 msgstr ""
 
 msgid "Attach Image is off for now."
@@ -4507,6 +4513,9 @@ msgstr ""
 msgid "Score / Player Map"
 msgstr ""
 
+msgid "Score / MIDI View"
+msgstr ""
+
 msgid "Hide / Show Tab Bar"
 msgstr ""
 
@@ -5325,7 +5334,7 @@ msgstr ""
 msgid "MIDI view ({key})"
 msgstr ""
 
-#: lib/editor_toolbar.dart lib/web_export_dialog.dart lib/web_player/player.dart
+#: lib/editor_toolbar.dart lib/video_panel.dart lib/web_export_dialog.dart lib/web_player/player.dart
 msgid "MIDI View"
 msgstr ""
 
@@ -5586,10 +5595,6 @@ msgid "{daw} isn’t supported by Attacca."
 msgstr ""
 
 #: lib/daw_follow_dialog.dart
-msgid "Attacca works in {daws}."
-msgstr ""
-
-#: lib/daw_follow_dialog.dart
 msgid "Attacca isn’t on a recording in the DAW."
 msgstr ""
 
@@ -5659,5 +5664,17 @@ msgstr ""
 
 #: lib/web_export_dialog.dart
 msgid "As in Video tab"
+msgstr ""
+
+#: lib/settings_dialog.dart
+msgid "Quit your DAW first."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t give plug-ins its tempo map."
+msgstr ""
+
+#: lib/daw_follow_dialog.dart
+msgid "It doesn’t let plug-ins run its transport."
 msgstr ""
 
