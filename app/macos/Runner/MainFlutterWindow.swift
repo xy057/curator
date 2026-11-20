@@ -65,6 +65,32 @@ final class FontPicker: NSObject {
   }
 }
 
+/// Keeps the engine from drawing into a back buffer of another size than the frame's, which
+/// crashes the whole app (flutter/flutter#185394: `impeller::Canvas::SetupRenderPass`, a null
+/// colour texture on the raster thread). FlutterMacOS's `FlutterBackBufferCache` empties itself
+/// only when its first surface is another size, then hands out its youngest unused one whatever
+/// its size; the front surfaces it is given back after a resize can be the old size. A window
+/// changing size fast (Zoom, a drag, a display coming back) and back again gets one; Impeller
+/// finds the texture and its size disagree and drops it unsaid. Here one of the wrong size is
+/// let go of, and the engine makes a new one. Without the cache (a later engine) nothing changes.
+enum BackBufferSizeGuard {
+  static func install() {
+    guard let cache = NSClassFromString("FlutterBackBufferCache"),
+      let method = class_getInstanceMethod(cache, NSSelectorFromString("removeSurfaceForSize:"))
+    else { return }
+    typealias Remove = @convention(c) (AnyObject, Selector, CGSize) -> AnyObject?
+    let original = unsafeBitCast(method_getImplementation(method), to: Remove.self)
+    let selector = method_getName(method)
+    let guarded: @convention(block) (AnyObject, CGSize) -> AnyObject? = { cache, size in
+      guard let surface = original(cache, selector, size) else { return nil }
+      guard let kept = (surface.value(forKey: "size") as? NSValue)?.sizeValue, kept != size else { return surface }
+      NSLog("Curator: a back buffer of %@ dropped for a frame of %@", NSStringFromSize(kept), NSStringFromSize(size))
+      return nil
+    }
+    method_setImplementation(method, imp_implementationWithBlock(guarded))
+  }
+}
+
 class MainFlutterWindow: NSWindow, NSWindowDelegate {
   /// Below this the editor's panels would overflow (WindowChrome.minimumSize in Dart).
   static let minimumSize = NSSize(width: 960, height: 620)
@@ -86,6 +112,7 @@ class MainFlutterWindow: NSWindow, NSWindowDelegate {
     // off, so View has no Show Tab Bar / Show All Tabs of its own beside the app's.
     NSWindow.allowsAutomaticWindowTabbing = false
     self.tabbingMode = .disallowed
+    BackBufferSizeGuard.install()
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
     self.contentMinSize = MainFlutterWindow.minimumSize
