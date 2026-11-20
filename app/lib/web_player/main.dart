@@ -40,6 +40,8 @@ class _PageAppState extends State<_PageApp> {
           brightness: b,
           colorSchemeSeed: const Color(0xFF3B6FD4),
           fontFamily: 'IBM Plex Sans',
+          // Plex has no ♭ ♮ ♯ ("B♭ Clarinet"), and a page has no system fonts to find them in.
+          fontFamilyFallback: const ['packages/score_engine/Academico'],
           sliderTheme: const SliderThemeData(trackHeight: 3, overlayShape: RoundSliderOverlayShape(overlayRadius: 14)),
         );
     return MaterialApp(
