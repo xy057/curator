@@ -177,7 +177,9 @@ take is marked with a link sign, beside its name in its lane, under Recording in
 and in Project Info. A project has one for now. Once it has one, Connect Attacca… offers only that
 recording, and taking it again puts it back into the same take, whichever take is picked. A
 file's recording loaded into that take takes the mark off; removing the take frees the project
-for another. Stems captured line up with the Attacca take.
+for another. Stems captured line up with the Attacca take. While a project has one, Export
+Video… and Export to Web… are greyed out: an ARA clip is the recording as it lies, not what the
+DAW plays of it. Record from DAW… puts the DAW's mix in its place, and they are back.
 
 **File ▸ Attacca ▸ Capture Stems…** is greyed out for now; what follows is how it works once it
 is back. While Curator follows a DAW, it lists the DAW's tracks that

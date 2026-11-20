@@ -338,6 +338,7 @@ void main() {
       await c.debugLoadTrack(track('Take 1.wav'), daw: fromDaw);
       final attacca = c.attaccaTake!;
       expect((attacca.daw, attacca.label, c.focus), (fromDaw, 'Take 1', attacca.id));
+      expect(c.canExport, isFalse, reason: 'an ARA clip isn’t what the DAW plays: not exported');
       await c.debugAddTake(track('Karajan.flac'));
       await c.debugLoadTrack(track('Take 1.wav'), daw: fromDaw);
       expect([for (final t in c.takes) if (t.daw != null) t.id], [attacca.id], reason: 'one Attacca recording a project');
@@ -491,6 +492,7 @@ void main() {
       final focused = c.focus;
       await c.debugLoadTrack(track('Mix.wav'), intoAttacca: true);
       expect((c.attaccaTake, c.takes.firstWhere((t) => t.id == attacca.id).label, c.focus), (null, 'Mix', focused));
+      expect(c.canExport, isTrue, reason: 'the DAW’s mix recorded is exported');
 
       c.useMidiTempo(null);
       expect(c.daw.following, isNull, reason: 'another tempo chosen here ends it');
