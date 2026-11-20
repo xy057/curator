@@ -1147,7 +1147,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     final open = controller.score != null;
     _hasScore.value = open;
     _hasMidiView.value = controller.hasMidiView;
-    _canExport.value = open && !controller.isReengraving;
+    _canExport.value = controller.canExport;
     _midi.value = controller.isMidi || controller.showsMidiView
         ? (look: controller.midiLook, file: controller.isMidi, fileTempo: controller.followsFileTempo)
         : null;
@@ -1699,13 +1699,13 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
 
   /// File ▸ Export Video… (⌘E): offers the project's (or the score's) name for the video.
   void _exportVideo() {
-    if (controller.score == null || controller.isReengraving) return;
+    if (!controller.canExport) return;
     showExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 
   /// File ▸ Export to Web…: offers the project's (or the score's) name for the page.
   void _exportWeb() {
-    if (controller.score == null || controller.isReengraving) return;
+    if (!controller.canExport) return;
     showWebExportDialog(context, controller, settings, suggestedName: stemOf(document.title ?? 'Curator'));
   }
 

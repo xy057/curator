@@ -2168,6 +2168,11 @@ class EditorController extends ChangeNotifier {
   /// The take whose recording Attacca took from a DAW: one a project at most, for now.
   Take? get attaccaTake => _doc.attaccaTake;
 
+  /// Whether Export Video… and Export to Web… may run: a score engraved, and no [attaccaTake].
+  /// That take is an ARA clip, the DAW's recording as it lies, not what the DAW plays of it;
+  /// Record from DAW… puts the DAW's mix in its place, an ordinary recording.
+  bool get canExport => score != null && !isReengraving && attaccaTake == null;
+
   /// The take whose sync is [sync]; null when there is no recording.
   String? get focus => _doc.focus;
 

@@ -173,7 +173,7 @@ class EditorToolbar extends StatelessWidget {
             selected: entry.runtime.isChecked(entry.command),
             onPressed: plugins.actionOf(entry),
           ),
-        _ExportMenu(enabled: !c.isReengraving, onVideo: onExportVideo, onWeb: onExportWeb),
+        _ExportMenu(enabled: c.canExport, onVideo: onExportVideo, onWeb: onExportWeb),
         RatioMenu(ratio: videoRatio, onSelected: onVideoRatio),
         const ToolbarDivider(),
         Tip(

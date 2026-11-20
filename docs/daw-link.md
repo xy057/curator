@@ -177,7 +177,9 @@ take is marked with a link sign, beside its name in its lane, under Recording in
 and in Project Info. A project has one for now. Once it has one, Connect Attacca… offers only that
 recording, and taking it again puts it back into the same take, whichever take is picked. A
 file's recording loaded into that take takes the mark off; removing the take frees the project
-for another. Stems captured line up with the Attacca take.
+for another. Stems captured line up with the Attacca take. While a project has one, Export
+Video… and Export to Web… are greyed out: an ARA clip is the recording as it lies, not what the
+DAW plays of it. Record from DAW… puts the DAW's mix in its place, and they are back.
 
 **File ▸ Attacca ▸ Capture Stems…** is greyed out for now; what follows is how it works once it
 is back. While Curator follows a DAW, it lists the DAW's tracks that
@@ -228,7 +230,9 @@ the DAW it says to put one on the output, and with none linked to choose it in A
 **Listen for Attacca** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
 this. The menu item is checked while Curator follows a DAW, and choosing it again stops. So does
 choosing another tempo map, editing the one taken, or Convert to Anchors. The tempo map taken is
-saved with the project like any other. Following lasts only while the project is open.
+saved with the project like any other. Following lasts only while the project is open and the
+DAW has the recording: closing the DAW's project, quitting the DAW, removing the recording's
+track (or Attacca from it), or turning Listen for Attacca off ends it.
 
 ## On Windows
 
