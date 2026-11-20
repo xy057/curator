@@ -1219,7 +1219,10 @@ taking a button that shows it again meanwhile (`AppIcon.tabBar`); Show All Tabs 
 (clipped, kept in the tree), and the window has a background under everything: a place left
 unpainted, even for a frame, shows the window's black backing. AppKit's own window tabs are off
 (`MainFlutterWindow.awakeFromNib`: `allowsAutomaticWindowTabbing`), or it would add items of those
-names to View for tabs of windows the app doesn't have. Closing takes the tab away at once and the page drops its editor
+names to View for tabs of windows the app doesn't have. Before the Flutter view is made the runner
+guards FlutterMacOS's back-buffer cache (`BackBufferSizeGuard`): it can hand a frame a surface of
+the window's size before a quick resize (Zoom, a drag), which crashes the app on the raster thread
+(flutter/flutter#185394); one of the wrong size is dropped and the engine makes another. Closing takes the tab away at once and the page drops its editor
 (`ProjectPage.closing`); the page itself goes once `ProjectDocument.close` has run (after a save
 under way), the tab after it showing (or before it, or Home). A project that doesn't open says
 why and its tab goes. A score opened again while its project isn't saved yet shows that project's
