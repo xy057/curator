@@ -482,8 +482,6 @@ DEF_CLASS_IID (ARA::IMainFactory)
 DEF_CLASS_IID (ARA::IPlugInEntryPoint)
 DEF_CLASS_IID (ARA::IPlugInEntryPoint2)
 
-#define LINK_FULL_VERSION LINK_VERSION "." LINK_QUOTE (LINK_BUILD)
-
 // Each in a bundle of its own (LINK_VST3_CAPTURER): Attacca, ARA only (OnlyARA: not offered as
 // an insert); Attacca Capturer, an insert only (a DAW pairs every effect of a bundle that has an
 // ARA factory with it, and would offer the Capturer as an ARA extension).
@@ -491,19 +489,19 @@ BEGIN_FACTORY_DEF (LINK_VENDOR, LINK_URL, LINK_EMAIL)
 
 #if LINK_VST3_CAPTURER
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_CAPTURER_NAME,
-                Vst::kDistributable, "Fx|Analyzer", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::create)
+                Vst::kDistributable, "Fx|Analyzer", LINK_VERSION_TEXT, kVstVersionString, attacca::CaptureProcessor::create)
 
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::CaptureProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_CAPTURER_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::CaptureProcessor::createController)
+                0, "", LINK_VERSION_TEXT, kVstVersionString, attacca::CaptureProcessor::createController)
 #else
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::classID ()), PClassInfo::kManyInstances, kVstAudioEffectClass, LINK_NAME,
-                Vst::kDistributable, "Fx|OnlyARA", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::create)
+                Vst::kDistributable, "Fx|OnlyARA", LINK_VERSION_TEXT, kVstVersionString, attacca::LinkProcessor::create)
 
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkProcessor::controllerID ()), PClassInfo::kManyInstances, kVstComponentControllerClass, LINK_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkProcessor::createController)
+                0, "", LINK_VERSION_TEXT, kVstVersionString, attacca::LinkProcessor::createController)
 
     DEF_CLASS2 (INLINE_UID_FROM_FUID (attacca::LinkMainFactory::classID ()), PClassInfo::kManyInstances, kARAMainFactoryClass, LINK_NAME,
-                0, "", LINK_FULL_VERSION, kVstVersionString, attacca::LinkMainFactory::create)
+                0, "", LINK_VERSION_TEXT, kVstVersionString, attacca::LinkMainFactory::create)
 #endif
 
 END_FACTORY

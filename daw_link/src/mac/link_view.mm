@@ -28,17 +28,17 @@
 
 namespace {
 
-// The build of the Attacca installed where this one was loaded from (its bundle's
-// CFBundleVersion, as it is on disk now; 0 when it can't be read): newer than LINK_BUILD once
-// Curator has put a newer one there, which the DAW loads only when it opens again.
-int installedBuild ()
+// The version of the Attacca installed where this one was loaded from (its bundle's
+// CFBundleVersion, as it is on disk now; 0 when it can't be read): newer than LINK_VERSION
+// once Curator has put a newer one there, which the DAW loads only when it opens again.
+int installedVersion ()
 {
     // (On the main thread only. Read again when the file changes, not each second a window is open.)
     static NSString* path = nil;
     static dispatch_once_t once;
     dispatch_once (&once, ^{
         Dl_info info {};
-        if (::dladdr (reinterpret_cast<const void*> (&installedBuild), &info) && info.dli_fname)
+        if (::dladdr (reinterpret_cast<const void*> (&installedVersion), &info) && info.dli_fname)
         {
             // .../Attacca.vst3/Contents/MacOS/Attacca → .../Attacca.vst3/Contents/Info.plist
             NSString* contents = [[NSString stringWithUTF8String:info.dli_fname].stringByDeletingLastPathComponent stringByDeletingLastPathComponent];
@@ -46,18 +46,18 @@ int installedBuild ()
         }
     });
     static struct timespec read {};
-    static int build = 0;
+    static int version = 0;
     struct stat now {};
     if (!path || ::stat (path.fileSystemRepresentation, &now) != 0)
     {
         read = {};
-        return build = 0;
+        return version = 0;
     }
     if (now.st_mtimespec.tv_sec == read.tv_sec && now.st_mtimespec.tv_nsec == read.tv_nsec)
-        return build;
+        return version;
     read = now.st_mtimespec;
     id found = [NSDictionary dictionaryWithContentsOfFile:path][@"CFBundleVersion"];
-    return build = [found isKindOfClass:NSString.class] ? [(NSString*) found intValue] : 0;
+    return version = [found isKindOfClass:NSString.class] ? [(NSString*) found intValue] : 0;
 }
 
 }  // namespace
@@ -263,7 +263,7 @@ int installedBuild ()
         [self updateCapturers];
     // Outdated: a newer Attacca is installed (the DAW keeps the one it loaded until it opens
     // again), or Curator bundles a newer one.
-    const int loaded = LINK_BUILD, installed = installedBuild (), curator = _client->curatorBuild ();
+    const int loaded = LINK_VERSION, installed = installedVersion (), curator = _client->bundledVersion ();
     if (loaded > 0 && installed > loaded)
     {
         dot = NSColor.systemOrangeColor;

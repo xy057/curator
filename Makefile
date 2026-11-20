@@ -24,14 +24,17 @@ LLVM_MINGW_SHA256 := e9c13e4ede38e715003ffc674d4d00a1088df8235439d1f0c16188ff070
 LLVM_MINGW := $(DAW_LINK_SDKS)/llvm-mingw-$(LLVM_MINGW_VERSION)
 DAW_LINK_WINDOWS := daw_link/build-windows
 DAW_LINK_WINDOWS_ZIP := $(DAW_LINK_WINDOWS)/Attacca.zip
-APP_VERSION = $(shell sed -n 's/^version: *\([0-9.]*\)+.*/\1/p' app/pubspec.yaml)
-APP_BUILD = $(shell sed -n 's/^version: *[0-9.]*+\([0-9]*\).*/\1/p' app/pubspec.yaml)
-# The release's patch, kept apart from the build (the version's patch): updater.dart's appReleasePatch.
-APP_RELEASE_PATCH = $(shell sed -n "s/^const appReleasePatch = '\(.*\)';/\1/p" app/lib/updater.dart)
+# Attacca's own version, a whole number apart from Curator's (docs/daw-link.md ▸ Its version):
+# where it is written, what it is, and the plug-in's sources as one SHA-256, which `make versions`
+# compares with the one `make attacca-seal` wrote down (daw_link/sources.sha256).
+ATTACCA_VERSION_FILE := app/lib/attacca_version.dart
+ATTACCA_VERSION = $(shell sed -n 's/^const attaccaVersion = \([0-9]*\);/\1/p' $(ATTACCA_VERSION_FILE))
+ATTACCA_SEAL := daw_link/sources.sha256
+ATTACCA_SOURCES = find daw_link/CMakeLists.txt daw_link/src daw_link/mac -type f ! -name '.*' | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | cut -d' ' -f1
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player daw-link daw-link-windows l10n extension-docs plugin-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -45,7 +48,8 @@ help:
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
-	@echo "make versions – check that updater.dart says the version pubspec.yaml does (patch = build), and the release patch"
+	@echo "make versions – check that updater.dart says the version pubspec.yaml does (patch = build), the release patch, and Attacca's seal"
+	@echo "make attacca-seal – after raising Attacca's version ($(ATTACCA_VERSION_FILE)): write down what its sources are now"
 	@echo "make smoke   – build the app and run it: open the sample, engrave, draw, export (opens a window)"
 	@echo "make doctor  – check that the required tools are installed"
 	@echo "make clean   – remove build outputs"
@@ -83,7 +87,7 @@ web-player: setup
 	cd app && dart tool/pack_web_player.dart
 
 # Attacca (daw_link/, docs/daw-link.md): Celemony's ARA SDK, Steinberg's VST3 SDK and Apple's
-# AudioUnitSDK fetched at the tags above, the plug-in built with Curator's version (universal,
+# AudioUnitSDK fetched at the tags above, the plug-in built with its own version (universal,
 # ad-hoc signed), checked by a DAW in miniature (daw_link/test/link_host.cpp) and both bundles zipped into the asset Settings ▸ DAW Link installs from.
 $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h:
 	git clone --depth 1 --branch $(ARA_TAG) --recurse-submodules --shallow-submodules https://github.com/Celemony/ARA_SDK.git $(DAW_LINK_SDKS)/ARA_SDK
@@ -98,8 +102,8 @@ $(DAW_LINK_SDKS)/AudioUnitSDK/src/AudioUnitSDK/AUBase.cpp:
 DAW_LINK_SDK_FILES := $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DAW_LINK_SDKS)/vst3sdk/public.sdk/source/main/macmain.cpp \
 	$(DAW_LINK_SDKS)/AudioUnitSDK/src/AudioUnitSDK/AUBase.cpp
 
-$(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
-	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+$(DAW_LINK_ZIP): $(DAW_LINK_SDK_FILES) $(shell find daw_link/src daw_link/mac daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt $(ATTACCA_VERSION_FILE)
+	cmake -S daw_link -B daw_link/build -DLINK_VERSION=$(ATTACCA_VERSION) "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
 	cmake --build daw_link/build -j 8
 	daw_link/build/link_host "daw_link/build/out/Attacca.vst3" "daw_link/build/out/Attacca Capturer.vst3" "daw_link/build/out/Attacca.component"
 	rm -f $@
@@ -119,15 +123,22 @@ $(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++:
 	rm $(LLVM_MINGW).tar.xz
 
 $(DAW_LINK_WINDOWS_ZIP): $(DAW_LINK_SDKS)/ARA_SDK/ARA_Library/PlugIn/ARAPlug.h $(DAW_LINK_SDKS)/vst3sdk/public.sdk/source/main/macmain.cpp \
-		$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++ $(shell find daw_link/src daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt app/pubspec.yaml
+		$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++ $(shell find daw_link/src daw_link/test -type f) daw_link/CMakeLists.txt app/assets/daw_link/LICENSES.txt $(ATTACCA_VERSION_FILE)
 	cmake -S daw_link -B $(DAW_LINK_WINDOWS) -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
 		-DCMAKE_C_COMPILER=$(CURDIR)/$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang -DCMAKE_CXX_COMPILER=$(CURDIR)/$(LLVM_MINGW)/bin/x86_64-w64-mingw32-clang++ \
-		-DLINK_VERSION=$(APP_VERSION) -DLINK_BUILD=$(APP_BUILD) -DLINK_RELEASE_PATCH=$(APP_RELEASE_PATCH)
+		-DLINK_VERSION=$(ATTACCA_VERSION)
 	cmake --build $(DAW_LINK_WINDOWS) -j 8
 	rm -f $@
 	cd $(DAW_LINK_WINDOWS)/out && zip -qr "$(CURDIR)/$@" "Attacca.vst3" "Attacca Capturer.vst3"
 
 daw-link-windows: $(DAW_LINK_WINDOWS_ZIP)
+
+# Attacca's sources as they are now, written down: `make versions` fails once they are anything
+# else, so a changed plug-in can't go out under the version of the one before it. Run it after
+# raising attaccaVersion.
+attacca-seal:
+	@$(ATTACCA_SOURCES) > $(ATTACCA_SEAL)
+	@echo "✓ Attacca $(ATTACCA_VERSION) sealed"
 
 # The interface's text: new `.tr` / `.fill` texts into the template Crowdin translates from
 # (app/assets/l10n/curator.pot), and every language's file in step with it (tool/l10n.dart;
@@ -158,6 +169,9 @@ check: setup versions
 # The version is written twice: app/pubspec.yaml's `version: 0.5.3+70`, and appVersion / appBuild in
 # app/lib/updater.dart, which the app reports and the updater compares with the latest release
 # (one left behind would offer the app its own release). The Release workflow runs this too.
+# Attacca's version is its own (attaccaVersion), raised only when the plug-in changes: its
+# sources must be the ones sealed at that version (attacca-seal), or a changed Attacca would go
+# out looking like the one DAWs already have, and never be told it is outdated.
 versions:
 	@v=$$(sed -n 's/^version: *\([0-9.]*+[0-9]*\).*/\1/p' app/pubspec.yaml); \
 	mm=$$(sed -n "s/^const _majorMinor = '\([0-9]*\.[0-9]*\)';/\1/p" app/lib/updater.dart); \
@@ -167,6 +181,11 @@ versions:
 		|| { echo "✗ app/pubspec.yaml says $${v:-no version}, app/lib/updater.dart $$mm.$$b+$$b: make them the same (the patch is the build)"; exit 1; }; \
 	[ -n "$$r" ] || { echo "✗ app/lib/updater.dart's appReleasePatch is empty, or not letters, digits and -"; exit 1; }; \
 	echo "✓ version $$v, release $$mm.$$r"
+	@a="$(ATTACCA_VERSION)"; \
+	[ -n "$$a" ] && [ "$$a" -gt 0 ] || { echo "✗ $(ATTACCA_VERSION_FILE) has no attaccaVersion (a whole number)"; exit 1; }; \
+	[ "$$($(ATTACCA_SOURCES))" = "$$(cat $(ATTACCA_SEAL) 2>/dev/null)" ] \
+		|| { echo "✗ Attacca (daw_link/) changed since its version $$a was sealed: raise attaccaVersion in $(ATTACCA_VERSION_FILE) by one, then make attacca-seal"; exit 1; }; \
+	echo "✓ Attacca $$a"
 
 # The app as built, not the test runner: integration_test/app_smoke_test.dart.
 smoke: setup

@@ -789,7 +789,7 @@ public:
     const char* getPlugInName () const noexcept override { return LINK_NAME; }
     const char* getManufacturerName () const noexcept override { return LINK_VENDOR; }
     const char* getInformationURL () const noexcept override { return LINK_URL; }
-    const char* getVersion () const noexcept override { return LINK_VERSION; }
+    const char* getVersion () const noexcept override { return LINK_VERSION_TEXT; }
     const char* getDocumentArchiveID () const noexcept override { return LINK_ARCHIVE_ID; }
 };
 

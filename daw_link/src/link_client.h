@@ -77,9 +77,10 @@ public:
     // line); empty while none is or Curator isn't connected.
     std::string followers ();
 
-    // Curator's build, as its discovery file says (0: one that doesn't say). A plug-in older
-    // than it is outdated: Curator bundles a newer one.
-    int curatorBuild () const noexcept { return curatorBuild_.load (); }
+    // The version of the Attacca Curator bundles, as its discovery file says (`build`; 0: one
+    // that doesn't say). A plug-in older than it (LINK_VERSION) is outdated. (A Curator from
+    // before Attacca had a version of its own says its own build: lower than any such version.)
+    int bundledVersion () const noexcept { return bundledVersion_.load (); }
 
     // Attacca's side: the Attacca Capturer linked to this DAW's Attacca (its ID; empty: none),
     // chosen in Attacca's window and kept in its instances' state. Published as `link`, and so
@@ -114,7 +115,7 @@ private:
     bool stop_ { false };
 
     std::atomic<std::intptr_t> fd_ { -1 };  // the socket (net::Socket); -1: none
-    std::atomic<int> curatorBuild_ { 0 };
+    std::atomic<int> bundledVersion_ { 0 };
     std::string linkedCapturer_;
     // What Curator last told of a state, by the message's type (`followers`, `linked`,
     // `inserts`: told); none while it hasn't, or isn't connected.
