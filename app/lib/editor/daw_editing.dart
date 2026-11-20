@@ -10,8 +10,8 @@ typedef DawFollow = ({String document, String source, String? region, int bar, b
 /// recording followed is placed in it, as it follows a MIDI file's ([EditorController.followTempoMap]),
 /// now and again each time the DAW sends its document changed; and while the DAW plays, the
 /// playhead goes where it is in the recording ([Playback]'s DAW clock). Lasts while the project
-/// is open and the DAW is there; the tempo map taken is the project's as any is. A tempo map
-/// chosen or edited here, or anchors, end it.
+/// is open and the DAW has the recording ([_linkChanged]); the tempo map taken is the project's as
+/// any is. A tempo map chosen or edited here, or anchors, end it.
 class DawEditing {
   DawEditing._(this._editor);
 
@@ -116,12 +116,13 @@ class DawEditing {
     _editor._changed();
   }
 
+  /// Following ends once the recording followed is gone from the DAW: its document closed (the
+  /// project closed, the DAW quit, or Curator stopped listening), which never comes back (Attacca
+  /// gives a document opened again a new id), or no region of it left there (its track removed,
+  /// or Attacca taken off it). The playhead stays where it was; the tempo map taken stays.
   void _linkChanged() {
+    if (region == null) return stop();
     _watchTransport();
-    if (document == null) {
-      _editor.playback._dawStopped(); // the DAW is gone: the playhead stays where it was
-      return;
-    }
     _take();
   }
 

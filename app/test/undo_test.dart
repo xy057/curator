@@ -472,8 +472,19 @@ void main() {
       await expectLater(orphan, throwsA(isA<DawLinkException>().having((e) => e.reason, 'reason', 'gone')));
       expect(await told(toMixer), {'t': 'cancel', 'document': 'doc', 'capturer': 'cap'});
       expect([await told(heard), await told(heard)], [{'t': 'followers', 'names': ''}, {'t': 'stop', 'document': 'doc'}]);
-      say(song([[0, 0], [3, 6], [8, 15]]));
-      expect(await told(heard), containsPair('t', 'followers'), reason: 'followed again as it comes back');
+      expect(c.daw.following, isNull, reason: 'its document closed, following ends: one opened again has a new id');
+      Future<void> followAgain() async {
+        say(song([[0, 0], [3, 6], [8, 15]]));
+        await until(() => link.find('doc')?.$2.regions.isNotEmpty ?? false);
+        c.daw.follow(link, (document: 'doc', source: 'take-1', region: null, bar: 2, transport: true));
+        expect(await told(heard), {'t': 'followers', 'names': 'Ode'});
+      }
+
+      await followAgain();
+      say({...song([[0, 0], [3, 6], [8, 15]]), 'regions': const []});
+      expect(await told(heard), {'t': 'followers', 'names': ''}, reason: 'its track removed in the DAW: following ends');
+      expect(c.daw.following, isNull);
+      await followAgain();
       mixer.destroy();
       await until(() => link.capturersOf(session).isEmpty);
       // The mix recorded goes in place of the Attacca take, an ordinary recording from then on.
@@ -487,7 +498,7 @@ void main() {
       say({'t': 'transport', 'playing': true, 'seconds': 5.0, 'quarters': 10, 'tempo': 120});
       await until(() => c.playback.followsDaw);
       daw.destroy();
-      await until(() => link.sessions.isEmpty && !c.playback.followsDaw);
+      await until(() => link.sessions.isEmpty && !c.playback.followsDaw && c.daw.following == null); // the DAW quit
       // One that connected and never said hello is let go as listening stops: it can't say it
       // after, to a link that listens no more.
       final mute = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);

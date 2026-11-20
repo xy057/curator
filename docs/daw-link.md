@@ -228,7 +228,9 @@ the DAW it says to put one on the output, and with none linked to choose it in A
 **Listen for Attacca** (Settings ▸ General ▸ DAW, on by default) is the switch for all of
 this. The menu item is checked while Curator follows a DAW, and choosing it again stops. So does
 choosing another tempo map, editing the one taken, or Convert to Anchors. The tempo map taken is
-saved with the project like any other. Following lasts only while the project is open.
+saved with the project like any other. Following lasts only while the project is open and the
+DAW has the recording: closing the DAW's project, quitting the DAW, removing the recording's
+track (or Attacca from it), or turning Listen for Attacca off ends it.
 
 ## On Windows
 
