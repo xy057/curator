@@ -13,6 +13,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_logo.dart';
 import 'app_settings.dart';
+import 'attacca_version.dart';
 import 'color_dialog.dart';
 import 'audio_panel.dart' show pickAudio;
 import 'audio_track.dart' show AudioTrack;
@@ -2095,7 +2096,8 @@ class _AttaccaCacheState extends State<_AttaccaCache> {
 }
 
 /// Attacca's VST3s (and on macOS its Audio Unit) installed for DAWs ([AttaccaPlugIns]): the DAWs
-/// connected now, then Install (Update when another version is there, Reinstall when this one).
+/// connected now, then Install (Update when another version is there, Reinstall when the one
+/// this Curator bundles, [attaccaVersion]: a Curator update needn't bring a new Attacca).
 class _AttaccaPlugIns extends StatefulWidget {
   const _AttaccaPlugIns();
 
@@ -2105,11 +2107,9 @@ class _AttaccaPlugIns extends StatefulWidget {
 
 class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
   String? _installed = AttaccaPlugIns.installed();
+  bool _current = AttaccaPlugIns.installedVersion() == attaccaVersion;
   bool _busy = false;
   String? _problem;
-
-  /// What the plug-ins' bundles say when they came with this build (major.minor.build and build).
-  static String get _version => '$appVersion ($appBuild)';
 
   Future<void> _install() => _change(() async {
         final ByteData data;
@@ -2142,6 +2142,7 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
       setState(() {
         _busy = false;
         _installed = AttaccaPlugIns.installed();
+        _current = AttaccaPlugIns.installedVersion() == attaccaVersion;
       });
     }
   }
@@ -2174,7 +2175,7 @@ class _AttaccaPlugInsState extends State<_AttaccaPlugIns> {
             onPressed: _busy ? null : _install,
             child: Text(_installed == null
                 ? 'Install'.tr
-                : _installed == _version
+                : _current
                     ? 'Reinstall'.tr
                     : 'Update'.tr),
           ),

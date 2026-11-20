@@ -249,7 +249,7 @@ struct StatusView {
             updateCapturers ();
         // Outdated: Curator bundles a newer Attacca. (Windows lets no program replace one a DAW
         // has loaded, so a newer one is never on disk under it, as it can be on macOS.)
-        if (const int loaded = LINK_BUILD; loaded > 0 && client->curatorBuild () > loaded)
+        if (const int loaded = LINK_VERSION; loaded > 0 && client->bundledVersion () > loaded)
         {
             nowDot = orange;
             nowDetail = L"Outdated: update it in Curator’s Settings";

@@ -123,7 +123,7 @@ String attaccaMissing(Iterable<String> missing) => [
 /// What to do about [session]'s outdated Attacca ([DawSession.outdated]): reopen the DAW when
 /// the newer one is installed already (a DAW keeps the one it loaded until then), else update it.
 String attaccaOutdated(DawSession session) {
-  final reopen = (AttaccaPlugIns.installedBuild() ?? 0) > session.build;
+  final reopen = (AttaccaPlugIns.installedVersion() ?? 0) > session.version;
   if (session.host.isEmpty) return reopen ? 'Attacca in the DAW is outdated: reopen the DAW.'.tr : 'Attacca in the DAW is outdated: update it in Settings ▸ General.'.tr;
   final daw = {'daw': session.host};
   return reopen ? 'Attacca in {daw} is outdated: reopen {daw}.'.fill(daw) : 'Attacca in {daw} is outdated: update it in Settings ▸ General.'.fill(daw);

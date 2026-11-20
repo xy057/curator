@@ -4,13 +4,13 @@
 #define LINK_QUOTE_(x) #x
 #define LINK_QUOTE(x) LINK_QUOTE_(x)
 
-// Set by CMakeLists.txt from app/pubspec.yaml: the plug-in has Curator's version.
+// Attacca's own version, a whole number apart from Curator's (docs/daw-link.md ▸ Its version),
+// set by CMakeLists.txt from app/lib/attacca_version.dart. An Attacca from before it had one
+// had Curator's build here, every one lower.
 #ifndef LINK_VERSION
-#define LINK_VERSION "0.0.0"
+#define LINK_VERSION 0
 #endif
-#ifndef LINK_BUILD
-#define LINK_BUILD 0
-#endif
+#define LINK_VERSION_TEXT LINK_QUOTE (LINK_VERSION)
 
 #define LINK_NAME "Attacca"
 #define LINK_CAPTURER_NAME "Attacca Capturer"

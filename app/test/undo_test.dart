@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:curated_score/attacca_version.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
 import 'package:curated_score/daw_link.dart';
@@ -13,7 +14,6 @@ import 'package:curated_score/file_names.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
-import 'package:curated_score/updater.dart' show appBuild;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -254,17 +254,25 @@ void main() {
       say({'t': 'closed', 'id': 'bare'});
       await until(() => link.find('bare') == null);
       expect(session.supported, isTrue, reason: 'by what its documents say now');
-      // Curator's build in its discovery file; a plug-in older than it is outdated (one that
-      // doesn't say its build isn't).
-      expect((discovery['build'], session.outdated), (appBuild, false));
-      final older = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
-      // (Its name not UTF-8, a byte astray: read as it can be, the connection kept.)
-      final hello = utf8.encode('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': appBuild - 1})}\n');
-      final astray = utf8.decode(hello).indexOf('Cubase') + 6;
-      older.add([...hello.take(astray), 0xff, ...hello.skip(astray)]);
+      // The version of the Attacca Curator bundles in its discovery file: Attacca's own, apart
+      // from Curator's build. A plug-in older than it is outdated; one of that version isn't,
+      // whatever Curator's build (nor is one that doesn't say its version).
+      expect((discovery['build'], session.outdated), (attaccaVersion, false));
+      Future<Socket> connecting(int version) async {
+        final socket = await Socket.connect(InternetAddress.loopbackIPv4, discovery['port']! as int);
+        // (Its name not UTF-8, a byte astray: read as it can be, the connection kept.)
+        final hello = utf8.encode('${jsonEncode({'t': 'hello', 'token': discovery['token'], 'protocol': 1, 'host': 'Cubase 15', 'build': version})}\n');
+        final astray = utf8.decode(hello).indexOf('Cubase') + 6;
+        socket.add([...hello.take(astray), 0xff, ...hello.skip(astray)]);
+        return socket;
+      }
+      final older = await connecting(attaccaVersion - 1);
       await until(() => link.sessions.length == 2);
-      expect([for (final s in link.sessions) s.outdated], [false, true]);
+      final same = await connecting(attaccaVersion);
+      await until(() => link.sessions.length == 3);
+      expect([for (final s in link.sessions) s.outdated], [false, true, false]);
       older.destroy();
+      same.destroy();
       await until(() => link.sessions.length == 1);
 
       final region = document.regions.single, context = document.contexts.single;
@@ -523,13 +531,13 @@ void main() {
       File('$plugIns/Components/Curator Link.component/Contents/Info.plist').createSync(recursive: true);
       final zip = Archive()
         ..add(ArchiveFile.string('Attacca.vst3/Contents/Info.plist',
-            '<key>CFBundleShortVersionString</key>\n\t<string>0.9.0</string>\n<key>CFBundleVersion</key><string>468</string>'))
+            '<key>CFBundleShortVersionString</key>\n\t<string>$attaccaVersion</string>\n<key>CFBundleVersion</key><string>$attaccaVersion</string>'))
         ..add(ArchiveFile.string('Attacca.vst3/Contents/MacOS/Attacca', 'program'))
         ..add(ArchiveFile.string('Attacca.component/Contents/MacOS/Attacca', 'program'))
         ..add(ArchiveFile.string('Attacca Capturer.vst3/Contents/MacOS/Attacca Capturer', 'program'))
         ..add(ArchiveFile.string('Elsewhere/stray.txt', 'no'));
       await AttaccaPlugIns.install(Uint8List.fromList(ZipEncoder().encode(zip)), folder: plugIns);
-      expect(AttaccaPlugIns.installed(folder: plugIns), '0.9.0 (468)');
+      expect((AttaccaPlugIns.installed(folder: plugIns), AttaccaPlugIns.installedVersion(folder: plugIns)), ('$attaccaVersion', attaccaVersion), reason: 'its own version, a whole number');
       expect(File('$plugIns/VST3/Attacca.vst3/Contents/old.txt').existsSync(), isFalse);
       expect(Directory('$plugIns/Components/Curator Link.component').existsSync(), isFalse, reason: 'its former name goes');
       expect(File('$plugIns/Components/Attacca.component/Contents/MacOS/Attacca').statSync().modeString(), 'rwxr-xr-x');
@@ -541,7 +549,8 @@ void main() {
           reason: 'uninstalled, all go');
 
       // On Windows: the user's own VST3 folder (no administrator), the two VST3s as Windows has
-      // them (a DLL in a folder for its processor), the version from the file the bundle says it in.
+      // them (a DLL in a folder for its processor), the version from the file the bundle says it
+      // in: one from before Attacca had its own (Curator's version and build), then its own.
       expect(AttaccaPlugIns.plugInsFolderFor('windows', {'LocalAppData': r'C:\Users\me\AppData\Local', 'HOME': '/Users/me'}), r'C:\Users\me\AppData\Local\Programs\Common');
       expect(AttaccaPlugIns.plugInsFolderFor('windows', {'USERPROFILE': r'D:\me'}), r'D:\me\AppData\Local\Programs\Common');
       expect((AttaccaPlugIns.plugInsFolderFor('windows', {'HOME': '/Users/me'}), AttaccaPlugIns.plugInsFolderFor('macos', {})), (null, null), reason: 'no home: nowhere');
@@ -551,7 +560,9 @@ void main() {
         ..add(ArchiveFile.string('Attacca.vst3/Contents/x86_64-win/Attacca.vst3', 'program'))
         ..add(ArchiveFile.string('Attacca Capturer.vst3/Contents/x86_64-win/Attacca Capturer.vst3', 'program'));
       await AttaccaPlugIns.install(Uint8List.fromList(ZipEncoder().encode(windowsZip)), folder: plugIns);
-      expect((AttaccaPlugIns.installed(folder: plugIns), AttaccaPlugIns.installedBuild(folder: plugIns)), ('0.9.621 (621)', 621));
+      expect((AttaccaPlugIns.installed(folder: plugIns), AttaccaPlugIns.installedVersion(folder: plugIns)), ('0.9.621 (621)', 621));
+      File('$plugIns/VST3/Attacca.vst3/Contents/Resources/version.txt').writeAsStringSync('$attaccaVersion\n');
+      expect((AttaccaPlugIns.installed(folder: plugIns), AttaccaPlugIns.installedVersion(folder: plugIns)), ('$attaccaVersion', attaccaVersion));
       expect(File('$plugIns/VST3/Attacca Capturer.vst3/Contents/x86_64-win/Attacca Capturer.vst3').existsSync(), isTrue);
       await AttaccaPlugIns.uninstall(folder: plugIns);
       expect((AttaccaPlugIns.installed(folder: plugIns), Directory('$plugIns/VST3/Attacca Capturer.vst3').existsSync()), (null, false));

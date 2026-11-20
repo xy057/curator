@@ -43,21 +43,11 @@ set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
-set(LINK_VERSION "0.0.0" CACHE STRING "Curator's version (app/pubspec.yaml)")
-set(LINK_BUILD "0" CACHE STRING "Curator's build number (app/pubspec.yaml)")
-set(LINK_RELEASE_PATCH "0" CACHE STRING "The patch of Curator's release (app/lib/updater.dart's appReleasePatch)")
-# An Audio Unit's version as Logic compares it: 0xMMMMmmbb. Its patch byte is the release's (its
-# leading digits, at most 255): LINK_VERSION's patch is the build, too big for a byte.
-string(REPLACE "." ";" version_parts "${LINK_VERSION}")
-list(GET version_parts 0 version_major)
-list(GET version_parts 1 version_minor)
-string(REGEX MATCH "^[0-9]*" version_patch "${LINK_RELEASE_PATCH}")
-if(version_patch STREQUAL "")
-    set(version_patch 0)
-elseif(version_patch GREATER 255)
-    set(version_patch 255)
-endif()
-math(EXPR LINK_AU_VERSION "(${version_major} << 16) | (${version_minor} << 8) | ${version_patch}")
+set(LINK_VERSION "0" CACHE STRING "Attacca's own version, a whole number (app/lib/attacca_version.dart)")
+# An Audio Unit's version as Logic compares it, 0xMMMMmmbb: 1, then Attacca's version over the
+# two bytes after it (630 is 1.2.118), so it rises with it and is above every one from before
+# Attacca had a version of its own (0.10.0 at most).
+math(EXPR LINK_AU_VERSION "(1 << 16) | ${LINK_VERSION}")
 
 set(SDKS "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set(ARA_SDK "${SDKS}/ARA_SDK")
@@ -111,7 +101,7 @@ add_library(link_core STATIC
     src/link_view.h
 )
 target_link_libraries(link_core PUBLIC ara_plugin)
-target_compile_definitions(link_core PUBLIC LINK_VERSION="${LINK_VERSION}" LINK_BUILD=${LINK_BUILD})
+target_compile_definitions(link_core PUBLIC LINK_VERSION=${LINK_VERSION})
 target_compile_options(link_core PRIVATE ${link_warnings})
 if(WIN32)
     target_link_libraries(link_core PUBLIC ws2_32)
@@ -137,8 +127,8 @@ set(LINK_LICENSES "${CMAKE_CURRENT_SOURCE_DIR}/../app/assets/daw_link/LICENSES.t
 
 # Windows: a VST3 bundle of [target], named [name]: a folder <name>.vst3 holding its program
 # (Contents/<processor>-win/<name>.vst3, a DLL) and, in Contents/Resources, the licences of the
-# SDKs in it and Curator's version it was built with (version.txt, "0.9.621+621": what Settings
-# reads as the version installed; macOS has it in the bundle's Info.plist).
+# SDKs in it and Attacca's version (version.txt, "630": what Settings reads as the version
+# installed; macOS has it in the bundle's Info.plist).
 function(link_windows_bundle target name)
     set(bundle "${CMAKE_CURRENT_BINARY_DIR}/out/${name}.vst3")
     set_target_properties(${target} PROPERTIES
@@ -151,7 +141,7 @@ function(link_windows_bundle target name)
         string(TOUPPER ${config} upper)
         set_target_properties(${target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_${upper} "${bundle}/Contents/${LINK_WINDOWS_ARCH}")
     endforeach()
-    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version.txt" "${LINK_VERSION}+${LINK_BUILD}\n")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version.txt" "${LINK_VERSION}\n")
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${bundle}/Contents/Resources"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LINK_LICENSES}" "${CMAKE_CURRENT_BINARY_DIR}/version.txt" "${bundle}/Contents/Resources"
@@ -254,6 +244,7 @@ add_executable(link_host
 )
 target_include_directories(link_host PRIVATE "${ARA_SDK}/ARA_Examples")
 target_link_libraries(link_host PRIVATE ara_plugin vst3_sdk)
+target_compile_definitions(link_host PRIVATE LINK_VERSION=${LINK_VERSION})
 add_dependencies(link_host AttaccaVST3 AttaccaCapturerVST3)
 if(WIN32)
     target_link_libraries(link_host PRIVATE ws2_32 user32)

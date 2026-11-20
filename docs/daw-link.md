@@ -57,7 +57,8 @@ DAW…, Capture Stems…, and Settings… (Listen for Attacca, Install, Update, 
    | `Attacca.vst3` | `%LOCALAPPDATA%\Programs\Common\VST3` | Cubase, Nuendo, Studio One, REAPER and other VST3 hosts |
    | `Attacca Capturer.vst3` | `%LOCALAPPDATA%\Programs\Common\VST3` | the same, for [Attacca Capturer](#attacca-capturer) |
 
-   The row then shows the version installed, for example `0.9.480 (480)`.
+   The row then shows the version installed, for example `630`: Attacca's own
+   ([Updating](#updating)), not Curator's.
 3. Leave **Listen for Attacca** on, in the same group. It is on unless you turned it off.
 4. **Start your DAW.** Most DAWs find a new plug-in on their own. If Attacca isn't listed:
    - **Logic Pro** checks every new Audio Unit when it starts. If the check failed, open
@@ -79,10 +80,16 @@ DAW…, Capture Stems…, and Settings… (Listen for Attacca, Install, Update, 
 
 ### Updating
 
-After Curator is updated, the row says **Update** instead of the version: click it, then
-restart the DAW, which keeps the old plug-in loaded until it quits. Until then, a plug-in from
-an older Curator still works. **Reinstall** puts the same version back, for a plug-in that was
-damaged or partly removed.
+Attacca has a version of its own, a whole number that goes up only when the plug-in itself
+changes. An update of Curator that doesn't change Attacca leaves the one installed as it is:
+nothing to do, and nothing says it is outdated. When an update does bring a newer Attacca, the
+row's button says **Update** instead of **Reinstall**: click it, then restart the DAW, which
+keeps the old plug-in loaded until it quits. Until then, the older plug-in still works, and
+says it is outdated ([Using it](#using-it)). **Reinstall** puts the same version back, for a
+plug-in that was damaged or partly removed.
+
+(An Attacca from before it had its own version, 630, shows Curator's of the time, for example
+`0.10.625 (625)`: every one of them is older.)
 
 ### Installing by hand
 
@@ -168,9 +175,10 @@ DAW gives, and its DAW is taken to give everything (Curator says that Attacca is
 **Outdated.** A DAW keeps the Attacca it loaded until it opens again, so one updated while
 the DAW is open is still the old one there. Attacca's window then says it is outdated and to
 reopen the DAW (a newer Attacca is in its bundle on disk), or to update it in Curator's
-Settings (Curator, by the build in `daw-link.json`, is newer). Curator says so too, from the
-build in `hello`: once as the DAW connects, in Connect Attacca…, and as "(outdated)" beside the
-DAW in File ▸ Attacca.
+Settings (the Attacca Curator bundles, by the version in `daw-link.json`, is newer). Curator
+says so too, from the version in `hello`: once as the DAW connects, in Connect Attacca…, and as
+"(outdated)" beside the DAW in File ▸ Attacca. Both compare Attacca's own version, never
+Curator's: a newer Curator with the same Attacca says nothing.
 
 A recording taken from the DAW (**Load ARA Clip**) is the project's Attacca recording: its
 take is marked with a link sign, beside its name in its lane, under Recording in the Audio tab
@@ -241,7 +249,7 @@ all it does on macOS. What differs:
 
 - **VST3 only.** Windows has no Audio Units: `Attacca.vst3` and `Attacca Capturer.vst3`, each a
   folder holding its program (`Contents\x86_64-win\<name>.vst3`), the SDKs' licences and
-  Curator's version (`Contents\Resources`). The DAWs Attacca supports all load VST3.
+  Attacca's version (`Contents\Resources`). The DAWs Attacca supports all load VST3.
 - **x86_64 only.** A DAW built for ARM (Windows on ARM, run natively) doesn't load it. One
   built for x86_64 does, on either processor.
 - **Your own VST3 folder.** `%LOCALAPPDATA%\Programs\Common\VST3` is the VST3 standard's
@@ -283,7 +291,7 @@ project, because everything it knows the DAW sends again.
 ## How Curator and the plug-in talk
 
 - **Finding Curator.** Curator listens on the loopback address (127.0.0.1) at a port the system
-  picks. It writes the port, a random token and its own build to `daw-link.json` in its data
+  picks. It writes the port, a random token and the version of the Attacca it bundles (`build`) to `daw-link.json` in its data
   folder (`~/Library/Application Support/Curator`; Windows: `%LOCALAPPDATA%\Curator`) and removes the file when it quits. The plug-in
   reads that file every second until it can connect. A plug-in that starts before Curator
   therefore connects as soon as Curator is up. The file also names Curator's process (`pid`): one
@@ -298,7 +306,7 @@ project, because everything it knows the DAW sends again.
 
 | Message | From | Holds |
 |---|---|---|
-| `hello` | plug-in | `token`, `protocol` (1), `plugin` (its version), `build`, `host` (the DAW process's name), `pid` |
+| `hello` | plug-in | `token`, `protocol` (1), `build` (Attacca's version), `host` (the DAW process's name), `pid` |
 | `document` | plug-in | `id` (new each time the DAW opens the project), `name`; `contexts` (each with `tempo`: `[seconds, quarters]` pairs, `bars`: `[numerator, denominator, quarter]`, `keys`, `chords`), `tracks` (`name`, `color`, `order`, `context`), `sources` (`id`: the recording's persistent ID, `name`, `rate`, `frames`, `channels`, `access`), `regions` (`track`, `source`, `start` and `length` in the song, `from` and `span` in the recording); `playback`: whether the DAW lets Attacca drive its transport; `interfaces`: the ARA host interfaces the DAW gave Attacca, of `audio`, `archiving` (every host gives both), `content` (the song), `updates`, `playback` (the transport): Curator supports a DAW that gives `content` and `playback` (`DawDocument.needed`) |
 | `closed` | plug-in | `id`: the document has gone |
 | `transport` | plug-in | `playing`, `seconds` and `quarters` from the song's start, `tempo`; at most 30 a second, and only when something changed |
@@ -335,6 +343,10 @@ ARA defines it). Bar 1 is the barline at quarter 0, or else the first barline af
 Fields are only added over time. A message type or field that one side doesn't know is ignored.
 `protocol` is raised only when one side could no longer read the other.
 
+`build`, in `hello` and in `daw-link.json`, is Attacca's version, named for what it was: until
+630 Attacca had Curator's build for its version. Its own began there, so every plug-in and
+every Curator from before compares as older without either side knowing of the change.
+
 ## Building and checking it
 
 `make daw-link` does three things:
@@ -344,8 +356,8 @@ Fields are only added over time. A message type or field that one side doesn't k
    - Celemony's ARA SDK 2.3.0 (Apache 2.0)
    - Steinberg's VST3 SDK 3.8.0 (MIT)
    - Apple's AudioUnitSDK 1.4.0 (Apache 2.0)
-2. **Builds the plug-in** as a universal binary, ad-hoc signed, with the version from
-   `app/pubspec.yaml` (major.minor.build; the Audio Unit's patch is the release's). `daw_link/CMakeLists.txt` compiles the SDKs' sources directly and runs
+2. **Builds the plug-in** as a universal binary, ad-hoc signed, with its own version
+   ([Its version](#its-version)). `daw_link/CMakeLists.txt` compiles the SDKs' sources directly and runs
    none of their build scripts.
 3. **Runs `daw_link/test/link_host`**, a DAW in miniature, before zipping the bundles into
    `app/assets/daw_link/Attacca.zip`. That is the zip Settings installs from, and
@@ -383,6 +395,22 @@ The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`. That file is shown
 The Release workflow does this in a job of its own (`attacca-windows`, on a Mac), and its
 Windows job runs `link_host.exe` on Windows, then puts the zip in the app as
 `assets/daw_link/Attacca.zip` before building it. Each system's app carries its own Attacca.
+
+### Its version
+
+Attacca's version is `attaccaVersion` in `app/lib/attacca_version.dart`: a whole number apart
+from Curator's version and build. The Makefile reads it from there for the plug-in (its
+bundles' version, the VST3 classes', ARA's, `build` in `hello`; an Audio Unit's version is 1,
+then the number over its last two bytes), and Curator compares it with what a DAW's Attacca
+says and with the one installed.
+
+**Raise it by one with every change to the plug-in** (`daw_link/CMakeLists.txt`,
+`daw_link/src`, `daw_link/mac`), then run `make attacca-seal`, which writes down what those
+sources are (`daw_link/sources.sha256`, one SHA-256 of them all). `make versions` (from
+`make check`, and the Release workflow's first step) fails while they are anything else, so a
+changed Attacca can't go out under the version DAWs already have, where nothing would tell
+them it is outdated. A change that touches none of those files (Curator's own, the test host)
+leaves the version alone, and every Attacca installed stays current.
 
 macOS and Windows are built (`AttaccaPlugIns.supported`); the plug-in's sources say what
 differs between them in `link_system.cpp` (Curator's folders, the process), `link_socket.h`

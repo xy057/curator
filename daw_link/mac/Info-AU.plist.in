@@ -67,7 +67,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>@LINK_VERSION@</string>
 	<key>CFBundleVersion</key>
-	<string>@LINK_BUILD@</string>
+	<string>@LINK_VERSION@</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Attacca is part of Curator (GPL-3.0). ARA by Celemony.</string>
 </dict>

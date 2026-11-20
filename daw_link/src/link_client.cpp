@@ -258,7 +258,7 @@ bool LinkClient::tryConnect ()
         return false;
     }
 
-    curatorBuild_.store (static_cast<int> (std::strtol (found["build"].c_str (), nullptr, 10)));
+    bundledVersion_.store (static_cast<int> (std::strtol (found["build"].c_str (), nullptr, 10)));
     std::lock_guard<std::mutex> lock (mutex_);
     token_ = found["token"];
     inbox_.clear ();
@@ -382,8 +382,7 @@ void LinkClient::run ()
                     .field ("t", "hello")
                     .field ("protocol", static_cast<double> (LINK_PROTOCOL))
                     .field ("token", token_)
-                    .field ("plugin", LINK_VERSION)
-                    .field ("build", static_cast<double> (LINK_BUILD))
+                    .field ("build", static_cast<double> (LINK_VERSION))
                     .field ("host", host)
                     .field ("pid", static_cast<double> (processId ()))
                     .endObject ();

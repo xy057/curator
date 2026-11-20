@@ -1041,6 +1041,7 @@ int main (int argc, const char* argv[])
     auto hello = curator.next ("hello", 5);
     check (hello["token"] == "t0k3n", "it says the token back");
     check (hello["protocol"] == "1", "protocol 1");
+    check (LINK_VERSION > 0 && hello["build"] == std::to_string (LINK_VERSION), "its own version, the one it was built with");
     auto document = curator.next ("document", 5);
     const std::string id = document["id"];
     const std::string line = curator.lines.back ();  // a copy: more lines come

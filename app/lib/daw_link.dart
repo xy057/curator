@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:score_engine/score_engine.dart';
 
 import 'app_folders.dart';
-import 'updater.dart' show appBuild;
+import 'attacca_version.dart';
 
 /// Curator's end of Attacca, the ARA plug-in a DAW loads (see docs/daw-link.md).
 ///
@@ -122,7 +122,7 @@ class DawLink extends ChangeNotifier {
       await folder.create(recursive: true);
       final partial = File('${file.path}.part');
       // Written whole, then put in place: a plug-in never reads half of it.
-      await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': appBuild}));
+      await partial.writeAsString(jsonEncode({'port': server.port, 'token': _token, 'pid': pid, 'protocol': protocol, 'build': attaccaVersion}));
       await partial.rename(file.path);
     } catch (_) {
       // No plug-in can find a port no file names: not left open.
@@ -342,8 +342,9 @@ class DawSession extends ChangeNotifier {
   /// What Attacca needs of ARA that this DAW doesn't give ([DawDocument.needed]'s order).
   List<String> get missing => [for (final i in DawDocument.needed) if (_documents.values.any((d) => d.missing.contains(i))) i];
 
-  /// The plug-in's build (0: one that doesn't say).
-  int build = 0;
+  /// Its Attacca's version (`build` in `hello`; 0: one that doesn't say). One from before
+  /// Attacca had a version of its own ([attaccaVersion]) says Curator's build then: lower.
+  int version = 0;
 
   /// The Attacca Capturer its Attacca is linked to (`link`, chosen in Attacca's window; ''
   /// none): [DawLink.linkedCapturerOf].
@@ -353,10 +354,10 @@ class DawSession extends ChangeNotifier {
   /// share it.
   int pid = 0;
 
-  /// Whether its Attacca is older than this Curator ([appBuild]): Curator bundles a newer one,
-  /// installed already ([AttaccaPlugIns.installedBuild]: the DAW loads it once it opens again)
-  /// or not yet.
-  bool get outdated => build > 0 && build < appBuild;
+  /// Whether its Attacca is older than the one this Curator bundles ([attaccaVersion]), installed
+  /// already ([AttaccaPlugIns.installedVersion]: the DAW loads it once it opens again) or not
+  /// yet. A newer Curator whose Attacca is the same one leaves it be.
+  bool get outdated => version > 0 && version < attaccaVersion;
 
   final _documents = <String, DawDocument>{};
 
@@ -403,7 +404,7 @@ class DawSession extends ChangeNotifier {
       _greeting?.cancel();
       _link._ungreeted.remove(this);
       host = (message['host'] as String?) ?? '';
-      build = (message['build'] as num?)?.toInt() ?? 0;
+      version = (message['build'] as num?)?.toInt() ?? 0;
       pid = (message['pid'] as num?)?.toInt() ?? 0;
       _link._sessions.add(this);
       _link.notifyListeners();
@@ -617,31 +618,38 @@ abstract final class AttaccaPlugIns {
     return home == null || !home.startsWith('/') ? null : '$home/Library/Audio/Plug-Ins';
   }
 
-  /// The version installed ("0.9.0 (468)", the VST3's) in [folder] ([plugInsFolder]), or null
-  /// when there is none. A macOS bundle says it in its Info.plist, a Windows one in
-  /// Contents/Resources/version.txt ("0.9.0+468": daw_link/CMakeLists.txt).
-  static String? installed({String? folder}) {
+  /// The Attacca installed in [folder] ([plugInsFolder]), the VST3's: what it calls its
+  /// version (`name`: "630"; "0.10.625 (625)" from before Attacca had a version of its own, when
+  /// it had Curator's and its build; '' when it doesn't say) and the number compared
+  /// (`version`, [attaccaVersion]'s; null unsaid). Null when there is none. A macOS bundle says
+  /// them in its Info.plist (CFBundleShortVersionString, CFBundleVersion), a Windows one in
+  /// Contents/Resources/version.txt ("630"; "0.10.625+625" before: daw_link/CMakeLists.txt).
+  static ({String name, int? version})? _installed(String? folder) {
     folder ??= plugInsFolder;
     if (folder == null) return null;
     final contents = '$folder/VST3/$vst3/Contents';
     final plist = File('$contents/Info.plist'), text = File('$contents/Resources/version.txt');
+    final String? name, version;
     if (plist.existsSync()) {
       final said = plist.readAsStringSync();
       String? value(String key) => RegExp('<key>$key</key>\\s*<string>([^<]*)</string>').firstMatch(said)?.group(1);
-      final version = value('CFBundleShortVersionString'), build = value('CFBundleVersion');
-      return version == null ? '' : build == null ? version : '$version ($build)';
+      (name, version) = (value('CFBundleShortVersionString'), value('CFBundleVersion'));
+    } else if (text.existsSync()) {
+      final said = RegExp(r'^(?:([0-9A-Za-z.-]+)\+)?(\d+)\s*$').firstMatch(text.readAsStringSync());
+      (name, version) = (said?[1] ?? said?[2], said?[2]);
+    } else {
+      return null;
     }
-    if (!text.existsSync()) return null;
-    final said = RegExp(r'^([0-9A-Za-z.-]+)\+(\d+)\s*$').firstMatch(text.readAsStringSync());
-    return said == null ? '' : '${said[1]} (${said[2]})';
+    return (name: name == null ? '' : version == null || version == name ? name : '$name ($version)', version: int.tryParse(version ?? ''));
   }
 
-  /// The build installed in [folder] ([plugInsFolder]): the VST3's CFBundleVersion; null when
-  /// there is none.
-  static int? installedBuild({String? folder}) => switch (installed(folder: folder)) {
-        final v? => int.tryParse(RegExp(r'\((\d+)\)$').firstMatch(v)?.group(1) ?? ''),
-        _ => null,
-      };
+  /// What the Attacca installed in [folder] ([plugInsFolder]) calls its version ("630"; '' when
+  /// it doesn't say), or null when there is none.
+  static String? installed({String? folder}) => _installed(folder)?.name;
+
+  /// The version of the Attacca installed in [folder] ([plugInsFolder]), as [attaccaVersion]
+  /// counts; null when there is none, or it doesn't say.
+  static int? installedVersion({String? folder}) => _installed(folder)?.version;
 
   /// Removes both bundles from [folder] ([plugInsFolder]), whichever are there (and any by its
   /// former name). Throws a
