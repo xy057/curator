@@ -37,20 +37,37 @@ const _swell = 0.35;
 /// Sections' names laid out, by name, colour, size and direction: every painter's, since one is
 /// made each time its widget is built (at each move of a drag in the editor), and laying a
 /// map's names out again for each would cost more than drawing it. Emptied when it holds more
-/// than a few maps' worth (a window being resized asks a new size each frame).
+/// than a few maps' worth (a window being resized asks a new size each frame), and as fonts
+/// arrive: a web page fetches the ones for letters its own lack after a name was laid out
+/// without them, and would keep showing it so.
 final _labels = <(String, int, double, TextDirection), TextPainter>{};
+var _forgetOnFontChange = true;
+
+void _forgetLabels() {
+  for (final label in _labels.values) {
+    label.dispose();
+  }
+  _labels.clear();
+}
+
+/// What a name's letters fall back on before the system's fonts: Academico, bundled, has ♭ ♮ ♯
+/// (a "B♭ Clarinet"), which a web page, with no system fonts, would draw as nothing.
+const _labelFallback = ['packages/score_engine/Academico'];
 
 TextPainter _label(String name, int color, double size, TextDirection direction) {
+  if (_forgetOnFontChange) {
+    _forgetOnFontChange = false;
+    PaintingBinding.instance.systemFonts.addListener(_forgetLabels);
+  }
   final key = (name, color, size, direction);
   if (_labels[key] case final kept?) return kept;
-  if (_labels.length >= 512) {
-    for (final label in _labels.values) {
-      label.dispose();
-    }
-    _labels.clear();
-  }
+  if (_labels.length >= 512) _forgetLabels();
   return _labels[key] = TextPainter(
-    text: TextSpan(text: name, style: TextStyle(color: Color(color).withValues(alpha: 0.85), fontSize: size, fontWeight: FontWeight.w500)),
+    text: TextSpan(
+      text: name,
+      style: TextStyle(
+          color: Color(color).withValues(alpha: 0.85), fontSize: size, fontWeight: FontWeight.w500, fontFamilyFallback: _labelFallback),
+    ),
     textDirection: direction,
     maxLines: 1,
   )..layout();
@@ -58,7 +75,7 @@ TextPainter _label(String name, int color, double size, TextDirection direction)
 
 /// A [PlayerMap] at a time: each player a dot in its section's colour, dim at rest; each note its
 /// instrument plays makes it swell and light up, fading as [PlayerPulses] says (a short note
-/// quickly, a long one slowly). Repaints as [time] moves, every frame of a performance: what
+/// quickly, a long one slowly). Repaints as [time] moves (and as fonts arrive), every frame of a performance: what
 /// shows it keeps it in a [RepaintBoundary], so nothing round it is painted again with it.
 class PlayerMapPainter extends CustomPainter {
   PlayerMapPainter({
@@ -70,7 +87,7 @@ class PlayerMapPainter extends CustomPainter {
     this.hollow = false,
     this.accent = const Color(0xFF4C8DFF),
     this.textDirection = TextDirection.ltr,
-  }) : super(repaint: time);
+  }) : super(repaint: Listenable.merge([time, PaintingBinding.instance.systemFonts]));
 
   final PlayerMap map;
   final PlayerPulses pulses;
