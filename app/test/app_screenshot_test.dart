@@ -9,6 +9,7 @@ import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/main.dart';
+import 'package:curated_score/panel_bar.dart';
 import 'package:curated_score/phrase_search_window.dart';
 import 'package:curated_score/player_map_view.dart';
 import 'package:curated_score/plugins/plugin_actions.dart';
@@ -134,15 +135,16 @@ void main() {
     // no room for in that menu.
     final toolbar = find.byType(EditorToolbar);
     Finder tool(String tip) => find.descendant(of: toolbar, matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith(tip)));
-    expect(settings.toolbar.isStandard, isTrue);
+    ToolbarLayout bar([BarKind kind = BarKind.editor]) => settings.toolbarOf(kind);
+    expect(bar().isStandard, isTrue);
     // (The button at the bar's end is always built, and shown, so hit, only with something in its menu.)
-    final more = find.byTooltip('More tools').hitTestable();
+    final more = find.descendant(of: toolbar, matching: find.byTooltip('More tools')).hitTestable();
     expect(more, findsNothing, reason: 'everything fits');
     await tester.tapAt(tester.getCenter(tool('Metronome')), buttons: kSecondaryButton);
     await settle();
     await tester.tap(find.text('Move to Overflow Menu'));
     await settle();
-    expect(settings.toolbar.menu, [BarItem.metronome]);
+    expect(bar().menu, [BarItem.metronome]);
     expect(tool('Metronome'), findsNothing);
     await tester.tap(more);
     await settle();
@@ -172,23 +174,23 @@ void main() {
     await screenshot(tester, 'app-customize-toolbar');
     await drag(find.byKey(const ValueKey('add save')), tester.getTopLeft(find.byTooltip('Play (Space)')) + const Offset(3, 14),
         shot: 'app-customize-toolbar-drag');
-    expect(settings.toolbar.bar.take(3), [BarItem.goToStart, BarItem.save, BarItem.playPause]);
+    expect(bar().bar.take(3), [BarItem.goToStart, BarItem.save, BarItem.playPause]);
     expect(find.byKey(const ValueKey('add save')), findsNothing, reason: 'one of a kind: on the bar, so not left to add');
     await drag(find.descendant(of: toolbar, matching: find.byType(Slider)), tester.getCenter(find.byType(ToolbarCustomizer)));
-    expect(settings.toolbar.bar, isNot(contains(BarItem.scoreSize)));
+    expect(bar().bar, isNot(contains(BarItem.scoreSize)));
     expect(find.byKey(const ValueKey('add scoreSize')), findsOneWidget);
     expect(tester.widget<ToolbarButton>(tool('Go to start')).onPressed, isNotNull);
     final at = (state.controller as EditorController).playback.time.value;
     await tester.tap(tool('Go to start'), warnIfMissed: false);
     expect((state.controller as EditorController).playback.time.value, at, reason: 'customized, the bar’s items do nothing');
-    expect(ToolbarLayout.read(settings.toolbar.write()), settings.toolbar);
-    expect(ToolbarLayout.read('{"bar": ["save", "nothing", "space", "save", "space"], "menu": ["space", "undo"]}'),
-        ToolbarLayout(bar: const [BarItem.save, BarItem.space, BarItem.space], menu: const [BarItem.undo]),
-        reason: 'one this version hasn’t got left out, one of a kind once, no room to share out in the menu');
-    expect(ToolbarLayout.read('[]'), ToolbarLayout.standard);
+    expect(ToolbarLayout.read(BarKind.editor, bar().write()), bar());
+    expect(ToolbarLayout.read(BarKind.editor, '{"bar": ["save", "nothing", "space", "save", "space", "align"], "menu": ["space", "undo"]}'),
+        ToolbarLayout(kind: BarKind.editor, bar: const [BarItem.save, BarItem.space, BarItem.space], menu: const [BarItem.undo]),
+        reason: 'one this version hasn’t got or another toolbar’s left out, one of a kind once, no room to share out in the menu');
+    expect(ToolbarLayout.read(BarKind.editor, '[]'), ToolbarLayout.standard(BarKind.editor));
     await tester.tap(find.text('Restore Defaults'));
     await settle();
-    expect(settings.toolbar.isStandard, isTrue);
+    expect(bar().isStandard, isTrue);
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await settle();
     expect(find.byType(ToolbarCustomizer), findsNothing);
@@ -206,6 +208,69 @@ void main() {
     await settle();
     await settle();
     expect(more, findsNothing);
+
+    // The timeline's bar is the user's too, each tab's by itself: an item's own menu moves it
+    // into the menu at the bar's end; customized (a right click on the bar), the tab's toolbar
+    // is listed with what it can take (a command's button as any toolbar, not the editor's own
+    // controls), the bar shown under the editor's to drag onto, its switch (and the panel's)
+    // going to another tab's.
+    final editing = state.controller as EditorController;
+    final tabWas = editing.tab;
+    editing.tab = BottomTab.instruments;
+    await settle();
+    final panel = find.byType(PanelBar);
+    Finder panelTool(String tip, [Finder? of]) =>
+        find.descendant(of: of ?? panel, matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith(tip)));
+    expect(bar(BarKind.instruments).isStandard, isTrue);
+    await tester.tapAt(tester.getCenter(panelTool('Auto-curate')), buttons: kSecondaryButton);
+    await settle();
+    await tester.tap(find.text('Move to Overflow Menu'));
+    await settle();
+    expect(bar(BarKind.instruments).menu, [BarItem.autoCurate]);
+    expect(bar().isStandard && bar(BarKind.audio).isStandard, isTrue, reason: 'each toolbar by itself');
+    expect(panelTool('Auto-curate'), findsNothing);
+    await tester.tap(find.descendant(of: panel, matching: find.byTooltip('More tools')).hitTestable());
+    await settle();
+    expect(find.text('Auto-curate'), findsOneWidget, reason: 'a row of the menu');
+    await tester.tapAt(const Offset(10, 600));
+    await settle();
+    await tester.tapAt(tester.getCenter(panel), buttons: kSecondaryButton);
+    await settle();
+    expect(find.text('Remove from Toolbar'), findsNothing, reason: 'the bar’s own menu, over what is selected');
+    await tester.tap(find.text('Customize Toolbar…'));
+    await settle();
+    final customizer = find.byType(ToolbarCustomizer);
+    final shown = find.descendant(of: customizer, matching: panel);
+    expect(shown, findsOneWidget);
+    expect(find.byKey(const ValueKey('add save')), findsOneWidget, reason: 'a command’s button goes on any toolbar');
+    expect(find.byKey(const ValueKey('add scoreSize')), findsNothing, reason: 'the editor’s own');
+    expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Auto-curate')), findsOneWidget);
+    await drag(find.byKey(const ValueKey('add speed')), tester.getTopLeft(panelTool('Clear all lanes', shown)) + const Offset(3, 14),
+        shot: 'app-customize-panel-drag');
+    expect(bar(BarKind.instruments).bar.contains(BarItem.speed), isTrue);
+    expect(bar(BarKind.instruments).bar.indexOf(BarItem.speed), bar(BarKind.instruments).bar.indexOf(BarItem.clearLanes) - 1);
+    await screenshot(tester, 'app-customize-panel');
+    await tester.tap(find.descendant(of: customizer, matching: find.text('Audio')));
+    await settle();
+    expect(editing.tab, BottomTab.audio);
+    expect(find.byKey(const ValueKey('add autoCurate')), findsNothing, reason: 'the Instruments tab’s');
+    expect(find.byKey(const ValueKey('add speed')), findsNothing, reason: 'on the Audio tab’s bar as the app comes');
+    expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Auto-curate')), findsNothing);
+    await screenshot(tester, 'app-customize-panel-audio');
+    await tester.tap(find.descendant(of: shown, matching: find.byTooltip('Instruments')));
+    await settle();
+    expect(find.byKey(const ValueKey('add autoCurate')), findsNothing);
+    expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Auto-curate')), findsOneWidget, reason: 'the bar’s switch');
+    await tester.tap(find.text('Restore Defaults'));
+    await settle();
+    expect(bar(BarKind.instruments).isStandard, isTrue);
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await settle();
+    expect(customizer, findsNothing);
+    expect(ToolbarLayout.read(BarKind.audio, '{"bar": ["scoreSize", "align", "save", "autoCurate"]}'),
+        ToolbarLayout(kind: BarKind.audio, bar: const [BarItem.align, BarItem.save]));
+    editing.tab = tabWas;
+    await settle();
 
     // A tall video (9:16): 540 points wide, with room for more staves, centred.
     settings.videoRatio = const VideoRatio(9, 16);

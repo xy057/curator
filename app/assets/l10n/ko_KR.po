@@ -280,11 +280,11 @@ msgstr ""
 msgid "MIDI Tempo Map…"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording…"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording… (or drop one here)"
 msgstr ""
 
@@ -306,7 +306,7 @@ msgstr ""
 msgid "Advanced Engraving"
 msgstr ""
 
-#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr ""
 
@@ -439,7 +439,7 @@ msgstr ""
 msgid "Auto"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Auto-curate"
 msgstr ""
 
@@ -635,7 +635,7 @@ msgstr ""
 msgid "Clear"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Clear all lanes"
 msgstr ""
 
@@ -1107,7 +1107,7 @@ msgstr ""
 msgid "Find Phrase"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase ({key})"
 msgstr ""
 
@@ -1121,7 +1121,7 @@ msgstr ""
 msgid "First bar number"
 msgstr ""
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Fit"
 msgstr ""
 
@@ -1717,7 +1717,6 @@ msgstr ""
 msgid "Project, MusicXML or PDF ({key})"
 msgstr ""
 
-#: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
 msgstr ""
 
@@ -1787,7 +1786,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: lib/instruments_toolbar.dart lib/video_panel.dart
+#: lib/panel_bar.dart
 msgid "Remove (Delete)"
 msgstr ""
 
@@ -2682,7 +2681,7 @@ msgstr ""
 msgid "Voices"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp"
 msgstr ""
 
@@ -2739,11 +2738,11 @@ msgstr ""
 msgid "Yours."
 msgstr ""
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom in ({key} or pinch)"
 msgstr ""
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom out ({key} or pinch)"
 msgstr ""
 
@@ -4358,15 +4357,15 @@ msgstr ""
 msgid "Show Licenses"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp ({key})"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Make this anchor jump to another bar"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Jump to another bar here"
 msgstr ""
 
@@ -4386,7 +4385,6 @@ msgstr ""
 msgid "Tap anchors"
 msgstr ""
 
-#: lib/bottom_panel.dart
 msgid "Project Settings"
 msgstr ""
 
@@ -4394,23 +4392,23 @@ msgstr ""
 msgid "Show tab bar"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start ({key})"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome ({key})"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase"
 msgstr ""
 
@@ -4454,19 +4452,19 @@ msgstr ""
 msgid "Erase"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead ({key})"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead ({key})"
 msgstr ""
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead"
 msgstr ""
 
@@ -4535,7 +4533,7 @@ msgstr ""
 msgid "Play / Pause"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end"
 msgstr ""
 
@@ -5197,7 +5195,7 @@ msgstr ""
 msgid "Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart lib/video_panel.dart
+#: lib/panel_bar.dart lib/player_map_view.dart
 msgid "No player map"
 msgstr ""
 
@@ -5686,23 +5684,23 @@ msgstr ""
 msgid "It doesn’t let plug-ins run its transport."
 msgstr ""
 
-#: lib/app_menus.dart lib/editor_toolbar.dart
+#: lib/app_menus.dart lib/custom_bar.dart
 msgid "Customize Toolbar…"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "More tools"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Move to Overflow Menu"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Remove from Toolbar"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end ({key})"
 msgstr ""
 
@@ -5726,4 +5724,22 @@ msgid "Flexible Space"
 msgstr ""
 
 msgid "Divider"
+msgstr ""
+
+msgid "Toolbar"
+msgstr ""
+
+msgid "Select / Draw / Erase"
+msgstr ""
+
+msgid "Zoom out"
+msgstr ""
+
+msgid "Zoom in"
+msgstr ""
+
+msgid "Transition"
+msgstr ""
+
+msgid "Anchor step"
 msgstr ""

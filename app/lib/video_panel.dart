@@ -1,14 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
-import 'app_colors.dart';
 import 'app_icons.dart';
 import 'editor_controller.dart';
-import 'instruments_toolbar.dart';
 import 'lanes_common.dart';
 import 'menu_kit.dart';
 import 'span_lane.dart';
-import 'ui_kit.dart';
+import 'toolbar_layout.dart';
 import 'l10n/l10n.dart';
 
 /// What each view is called, in a menu and on the lane.
@@ -48,86 +46,72 @@ Color _viewColor(ViewKind kind) => switch (kind) {
       ViewKind.midi => const Color(0xFFB9772B),
     };
 
-/// The Video tab's toolbar: the lanes' tools; the view the stretch selected shows (with nothing
-/// selected, the one Draw paints), where its map goes and how big; how long the change into it
-/// takes; Remove.
-class VideoToolbar extends StatelessWidget {
-  const VideoToolbar({super.key, required this.controller});
-  final EditorController controller;
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final c = controller, a = c.automation;
-          final stretch = a.selectedStretch;
-          final view = stretch?.value ?? a.drawing;
-          void set(SceneView v) => stretch != null ? a.setSelectedView(v) : a.drawing = v;
-          return Row(children: [
-            InstrumentsToolbar.toolGroup(context, c),
-            const SizedBox(width: 6),
-            _Menu<ViewKind>(
-              tooltip: stretch != null ? 'View'.trIn('video') : 'View to draw'.tr,
-              label: viewName(view.kind),
-              swatch: _viewColor(view.kind),
-              // The MIDI view only of a score whose notes can be drawn in rows (not one that is rows already).
-              values: [
-                for (final k in ViewKind.values)
-                  if (!k.showsRows || c.hasMidiView || k == view.kind) k,
-              ],
-              chosen: view.kind,
-              name: viewName,
-              onSelected: (k) => set(view.copyWith(kind: k)),
-            ),
-            if (view.kind.hasSide)
-              _Menu<MapSide>(
-                tooltip: 'Where the map goes'.tr,
-                label: _sideName(view.side),
-                values: MapSide.values,
-                chosen: view.side,
-                name: _sideName,
-                onSelected: (s) => set(view.copyWith(side: s)),
-              ),
-            if (view.kind.hasCorner)
-              _Menu<MapCorner>(
-                tooltip: 'Where the map goes'.tr,
-                label: _cornerName(view.corner),
-                values: MapCorner.values,
-                chosen: view.corner,
-                name: _cornerName,
-                onSelected: (s) => set(view.copyWith(corner: s)),
-              ),
-            if (view.kind.sized)
-              _Menu<double>(
-                tooltip: 'Map size'.tr,
-                label: _percent(view.size),
-                values: {...view.kind.hasSide ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
-                chosen: view.size,
-                name: _percent,
-                onSelected: (s) => set(view.copyWith(size: s)),
-              ),
-            if (stretch != null) ...[
-              const ToolbarDivider(),
-              _Menu<double>(
-                tooltip: 'Crossfade'.tr,
-                icon: AppIcon.transition,
-                label: _seconds(stretch.fade),
-                values: {0.0, 0.25, 0.5, 1.0, 2.0, stretch.fade}.toList()..sort(),
-                chosen: stretch.fade,
-                name: _seconds,
-                onSelected: a.setSelectedFade,
-              ),
-              ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)'.tr, onPressed: a.removeSelected),
-            ],
-            const Spacer(),
-            if (c.playerMap.map == null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FadingText('No player map'.tr, style: TextStyle(fontSize: 12, color: context.colors.textMuted)),
-              ),
-          ]);
-        },
-      );
+/// The Video tab's tools ([PanelItems] puts them on the timeline's bar): the view the stretch
+/// selected shows (with nothing selected, the one Draw paints), where its map goes and how
+/// big; how long the change into it takes.
+abstract final class VideoToolbar {
+  /// [item], one of the Video tab's, as it is on the bar; null while it has nothing to show.
+  static Widget? item(BuildContext context, EditorController c, BarItem item) {
+    final a = c.automation;
+    final stretch = a.selectedStretch;
+    final view = stretch?.value ?? a.drawing;
+    void set(SceneView v) => stretch != null ? a.setSelectedView(v) : a.drawing = v;
+    switch (item) {
+      case BarItem.viewKind:
+        return _Menu<ViewKind>(
+          tooltip: stretch != null ? 'View'.trIn('video') : 'View to draw'.tr,
+          label: viewName(view.kind),
+          swatch: _viewColor(view.kind),
+          // The MIDI view only of a score whose notes can be drawn in rows (not one that is rows already).
+          values: [
+            for (final k in ViewKind.values)
+              if (!k.showsRows || c.hasMidiView || k == view.kind) k,
+          ],
+          chosen: view.kind,
+          name: viewName,
+          onSelected: (k) => set(view.copyWith(kind: k)),
+        );
+      case BarItem.mapPlace when view.kind.hasSide:
+        return _Menu<MapSide>(
+          tooltip: 'Where the map goes'.tr,
+          label: _sideName(view.side),
+          values: MapSide.values,
+          chosen: view.side,
+          name: _sideName,
+          onSelected: (s) => set(view.copyWith(side: s)),
+        );
+      case BarItem.mapPlace when view.kind.hasCorner:
+        return _Menu<MapCorner>(
+          tooltip: 'Where the map goes'.tr,
+          label: _cornerName(view.corner),
+          values: MapCorner.values,
+          chosen: view.corner,
+          name: _cornerName,
+          onSelected: (s) => set(view.copyWith(corner: s)),
+        );
+      case BarItem.mapSize when view.kind.sized:
+        return _Menu<double>(
+          tooltip: 'Map size'.tr,
+          label: _percent(view.size),
+          values: {...view.kind.hasSide ? SceneView.shares : SceneView.insets, view.size}.toList()..sort(),
+          chosen: view.size,
+          name: _percent,
+          onSelected: (s) => set(view.copyWith(size: s)),
+        );
+      case BarItem.viewFade when stretch != null:
+        return _Menu<double>(
+          tooltip: 'Crossfade'.tr,
+          icon: AppIcon.transition,
+          label: _seconds(stretch.fade),
+          values: {0.0, 0.25, 0.5, 1.0, 2.0, stretch.fade}.toList()..sort(),
+          chosen: stretch.fade,
+          name: _seconds,
+          onSelected: a.setSelectedFade,
+        );
+      default:
+        return null;
+    }
+  }
 }
 
 /// A toolbar's menu of [values], [chosen] checked.

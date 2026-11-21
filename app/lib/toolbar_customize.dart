@@ -1,20 +1,32 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'app_colors.dart';
-import 'editor_toolbar.dart';
+import 'custom_bar.dart';
 import 'l10n/l10n.dart';
 import 'toolbar_layout.dart';
+import 'ui_kit.dart';
 
-/// View ▸ Customize Toolbar…: under the toolbar, in the editor's place, while the toolbar is
-/// customized. It lists what can be added (the [ToolbarLayout.palette]) and what the menu at
-/// the bar's end holds; an item is dragged from either onto the bar ([EditorToolbar] takes it
-/// there), into the menu's list, or back here, which takes it off. Restore Defaults puts the
-/// toolbar back as the app comes; Done (or Esc) ends it.
+/// View ▸ Customize Toolbar…: under the toolbar, in the editor's place, while a toolbar is
+/// customized: the editor's, or the timeline's in one of its tabs, chosen at its top
+/// ([onKind]; the timeline's bar is here for that, [bar], and its switch chooses too). It
+/// lists what that toolbar can take (the [ToolbarLayout.palette]) and what the menu at its
+/// end holds; an item is dragged from either onto the bar (a [CustomBar] takes it there),
+/// into the menu's list, or back here, which takes it off. Restore Defaults puts that toolbar
+/// back as the app comes; Done (or Esc) ends it.
 class ToolbarCustomizer extends StatelessWidget {
-  const ToolbarCustomizer({super.key, required this.layout, required this.onLayout, required this.onDone});
+  const ToolbarCustomizer({super.key, required this.layout, required this.onLayout, required this.onKind, required this.onDone, this.bar});
+
+  /// The toolbar customized, as it is; [onLayout] changes it.
   final ToolbarLayout layout;
   final ValueChanged<ToolbarLayout> onLayout;
+
+  /// Chooses another toolbar to customize.
+  final ValueChanged<BarKind> onKind;
   final VoidCallback onDone;
+
+  /// The timeline's bar, shown under the editor's: the one customized, or (the editor's is)
+  /// there to be seen.
+  final Widget? bar;
 
   @override
   Widget build(BuildContext context) {
@@ -25,13 +37,36 @@ class ToolbarCustomizer extends StatelessWidget {
       onAcceptWithDetails: (details) => onLayout(layout.moved(details.data.item, from: details.data.from)),
       builder: (context, _, _) => ColoredBox(
         color: Theme.of(context).scaffoldBackgroundColor,
-        child: Center(
+        child: Column(children: [
+          if (bar case final bar?)
+            IgnorePointer(
+              ignoring: layout.kind == BarKind.editor,
+              child: ExcludeFocus(child: Opacity(opacity: layout.kind == BarKind.editor ? 0.45 : 1, child: bar)),
+            ),
+          Expanded(child: _panel(context, colors)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _panel(BuildContext context, AppColors colors) => Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 960),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Drag items onto the toolbar or into the overflow menu.'.tr, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                Row(children: [
+                  AppSegmented<BarKind>(
+                    segments: [for (final kind in BarKind.values) ButtonSegment(value: kind, label: Text(kind.label.tr))],
+                    selected: layout.kind,
+                    onChanged: onKind,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text('Drag items onto the toolbar or into the overflow menu.'.tr,
+                        maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                  ),
+                ]),
                 const SizedBox(height: 16),
                 Expanded(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -47,7 +82,7 @@ class ToolbarCustomizer extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(children: [
                   OutlinedButton(
-                    onPressed: layout.isStandard ? null : () => onLayout(ToolbarLayout.standard),
+                    onPressed: layout.isStandard ? null : () => onLayout(ToolbarLayout.standard(layout.kind)),
                     child: Text('Restore Defaults'.tr),
                   ),
                   const Spacer(),
@@ -56,10 +91,7 @@ class ToolbarCustomizer extends StatelessWidget {
               ]),
             ),
           ),
-        ),
-      ),
-    );
-  }
+        );
 }
 
 /// An item to add: its icon over its name, dragged from here.
@@ -99,7 +131,7 @@ class _TileState extends State<_Tile> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 20)),
             const SizedBox(height: 7),
-            Text(item.label.tr,
+            Text(item.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -203,7 +235,7 @@ class _MenuRow extends StatelessWidget {
             : Row(children: [
                 IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 16)),
                 const SizedBox(width: 8),
-                Expanded(child: Text(item.label.tr, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: colors.text))),
+                Expanded(child: Text(item.title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: colors.text))),
               ]),
       ),
     );
