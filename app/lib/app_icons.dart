@@ -331,7 +331,25 @@ enum AppIcon {
   keyboard(IconData(0xE06B, fontFamily: _refined), IconData(0xE06B, fontFamily: _carbon)),
 
   /// Plugins. Refined: power; Carbon: plug.
-  plugins(IconData(0xE06C, fontFamily: _refined), IconData(0xE06C, fontFamily: _carbon));
+  plugins(IconData(0xE06C, fontFamily: _refined), IconData(0xE06C, fontFamily: _carbon)),
+
+  /// Goes to the end. Refined: skip_next (filled); Carbon: skip--forward--filled.
+  toEnd(IconData(0xE06D, fontFamily: _refined), IconData(0xE06D, fontFamily: _carbon)),
+
+  /// Saves the project. Refined: save; Carbon: save.
+  save(IconData(0xE06E, fontFamily: _refined), IconData(0xE06E, fontFamily: _carbon)),
+
+  /// Cuts the selection. Refined: content_cut; Carbon: cut.
+  cut(IconData(0xE06F, fontFamily: _refined), IconData(0xE06F, fontFamily: _carbon)),
+
+  /// Pastes. Refined: content_paste; Carbon: paste.
+  paste(IconData(0xE070, fontFamily: _refined), IconData(0xE070, fontFamily: _carbon)),
+
+  /// The timeline, under the preview. Refined: bottom_panel_open; Carbon: open-panel--bottom.
+  timeline(IconData(0xE071, fontFamily: _refined), IconData(0xE071, fontFamily: _carbon)),
+
+  /// A toolbar's menu of what it has no room for. Refined: keyboard_double_arrow_right; Carbon: double-chevron--right.
+  overflow(IconData(0xE072, fontFamily: _refined), IconData(0xE072, fontFamily: _carbon));
 
   const AppIcon(this.refined, this.carbon);
   final IconData refined;

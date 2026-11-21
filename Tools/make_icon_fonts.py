@@ -167,6 +167,13 @@ ICONS = [
     ('keyboard', 'Keyboard shortcuts.', 'keyboard', 'keyboard'),
     # Settings ▸ Plugins
     ('plugins', 'Plugins.', 'power', 'plug'),
+    # The toolbar's own (View ▸ Customize Toolbar…)
+    ('toEnd', 'Goes to the end.', 'skip_next:fill', 'skip--forward--filled'),
+    ('save', 'Saves the project.', 'save', 'save'),
+    ('cut', 'Cuts the selection.', 'content_cut', 'cut'),
+    ('paste', 'Pastes.', 'content_paste', 'paste'),
+    ('timeline', 'The timeline, under the preview.', 'bottom_panel_open', 'open-panel--bottom'),
+    ('overflow', "A toolbar's menu of what it has no room for.", 'keyboard_double_arrow_right', 'double-chevron--right'),
 ]
 
 
