@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-19 02:30\n"
+"PO-Revision-Date: 2026-11-21 22:08\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -129,7 +129,7 @@ msgstr "フォルダを Netlify Drop にドラッグします。"
 msgid "Export to Web"
 msgstr "Web に書き出す"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/editor_toolbar.dart
 msgid "Export to Web…"
 msgstr "Web に書き出す…"
 
@@ -894,7 +894,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -1053,7 +1053,7 @@ msgstr "それでも書き出す"
 msgid "Export Video"
 msgstr "ビデオを書き出す"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/editor_toolbar.dart
 msgid "Export Video…"
 msgstr "ビデオを書き出す…"
 
@@ -4535,6 +4535,7 @@ msgstr "フルスクリーンにする"
 msgid "Play / Pause"
 msgstr "再生 / 一時停止"
 
+#: lib/editor_toolbar.dart
 msgid "Go to end"
 msgstr "末尾へ"
 
@@ -5683,5 +5684,47 @@ msgstr ""
 
 #: lib/daw_follow_dialog.dart
 msgid "It doesn’t let plug-ins run its transport."
+msgstr ""
+
+#: lib/app_menus.dart lib/editor_toolbar.dart
+msgid "Customize Toolbar…"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "More tools"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Move to Overflow Menu"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Remove from Toolbar"
+msgstr ""
+
+#: lib/editor_toolbar.dart
+msgid "Go to end ({key})"
+msgstr ""
+
+#: lib/toolbar_customize.dart
+msgid "Drag items onto the toolbar or into the overflow menu."
+msgstr ""
+
+#: lib/toolbar_customize.dart
+msgid "Restore Defaults"
+msgstr ""
+
+#: lib/toolbar_customize.dart
+msgid "Overflow Menu"
+msgstr ""
+
+#: lib/toolbar_customize.dart
+msgid "Drag items here"
+msgstr ""
+
+msgid "Flexible Space"
+msgstr ""
+
+msgid "Divider"
 msgstr ""
 
