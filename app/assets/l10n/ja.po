@@ -129,7 +129,7 @@ msgstr "フォルダを Netlify Drop にドラッグします。"
 msgid "Export to Web"
 msgstr "Web に書き出す"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/editor_toolbar.dart
 msgid "Export to Web…"
 msgstr "Web に書き出す…"
 
@@ -896,7 +896,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -1055,7 +1055,7 @@ msgstr "それでも書き出す"
 msgid "Export Video"
 msgstr "ビデオを書き出す"
 
-#: lib/app_menus.dart
+#: lib/app_menus.dart lib/editor_toolbar.dart
 msgid "Export Video…"
 msgstr "ビデオを書き出す…"
 
@@ -4549,6 +4549,7 @@ msgstr "フルスクリーンにする"
 msgid "Play / Pause"
 msgstr "再生 / 一時停止"
 
+#: lib/editor_toolbar.dart
 msgid "Go to end"
 msgstr "末尾へ"
 
@@ -5698,3 +5699,45 @@ msgstr "プラグインにテンポマップを渡しません。"
 #: lib/daw_follow_dialog.dart
 msgid "It doesn’t let plug-ins run its transport."
 msgstr "プラグインからの再生操作を受け付けません。"
+
+#: lib/app_menus.dart lib/editor_toolbar.dart
+msgid "Customize Toolbar…"
+msgstr "ツールバーをカスタマイズ…"
+
+#: lib/editor_toolbar.dart
+msgid "More tools"
+msgstr "その他のツール"
+
+#: lib/editor_toolbar.dart
+msgid "Move to Overflow Menu"
+msgstr "オーバーフローメニューに移動"
+
+#: lib/editor_toolbar.dart
+msgid "Remove from Toolbar"
+msgstr "ツールバーから削除"
+
+#: lib/editor_toolbar.dart
+msgid "Go to end ({key})"
+msgstr "末尾へ（{key}）"
+
+#: lib/toolbar_customize.dart
+msgid "Drag items onto the toolbar or into the overflow menu."
+msgstr "項目をツールバーまたはオーバーフローメニューにドラッグします。"
+
+#: lib/toolbar_customize.dart
+msgid "Restore Defaults"
+msgstr "デフォルトに戻す"
+
+#: lib/toolbar_customize.dart
+msgid "Overflow Menu"
+msgstr "オーバーフローメニュー"
+
+#: lib/toolbar_customize.dart
+msgid "Drag items here"
+msgstr "ここに項目をドラッグ"
+
+msgid "Flexible Space"
+msgstr "フレキシブルスペース"
+
+msgid "Divider"
+msgstr "区切り線"

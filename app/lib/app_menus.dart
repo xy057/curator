@@ -248,6 +248,9 @@ class AppMenus extends StatelessWidget {
               shortcut: _keyOf(KeyCommand.showAllTabs),
             ),
           ]),
+          PlatformMenuItemGroup(members: [
+            ?_own('customizeToolbar', 'Customize Toolbar…'.tr, shortcut: _keyOf(KeyCommand.customizeToolbar)),
+          ]),
           if (!_mac) _tabs,
         ]),
         if (midi case final midi?)

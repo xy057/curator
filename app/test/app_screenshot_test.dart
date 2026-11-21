@@ -15,8 +15,11 @@ import 'package:curated_score/plugins/plugin_actions.dart';
 import 'package:curated_score/plugins/plugin_editor.dart';
 import 'package:curated_score/plugins/plugins.dart';
 import 'package:curated_score/settings_dialog.dart';
+import 'package:curated_score/toolbar_customize.dart';
+import 'package:curated_score/toolbar_layout.dart';
 import 'package:curated_score/ui_kit.dart';
 import 'package:curated_score/video_export.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -123,6 +126,86 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(button, findsNothing);
+
+    // The toolbar is the user's. An item's own menu (a right click) moves it into the menu at the
+    // bar's end, where it still works. View ▸ Customize Toolbar… lists what can be added in the
+    // editor's place: Save dragged onto the bar before Play, the score's size dragged off it,
+    // Restore Defaults putting all back. A window too narrow for the bar keeps the items it has
+    // no room for in that menu.
+    final toolbar = find.byType(EditorToolbar);
+    Finder tool(String tip) => find.descendant(of: toolbar, matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith(tip)));
+    expect(settings.toolbar.isStandard, isTrue);
+    // (The button at the bar's end is always built, and shown, so hit, only with something in its menu.)
+    final more = find.byTooltip('More tools').hitTestable();
+    expect(more, findsNothing, reason: 'everything fits');
+    await tester.tapAt(tester.getCenter(tool('Metronome')), buttons: kSecondaryButton);
+    await settle();
+    await tester.tap(find.text('Move to Overflow Menu'));
+    await settle();
+    expect(settings.toolbar.menu, [BarItem.metronome]);
+    expect(tool('Metronome'), findsNothing);
+    await tester.tap(more);
+    await settle();
+    await tester.tap(find.text('Metronome'));
+    await settle();
+    expect((state.controller as EditorController).playback.metronome, isTrue, reason: 'chosen in the menu');
+    (state.controller as EditorController).playback.metronome = false;
+    await tester.tapAt(tester.getTopLeft(toolbar) + const Offset(700, 20), buttons: kSecondaryButton);
+    await settle();
+    expect(find.text('Remove from Toolbar'), findsNothing, reason: 'the bar’s own menu, over no item');
+    await tester.tap(find.text('Customize Toolbar…'));
+    await settle();
+    expect(find.byType(ToolbarCustomizer), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Metronome')), findsOneWidget);
+    Future<void> drag(Finder from, Offset to, {String? shot}) async {
+      final gesture = await tester.startGesture(tester.getCenter(from), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await gesture.moveBy(const Offset(4, -12));
+      await tester.pump();
+      await gesture.moveTo(to);
+      await tester.pump();
+      if (shot != null) await screenshot(tester, shot, outermost: true);
+      await gesture.up();
+      await settle();
+    }
+
+    await screenshot(tester, 'app-customize-toolbar');
+    await drag(find.byKey(const ValueKey('add save')), tester.getTopLeft(find.byTooltip('Play (Space)')) + const Offset(3, 14),
+        shot: 'app-customize-toolbar-drag');
+    expect(settings.toolbar.bar.take(3), [BarItem.goToStart, BarItem.save, BarItem.playPause]);
+    expect(find.byKey(const ValueKey('add save')), findsNothing, reason: 'one of a kind: on the bar, so not left to add');
+    await drag(find.descendant(of: toolbar, matching: find.byType(Slider)), tester.getCenter(find.byType(ToolbarCustomizer)));
+    expect(settings.toolbar.bar, isNot(contains(BarItem.scoreSize)));
+    expect(find.byKey(const ValueKey('add scoreSize')), findsOneWidget);
+    expect(tester.widget<ToolbarButton>(tool('Go to start')).onPressed, isNotNull);
+    final at = (state.controller as EditorController).playback.time.value;
+    await tester.tap(tool('Go to start'), warnIfMissed: false);
+    expect((state.controller as EditorController).playback.time.value, at, reason: 'customized, the bar’s items do nothing');
+    expect(ToolbarLayout.read(settings.toolbar.write()), settings.toolbar);
+    expect(ToolbarLayout.read('{"bar": ["save", "nothing", "space", "save", "space"], "menu": ["space", "undo"]}'),
+        ToolbarLayout(bar: const [BarItem.save, BarItem.space, BarItem.space], menu: const [BarItem.undo]),
+        reason: 'one this version hasn’t got left out, one of a kind once, no room to share out in the menu');
+    expect(ToolbarLayout.read('[]'), ToolbarLayout.standard);
+    await tester.tap(find.text('Restore Defaults'));
+    await settle();
+    expect(settings.toolbar.isStandard, isTrue);
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await settle();
+    expect(find.byType(ToolbarCustomizer), findsNothing);
+    tester.view.physicalSize = const Size(1200, 1800);
+    await settle();
+    await settle();
+    expect(tester.takeException(), isNull, reason: 'the bar never runs past its width');
+    await tester.tap(more);
+    await settle();
+    expect(find.byType(Slider).hitTestable(), findsOneWidget, reason: 'the score’s size, a row of the menu');
+    await screenshot(tester, 'app-toolbar-narrow', inside: find.byType(Slider).hitTestable(), outermost: true);
+    await tester.tapAt(const Offset(10, 600));
+    await settle();
+    tester.view.physicalSize = const Size(2880, 1800);
+    await settle();
+    await settle();
+    expect(more, findsNothing);
 
     // A tall video (9:16): 540 points wide, with room for more staves, centred.
     settings.videoRatio = const VideoRatio(9, 16);

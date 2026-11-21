@@ -55,6 +55,8 @@ import 'score_replacement.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
+import 'toolbar_customize.dart';
+import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 import 'updater.dart';
 import 'video_export.dart';
@@ -565,8 +567,12 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
 
   // MARK: What plugins act on
 
-  /// The app's own commands as the menus last had them, by id: what a plugin's `app.run` does.
+  /// The app's own commands as the menus last had them, by id: what a plugin's `app.run` does,
+  /// and a toolbar's button that is one of them.
   Map<String, VoidCallback?> _commands = const {};
+
+  /// What the menus are built again for; a project's toolbar too, after them (it is under them).
+  late final _menuState = Listenable.merge([_recent, _menus, _typing, plugins, _attaccaLine]);
 
   @override
   Map<String, VoidCallback?> get commands => _commands;
@@ -760,7 +766,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
     final tabs = _tabs, barShown = tabs.isNotEmpty && _tabBar;
     // The menus follow the tab showing; the window below them is built here and passed through.
     return ListenableBuilder(
-      listenable: Listenable.merge([_recent, _menus, _typing, plugins, _attaccaLine]),
+      listenable: _menuState,
       builder: (context, window) {
         final page = _showing?.page;
         final open = page != null && page._hasScore.value;
@@ -830,6 +836,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'midiFileTempo': midi == null || !midi.file || midi.fileTempo || !free ? null : page!.controller.useFileTempo,
           'showTabBar': () => settings.tabBar = !_tabBar,
           'showAllTabs': _tabBar ? null : () => settings.tabBar = true,
+          'customizeToolbar': open && free ? page._customizeToolbar : null,
           'previousTab': tabs.isEmpty || !free ? null : () => _step(-1),
           'nextTab': tabs.isEmpty || !free ? null : () => _step(1),
           // The editor's keys, in no menu.
@@ -908,6 +915,8 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
                     closing: project.closing,
                     label: project.label,
                     onMenusChanged: () => _menus.value++,
+                    commands: () => _commands,
+                    commandsChanged: _menuState,
                     onOpen: _openPath,
                     openElsewhere: (path) => _tabs.any((p) => p != project && p.file == path),
                     onDownloadHub: _downloadHub,
@@ -983,6 +992,8 @@ class ProjectPage extends StatefulWidget {
     required this.closing,
     required this.label,
     required this.onMenusChanged,
+    this.commands,
+    this.commandsChanged,
     required this.onOpen,
     required this.openElsewhere,
     required this.onDownloadHub,
@@ -1015,6 +1026,11 @@ class ProjectPage extends StatefulWidget {
 
   /// What the menus offer changed, while it shows.
   final VoidCallback onMenusChanged;
+
+  /// The app's commands as the menus have them now, by id, and what says they changed: what
+  /// the toolbar's buttons that are commands do ([EditorToolbar.commands]).
+  final Map<String, VoidCallback?> Function()? commands;
+  final Listenable? commandsChanged;
 
   /// Another project or score to open (one dropped on the timeline), in a tab of its own.
   final ValueChanged<String> onOpen;
@@ -1065,11 +1081,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({VideoRatio videoRatio, bool tabBar, bool playerMap, bool midiView}) get _shownSettings => (
+  ({VideoRatio videoRatio, bool tabBar, bool playerMap, bool midiView, ToolbarLayout toolbar}) get _shownSettings => (
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
         playerMap: settings.playerMap,
         midiView: settings.midiView,
+        toolbar: settings.toolbar,
       );
 
   /// The rows' look, for a MIDI project ([file]) and a score in its MIDI view, and whether a
@@ -1740,6 +1757,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _menusChanged();
   }
 
+  /// View ▸ Customize Toolbar…: the toolbar's items are dragged, the rest to add listed in the
+  /// editor's place, until Done, Esc or the item again.
+  bool _customizing = false;
+
+  void _customizeToolbar() => setState(() => _customizing = !_customizing);
+
   /// View ▸ Maximize Preview / Timeline: both shown, the other at its smallest (and kept so as
   /// the window is resized, until the divider is dragged).
   void _maximize({required bool timeline}) {
@@ -1867,7 +1890,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       const SingleActivator(LogicalKeyboardKey.keyY, control: true): redo,
       // Windows' and Linux's other Redo, as the score editor takes it.
       const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): redo,
-      const SingleActivator(LogicalKeyboardKey.escape): does['deselect']!,
+      // Esc ends Customize Toolbar… first.
+      const SingleActivator(LogicalKeyboardKey.escape): () => _customizing ? _customizeToolbar() : does['deselect']!(),
       // Instruments tab: the selected regions. Paste: those, or Attach Image's image at the pointer.
       const SingleActivator(LogicalKeyboardKey.keyC, meta: true): copy,
       const SingleActivator(LogicalKeyboardKey.keyC, control: true): copy,
@@ -1930,6 +1954,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       playerMap: settings.playerMap,
       onPlayerMap: (on) => settings.playerMap = on,
       onMidiView: (on) => settings.midiView = on,
+      layout: settings.toolbar,
+      onLayout: (layout) => settings.toolbar = layout,
+      customizing: _customizing,
+      onCustomize: _customizeToolbar,
+      commands: widget.commands,
+      commandsChanged: widget.commandsChanged,
     );
     final view = ScoreView(
       key: _scoreView,
@@ -1958,14 +1988,12 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         child: BottomPanel(controller: controller, onProjectSettings: _projectSettings),
       ),
     );
-    final toolbarHeight = EditorToolbar.heightOf(context);
-    return LayoutBuilder(builder: (context, constraints) {
-      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - toolbarHeight - _minScore);
+    final parts = LayoutBuilder(builder: (context, constraints) {
+      final maxTimeline = math.max(_minTimeline, constraints.maxHeight - _minScore);
       final timelineHeight = _timelineHeight.clamp(_minTimeline, maxTimeline);
       // View ▸ Hide: the part left takes the whole height.
       return Column(
         children: [
-          toolbar,
           if (_previewShown) score,
           if (_previewShown && _timelineShown)
             _ResizeHandle(
@@ -1976,6 +2004,18 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         ],
       );
     });
+    return Column(children: [
+      toolbar,
+      Expanded(
+        // View ▸ Customize Toolbar…: what can be added, over the editor, which keeps its state
+        // under it.
+        child: Stack(fit: StackFit.expand, children: [
+          ExcludeFocus(excluding: _customizing, child: parts),
+          if (_customizing)
+            ToolbarCustomizer(layout: settings.toolbar, onLayout: (layout) => settings.toolbar = layout, onDone: _customizeToolbar),
+        ]),
+      ),
+    ]);
   }
 }
 

@@ -10,6 +10,7 @@ import 'ai_providers.dart';
 import 'app_colors.dart';
 import 'key_bindings.dart';
 import 'l10n/l10n.dart';
+import 'toolbar_layout.dart';
 import 'updater.dart' show UpdateChannel;
 import 'video_export.dart';
 import 'window_chrome.dart' show WindowFrame;
@@ -72,7 +73,8 @@ class AppSettings extends ChangeNotifier {
         aiHidden = _prefs?.getBool(_hideAiKey) ?? false,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true,
         _pluginsOn = Set.unmodifiable(_prefs?.getStringList(_pluginsOnKey) ?? const <String>[]),
-        _keys = KeyMap.read(_prefs?.getString(_keysKey)) {
+        _keys = KeyMap.read(_prefs?.getString(_keysKey)),
+        _toolbar = ToolbarLayout.read(_prefs?.getString(_toolbarKey)) {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
     final custom = _customAccent;
@@ -111,6 +113,7 @@ class AppSettings extends ChangeNotifier {
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
   static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
+  static const _toolbarKey = 'toolbar';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
   static const _dynamicsBetweenKey = 'dynamicsBetween';
@@ -817,6 +820,17 @@ class AppSettings extends ChangeNotifier {
     if (value == _keys) return;
     _keys = value;
     value.isStandard ? _prefs?.remove(_keysKey) : _prefs?.setString(_keysKey, value.write());
+    notifyListeners();
+  }
+
+  /// Where the editor's toolbar has its items (View ▸ Customize Toolbar…), as the app comes
+  /// until the user moves one.
+  ToolbarLayout get toolbar => _toolbar;
+  ToolbarLayout _toolbar;
+  set toolbar(ToolbarLayout value) {
+    if (value == _toolbar) return;
+    _toolbar = value;
+    value.isStandard ? _prefs?.remove(_toolbarKey) : _prefs?.setString(_toolbarKey, value.write());
     notifyListeners();
   }
 
