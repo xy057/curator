@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -7,24 +6,23 @@ import 'package:material_ui/material_ui.dart';
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'assets_dialog.dart';
+import 'custom_bar.dart';
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'key_bindings.dart';
 import 'menu_kit.dart';
-import 'phrase_search_window.dart';
 import 'plugins/plugins.dart';
 import 'project_document.dart';
 import 'toolbar_layout.dart';
-import 'toolbar_strip.dart';
 import 'ui_kit.dart';
 import 'video_export.dart';
 import 'l10n/l10n.dart';
 
 /// The one bar above the score: playback on the left, the score's own controls on the right,
 /// as the app comes. Which items it has, and where, is the user's ([layout], View ▸ Customize
-/// Toolbar…): those it has no room for, and those kept there, are in the menu at its end (»).
-/// The document's name is in the window's title bar; files are in the File menu.
-class EditorToolbar extends StatefulWidget {
+/// Toolbar…, a [CustomBar]): those it has no room for, and those kept there, are in the menu
+/// at its end (»). The document's name is in the window's title bar; files are in the File menu.
+class EditorToolbar extends StatelessWidget {
   const EditorToolbar({
     super.key,
     required this.controller,
@@ -38,7 +36,7 @@ class EditorToolbar extends StatefulWidget {
     this.playerMap = false,
     this.onPlayerMap,
     this.onMidiView,
-    this.layout = ToolbarLayout.standard,
+    this.layout,
     this.onLayout,
     this.customizing = false,
     this.onCustomize,
@@ -68,9 +66,9 @@ class EditorToolbar extends StatefulWidget {
   /// The time readout, which ⌘G opens to type where to go.
   final GlobalKey<TimeReadoutState>? readout;
 
-  /// Where its items are; [onLayout] changes that (an item's own menu, a drop while
-  /// [customizing]); null: they stay.
-  final ToolbarLayout layout;
+  /// Where its items are (null: as the app comes); [onLayout] changes that (an item's own
+  /// menu, a drop while [customizing]); null: they stay.
+  final ToolbarLayout? layout;
   final ValueChanged<ToolbarLayout>? onLayout;
 
   /// Whether the toolbar is being customized: its items do nothing and are dragged, to another
@@ -87,85 +85,38 @@ class EditorToolbar extends StatefulWidget {
   static double heightOf(BuildContext context) => AppStyle.of(context).toolbar;
 
   @override
-  State<EditorToolbar> createState() => _EditorToolbarState();
-}
-
-class _EditorToolbarState extends State<EditorToolbar> {
-  final _strip = GlobalKey();
-
-  /// How many of the bar's items it has room for ([ToolbarStrip.onFit]): the rest are in its menu.
-  int _fit = BarItem.values.length * 4;
-
-  /// While an item is dragged over the bar: the place it would go.
-  int? _insertAt;
-
-  EditorController get _c => widget.controller;
-  RenderToolbarStrip get _box => _strip.currentContext!.findRenderObject()! as RenderToolbarStrip;
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-        listenable: widget.commandsChanged ?? const AlwaysStoppedAnimation(0),
-        builder: (context, _) => Select(
-          listenable: _c,
-          select: () => (
-            undo: _c.canUndo,
-            redo: _c.canRedo,
-            playing: _c.playback.isPlaying,
-            metronome: _c.playback.metronome,
-            images: _c.images.enabled,
-            reengraving: _c.isReengraving,
-            export: _c.canExport,
-            notes: _c.hasNotes,
-            tapping: _c.anchors.tapArmed,
-            staffSpace: _c.staffSpace,
-            midiView: (_c.hasMidiView, _c.showsMidiView),
-          ),
-          builder: (context, _) => _bar(context),
+  Widget build(BuildContext context) {
+    final c = controller;
+    return ListenableBuilder(
+      listenable: commandsChanged ?? const AlwaysStoppedAnimation(0),
+      builder: (context, _) => Select(
+        listenable: c,
+        select: () => (
+          undo: c.canUndo,
+          redo: c.canRedo,
+          playing: c.playback.isPlaying,
+          metronome: c.playback.metronome,
+          images: c.images.enabled,
+          reengraving: c.isReengraving,
+          export: c.canExport,
+          notes: c.hasNotes,
+          tapping: c.anchors.tapArmed,
+          staffSpace: c.staffSpace,
+          midiView: (c.hasMidiView, c.showsMidiView),
         ),
-      );
+        builder: (context, _) => _bar(context),
+      ),
+    );
+  }
 
   Widget _bar(BuildContext context) {
     final colors = context.colors;
-    final layout = widget.layout, bar = layout.bar, customizing = widget.customizing;
-    final fit = math.min(_fit, bar.length);
-    // One of a kind keeps its state wherever it is put; a space or a divider is the nth.
-    final nth = <BarItem, int>{};
-    final firstSpace = bar.indexOf(BarItem.space);
-    final strip = ToolbarStrip(
-      key: _strip,
-      showMore: layout.menu.isNotEmpty,
-      insertAt: _insertAt,
-      markColor: colors.accent,
-      onFit: (fit) {
-        if (mounted) setState(() => _fit = fit);
-      },
-      items: [
-        for (final (i, item) in bar.indexed)
-          StripItem(
-            key: ValueKey('${item.name} ${nth[item] = (nth[item] ?? 0) + 1}'),
-            space: item != BarItem.space ? null : customizing ? 28 : 0,
-            rule: item == BarItem.divider,
-            // One the bar has no room for is laid out still: not reached by Tab meanwhile.
-            child: ExcludeFocus(
-              excluding: i >= fit || customizing,
-              child: customizing ? _dragged(context, i, item) : _item(context, item, saving: i == firstSpace),
-            ),
-          ),
-      ],
-      more: customizing
-          ? IgnorePointer(child: Opacity(opacity: 0.4, child: ToolbarButton(icon: AppIcon.overflow.of(context), tooltip: 'More tools'.tr, onPressed: () {})))
-          : _MoreMenu(entries: (context) => _tidied([
-                for (final item in bar.skip(fit)) ..._entries(context, item),
-                if (fit < bar.length && layout.menu.isNotEmpty) menuDivider(context),
-                for (final item in layout.menu) ..._entries(context, item),
-              ])),
-    );
     return Container(
       height: EditorToolbar.heightOf(context),
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
       child: Row(children: [
-        if (widget.onShowTabBar case final onShowTabBar?) ...[
+        if (onShowTabBar case final onShowTabBar?) ...[
           ToolbarButton(
             icon: AppIcon.tabBar.of(context),
             tooltip: keyed(context, KeyCommand.showTabBar, (key) => 'Show tab bar ({key})'.fill({'key': key}), 'Show tab bar'.tr),
@@ -174,159 +125,71 @@ class _EditorToolbarState extends State<EditorToolbar> {
           const ToolbarDivider(),
         ],
         Expanded(
-          child: customizing
-              ? DragTarget<BarDrag>(
-                  onMove: (details) => _over(_box.placeAt(_box.globalToLocal(details.offset).dx)),
-                  onLeave: (_) => _over(null),
-                  onAcceptWithDetails: (details) {
-                    final at = _box.placeAt(_box.globalToLocal(details.offset).dx);
-                    _over(null);
-                    widget.onLayout?.call(layout.moved(details.data.item, from: details.data.from, to: (area: BarArea.bar, index: at)));
-                  },
-                  builder: (context, _, _) => strip,
-                )
-              // A right click on an item: its own menu; on the bar: Customize Toolbar….
-              : GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onSecondaryTapUp: widget.onCustomize == null ? null : (details) => _itemMenu(context, details.globalPosition),
-                  child: strip,
-                ),
+          child: CustomBar(
+            layout: layout ?? ToolbarLayout.standard(BarKind.editor),
+            onLayout: onLayout,
+            items: _EditorItems(this),
+            customizing: customizing,
+            onCustomize: onCustomize,
+          ),
         ),
       ]),
     );
   }
+}
 
-  void _over(int? place) {
-    if (place != _insertAt) setState(() => _insertAt = place);
-  }
-
-  /// The menu of the item under a right click (none: the bar's): to the menu at the bar's end,
-  /// off the toolbar, or Customize Toolbar….
-  Future<void> _itemMenu(BuildContext context, Offset at) async {
-    final layout = widget.layout;
-    // (Room between items is the bar itself: nothing there to see, so nothing to move.)
-    final i = switch (_box.itemAt(_box.globalToLocal(at))) { final i? when layout.bar[i] != BarItem.space => i, _ => null };
-    final item = i == null ? null : layout.bar[i];
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final action = await showMenu<VoidCallback>(
-      context: context,
-      position: RelativeRect.fromRect(at & Size.zero, Offset.zero & overlay.size),
-      popUpAnimationStyle: AnimationStyle(duration: AppStyle.of(context).menuOpen, reverseDuration: AppStyle.of(context).menuClose),
-      items: [
-        if (item != null && widget.onLayout != null) ...[
-          menuItem(
-            context,
-            value: () => widget.onLayout!(layout.moved(item, from: (area: BarArea.bar, index: i!), to: (area: BarArea.menu, index: layout.menu.length))),
-            child: Text('Move to Overflow Menu'.tr),
-          ),
-          menuItem(
-            context,
-            value: () => widget.onLayout!(layout.moved(item, from: (area: BarArea.bar, index: i!))),
-            child: Text('Remove from Toolbar'.tr),
-          ),
-          menuDivider(context),
-        ],
-        menuItem(context, value: widget.onCustomize, child: Text('Customize Toolbar…'.tr)),
-      ],
-    );
-    action?.call();
-  }
-
-  // MARK: Items on the bar
-
-  /// What choosing the app's command [id] does now, as plugins have it; null while it can't be.
-  VoidCallback? _does(BuildContext context, String id) {
-    final action = widget.commands?.call()[id];
-    return action == null ? null : () => Plugins.doOwn(context, id, action);
-  }
-
-  VoidCallback get _goToStart => () => Plugins.doOwn(context, 'goToStart', () => _c.playback.seek(0));
-  VoidCallback get _goToEnd => () => Plugins.doOwn(context, 'goToEnd', () => _c.playback.seek(_c.playback.duration));
-  VoidCallback get _playPause => () => Plugins.doOwn(context, 'playPause', _c.playback.togglePlay);
-  VoidCallback get _metronome => () => Plugins.doOwn(context, 'metronome', () => _c.playback.metronome = !_c.playback.metronome);
-  VoidCallback? get _undo => _c.canUndo ? () => Plugins.doOwn(context, 'undo', _c.undo) : null;
-  VoidCallback? get _redo => _c.canRedo ? () => Plugins.doOwn(context, 'redo', _c.redo) : null;
-  VoidCallback? get _findPhrase =>
-      !_c.hasNotes ? null : () => Plugins.doOwn(context, 'findPhrase', () => PhraseSearchWindow.toggle(Overlay.of(context), _c));
-  VoidCallback get _assets => () => showAssetsDialog(context, _c);
+/// The editor's toolbar's items: any toolbar's ([BarItems]) and its own controls.
+class _EditorItems extends BarItems {
+  _EditorItems(this.bar) : super(controller: bar.controller, commands: bar.commands);
+  final EditorToolbar bar;
 
   /// The view's switch: the score (a MIDI project's rows), a score's MIDI view where it has one,
   /// the player map; each with whether it shows and what shows it. None without a switch.
-  List<({String label, Widget glyph, bool selected, VoidCallback show, KeyCommand command})> get _views {
-    final onPlayerMap = widget.onPlayerMap, onMidiView = widget.onMidiView;
+  List<({String label, Widget glyph, bool selected, VoidCallback show, KeyCommand command})> _views(BuildContext context) {
+    final c = controller, onPlayerMap = bar.onPlayerMap, onMidiView = bar.onMidiView;
     if (onPlayerMap == null) return const [];
     return [
       (
-        label: _c.isMidi ? 'MIDI View' : 'Score',
+        label: c.isMidi ? 'MIDI View' : 'Score',
         glyph: Icon(AppIcon.score.of(context)),
-        selected: !widget.playerMap && !_c.showsMidiView,
+        selected: !bar.playerMap && !c.showsMidiView,
         show: () {
           onMidiView?.call(false);
           onPlayerMap(false);
         },
         command: KeyCommand.showPlayerMap,
       ),
-      if (onMidiView != null && _c.hasMidiView)
+      if (onMidiView != null && c.hasMidiView)
         (
           label: 'MIDI View',
           glyph: const _MidiViewGlyph(),
-          selected: !widget.playerMap && _c.showsMidiView,
+          selected: !bar.playerMap && c.showsMidiView,
           show: () {
             onMidiView(true);
             onPlayerMap(false);
           },
           command: KeyCommand.showMidiView,
         ),
-      (label: 'Player Map', glyph: const _PlayerMapGlyph(), selected: widget.playerMap, show: () => onPlayerMap(true), command: KeyCommand.showPlayerMap),
+      (label: 'Player Map', glyph: const _PlayerMapGlyph(), selected: bar.playerMap, show: () => onPlayerMap(true), command: KeyCommand.showPlayerMap),
     ];
   }
 
   /// The buttons plugins put on the toolbar (app.command's `toolbar`).
-  List<PluginEntry> get _added => PluginScope.of(context)?.commandsWhere((command) => command.toolbar) ?? const [];
+  List<PluginEntry> _added(BuildContext context) => PluginScope.of(context)?.commandsWhere((command) => command.toolbar) ?? const [];
 
-  /// [item] as it is on the bar; with [saving], a space that says Saving… at its end.
-  Widget _item(BuildContext context, BarItem item, {bool saving = false}) {
-    final c = _c, colors = context.colors;
+  @override
+  Widget? item(BuildContext context, BarItem item, {bool first = false}) {
+    final c = controller, colors = context.colors;
     switch (item) {
-      case BarItem.goToStart:
-        return ToolbarButton(
-          icon: AppIcon.toStart.of(context),
-          tooltip: keyed(context, KeyCommand.goToStart, (key) => 'Go to start ({key})'.fill({'key': key}), 'Go to start'.tr),
-          // As its key does it: what a plugin put around the command is what the button does.
-          onPressed: _goToStart,
-        );
-      case BarItem.playPause:
-        return _PlayButton(controller: c);
-      case BarItem.goToEnd:
-        return ToolbarButton(
-          icon: AppIcon.toEnd.of(context),
-          tooltip: keyed(context, KeyCommand.goToEnd, (key) => 'Go to end ({key})'.fill({'key': key}), 'Go to end'.tr),
-          onPressed: _goToEnd,
-        );
-      case BarItem.metronome:
-        return ToolbarButton(
-          glyph: const _MetronomeGlyph(),
-          tooltip: keyed(context, KeyCommand.metronome, (key) => 'Metronome ({key})'.fill({'key': key}), 'Metronome'.tr),
-          selected: c.playback.metronome,
-          onPressed: _metronome,
-        );
       case BarItem.readout:
-        return Padding(padding: const EdgeInsets.only(left: 10, right: 2), child: TimeReadout(key: widget.readout, controller: c));
-      case BarItem.findPhrase:
-        return ValueListenableBuilder(
-          valueListenable: PhraseSearchWindow.shown,
-          builder: (context, shown, _) => ToolbarButton(
-            icon: AppIcon.search.of(context),
-            tooltip: keyed(context, KeyCommand.findPhrase, (key) => 'Find phrase ({key})'.fill({'key': key}), 'Find phrase'.tr),
-            selected: shown,
-            onPressed: _findPhrase,
-          ),
-        );
+        return Padding(padding: const EdgeInsets.only(left: 10, right: 2), child: TimeReadout(key: bar.readout, controller: c));
       case BarItem.viewSwitch:
         // The score, its notes in rows (where it has them beside its engraving) or the player
         // map in its place: one lit, as a segmented switch.
+        final views = _views(context);
+        if (views.isEmpty) return null;
         return Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final view in _views)
+          for (final view in views)
             ToolbarButton(
               glyph: view.glyph,
               tooltip: switch (view.label) {
@@ -338,15 +201,14 @@ class _EditorToolbarState extends State<EditorToolbar> {
               onPressed: view.show,
             ),
         ]);
-      case BarItem.undo || BarItem.redo:
-        return undoRedoButtons(context, undo: _undo, redo: _redo)[item == BarItem.undo ? 0 : 1];
       case BarItem.assets:
-        if (!c.images.enabled) return const SizedBox.shrink();
-        return ToolbarButton(icon: AppIcon.assets.of(context), tooltip: 'Manage assets…'.tr, onPressed: _assets);
+        if (!c.images.enabled) return null;
+        return ToolbarButton(icon: AppIcon.assets.of(context), tooltip: 'Manage assets…'.tr, onPressed: () => showAssetsDialog(context, c));
       case BarItem.plugins:
-        final plugins = PluginScope.of(context);
+        final plugins = PluginScope.of(context), added = _added(context);
+        if (added.isEmpty) return null;
         return Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final entry in _added)
+          for (final entry in added)
             ToolbarButton(
               key: ValueKey('plugin ${entry.command.id}'),
               icon: Plugins.iconOf(context, entry),
@@ -356,9 +218,9 @@ class _EditorToolbarState extends State<EditorToolbar> {
             ),
         ]);
       case BarItem.export:
-        return _ExportMenu(enabled: c.canExport, onVideo: widget.onExportVideo, onWeb: widget.onExportWeb);
+        return _ExportMenu(enabled: c.canExport, onVideo: bar.onExportVideo, onWeb: bar.onExportWeb);
       case BarItem.videoRatio:
-        return RatioMenu(ratio: widget.videoRatio, onSelected: widget.onVideoRatio);
+        return RatioMenu(ratio: bar.videoRatio, onSelected: bar.onVideoRatio);
       case BarItem.scoreSize:
         return Row(mainAxisSize: MainAxisSize.min, children: [
           Tip(message: 'Score size'.tr, child: Icon(AppIcon.scoreSize.of(context), size: 16, color: colors.textMuted)),
@@ -368,27 +230,18 @@ class _EditorToolbarState extends State<EditorToolbar> {
             child: _sizeSlider(context),
           ),
         ]);
-      case BarItem.space:
-        if (!saving) return const SizedBox.shrink();
-        // However narrow, its line is whole or cut, never squeezed.
+      case BarItem.space when first:
+        // Saving… at its end. However narrow, its line is whole or cut, never squeezed.
         return ClipRect(
           child: OverflowBox(
             minWidth: 0,
             maxWidth: double.infinity,
             alignment: Alignment.centerRight,
-            child: _SavingIndicator(document: widget.document),
+            child: _SavingIndicator(document: bar.document),
           ),
         );
-      case BarItem.divider:
-        return const ToolbarDivider();
       default:
-        // One of the app's commands, as its menu item has it.
-        return ToolbarButton(
-          glyph: BarItemIcon(item),
-          tooltip: _tip(context, item),
-          selected: item == BarItem.tapAnchors && c.anchors.tapArmed,
-          onPressed: _does(context, item.command!),
-        );
+        return super.item(context, item, first: first);
     }
   }
 
@@ -396,117 +249,47 @@ class _EditorToolbarState extends State<EditorToolbar> {
         child: SliderTheme(
           data: SliderTheme.of(context).copyWith(valueIndicatorShape: const BelowValueIndicatorShape()),
           child: Slider(
-            value: _c.staffSpace,
+            value: controller.staffSpace,
             min: EditorController.minStaffSpace,
             max: EditorController.maxStaffSpace,
             divisions: 14,
-            label: _c.staffSpace.toStringAsFixed(1),
-            onChanged: (v) => _c.setStaffSpace(v, dragging: true),
-            onChangeEnd: _c.setStaffSpace,
+            label: controller.staffSpace.toStringAsFixed(1),
+            onChanged: (v) => controller.setStaffSpace(v, dragging: true),
+            onChangeEnd: controller.setStaffSpace,
           ),
         ),
       );
 
-  /// A command's name with its key, as a button's tip has them: "Save (⌘S)".
-  static String _tip(BuildContext context, BarItem item) {
-    final name = item.label.tr.replaceFirst(RegExp(r'(…|\.\.\.)$'), '');
-    final key = switch (KeyCommand.values.asNameMap()[item.command]) { final command? => KeyMap.of(context)[command], null => null };
-    return key == null ? name : '$name (${key.label})';
-  }
-
-  /// [item] at place [i] of the bar while the toolbar is customized: as it looks, doing
-  /// nothing, dragged to another place or off the bar.
-  Widget _dragged(BuildContext context, int i, BarItem item) {
-    final colors = context.colors;
-    final face = switch (item) {
-      BarItem.space => Container(
-          height: 22,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(4)),
-        ),
-      // What isn't there now (no images, no plugin's button) still has its place.
-      BarItem.assets when !_c.images.enabled => _placeholder(context, item),
-      BarItem.plugins when _added.isEmpty => _placeholder(context, item),
-      _ => _item(context, item),
-    };
-    return Draggable<BarDrag>(
-      data: (item: item, from: (area: BarArea.bar, index: i)),
-      dragAnchorStrategy: pointerDragAnchorStrategy,
-      feedback: BarItemChip(item),
-      childWhenDragging: Opacity(opacity: 0.25, child: AbsorbPointer(child: face)),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.grab,
-        child: Tip(message: item.label.tr, waitDuration: const Duration(milliseconds: 600), child: AbsorbPointer(child: face)),
-      ),
-    );
-  }
-
-  Widget _placeholder(BuildContext context, BarItem item) => SizedBox.square(
-        dimension: AppStyle.of(context).control,
-        child: Center(child: Opacity(opacity: 0.45, child: BarItemIcon(item, size: 16))),
-      );
-
-  // MARK: Items in the menu
-
-  /// A menu's row for something chosen: its icon, its name, ticked while [selected].
-  PopupMenuItem<VoidCallback> _row(BuildContext context, Widget icon, String label, VoidCallback? action, {bool selected = false}) => menuItem(
-        context,
-        value: action,
-        enabled: action != null,
-        child: Row(children: [
-          SizedBox(width: 16, child: IconTheme.merge(data: const IconThemeData(size: 16), child: icon)),
-          SizedBox(width: AppStyle.of(context).isCarbon ? 8 : 6),
-          Expanded(child: Text(label)),
-          if (selected) ...[const SizedBox(width: 16), Icon(AppIcon.check.of(context), size: 16)],
-        ]),
-      );
-
-  /// [item] as rows of the menu at the bar's end.
-  List<PopupMenuEntry<VoidCallback>> _entries(BuildContext context, BarItem item) {
-    final c = _c;
-    PopupMenuItem<VoidCallback> row(VoidCallback? action, {bool selected = false}) =>
-        _row(context, BarItemIcon(item), item.label.tr, action, selected: selected);
+  @override
+  List<PopupMenuEntry<VoidCallback>> entries(BuildContext context, BarItem item) {
+    final c = controller;
     switch (item) {
-      case BarItem.goToStart:
-        return [row(_goToStart)];
-      case BarItem.playPause:
-        return [row(_playPause)];
-      case BarItem.goToEnd:
-        return [row(_goToEnd)];
-      case BarItem.metronome:
-        return [row(_metronome, selected: c.playback.metronome)];
       case BarItem.readout:
-        return [_MenuWidget(child: TimeReadout(controller: c))];
-      case BarItem.findPhrase:
-        return [row(_findPhrase, selected: PhraseSearchWindow.shown.value)];
+        return [MenuWidget(child: TimeReadout(controller: c))];
       case BarItem.viewSwitch:
-        return [for (final view in _views) _row(context, view.glyph, view.label.tr, view.show, selected: view.selected)];
-      case BarItem.undo:
-        return [row(_undo)];
-      case BarItem.redo:
-        return [row(_redo)];
+        return [for (final view in _views(context)) row(context, item, view.show, selected: view.selected, icon: view.glyph, label: view.label.tr)];
       case BarItem.assets:
-        return [if (c.images.enabled) row(_assets)];
+        return [if (c.images.enabled) row(context, item, () => showAssetsDialog(context, c))];
       case BarItem.plugins:
         final plugins = PluginScope.of(context);
         return [
-          for (final entry in _added)
-            _row(context, Icon(Plugins.iconOf(context, entry)), plugins!.titleOf(entry), plugins.actionOf(entry),
-                selected: entry.runtime.isChecked(entry.command)),
+          for (final entry in _added(context))
+            row(context, item, plugins!.actionOf(entry),
+                selected: entry.runtime.isChecked(entry.command), icon: Icon(Plugins.iconOf(context, entry)), label: plugins.titleOf(entry)),
         ];
       case BarItem.export:
         return [
-          _row(context, Icon(AppIcon.export.of(context)), 'Export Video…'.tr, c.canExport ? widget.onExportVideo : null),
-          _row(context, Icon(AppIcon.website.of(context)), 'Export to Web…'.tr, c.canExport ? widget.onExportWeb : null),
+          row(context, item, c.canExport ? bar.onExportVideo : null, icon: Icon(AppIcon.export.of(context)), label: 'Export Video…'.tr),
+          row(context, item, c.canExport ? bar.onExportWeb : null, icon: Icon(AppIcon.website.of(context)), label: 'Export to Web…'.tr),
         ];
       case BarItem.videoRatio:
         return [
           menuHeader(context, 'Video ratio'),
-          ...RatioMenu.entries(context, widget.videoRatio, (r) => () => RatioMenu.choose(context, widget.videoRatio, r, widget.onVideoRatio)),
+          ...RatioMenu.entries(context, bar.videoRatio, (r) => () => RatioMenu.choose(context, bar.videoRatio, r, bar.onVideoRatio)),
         ];
       case BarItem.scoreSize:
         return [
-          _MenuWidget(
+          MenuWidget(
             child: Row(children: [
               Icon(AppIcon.scoreSize.of(context), size: 16, color: context.colors.textMuted),
               // Its value follows the drag: the menu isn't built again as the bar is.
@@ -514,200 +297,9 @@ class _EditorToolbarState extends State<EditorToolbar> {
             ]),
           ),
         ];
-      case BarItem.space:
-        return const [];
-      case BarItem.divider:
-        return [menuDivider(context)];
       default:
-        return [row(_does(context, item.command!), selected: item == BarItem.tapAnchors && c.anchors.tapArmed)];
+        return super.entries(context, item);
     }
-  }
-
-  /// [entries] with no divider first, last or after another.
-  static List<PopupMenuEntry<VoidCallback>> _tidied(List<PopupMenuEntry<VoidCallback>> entries) {
-    final out = <PopupMenuEntry<VoidCallback>>[];
-    for (final entry in entries) {
-      if (entry is PopupMenuDivider && (out.isEmpty || out.last is PopupMenuDivider)) continue;
-      out.add(entry);
-    }
-    if (out.isNotEmpty && out.last is PopupMenuDivider) out.removeLast();
-    return out;
-  }
-}
-
-/// The menu at the bar's end (»): the items it has no room for, then those kept there.
-class _MoreMenu extends StatelessWidget {
-  const _MoreMenu({required this.entries});
-  final List<PopupMenuEntry<VoidCallback>> Function(BuildContext context) entries;
-
-  @override
-  Widget build(BuildContext context) => OverlaySemantics(
-        child: AppPopupMenuButton<VoidCallback>(
-          tooltip: 'More tools'.tr,
-          position: PopupMenuPosition.under,
-          iconSize: 16,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 220),
-          style: IconButton.styleFrom(
-            fixedSize: Size.square(AppStyle.of(context).control),
-            minimumSize: Size.square(AppStyle.of(context).control),
-            shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
-          ),
-          icon: Icon(AppIcon.overflow.of(context)),
-          onSelected: (action) => action(),
-          itemBuilder: entries,
-        ),
-      );
-}
-
-/// A menu's row that is a control, not a choice (the time, the score's size): the menu stays
-/// open while it is used.
-class _MenuWidget extends PopupMenuEntry<VoidCallback> {
-  const _MenuWidget({required this.child});
-  final Widget child;
-
-  @override
-  double get height => 32;
-
-  @override
-  bool represents(VoidCallback? value) => false;
-
-  @override
-  State<_MenuWidget> createState() => _MenuWidgetState();
-}
-
-class _MenuWidgetState extends State<_MenuWidget> {
-  @override
-  Widget build(BuildContext context) => Container(
-        height: widget.height,
-        padding: EdgeInsets.symmetric(horizontal: AppStyle.of(context).menuInset),
-        alignment: Alignment.centerLeft,
-        child: widget.child,
-      );
-}
-
-/// A toolbar item's icon ([BarItem]): where it is listed to be added, in the menu at the bar's
-/// end, and on the bar for one that is a command.
-class BarItemIcon extends StatelessWidget {
-  const BarItemIcon(this.item, {super.key, this.size});
-  final BarItem item;
-  final double? size;
-
-  static const _icons = {
-    BarItem.goToStart: AppIcon.toStart,
-    BarItem.playPause: AppIcon.play,
-    BarItem.goToEnd: AppIcon.toEnd,
-    BarItem.findPhrase: AppIcon.search,
-    BarItem.viewSwitch: AppIcon.score,
-    BarItem.undo: AppIcon.undo,
-    BarItem.redo: AppIcon.redo,
-    BarItem.assets: AppIcon.assets,
-    BarItem.plugins: AppIcon.plugins,
-    BarItem.export: AppIcon.export,
-    BarItem.videoRatio: AppIcon.frame,
-    BarItem.scoreSize: AppIcon.scoreSize,
-    BarItem.newProject: AppIcon.add,
-    BarItem.open: AppIcon.open,
-    BarItem.importScore: AppIcon.drop,
-    BarItem.save: AppIcon.save,
-    BarItem.exportVideo: AppIcon.export,
-    BarItem.exportWeb: AppIcon.website,
-    BarItem.followDaw: AppIcon.link,
-    BarItem.cut: AppIcon.cut,
-    BarItem.copy: AppIcon.copy,
-    BarItem.paste: AppIcon.paste,
-    BarItem.delete: AppIcon.delete,
-    BarItem.tapAnchors: AppIcon.tap,
-    BarItem.warp: AppIcon.warp,
-    BarItem.showPreview: AppIcon.show,
-    BarItem.showTimeline: AppIcon.timeline,
-    BarItem.projectSettings: AppIcon.settings,
-    BarItem.settings: AppIcon.general,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = IconTheme.of(context);
-    final size = this.size ?? theme.size ?? 18;
-    final color = theme.color ?? context.colors.text;
-    final glyph = switch (item) {
-      BarItem.metronome => const _MetronomeGlyph(),
-      // The time, as the bar writes it.
-      BarItem.readout => FittedBox(
-          child: Text('0:00', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color, fontFeatures: const [FontFeature.tabularFigures()])),
-        ),
-      BarItem.space => CustomPaint(size: Size.square(size), painter: _SpaceGlyphPainter(color, divider: false)),
-      BarItem.divider => CustomPaint(size: Size.square(size), painter: _SpaceGlyphPainter(color, divider: true)),
-      _ => Icon(_icons[item]!.of(context)),
-    };
-    return IconTheme.merge(
-      data: IconThemeData(size: size, color: color),
-      child: SizedBox.square(dimension: size, child: Center(child: glyph)),
-    );
-  }
-}
-
-/// Room between items (arrows apart, to both ends), or the rule between groups of them.
-class _SpaceGlyphPainter extends CustomPainter {
-  const _SpaceGlyphPainter(this.color, {required this.divider});
-  final Color color;
-  final bool divider;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 24);
-    final line = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    if (divider) {
-      canvas.drawLine(const Offset(12, 4), const Offset(12, 20), line);
-      return;
-    }
-    canvas.drawLine(const Offset(3.5, 5), const Offset(3.5, 19), line);
-    canvas.drawLine(const Offset(20.5, 5), const Offset(20.5, 19), line);
-    canvas.drawLine(const Offset(7.5, 12), const Offset(16.5, 12), line);
-    canvas.drawPath(
-        Path()
-          ..moveTo(10, 9.5)
-          ..lineTo(7.5, 12)
-          ..lineTo(10, 14.5)
-          ..moveTo(14, 9.5)
-          ..lineTo(16.5, 12)
-          ..lineTo(14, 14.5),
-        line);
-  }
-
-  @override
-  bool shouldRepaint(_SpaceGlyphPainter old) => old.color != color || old.divider != divider;
-}
-
-/// A toolbar item as it is carried: its icon and name on a chip, centred under the pointer.
-class BarItemChip extends StatelessWidget {
-  const BarItemChip(this.item, {super.key});
-  final BarItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return FractionalTranslation(
-      translation: const Offset(-0.5, -0.5),
-      child: Material(
-        color: colors.chrome,
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8), side: BorderSide(color: colors.line)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 16)),
-            const SizedBox(width: 8),
-            Text(item.label.tr, style: TextStyle(fontSize: 12.5, color: colors.text)),
-          ]),
-        ),
-      ),
-    );
   }
 }
 
@@ -797,55 +389,6 @@ class _ExportMenu extends StatelessWidget {
   }
 }
 
-/// Play / pause: the icon morphs between the two.
-class _PlayButton extends StatelessWidget {
-  const _PlayButton({required this.controller});
-  final EditorController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final playing = controller.playback.isPlaying;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    // Refined: a transport button like the others, its icon in the accent. Carbon: its primary
-    // icon button, white on the accent.
-    final tip = playing ? 'Pause (Space)' : 'Play (Space)';
-    final icon = playing ? AppIcon.pause.of(context) : AppIcon.play.of(context);
-    if (CarbonColors.maybeOf(context) case final k?) {
-      return OverlaySemantics(
-        child: IconButton(
-          tooltip: tip.tr,
-          onPressed: () => Plugins.doOwn(context, 'playPause', controller.playback.togglePlay),
-          iconSize: 16,
-          constraints: BoxConstraints.tightFor(width: AppStyle.of(context).control, height: AppStyle.of(context).control),
-          padding: EdgeInsets.zero,
-          style: Theme.of(context).filledButtonTheme.style!.copyWith(
-                minimumSize: WidgetStatePropertyAll(Size.square(AppStyle.of(context).control)),
-                padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-                alignment: Alignment.center,
-                iconColor: const WidgetStatePropertyAll(Colors.white),
-                foregroundColor: const WidgetStatePropertyAll(Colors.white),
-                backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.pressed)
-                    ? k.primaryActive
-                    : s.contains(WidgetState.hovered)
-                        ? k.primaryHover
-                        : k.primary),
-              ),
-          icon: Icon(icon),
-        ),
-      );
-    }
-    return ToolbarButton(
-      icon: icon,
-      tooltip: tip,
-      color: dark ? colors.accent : colors.accentStrong,
-      selected: playing,
-      onPressed: () => Plugins.doOwn(context, 'playPause', controller.playback.togglePlay),
-    );
-  }
-}
-
-/// A metronome: its case and the pendulum swung to the right.
 /// The player map's button: players on a bow, as the map seats them.
 class _PlayerMapGlyph extends StatelessWidget {
   const _PlayerMapGlyph();
@@ -902,50 +445,6 @@ class _MidiViewGlyphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MidiViewGlyphPainter old) => old.color != color;
-}
-
-class _MetronomeGlyph extends StatelessWidget {
-  const _MetronomeGlyph();
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = IconTheme.of(context);
-    final size = icon.size ?? 18;
-    return CustomPaint(
-        size: Size.square(size), painter: _MetronomePainter(icon.color ?? context.colors.text, AppStyle.of(context).isCarbon));
-  }
-}
-
-/// Drawn as its style's icons are: Material Symbols' light rounded stroke, or Carbon's square 2-unit one.
-class _MetronomePainter extends CustomPainter {
-  const _MetronomePainter(this.color, this.carbon);
-  final Color color;
-  final bool carbon;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 24);
-    final line = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = carbon ? 1.5 : 1.6
-      ..strokeJoin = carbon ? StrokeJoin.miter : StrokeJoin.round
-      ..strokeCap = carbon ? StrokeCap.butt : StrokeCap.round;
-    canvas.drawPath(
-        Path()
-          ..moveTo(9.5, 3.5)
-          ..lineTo(14.5, 3.5)
-          ..lineTo(19, 20.5)
-          ..lineTo(5, 20.5)
-          ..close(),
-        line);
-    canvas.drawLine(const Offset(7, 16), const Offset(17, 16), line);
-    canvas.drawLine(const Offset(12, 16), const Offset(17.5, 6), line);
-    canvas.drawCircle(const Offset(15.6, 9.5), 1.6, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_MetronomePainter old) => old.color != color || old.carbon != carbon;
 }
 
 /// "1:10.0 / 1:31.4" and the bar.beat sounding now. A click on either (or ⌘G: [edit]) types

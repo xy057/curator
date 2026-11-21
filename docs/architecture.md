@@ -130,8 +130,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `markdown_text.dart` | Markdown as a release's description has it, in the app's text (`MarkdownText`; `parseMarkdown`, `parseInline`): headings, lists, quotes, code, links (http and https only) |
 | `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score, and for a score with notes Show MIDI View / Show Score); MIDI, only while a MIDI project shows, or a score in its MIDI view (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
-| `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's toolbar |
-| `toolbar_layout.dart`, `toolbar_strip.dart`, `toolbar_customize.dart` | The editor's toolbar as the user has it: what it can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), and View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`); see *The toolbar is the user's* |
+| `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
+| `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
 ## Rules
@@ -1231,30 +1231,49 @@ tab (`_OpenProject.file`); a file the system asks to open while a dialog is up w
 gone (`_openFromSystem`); Save As onto a project open in another tab is refused. Two projects open on one recording file (a linked one) share SoLoud's one
 sound of it, which the last to let go disposes (`audio_track.dart`'s `_holders`).
 
-**The toolbar is the user's** (View ▸ Customize Toolbar…, or a right click on the bar; as Firefox's
-Customize Toolbar). The editor's toolbar draws a `ToolbarLayout` (`AppSettings.toolbar`, the same
-for every project, saved only once it is other than the app's own, `ToolbarLayout.standard`): its
-items (`BarItem`, by name) left to right on the bar and top to bottom in the menu at its end (»);
-those in neither are the ones left to add. An item is one of the toolbar's own controls (the time,
-the view's switch, the Export menu, the score's size…) or a button doing one of the app's commands
-(`BarItem.command`: an id of the window's `does` table, so it is greyed out exactly while the menu's
-item is, and does what a plugin put around it, `Plugins.doOwn`); a flexible space and a divider can
-be there any number of times, everything else once. `EditorToolbar` gives each item two forms: on
-the bar (`_item`) and as rows of the menu (`_entries`: a command a row, the Export menu its two,
-the ratio its choices, the time and the score's size the controls themselves, the menu staying
-open). The bar is a `ToolbarStrip`: every item as wide as it likes, what is left shared among the
-spaces, and when they don't all fit the last ones left out: laid out still, so they come back as
-the window widens, but not drawn, hit, read or reached by Tab, and told to the toolbar after the
-frame (`onFit`), which puts them first in the menu. So the bar never runs past its width, however
-many items it is given, and a divider is never the last thing before the cut. The first flexible
-space says Saving… at its end. While it is customized (`ProjectPage._customizing`; Esc, Done or
-the menu item again ends it) the bar's items do nothing and are dragged (`BarDrag`, Flutter's
-`Draggable` / `DragTarget`): onto the bar, where a mark shows the place (`RenderToolbarStrip.placeAt`),
-into the menu's list in `ToolbarCustomizer`, which covers the editor (kept under it, as it was) with
-what is left to add, or back onto that panel, which takes an item off. Every change is
-`ToolbarLayout.moved`, set at once; Restore Defaults is the app's own layout. Out of that mode a
-right click on an item moves it to the menu or takes it off. What isn't there now (Manage assets…
-without Attach Image, plugins' buttons with none) keeps its place, empty.
+**The toolbars are the user's** (View ▸ Customize Toolbar…, or a right click on a bar; as Firefox's
+Customize Toolbar). There are four (`BarKind`): the editor's, above the score, and the timeline's,
+one for each of its tabs (Instruments, Audio, Video: the bar is another toolbar as the tab
+changes). Each draws a `ToolbarLayout` (`AppSettings.toolbarOf`, the same for every project, saved
+only once it is other than the app's own, `ToolbarLayout.standard`; the editor's under `toolbar`,
+the others under `toolbar.audio`…): its items (`BarItem`, by name) left to right on the bar and top
+to bottom in the menu at its end (»); those in neither are the ones left to add. An item is a
+control of some toolbars' own (`BarItem.on`: the time, the view's switch, the Export menu and the
+score's size on the editor's; the lanes' tools, the zoom and the speed on the timeline's; a tab's
+tools on that tab's) or a button doing one of the app's commands, which any toolbar takes
+(`BarItem.command`: an id of the window's `does` table, so it is greyed out exactly while the
+menu's item is, and does what a plugin put around it, `Plugins.doOwn`); a flexible space and a
+divider can be there any number of times, everything else once. A layout holds only what its
+toolbar can (`ToolbarLayout`'s factory, `moved`).
+
+A toolbar is a `CustomBar` given its layout and a `BarItems`, which makes each item in two forms:
+on the bar (`item`) and as rows of the menu (`entries`: a command a row, the Export menu its two,
+the ratio its choices; a field or a menu of its own the control itself after its name,
+`BarItems.control`, the menu staying open). `BarItems` itself makes what any toolbar takes (the
+commands' buttons, spaces, dividers); `EditorToolbar`'s `_EditorItems` and the timeline's
+`PanelItems` (one for the tab shown, in `PanelBar`) add their own. An item with nothing to show now
+is null (`item`): Manage assets… without Attach Image, plugins' buttons with none, the tools of a
+selection with nothing selected (those fade in and out, `BarItems.fades`), the sync's with no sync
+edited. The bar's first flexible space is where a toolbar says what it has to say: Saving…, what
+is selected in the lanes, the anchors selected, that there is no player map.
+
+The bar is a `ToolbarStrip`: every item as wide as it likes, what is left shared among the spaces,
+and when they don't all fit the last ones left out: laid out still, so they come back as the
+window widens, but not drawn, hit, read or reached by Tab, and told to the toolbar after the frame
+(`onFit`), which puts them first in the menu. So a bar never runs past its width, however many
+items it is given. A divider shows only between two items that do (of those between two spaces):
+with the tools around it gone it is too, and it is never the last thing before the cut.
+
+While one is customized (`ProjectPage._customizing`, `_customizingPanel`; Esc, Done or the menu
+item again ends it) `ToolbarCustomizer` covers the editor (kept under it, as it was) with the
+timeline's bar under the editor's, a switch for which toolbar it is (the timeline's own switch
+chooses too: its tab's), what that toolbar can take and its menu's list. That toolbar's items do
+nothing and are dragged (`BarDrag`, Flutter's `Draggable` / `DragTarget`): onto the bar, where a
+mark shows the place (`RenderToolbarStrip.placeAt`), into the menu's list, or back onto the panel,
+which takes an item off; the other bar is there to be seen. Every change is `ToolbarLayout.moved`,
+set at once; Restore Defaults is the app's own layout of that toolbar. Out of that mode a right
+click on an item moves it to the menu or takes it off. What isn't there now keeps its place,
+empty.
 
 **Replacing the score keeps the project.** Another score file picked by Project Settings ▸
 Project Info ▸ Score ▸ Replace… (read over the settings window, refused past `ScoreFile.maxBytes`
@@ -2201,9 +2220,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   while such a project shows.
 - **A toolbar item**: a `BarItem` (its label a text the template has: one that is nowhere a
   literal is added to curator.pot by hand), its icon in `BarItemIcon`; one that does a command
-  names it (`command`) and needs no more, a control gets its two forms in `EditorToolbar`
-  (`_item`, `_entries`). It is left to add unless `ToolbarLayout.standard` has it: a toolbar the
-  user changed never gains an item by itself. An item's name is what is saved, so it stays.
+  names it (`command`) and needs no more, any toolbar taking it; a control says which toolbars
+  hold it (`on`) and gets its two forms in their `BarItems` (`item`, null while it has nothing
+  to show, and `entries`: `_EditorItems`, `PanelItems`). It is left to add unless that toolbar's
+  `ToolbarLayout.standard` has it: a toolbar the user changed never gains an item by itself. An
+  item's name is what is saved, so it stays.
 - **Something downloaded** (a tool such as LilyPond, or a model run on this computer: local AI):
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered
   without it and asks for it there (as `ensureLilyPond` does). Local AI is never hidden by Hide AI

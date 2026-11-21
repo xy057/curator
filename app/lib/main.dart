@@ -8,7 +8,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry, ValueListenable;
+import 'package:flutter/foundation.dart' show LicenseEntry, LicenseEntryWithLineBreaks, LicenseRegistry, ValueListenable, listEquals;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,6 +55,7 @@ import 'score_replacement.dart';
 import 'score_view.dart';
 import 'scratch_space.dart';
 import 'settings_dialog.dart';
+import 'panel_bar.dart';
 import 'toolbar_customize.dart';
 import 'toolbar_layout.dart';
 import 'ui_kit.dart';
@@ -1081,13 +1082,21 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// settings (a slider in Settings changes them many times a second).
   late final _shown = ValueNotifier(_shownSettings);
 
-  ({VideoRatio videoRatio, bool tabBar, bool playerMap, bool midiView, ToolbarLayout toolbar}) get _shownSettings => (
+  ({VideoRatio videoRatio, bool tabBar, bool playerMap, bool midiView, List<ToolbarLayout> toolbars}) get _shownSettings => (
         videoRatio: settings.videoRatio,
         tabBar: settings.tabBar,
         playerMap: settings.playerMap,
         midiView: settings.midiView,
-        toolbar: settings.toolbar,
+        toolbars: _layouts,
       );
+
+  /// The toolbars' layouts, the same list while none has changed (so [_shown] hasn't either).
+  List<ToolbarLayout> get _layouts {
+    final now = [for (final kind in BarKind.values) settings.toolbarOf(kind)];
+    return listEquals(now, _toolbars) ? _toolbars : _toolbars = now;
+  }
+
+  List<ToolbarLayout> _toolbars = const [];
 
   /// The rows' look, for a MIDI project ([file]) and a score in its MIDI view, and whether a
   /// MIDI project plays by its file's own tempo map: what the MIDI menu shows; null for any
@@ -1757,11 +1766,18 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     _menusChanged();
   }
 
-  /// View ▸ Customize Toolbar…: the toolbar's items are dragged, the rest to add listed in the
-  /// editor's place, until Done, Esc or the item again.
-  bool _customizing = false;
+  /// View ▸ Customize Toolbar…: a toolbar's items are dragged, the rest to add listed in the
+  /// editor's place, until Done, Esc or the item again: the editor's toolbar, or
+  /// ([_customizingPanel]) the timeline's in the tab it shows.
+  bool _customizing = false, _customizingPanel = false;
 
-  void _customizeToolbar() => setState(() => _customizing = !_customizing);
+  void _customizeToolbar({bool panel = false}) => setState(() {
+        _customizing = !_customizing;
+        _customizingPanel = panel;
+      });
+
+  /// The toolbar being customized; null while none is.
+  BarKind? get _customized => !_customizing ? null : _customizingPanel ? BarKind.ofTab(controller.tab.index) : BarKind.editor;
 
   /// View ▸ Maximize Preview / Timeline: both shown, the other at its smallest (and kept so as
   /// the window is resized, until the divider is dragged).
@@ -1954,9 +1970,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       playerMap: settings.playerMap,
       onPlayerMap: (on) => settings.playerMap = on,
       onMidiView: (on) => settings.midiView = on,
-      layout: settings.toolbar,
-      onLayout: (layout) => settings.toolbar = layout,
-      customizing: _customizing,
+      layout: settings.toolbarOf(BarKind.editor),
+      onLayout: settings.setToolbar,
+      customizing: _customizing && !_customizingPanel,
       onCustomize: _customizeToolbar,
       commands: widget.commands,
       commandsChanged: widget.commandsChanged,
@@ -1985,7 +2001,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       key: _timeline,
       child: Listener(
         onPointerDown: (_) => controller.images.select(null),
-        child: BottomPanel(controller: controller, onProjectSettings: _projectSettings),
+        child: BottomPanel(
+          controller: controller,
+          layoutOf: settings.toolbarOf,
+          onLayout: settings.setToolbar,
+          onCustomize: () => _customizeToolbar(panel: true),
+          commands: widget.commands,
+          commandsChanged: widget.commandsChanged,
+        ),
       ),
     );
     final parts = LayoutBuilder(builder: (context, constraints) {
@@ -2005,14 +2028,42 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       );
     });
     return Column(children: [
-      toolbar,
+      // (While the timeline's is customized, the editor's is there to be seen.)
+      IgnorePointer(
+        ignoring: _customizing && _customizingPanel,
+        child: ExcludeFocus(
+          excluding: _customizing && _customizingPanel,
+          child: Opacity(opacity: _customizing && _customizingPanel ? 0.45 : 1, child: toolbar),
+        ),
+      ),
       Expanded(
         // View ▸ Customize Toolbar…: what can be added, over the editor, which keeps its state
-        // under it.
+        // under it, with the timeline's bar under the editor's. Which toolbar it is of follows
+        // the timeline's tab, once it is the timeline's.
         child: Stack(fit: StackFit.expand, children: [
           ExcludeFocus(excluding: _customizing, child: parts),
           if (_customizing)
-            ToolbarCustomizer(layout: settings.toolbar, onLayout: (layout) => settings.toolbar = layout, onDone: _customizeToolbar),
+            Select(
+              listenable: controller,
+              select: () => controller.tab,
+              builder: (context, _) => ToolbarCustomizer(
+                layout: settings.toolbarOf(_customized!),
+                onLayout: settings.setToolbar,
+                onKind: (kind) {
+                  setState(() => _customizingPanel = kind != BarKind.editor);
+                  if (kind.tab case final tab?) controller.tab = BottomTab.values[tab];
+                },
+                onDone: _customizeToolbar,
+                bar: PanelBar(
+                  controller: controller,
+                  layoutOf: settings.toolbarOf,
+                  onLayout: settings.setToolbar,
+                  customizing: _customizingPanel,
+                  commands: widget.commands,
+                  commandsChanged: widget.commandsChanged,
+                ),
+              ),
+            ),
         ]),
       ),
     ]);

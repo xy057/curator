@@ -12,6 +12,10 @@ import 'package:flutter/widgets.dart';
 /// [onFit] says how many are on the bar, so its menu can hold the rest. [showMore] keeps the
 /// button there with everything fitting (its menu has items of its own).
 ///
+/// A rule ([StripItem.rule]) shows only between items, of those between two spaces: not first or
+/// last there, nor after another with nothing shown between them (an item with nothing to show
+/// now takes no room); with [collapse] off, they all show.
+///
 /// [insertAt] draws a mark before that item (after the last, at their number): where one
 /// dragged over the bar would go ([RenderToolbarStrip.placeAt]).
 class ToolbarStrip extends MultiChildRenderObjectWidget {
@@ -21,25 +25,27 @@ class ToolbarStrip extends MultiChildRenderObjectWidget {
     required Widget more,
     required this.onFit,
     this.showMore = false,
+    this.collapse = true,
     this.spacing = 2,
     this.insertAt,
     this.markColor = const Color(0xFF000000),
   }) : super(children: [...items, StripItem(child: more)]);
 
   final ValueChanged<int> onFit;
-  final bool showMore;
+  final bool showMore, collapse;
   final double spacing;
   final int? insertAt;
   final Color markColor;
 
   @override
   RenderToolbarStrip createRenderObject(BuildContext context) =>
-      RenderToolbarStrip(onFit: onFit, showMore: showMore, spacing: spacing, insertAt: insertAt, markColor: markColor);
+      RenderToolbarStrip(onFit: onFit, showMore: showMore, collapse: collapse, spacing: spacing, insertAt: insertAt, markColor: markColor);
 
   @override
   void updateRenderObject(BuildContext context, RenderToolbarStrip renderObject) => renderObject
     ..onFit = onFit
     ..showMore = showMore
+    ..collapse = collapse
     ..spacing = spacing
     ..insertAt = insertAt
     ..markColor = markColor;
@@ -47,7 +53,8 @@ class ToolbarStrip extends MultiChildRenderObjectWidget {
 
 /// An item of a [ToolbarStrip]: as wide as it likes, or, given [space], room to share out:
 /// that wide at the least, with its share of what the bar has left over. A [rule] (a divider)
-/// is never the last one shown before those left out: it goes with them.
+/// is never the last one shown before those left out: it goes with them, as does an item with
+/// nothing to show.
 class StripItem extends ParentDataWidget<StripParentData> {
   const StripItem({super.key, this.space, this.rule = false, required super.child});
   final double? space;
@@ -76,11 +83,21 @@ class StripParentData extends ContainerBoxParentData<RenderBox> {
 
   /// Whether the bar has no room for it (or, the button at its end, no use).
   bool hidden = false;
+
+  /// A rule with no item to one side of it: not shown, taking no room.
+  bool collapsed = false;
 }
 
 class RenderToolbarStrip extends RenderBox
     with ContainerRenderObjectMixin<RenderBox, StripParentData>, RenderBoxContainerDefaultsMixin<RenderBox, StripParentData> {
-  RenderToolbarStrip({required this.onFit, required this._showMore, required this._spacing, this._insertAt, required this._markColor});
+  RenderToolbarStrip({
+    required this.onFit,
+    required this._showMore,
+    required this._collapse,
+    required this._spacing,
+    this._insertAt,
+    required this._markColor,
+  });
 
   ValueChanged<int> onFit;
 
@@ -89,6 +106,14 @@ class RenderToolbarStrip extends RenderBox
   set showMore(bool value) {
     if (value == _showMore) return;
     _showMore = value;
+    markNeedsLayout();
+  }
+
+  bool get collapse => _collapse;
+  bool _collapse;
+  set collapse(bool value) {
+    if (value == _collapse) return;
+    _collapse = value;
     markNeedsLayout();
   }
 
@@ -154,10 +179,31 @@ class RenderToolbarStrip extends RenderBox
         takes.add(item.size.width > 0 ? item.size.width + spacing : 0);
       }
     }
+    // A rule shows between two items that do, of those between two spaces.
+    int? rule; // one since the last item shown: shown once another item follows
+    var open = false; // whether an item has shown since the last space
+    for (final (i, item) in items.indexed) {
+      final data = _data(item)..collapsed = false;
+      if (!collapse) continue;
+      if (data.rule) {
+        data.collapsed = true;
+        if (open) rule ??= i;
+      } else if (data.least != null) {
+        open = false;
+        rule = null;
+      } else if (takes[i] > 0) {
+        if (rule != null) _data(items[rule]).collapsed = false;
+        open = true;
+        rule = null;
+      }
+    }
+    for (final (i, item) in items.indexed) {
+      if (_data(item).collapsed) takes[i] = 0;
+    }
     var fit = items.length, used = takes.fold(0.0, (sum, w) => sum + w), withMore = showMore;
     if (used + (withMore ? more.size.width : 0) > width) {
       withMore = true;
-      while (fit > 0 && (used + more.size.width > width || _data(items[fit - 1]).rule)) {
+      while (fit > 0 && (used + more.size.width > width || _data(items[fit - 1]).rule || takes[fit - 1] == 0)) {
         used -= takes[--fit];
       }
     }
@@ -193,7 +239,7 @@ class RenderToolbarStrip extends RenderBox
     for (final (i, item) in items.indexed) {
       final data = _data(item);
       if (data.hidden) return i;
-      if (x < data.offset.dx + item.size.width / 2) return i;
+      if (!data.collapsed && x < data.offset.dx + item.size.width / 2) return i;
     }
     return items.length;
   }
@@ -202,7 +248,7 @@ class RenderToolbarStrip extends RenderBox
   int? itemAt(Offset position) {
     for (final (i, item) in _items.indexed) {
       final data = _data(item);
-      if (!data.hidden && (data.offset & item.size).contains(position)) return i;
+      if (!data.hidden && !data.collapsed && (data.offset & item.size).contains(position)) return i;
     }
     return null;
   }
@@ -211,7 +257,7 @@ class RenderToolbarStrip extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     for (var child = lastChild; child != null; child = childBefore(child)) {
       final data = _data(child);
-      if (data.hidden) continue;
+      if (data.hidden || data.collapsed) continue;
       final hit = result.addWithPaintOffset(
         offset: data.offset,
         position: position,
@@ -226,7 +272,7 @@ class RenderToolbarStrip extends RenderBox
   void paint(PaintingContext context, Offset offset) {
     for (var child = firstChild; child != null; child = childAfter(child)) {
       final data = _data(child);
-      if (!data.hidden) context.paintChild(child, data.offset + offset);
+      if (!data.hidden && !data.collapsed) context.paintChild(child, data.offset + offset);
     }
     final at = insertAt;
     if (at == null) return;
@@ -248,7 +294,7 @@ class RenderToolbarStrip extends RenderBox
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
     for (var child = firstChild; child != null; child = childAfter(child)) {
-      if (!_data(child).hidden) visitor(child);
+      if (!_data(child).hidden && !_data(child).collapsed) visitor(child);
     }
   }
 }

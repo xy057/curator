@@ -10,11 +10,9 @@ import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'l10n/l10n.dart';
 
-/// Instruments tab tools (right of the tab switch). Every button explains itself on hover.
-class InstrumentsToolbar extends StatelessWidget {
-  const InstrumentsToolbar({super.key, required this.controller});
-  final EditorController controller;
-
+/// The lanes' tools, and what the Instruments tab says is selected ([PanelItems] puts its tools
+/// on the timeline's bar). Every button explains itself on hover.
+abstract final class InstrumentsToolbar {
   /// The lanes' tools as buttons, the one in use [EditorController.lanes]' selected: every tab
   /// with lanes shows them.
   static Widget toolGroup(BuildContext context, EditorController c) => ToolGroup(children: [
@@ -40,64 +38,10 @@ class InstrumentsToolbar extends StatelessWidget {
         ),
       };
 
-  @override
-  Widget build(BuildContext context) {
-    final c = controller;
-    final curation = c.curation!;
-    final score = c.score!;
-    return ListenableBuilder(
-      listenable: Listenable.merge([curation, c]),
-      builder: (context, _) {
-        final selected = c.lanes.selected;
-        final lanes = c.lanes.selectedPartIds;
-        final status = _status(c, score, c.lanes.selection, lanes);
-        return Row(
-          children: [
-            toolGroup(context, c),
-            const SizedBox(width: 10),
-            Expanded(child: FadingText(status, style: TextStyle(fontSize: 12, color: context.colors.textMuted))),
-            FadeSlideSwitcher(
-              alignment: Alignment.centerRight,
-              child: selected.isEmpty
-                  ? const SizedBox.shrink()
-                  : Row(key: const ValueKey('selection'), mainAxisSize: MainAxisSize.min, children: [
-                      ToolbarButton(
-                        icon: AppIcon.trimStart.of(context),
-                        tooltip: keyed(context, KeyCommand.trimStart, (key) => 'Start at the playhead ({key})'.fill({'key': key}),
-                            'Start at the playhead'.tr),
-                        onPressed: () => c.lanes.trimToPlayhead(start: true),
-                      ),
-                      ToolbarButton(
-                        icon: AppIcon.trimEnd.of(context),
-                        tooltip: keyed(context, KeyCommand.trimEnd, (key) => 'End at the playhead ({key})'.fill({'key': key}),
-                            'End at the playhead'.tr),
-                        onPressed: () => c.lanes.trimToPlayhead(start: false),
-                      ),
-                      ToolbarButton(icon: AppIcon.delete.of(context), tooltip: 'Remove (Delete)'.tr, onPressed: c.commands.delete),
-                      const ToolbarDivider(),
-                      _TransitionMenu(controller: c),
-                      if (c.lanes.selectedStaffCount > 1) _StavesMenu(controller: c),
-                      const ToolbarDivider(),
-                    ]),
-            ),
-            _TidyMenu(controller: c, lanes: lanes.length),
-            ToolbarButton(
-              icon: AppIcon.autoCurate.of(context),
-              tooltip: 'Auto-curate'.tr,
-              onPressed: c.canAutoCurate ? c.lanes.autoCurate : null,
-            ),
-            ToolbarButton(
-              icon: AppIcon.clearLanes.of(context),
-              tooltip: 'Clear all lanes'.tr,
-              onPressed: c.lanes.clear,
-            ),
-          ],
-        );
-      },
-    );
-  }
+  /// What is selected in the lanes; nothing when nothing is (the tools explain themselves on
+  /// hover).
+  static String? status(EditorController c) => _status(c, c.score!, c.lanes.selection, c.lanes.selectedPartIds);
 
-  /// What is selected; nothing when nothing is (the tools explain themselves on hover).
   static String? _status(EditorController c, LoadedScore score, Map<RegionRef, RegionEdges> selected, Set<String> lanes) {
     if (selected.length == 1) {
       final MapEntry(key: ref, value: edges) = selected.entries.single;
@@ -125,8 +69,8 @@ class InstrumentsToolbar extends StatelessWidget {
 }
 
 /// Clean-up that acts on the selected lanes (or all of them).
-class _TidyMenu extends StatelessWidget {
-  const _TidyMenu({required this.controller, required this.lanes});
+class TidyMenu extends StatelessWidget {
+  const TidyMenu({super.key, required this.controller, required this.lanes});
   final EditorController controller;
   final int lanes;
 
@@ -170,8 +114,8 @@ class _TidyMenu extends StatelessWidget {
 
 /// Which staves of their instruments the selected regions show: "≡ Staff 1 ▾", each staff
 /// checked or not (a region keeps one at least).
-class _StavesMenu extends StatelessWidget {
-  const _StavesMenu({required this.controller});
+class StavesMenu extends StatelessWidget {
+  const StavesMenu({super.key, required this.controller});
   final EditorController controller;
 
   @override
@@ -212,8 +156,8 @@ class _StavesMenu extends StatelessWidget {
 
 /// How long the staves glide at the selected edges (both of a whole region): "0.8 s ▾",
 /// their own or the project's (dimmed), for all of them at once.
-class _TransitionMenu extends StatelessWidget {
-  const _TransitionMenu({required this.controller});
+class TransitionMenu extends StatelessWidget {
+  const TransitionMenu({super.key, required this.controller});
   final EditorController controller;
 
   /// The project's transition in the menu (a menu's null means it was dismissed).

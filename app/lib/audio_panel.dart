@@ -15,7 +15,6 @@ import 'app_settings.dart' show AppSettings;
 import 'edit_dialogs.dart';
 import 'editor_controller.dart';
 import 'error_text.dart';
-import 'instruments_toolbar.dart' show InstrumentsToolbar;
 import 'key_bindings.dart';
 import 'lanes_common.dart';
 import 'media_converter.dart';
@@ -630,94 +629,57 @@ Future<void> editMidiWarp(BuildContext context, EditorController c, {int? index}
   }
 }
 
-/// Audio tab tools (right of the tab switch), in three parts with a place each, so nothing
-/// moves as the others come and go:
-///
-///     [+]  [V D E] [⤨ 0.3 s ▾]  │  [Align] [Tap] [Warp] [Bar ▾] [↦ 0.00 s] ……  [n anchors ×] [⋯]  │  [⏲ 100% ▾]
-///
-/// the recordings (Add; with two or more, the lanes' tools and the crossfade), the sync of the
-/// one edited (Align, filled while it has no anchors; tapping, warps, their step, where bar 1
-/// starts) with the selection and its less used settings ([_SyncMenu]) at the right, then the
-/// playback speed, always last. Its menus are all one kind ([_ValueMenu]); one box groups the
-/// lanes' tools, as on the Instruments tab. Every control explains itself on hover.
-class AudioToolbar extends StatelessWidget {
-  const AudioToolbar({super.key, required this.controller});
+// The Audio tab's tools ([PanelItems] puts them on the timeline's bar): the recordings (Add;
+// with two or more, the lanes' tools and the crossfade), the sync of the one edited (Align,
+// filled while it has no anchors; tapping, warps, their step, where bar 1 starts) with the
+// selection and its less used settings ([SyncMenu]), and the playback speed. Its menus are all
+// one kind ([_ValueMenu]). Every control explains itself on hover.
+
+/// What a tap, a click and ↑/↓ step by: "Bar ▾", or a beat.
+class StepMenu extends StatelessWidget {
+  const StepMenu({super.key, required this.controller});
   final EditorController controller;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
-    final sync = c.sync!;
-    return ListenableBuilder(
-      listenable: Listenable.merge([sync, c]),
-      builder: (context, _) => Row(children: [
-        ToolbarButton(
-          icon: AppIcon.addAudio.of(context),
-          tooltip: c.track == null ? 'Add Recording… (or drop one here)'.tr : 'Add Recording…'.tr,
-          onPressed: c.isLoadingAudio ? null : () => pickAudio(context, c, add: true),
-        ),
-        if (c.takes.length > 1) ...[
-          const SizedBox(width: 4),
-          InstrumentsToolbar.toolGroup(context, c),
-          const SizedBox(width: 4),
-          _CrossfadeMenu(controller: c),
-        ],
-        if (c.editsSync) ...[
-          const ToolbarDivider(),
-          if (!c.usesMidiTempo) ...[
-            // A PDF score has no notes to align to: its anchors are tapped.
-            if (c.hasNotes) ...[
-              _AlignButton(controller: c),
-              const SizedBox(width: 2),
-            ],
-            _TapButton(controller: c),
-          ],
-          ToolbarButton(
-            icon: AppIcon.warp.of(context),
-            tooltip: '${keyed(context, KeyCommand.warp, (key) => 'Warp ({key})'.fill({'key': key}), 'Warp'.tr)}\n'
-                '${c.anchors.selected.length == 1 && !c.usesMidiTempo ? 'Make this anchor jump to another bar'.tr : 'Jump to another bar here'.tr}',
-            onPressed: () => editWarp(context, c),
-          ),
-          if (!c.usesMidiTempo) ...[
-            const SizedBox(width: 4),
-            _ValueMenu<SyncGrid>(
-              tooltip: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
-              label: (c.anchors.grid == SyncGrid.bar ? 'Bar' : 'Beat').tr,
-              onSelected: (grid) => c.anchors.grid = grid,
-              items: (context) => [
-                for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
-                  checkedMenuItem(context, value: grid, checked: c.anchors.grid == grid, child: Text(label.tr)),
-              ],
+    return _ValueMenu<SyncGrid>(
+      tooltip: 'Step for taps, {click}, and ↑/↓'.fill({'click': shortcut('Option-click', 'Alt+click').tr}),
+      label: (c.anchors.grid == SyncGrid.bar ? 'Bar' : 'Beat').tr,
+      onSelected: (grid) => c.anchors.grid = grid,
+      items: (context) => [
+        for (final (grid, label) in const [(SyncGrid.bar, 'Bar'), (SyncGrid.beat, 'Beat')])
+          checkedMenuItem(context, value: grid, checked: c.anchors.grid == grid, child: Text(label.tr)),
+      ],
+    );
+  }
+}
+
+/// The anchors selected, two or more: "3 anchors ×", which deselects them.
+class AnchorsChip extends StatelessWidget {
+  const AnchorsChip({super.key, required this.controller});
+  final EditorController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return FadeSlideSwitcher(
+      alignment: Alignment.centerRight,
+      child: !c.editsSync || c.anchors.selected.length < 2
+          ? const SizedBox.shrink()
+          : Padding(
+              key: const ValueKey('selection'),
+              padding: const EdgeInsets.only(right: 4),
+              child: Tip(
+                message: '↑/↓ re-point · ←/→ nudge · {key} remove'.fill({'key': shortcut('⌫', 'Delete')}),
+                child: InputChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text('{n} anchors'.fill({'n': c.anchors.selected.length}), style: const TextStyle(fontSize: 12)),
+                  onDeleted: () => c.anchors.select(null),
+                  deleteButtonTooltipMessage: 'Deselect (Esc)'.tr,
+                ),
+              ),
             ),
-          ],
-          const SizedBox(width: 6),
-          _StartField(controller: c),
-        ],
-        const Spacer(),
-        if (c.editsSync) ...[
-          FadeSlideSwitcher(
-            alignment: Alignment.centerRight,
-            child: c.anchors.selected.length < 2
-                ? const SizedBox.shrink()
-                : Padding(
-                    key: const ValueKey('selection'),
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Tip(
-                      message: '↑/↓ re-point · ←/→ nudge · {key} remove'.fill({'key': shortcut('⌫', 'Delete')}),
-                      child: InputChip(
-                        visualDensity: VisualDensity.compact,
-                        label: Text('{n} anchors'.fill({'n': c.anchors.selected.length}), style: const TextStyle(fontSize: 12)),
-                        onDeleted: () => c.anchors.select(null),
-                        deleteButtonTooltipMessage: 'Deselect (Esc)'.tr,
-                      ),
-                    ),
-                  ),
-          ),
-          _SyncMenu(controller: c),
-          const ToolbarDivider(),
-        ],
-        _SpeedMenu(controller: c),
-      ]),
     );
   }
 }
@@ -749,8 +711,8 @@ class _ValueMenu<T> extends StatelessWidget {
 
 /// The sync's less used settings, in a menu at the toolbar's right end: following a MIDI tempo
 /// map (and its warps from the score), snapping anchors to notes, and removing them all.
-class _SyncMenu extends StatelessWidget {
-  const _SyncMenu({required this.controller});
+class SyncMenu extends StatelessWidget {
+  const SyncMenu({super.key, required this.controller});
   final EditorController controller;
 
   @override
@@ -800,8 +762,8 @@ class _SyncMenu extends StatelessWidget {
 
 /// How long one recording fades into the next: the region selected in a recording's lane (at
 /// both its edges), else the project's, as the instruments' Transition menu is.
-class _CrossfadeMenu extends StatelessWidget {
-  const _CrossfadeMenu({required this.controller});
+class CrossfadeMenu extends StatelessWidget {
+  const CrossfadeMenu({super.key, required this.controller});
   final EditorController controller;
 
   /// The project's in the menu (a menu's null means it was dismissed).
@@ -836,8 +798,8 @@ class _CrossfadeMenu extends StatelessWidget {
 }
 
 /// Playback speed: "⏲ 100% ▾".
-class _SpeedMenu extends StatelessWidget {
-  const _SpeedMenu({required this.controller});
+class SpeedMenu extends StatelessWidget {
+  const SpeedMenu({super.key, required this.controller});
   final EditorController controller;
 
   static String _label(double speed) => '${(speed * 100).round()}%';
@@ -859,8 +821,8 @@ class _SpeedMenu extends StatelessWidget {
 
 /// Align: the first thing to do with a recording, so while it has no anchors a filled button
 /// with its name; once it has, one more tool among the others. While it runs, how far it has got.
-class _AlignButton extends StatelessWidget {
-  const _AlignButton({required this.controller});
+class AlignButton extends StatelessWidget {
+  const AlignButton({super.key, required this.controller});
   final EditorController controller;
 
   @override
@@ -891,8 +853,8 @@ class _AlignButton extends StatelessWidget {
 }
 
 /// Tap mode (T): a record-like toggle that breathes while armed.
-class _TapButton extends StatelessWidget {
-  const _TapButton({required this.controller});
+class TapButton extends StatelessWidget {
+  const TapButton({super.key, required this.controller});
   final EditorController controller;
 
   @override
@@ -1012,15 +974,15 @@ void showMidiWarpsTaken(BuildContext context, EditorController c, MidiWarpsTaken
 }
 
 /// "Starts at": where bar 1 sounds in the recording (the blank time before the music).
-class _StartField extends StatefulWidget {
-  const _StartField({required this.controller});
+class StartField extends StatefulWidget {
+  const StartField({super.key, required this.controller});
   final EditorController controller;
 
   @override
-  State<_StartField> createState() => _StartFieldState();
+  State<StartField> createState() => _StartFieldState();
 }
 
-class _StartFieldState extends State<_StartField> {
+class _StartFieldState extends State<StartField> {
   final _text = TextEditingController();
   final _focus = FocusNode();
 
@@ -1043,7 +1005,7 @@ class _StartFieldState extends State<_StartField> {
   }
 
   @override
-  void didUpdateWidget(_StartField old) {
+  void didUpdateWidget(StartField old) {
     super.didUpdateWidget(old);
     if (old.controller != widget.controller) {
       old.controller.removeListener(_show);

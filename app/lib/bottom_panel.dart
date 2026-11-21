@@ -2,31 +2,34 @@ import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart' show ExtensionRuntime, GraphNode;
 
 import 'app_colors.dart';
-import 'app_icons.dart';
 import 'audio_panel.dart';
 import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
 import 'lanes_common.dart';
+import 'panel_bar.dart';
 import 'spacer_lane.dart';
-import 'instruments_toolbar.dart';
-import 'key_bindings.dart';
 import 'timeline_panel.dart';
+import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 import 'video_panel.dart';
-import 'l10n/l10n.dart';
 
-/// The DAW-like panel under the preview. The switch at its top-left changes between the
-/// Instruments tab (when each staff is shown), the Audio tab (syncing to the recording) and the
-/// Video tab (what a frame shows when: [VideoLanes]). All share one time axis, so zoom and
-/// scroll carry over. Extensions' lanes (Tonality's,
+/// The DAW-like panel under the preview. The switch at its top-left ([PanelBar]) changes between
+/// the Instruments tab (when each staff is shown), the Audio tab (syncing to the recording) and
+/// the Video tab (what a frame shows when: [VideoLanes]), each with its tools on the bar. All
+/// share one time axis, so zoom and scroll carry over. Extensions' lanes (Tonality's,
 /// Captions', Chapters') are pinned under the ruler in both, by their order; with Attach Image
-/// on, the Spacers lane among them. Project Settings… sits at its right end.
+/// on, the Spacers lane among them.
 class BottomPanel extends StatelessWidget {
-  const BottomPanel({super.key, required this.controller, this.onProjectSettings});
+  const BottomPanel({super.key, required this.controller, this.layoutOf, this.onLayout, this.onCustomize, this.commands, this.commandsChanged});
   final EditorController controller;
 
-  /// Opens Project Settings (Edit ▸ Project Settings…).
-  final VoidCallback? onProjectSettings;
+  /// Its bar's ([PanelBar]): where each tab's tools are and what changes that, what starts
+  /// customizing it, and the app's commands for the buttons that do one.
+  final ToolbarLayout Function(BarKind kind)? layoutOf;
+  final ValueChanged<ToolbarLayout>? onLayout;
+  final VoidCallback? onCustomize;
+  final Map<String, VoidCallback?> Function()? commands;
+  final Listenable? commandsChanged;
 
   static const _switch = Duration(milliseconds: 220);
 
@@ -62,43 +65,13 @@ class BottomPanel extends StatelessWidget {
     return ColoredBox(
       color: colors.surface,
       child: Column(children: [
-        Container(
-          height: AppStyle.of(context).panelBar,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(color: colors.chrome, border: Border(bottom: BorderSide(color: colors.line))),
-          child: Row(children: [
-            _TabSwitch(value: c.tab, onChanged: (tab) => c.tab = tab),
-            const ToolbarDivider(),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: AppStyle.of(context).moving(_switch),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                layoutBuilder: (current, previous) =>
-                    Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
-                transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-                child: switch (c.tab) {
-                  BottomTab.audio => AudioToolbar(key: const ValueKey('audio'), controller: c),
-                  BottomTab.video => VideoToolbar(key: const ValueKey('video'), controller: c),
-                  BottomTab.instruments => InstrumentsToolbar(key: const ValueKey('instruments'), controller: c),
-                },
-              ),
-            ),
-            const ToolbarDivider(),
-            _ZoomButtons(controller: c),
-            ToolbarButton(
-              icon: AppIcon.fit.of(context),
-              tooltip: 'Fit'.tr,
-              onPressed: c.viewport.fit,
-            ),
-            const ToolbarDivider(),
-            ToolbarButton(
-              icon: AppIcon.settings.of(context),
-              tooltip: keyed(context, KeyCommand.projectSettings, (key) => 'Project Settings ({key})'.fill({'key': key}),
-                  'Project Settings'.tr),
-              onPressed: onProjectSettings,
-            ),
-          ]),
+        PanelBar(
+          controller: c,
+          layoutOf: layoutOf,
+          onLayout: onLayout,
+          onCustomize: onCustomize,
+          commands: commands,
+          commandsChanged: commandsChanged,
         ),
         Expanded(
           // The same lanes at every width: resizing the window lays them out again (their
@@ -145,23 +118,6 @@ class BottomPanel extends StatelessWidget {
   }
 }
 
-/// Zoom out and in: in a narrow window only Fit stays (pinch or ⌘-scroll zoom anyway). On
-/// its own, so a resize rebuilds only these.
-class _ZoomButtons extends StatelessWidget {
-  const _ZoomButtons({required this.controller});
-  final EditorController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.sizeOf(context).width < 1100) return const SizedBox.shrink();
-    final v = controller.viewport;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      ToolbarButton(icon: AppIcon.zoomOut.of(context), tooltip: 'Zoom out ({key} or pinch)'.fill({'key': shortcut('⌘-scroll')}), onPressed: () => v.zoom(1 / 1.5)),
-      ToolbarButton(icon: AppIcon.zoomIn.of(context), tooltip: 'Zoom in ({key} or pinch)'.fill({'key': shortcut('⌘-scroll')}), onPressed: () => v.zoom(1.5)),
-    ]);
-  }
-}
-
 /// Tells [onWidth] the width it is laid out at, before its child is laid out, and builds
 /// nothing for it.
 class _Width extends StatelessWidget {
@@ -174,72 +130,4 @@ class _Width extends StatelessWidget {
         onWidth(constraints.maxWidth);
         return child;
       });
-}
-
-/// Instruments | Audio | Video, as three icons with a highlight that slides between them.
-class _TabSwitch extends StatelessWidget {
-  const _TabSwitch({required this.value, required this.onChanged});
-  final BottomTab value;
-  final ValueChanged<BottomTab> onChanged;
-
-  static const _tabs = [
-    (BottomTab.instruments, AppIcon.lanes, 'Instruments'),
-    (BottomTab.audio, AppIcon.audio, 'Audio'),
-    (BottomTab.video, AppIcon.frame, 'Video'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    // In a well, the chosen icon in the text colour; Carbon's icon content switcher: edged in
-    // $border-inverse, the chosen one inverse.
-    final style = AppStyle.of(context);
-    final k = CarbonColors.maybeOf(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final size = k != null ? 30.0 : 26.0;
-    final well = k != null ? Colors.transparent : colors.well;
-    final knob = k?.selectedInverse ?? (dark ? RefinedGreys.dark600 : colors.surface);
-    final chosen = k?.textInverse ?? colors.text;
-    final index = _tabs.indexWhere((t) => t.$1 == value);
-    return Container(
-      padding: EdgeInsets.all(k != null ? 0 : 2),
-      decoration: BoxDecoration(color: well, border: Border.all(color: k?.borderInverse ?? colors.line), borderRadius: style.radius(7)),
-      child: Stack(children: [
-        AnimatedPositioned(
-          duration: motion(context, 220),
-          curve: style.curve,
-          left: index * size,
-          top: 0,
-          width: size,
-          height: size,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: knob,
-              borderRadius: style.radius(5),
-              boxShadow: [if (k == null) BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 3, offset: const Offset(0, 1))],
-              border: k != null ? null : Border.all(color: colors.line),
-            ),
-          ),
-        ),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final (tab, icon, tip) in _tabs)
-            Tip(
-              message: tip,
-              child: InkWell(
-                borderRadius: style.radius(5),
-                onTap: () => onChanged(tab),
-                child: SizedBox.square(
-                  dimension: size,
-                  child: TweenAnimationBuilder<Color?>(
-                    duration: stateDuration(motion(context, 200)),
-                    tween: ColorTween(end: tab == value ? chosen : k?.textSecondary ?? colors.textMuted),
-                    builder: (context, color, _) => Icon(icon.of(context), size: 16, color: color),
-                  ),
-                ),
-              ),
-            ),
-        ]),
-      ]),
-    );
-  }
 }

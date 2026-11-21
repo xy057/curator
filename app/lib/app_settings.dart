@@ -74,7 +74,7 @@ class AppSettings extends ChangeNotifier {
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true,
         _pluginsOn = Set.unmodifiable(_prefs?.getStringList(_pluginsOnKey) ?? const <String>[]),
         _keys = KeyMap.read(_prefs?.getString(_keysKey)),
-        _toolbar = ToolbarLayout.read(_prefs?.getString(_toolbarKey)) {
+        _toolbars = {for (final kind in BarKind.values) kind: ToolbarLayout.read(kind, _prefs?.getString(_toolbarKey(kind)))} {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
     final custom = _customAccent;
@@ -113,7 +113,8 @@ class AppSettings extends ChangeNotifier {
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
   static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
-  static const _toolbarKey = 'toolbar';
+  /// The editor's toolbar under `toolbar`, the timeline's under `toolbar.audio`…
+  static String _toolbarKey(BarKind kind) => kind == BarKind.editor ? 'toolbar' : 'toolbar.${kind.name}';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
   static const _rehearsalInRowKey = 'rehearsalInRow', _centeredLyricsKey = 'centredLyrics'; // the flag's first spelling, kept
   static const _dynamicsBetweenKey = 'dynamicsBetween';
@@ -823,14 +824,15 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Where the editor's toolbar has its items (View ▸ Customize Toolbar…), as the app comes
-  /// until the user moves one.
-  ToolbarLayout get toolbar => _toolbar;
-  ToolbarLayout _toolbar;
-  set toolbar(ToolbarLayout value) {
-    if (value == _toolbar) return;
-    _toolbar = value;
-    value.isStandard ? _prefs?.remove(_toolbarKey) : _prefs?.setString(_toolbarKey, value.write());
+  /// Where each toolbar has its items (View ▸ Customize Toolbar…): the editor's and the
+  /// timeline's, one for each of its tabs; as the app comes until the user moves one.
+  ToolbarLayout toolbarOf(BarKind kind) => _toolbars[kind]!;
+  final Map<BarKind, ToolbarLayout> _toolbars;
+  void setToolbar(ToolbarLayout value) {
+    if (value == _toolbars[value.kind]) return;
+    _toolbars[value.kind] = value;
+    final key = _toolbarKey(value.kind);
+    value.isStandard ? _prefs?.remove(key) : _prefs?.setString(key, value.write());
     notifyListeners();
   }
 
