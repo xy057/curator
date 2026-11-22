@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Japanese\n"
 "Language: ja_JP\n"
-"PO-Revision-Date: 2026-11-21 22:08\n"
+"PO-Revision-Date: 2026-11-22 04:04\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -280,11 +280,11 @@ msgstr "画像を追加…"
 msgid "MIDI Tempo Map…"
 msgstr "MIDI テンポマップ…"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording…"
 msgstr "録音を追加…"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording… (or drop one here)"
 msgstr "録音を追加…（またはここにドロップ）"
 
@@ -306,7 +306,7 @@ msgstr "詳細"
 msgid "Advanced Engraving"
 msgstr "詳細な浄書"
 
-#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "揃える"
 
@@ -439,7 +439,7 @@ msgstr "オーディオまたはビデオ"
 msgid "Auto"
 msgstr "自動"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Auto-curate"
 msgstr "自動キュレート"
 
@@ -635,7 +635,7 @@ msgstr "コード"
 msgid "Clear"
 msgstr "消去"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Clear all lanes"
 msgstr "すべてのレーンを空にする"
 
@@ -1107,7 +1107,7 @@ msgstr "ウインドウいっぱいに"
 msgid "Find Phrase"
 msgstr "フレーズを検索"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase ({key})"
 msgstr "フレーズを検索（{key}）"
 
@@ -1121,7 +1121,7 @@ msgstr "運指"
 msgid "First bar number"
 msgstr ""
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Fit"
 msgstr "フィット"
 
@@ -1717,7 +1717,6 @@ msgstr "プロジェクト情報"
 msgid "Project, MusicXML or PDF ({key})"
 msgstr "プロジェクト、MusicXML または PDF（{key}）"
 
-#: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
 msgstr "プロジェクト設定（{key}）"
 
@@ -1787,7 +1786,7 @@ msgstr "小節番号の行にリハーサルマーク"
 msgid "Remove"
 msgstr "削除"
 
-#: lib/instruments_toolbar.dart lib/video_panel.dart
+#: lib/panel_bar.dart
 msgid "Remove (Delete)"
 msgstr "削除（Delete）"
 
@@ -2682,7 +2681,7 @@ msgstr "バイオレット"
 msgid "Voices"
 msgstr "声楽"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp"
 msgstr "ワープ"
 
@@ -2739,11 +2738,11 @@ msgstr "自分のサーバー"
 msgid "Yours."
 msgstr "自分で追加。"
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom in ({key} or pinch)"
 msgstr "拡大（{key} またはピンチ）"
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom out ({key} or pinch)"
 msgstr "縮小（{key} またはピンチ）"
 
@@ -4358,15 +4357,15 @@ msgstr "ライセンスを読み込めませんでした。"
 msgid "Show Licenses"
 msgstr "ライセンスを表示"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp ({key})"
 msgstr "ワープ（{key}）"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Make this anchor jump to another bar"
 msgstr "このアンカーを別の小節へジャンプさせる"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Jump to another bar here"
 msgstr "ここから別の小節へジャンプ"
 
@@ -4386,7 +4385,6 @@ msgstr "アンカーをタップ（{key}）"
 msgid "Tap anchors"
 msgstr "アンカーをタップ"
 
-#: lib/bottom_panel.dart
 msgid "Project Settings"
 msgstr "プロジェクト設定"
 
@@ -4394,23 +4392,23 @@ msgstr "プロジェクト設定"
 msgid "Show tab bar"
 msgstr "タブバーを表示"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start ({key})"
 msgstr "先頭へ（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start"
 msgstr "先頭へ"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome ({key})"
 msgstr "メトロノーム（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome"
 msgstr "メトロノーム"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase"
 msgstr "フレーズを検索"
 
@@ -4454,19 +4452,19 @@ msgstr "消去（{key}）"
 msgid "Erase"
 msgstr "消去"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead ({key})"
 msgstr "再生ヘッドから始める（{key}）"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead"
 msgstr "再生ヘッドから始める"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead ({key})"
 msgstr "再生ヘッドで終える（{key}）"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead"
 msgstr "再生ヘッドで終える"
 
@@ -4535,7 +4533,7 @@ msgstr "フルスクリーンにする"
 msgid "Play / Pause"
 msgstr "再生 / 一時停止"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end"
 msgstr "末尾へ"
 
@@ -5197,7 +5195,7 @@ msgstr ""
 msgid "Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart lib/video_panel.dart
+#: lib/panel_bar.dart lib/player_map_view.dart
 msgid "No player map"
 msgstr ""
 
@@ -5686,23 +5684,23 @@ msgstr ""
 msgid "It doesn’t let plug-ins run its transport."
 msgstr ""
 
-#: lib/app_menus.dart lib/editor_toolbar.dart
+#: lib/app_menus.dart lib/custom_bar.dart
 msgid "Customize Toolbar…"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "More tools"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Move to Overflow Menu"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Remove from Toolbar"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end ({key})"
 msgstr ""
 
@@ -5726,5 +5724,23 @@ msgid "Flexible Space"
 msgstr ""
 
 msgid "Divider"
+msgstr ""
+
+msgid "Toolbar"
+msgstr ""
+
+msgid "Select / Draw / Erase"
+msgstr ""
+
+msgid "Zoom out"
+msgstr ""
+
+msgid "Zoom in"
+msgstr ""
+
+msgid "Transition"
+msgstr ""
+
+msgid "Anchor step"
 msgstr ""
 
