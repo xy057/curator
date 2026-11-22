@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Chinese Simplified\n"
 "Language: zh_CN\n"
-"PO-Revision-Date: 2026-11-21 22:08\n"
+"PO-Revision-Date: 2026-11-22 04:04\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -280,11 +280,11 @@ msgstr "添加图像…"
 msgid "MIDI Tempo Map…"
 msgstr "MIDI 速度图…"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording…"
 msgstr "添加录音…"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Add Recording… (or drop one here)"
 msgstr "添加录音…（或拖放到这里）"
 
@@ -306,7 +306,7 @@ msgstr "高级"
 msgid "Advanced Engraving"
 msgstr "高级刻谱"
 
-#: lib/audio_panel.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "对齐"
 
@@ -439,7 +439,7 @@ msgstr "音频或视频"
 msgid "Auto"
 msgstr "自动"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Auto-curate"
 msgstr "自动编排"
 
@@ -635,7 +635,7 @@ msgstr "和弦"
 msgid "Clear"
 msgstr "清除"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Clear all lanes"
 msgstr "清空所有轨道"
 
@@ -1107,7 +1107,7 @@ msgstr "填满窗口"
 msgid "Find Phrase"
 msgstr "查找乐句"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase ({key})"
 msgstr "查找乐句（{key}）"
 
@@ -1121,7 +1121,7 @@ msgstr "指法"
 msgid "First bar number"
 msgstr ""
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Fit"
 msgstr "适合窗口"
 
@@ -1717,7 +1717,6 @@ msgstr "项目信息"
 msgid "Project, MusicXML or PDF ({key})"
 msgstr "项目、MusicXML 或 PDF（{key}）"
 
-#: lib/bottom_panel.dart
 msgid "Project Settings ({key})"
 msgstr "项目设置（{key}）"
 
@@ -1787,7 +1786,7 @@ msgstr "小节号行中的排练记号"
 msgid "Remove"
 msgstr "移除"
 
-#: lib/instruments_toolbar.dart lib/video_panel.dart
+#: lib/panel_bar.dart
 msgid "Remove (Delete)"
 msgstr "移除（Delete）"
 
@@ -2682,7 +2681,7 @@ msgstr "紫罗兰"
 msgid "Voices"
 msgstr "人声"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp"
 msgstr "跳转"
 
@@ -2739,11 +2738,11 @@ msgstr "自己的服务器"
 msgid "Yours."
 msgstr "自定的。"
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom in ({key} or pinch)"
 msgstr "放大（{key}或捏合）"
 
-#: lib/bottom_panel.dart
+#: lib/panel_bar.dart
 msgid "Zoom out ({key} or pinch)"
 msgstr "缩小（{key}或捏合）"
 
@@ -4358,15 +4357,15 @@ msgstr "无法读取许可证。"
 msgid "Show Licenses"
 msgstr "显示许可证"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Warp ({key})"
 msgstr "跳转（{key}）"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Make this anchor jump to another bar"
 msgstr "让此锚点跳到另一小节"
 
-#: lib/audio_panel.dart
+#: lib/panel_bar.dart
 msgid "Jump to another bar here"
 msgstr "在此跳到另一小节"
 
@@ -4386,7 +4385,6 @@ msgstr "敲击锚点（{key}）"
 msgid "Tap anchors"
 msgstr "敲击锚点"
 
-#: lib/bottom_panel.dart
 msgid "Project Settings"
 msgstr "项目设置"
 
@@ -4394,23 +4392,23 @@ msgstr "项目设置"
 msgid "Show tab bar"
 msgstr "显示标签页栏"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start ({key})"
 msgstr "回到开头（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to start"
 msgstr "回到开头"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome ({key})"
 msgstr "节拍器（{key}）"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Metronome"
 msgstr "节拍器"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Find phrase"
 msgstr "查找乐句"
 
@@ -4454,19 +4452,19 @@ msgstr "擦除（{key}）"
 msgid "Erase"
 msgstr "擦除"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead ({key})"
 msgstr "从播放头处开始（{key}）"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "Start at the playhead"
 msgstr "从播放头处开始"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead ({key})"
 msgstr "在播放头处结束（{key}）"
 
-#: lib/instruments_toolbar.dart
+#: lib/panel_bar.dart
 msgid "End at the playhead"
 msgstr "在播放头处结束"
 
@@ -4535,7 +4533,7 @@ msgstr "进入全屏幕"
 msgid "Play / Pause"
 msgstr "播放 / 暂停"
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end"
 msgstr "跳到结尾"
 
@@ -5197,7 +5195,7 @@ msgstr ""
 msgid "Player Map"
 msgstr ""
 
-#: lib/player_map_view.dart lib/video_panel.dart
+#: lib/panel_bar.dart lib/player_map_view.dart
 msgid "No player map"
 msgstr ""
 
@@ -5686,23 +5684,23 @@ msgstr ""
 msgid "It doesn’t let plug-ins run its transport."
 msgstr ""
 
-#: lib/app_menus.dart lib/editor_toolbar.dart
+#: lib/app_menus.dart lib/custom_bar.dart
 msgid "Customize Toolbar…"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "More tools"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Move to Overflow Menu"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Remove from Toolbar"
 msgstr ""
 
-#: lib/editor_toolbar.dart
+#: lib/custom_bar.dart
 msgid "Go to end ({key})"
 msgstr ""
 
@@ -5726,5 +5724,23 @@ msgid "Flexible Space"
 msgstr ""
 
 msgid "Divider"
+msgstr ""
+
+msgid "Toolbar"
+msgstr ""
+
+msgid "Select / Draw / Erase"
+msgstr ""
+
+msgid "Zoom out"
+msgstr ""
+
+msgid "Zoom in"
+msgstr ""
+
+msgid "Transition"
+msgstr ""
+
+msgid "Anchor step"
 msgstr ""
 
