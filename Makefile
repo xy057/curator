@@ -34,13 +34,15 @@ ATTACCA_SOURCES = find daw_link/CMakeLists.txt daw_link/src daw_link/mac -type f
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
 	@echo "make run     – launch the app (macOS)"
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
+	@echo "make web-plugins – build the web player's plugin host and Curator's own web plugins from their TypeScript (needs bun; what it writes is in git)"
+	@echo "make web-plugin-docs – write docs/web-plugin-api.md from the guide and the web plugin API's types"
 	@echo "make daw-link – build Attacca, the ARA plug-in (VST3, AU) for DAWs (run and build do when it is out of date)"
 	@echo "make daw-link-windows – build Attacca for Windows (VST3, x86_64) on this Mac, into $(DAW_LINK_WINDOWS_ZIP)"
 	@echo "make l10n    – put new interface text into the translation files (app/assets/l10n, synced with Crowdin)"
@@ -79,12 +81,21 @@ build: setup $(WEB_PLAYER) $(DAW_LINK_ZIP)
 # The web player File ▸ Export to Web… copies beside a page: the app package built for the web
 # from lib/web_player/main.dart, zipped without what a page never loads (tool/pack_web_player.dart)
 # into an asset the app bundles (WEB_PLAYER). Not in git; made again when any Dart source changes.
-$(WEB_PLAYER): $(shell find app/lib packages/score_engine/lib -name '*.dart') app/web/index.html app/tool/pack_web_player.dart
+$(WEB_PLAYER): $(shell find app/lib packages/score_engine/lib -name '*.dart') app/web/index.html app/web/plugin_host.js app/tool/pack_web_player.dart
 	$(MAKE) web-player
 
 web-player: setup
 	cd app && flutter build web -t lib/web_player/main.dart --release --no-web-resources-cdn --no-wasm-dry-run -o build/web_player $(COMMIT)
 	cd app && dart tool/pack_web_player.dart
+
+# The web player's plugin host (web_plugins/host.ts → app/web/plugin_host.js, which the player loads when a page
+# has plugins) and Curator's own web plugins (app/assets/web_plugins/<id>/src/main.ts → main.js), built from
+# their TypeScript with bun, then checked by TypeScript itself. What it writes is in git, with what it was built
+# from written down (web_plugins/sources.sha256, which in_step_test checks), so building the web player and the
+# app needs neither: run it after changing any of their sources.
+web-plugins:
+	bun web_plugins/build.ts
+	cd web_plugins && bunx -p typescript tsc -p tsconfig.json
 
 # Attacca (daw_link/, docs/daw-link.md): Celemony's ARA SDK, Steinberg's VST3 SDK and Apple's
 # AudioUnitSDK fetched at the tags above, the plug-in built with its own version (universal,
@@ -155,6 +166,12 @@ extension-docs:
 # of the API, from PluginApi. test/in_step_test.dart fails until it has been run.
 plugin-docs:
 	cd app && dart run tool/plugin_docs.dart
+
+# docs/web-plugin-api.md: the guide to writing a web plugin (app/assets/help/web-plugins.md) and
+# the API as TypeScript declares it (app/assets/web_plugins/curator-web.d.ts).
+# test/in_step_test.dart fails until it has been run.
+web-plugin-docs:
+	cd app && dart run tool/web_plugin_docs.dart
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

@@ -71,4 +71,6 @@ export 'src/staff_stack.dart';
 export 'src/sync_map.dart';
 export 'src/take_splice.dart';
 export 'src/text_dynamics.dart';
+export 'src/web_plugin/api.dart';
+export 'src/web_plugin/package.dart';
 export 'src/zip_entries.dart';

@@ -1,21 +1,27 @@
 // What is made or copied from elsewhere is in step with it: every text the code translates is in
 // the template (assets/l10n/curator.pot, `make l10n`), every language's file has the template's
 // texts with the same placeholders and the languages the app ships are wholly translated, the
-// shortcuts' names are there too, docs/extension-api.md and docs/plugin-api.md are the guides
-// and the APIs as they are (`make extension-docs`, `make plugin-docs`), the commands plugins
-// are told of are the app's, and the licence the app carries is the repository's.
+// shortcuts' names are there too, docs/extension-api.md, docs/plugin-api.md and
+// docs/web-plugin-api.md are the guides and the APIs as they are (`make extension-docs`,
+// `make plugin-docs`, `make web-plugin-docs`), what is built from TypeScript is built from it
+// as it is (`make web-plugins`), the commands plugins are told of are the app's, and the
+// licence the app carries is the repository's.
 
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:curated_score/key_bindings.dart';
 import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/l10n/po.dart';
+import 'package:curated_score/web_player/player.dart' show pageIcons;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:score_engine/score_engine.dart' show PluginApi;
 
 import '../tool/extension_docs.dart';
 import '../tool/plugin_docs.dart';
+import '../tool/web_plugin_docs.dart';
 
 void main() {
   test('in step: the translations’ template and every language, the shortcuts’ names, the API docs, plugins’ commands, the licence', () {
@@ -84,6 +90,32 @@ void main() {
     final guide = File('assets/help/extensions.md').readAsStringSync();
     expect(File('../docs/extension-api.md').readAsStringSync(), extensionDocs(guide), reason: 'run `make extension-docs`');
     expect(File('../docs/plugin-api.md').readAsStringSync(), pluginDocs(File('assets/help/plugins.md').readAsStringSync()), reason: 'run `make plugin-docs`');
+
+    // docs/web-plugin-api.md is the web plugins' guide and their API as TypeScript declares it;
+    // what is built from TypeScript (the web player's plugin host, Curator's own web plugins'
+    // main.js) was built from the sources as they are, and is as it was built.
+    expect(File('../docs/web-plugin-api.md').readAsStringSync(),
+        webPluginDocs(File('assets/help/web-plugins.md').readAsStringSync(), File('assets/web_plugins/curator-web.d.ts').readAsStringSync()),
+        reason: 'run `make web-plugin-docs`');
+    String seal(List<String> paths) => '${sha256.convert([
+          for (final path in paths..sort()) ...'$path\n${sha256.convert(File('../$path').readAsBytesSync())}\n'.codeUnits,
+        ])}';
+    final folders = Directory('assets/web_plugins').listSync().whereType<Directory>().toList();
+    final typescript = [
+      'web_plugins/host.ts',
+      for (final f in Directory('assets/web_plugins').listSync(recursive: true).whereType<File>())
+        if (f.path.endsWith('.ts')) 'app/${f.path}',
+    ];
+    final built = ['app/web/plugin_host.js', for (final folder in folders) 'app/${folder.path}/main.js'];
+    expect(File('../web_plugins/sources.sha256').readAsStringSync(), 'sources ${seal(typescript)}\nbuilt ${seal(built)}\n', reason: 'run `make web-plugins`');
+    // Each icon and event the types name is one the host knows (`curator.has`), and the player draws the icons.
+    final types = File('assets/web_plugins/curator-web.d.ts').readAsStringSync(), host = File('../web_plugins/host.ts').readAsStringSync();
+    final icons = RegExp(r'"(\w+)"').allMatches(RegExp(r'export type Icon =([^;]+);').firstMatch(types)![1]!).map((m) => m[1]!).toSet();
+    final events = RegExp(r'^  (\w+): ', multiLine: true).allMatches(RegExp(r'export interface Events \{(.+?)^\}', multiLine: true, dotAll: true).firstMatch(types)![1]!).map((m) => m[1]!).toSet();
+    Set<String> known(String name) => RegExp(r'"([\w.]+)"').allMatches(RegExp('const $name[^=]*= \\[([^\\]]+)\\]').firstMatch(host)![1]!).map((m) => m[1]!).toSet();
+    expect(known('icons'), icons);
+    expect(known('events'), events);
+    expect(pageIcons.keys.toSet(), icons);
 
     // The commands plugins are told of (PluginApi.commands) are the app's: each of the menus'
     // and the editor's own, by its name, its title and whether its key can be changed, with

@@ -1,0 +1,22 @@
+{
+  "format": "application/x-curator-web-plugin",
+  "id": "barCounter",
+  "name": "Bar Counter",
+  "summary": "The bar that sounds, in a corner of the score.",
+  "api": 1,
+  "settings": [
+    {
+      "id": "corner",
+      "label": "Corner",
+      "type": "choice",
+      "value": "topRight",
+      "options": [
+        { "value": "topLeft", "label": "Top left" },
+        { "value": "topRight", "label": "Top right" },
+        { "value": "bottomLeft", "label": "Bottom left" },
+        { "value": "bottomRight", "label": "Bottom right" }
+      ]
+    },
+    { "id": "beats", "label": "Beats", "type": "switch", "value": true }
+  ]
+}

@@ -28,6 +28,9 @@ class WebPage {
     this.barNumbers = const WebChoice(true),
     this.speed = const WebChoice(1.0),
     this.view = const WebChoice(PageShows.views),
+    this.plugins = const [],
+    this.release = '',
+    this.build = 0,
   });
 
   static const format = 'application/x-curator-web', version = 1;
@@ -83,6 +86,16 @@ class WebPage {
   /// view only of a score with notes that isn't rows already: else the score).
   final WebChoice<PageShows> view;
 
+  /// The web plugins it runs, in order ([WebPagePlugin]): each in a folder of its own beside this.
+  final List<WebPagePlugin> plugins;
+
+  /// The Curator that wrote it, and so its player: its release ("0.10.0") and its build.
+  final String release;
+  final int build;
+
+  /// Where plugin [id]'s files are ([WebPluginPackage.pageFiles]), beside this.
+  static String pluginFolder(String id) => 'plugins/$id';
+
   /// The speeds a viewer may pick.
   static const speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
 
@@ -111,6 +124,8 @@ class WebPage {
           'speed': speed.toJson(speed.value),
           'view': view.toJson(view.value.name),
         },
+        'plugins': [for (final p in plugins) p.toJson()],
+        'curator': {'release': release, 'build': build},
       };
 
   /// Reads what [toJson] wrote. Throws a [FormatException] when it isn't that.
@@ -156,6 +171,13 @@ class WebPage {
           {'playerMap': final map?} => WebChoice.fromJson(map, (v) => v as bool ? PageShows.map : PageShows.views),
           _ => const WebChoice(PageShows.views),
         },
+        // A page written before it had plugins has none.
+        plugins: [
+          if (j['plugins'] case final List<Object?> list)
+            for (final p in list) WebPagePlugin.fromJson(p as Map<String, Object?>),
+        ],
+        release: switch (j['curator']) { {'release': final String release} => release, _ => '' },
+        build: switch (j['curator']) { {'build': final num build} => build.toInt(), _ => 0 },
       );
     } on FormatException {
       rethrow;
@@ -180,6 +202,46 @@ class WebPage {
         gaps: edits.gaps,
         midi: rows ? edits.midiLook : const MidiLook(),
       );
+}
+
+/// A web plugin a page runs ([WebPluginPackage], as the export put it beside the page): what the
+/// player's host needs to start it. Its code is `main.js` in [WebPage.pluginFolder]; its texts
+/// are there for [locales]; [settings] are its own as the export set them, by id.
+@immutable
+class WebPagePlugin {
+  const WebPagePlugin({required this.id, required this.name, required this.version, required this.api, this.locales = const [], this.settings = const {}});
+  final String id, name, version;
+
+  /// The API level it needs: a player below it leaves it out.
+  final int api;
+  final List<String> locales;
+  final Map<String, Object?> settings;
+
+  /// [package] as a page runs it, with [settings] (those it has, each a value it can have).
+  factory WebPagePlugin.of(WebPluginPackage package, [Object? settings]) => WebPagePlugin(
+        id: package.id,
+        name: package.name,
+        version: package.version ?? '',
+        api: package.api,
+        locales: package.locales.keys.toList()..sort(),
+        settings: package.settingsWith(settings),
+      );
+
+  Map<String, Object?> toJson() => {'id': id, 'name': name, 'version': version, 'api': api, 'locales': locales, 'settings': settings};
+
+  static WebPagePlugin fromJson(Map<String, Object?> j) {
+    final id = j['id'] as String;
+    // Its folder is named by it.
+    if (!WebPluginPackage.isThirdPartyId(id) && !WebPluginPackage.isBuiltInId(id)) throw const FormatException('The page is damaged.');
+    return WebPagePlugin(
+      id: id,
+      name: j['name'] as String,
+      version: j['version'] as String,
+      api: (j['api'] as num).toInt(),
+      locales: (j['locales'] as List<Object?>).cast<String>(),
+      settings: j['settings'] as Map<String, Object?>,
+    );
+  }
 }
 
 /// What the export sets for the viewer: its [value], and whether they may change it.

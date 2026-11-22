@@ -4,22 +4,30 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:score_engine/score_engine.dart' show WebPluginPackage, WebPluginSetting;
+
 import 'app_colors.dart';
+import 'app_icons.dart';
 import 'app_settings.dart';
 import 'dialog_kit.dart';
+import 'edit_dialogs.dart' show saveFileAs;
 import 'editor_controller.dart';
 import 'error_text.dart';
 import 'export_dialog.dart';
 import 'l10n/l10n.dart';
+import 'menu_kit.dart';
 import 'ui_kit.dart';
 import 'updater.dart' show appReleaseBuild;
 import 'video_export.dart';
 import 'web_export.dart';
 import 'web_guide.dart';
 import 'web_page.dart';
+import 'web_plugin_docs.dart';
+import 'web_plugins.dart';
 
 /// File ▸ Export to Web…: what the page shows (its title, bars, frame, recordings, captions and
-/// images) and, for each thing a viewer could choose, what they see first and whether they may.
+/// images), for each thing a viewer could choose, what they see first and whether they may, and
+/// the web plugins the page runs ([WebPlugins]: ticked, added from a file, set).
 Future<void> showWebExportDialog(BuildContext context, EditorController controller, AppSettings settings,
     {required String suggestedName}) {
   controller.playback.pause();
@@ -74,6 +82,20 @@ class _WebExportDialogState extends State<_WebExportDialog> {
   var _instruments = const WebChoice(<String, PartShown>{}, open: true);
   late var _view = WebChoice(_hasViews ? PageShows.views : PageShows.score, open: true);
 
+  /// The web plugins there are, once they are read: the ticked ones go into the page.
+  WebPlugins? _plugins;
+
+  @override
+  void initState() {
+    super.initState();
+    WebPlugins.load(widget.settings).then((plugins) {
+      if (!mounted) return plugins.dispose();
+      setState(() => _plugins = plugins..addListener(_pluginsChanged));
+    });
+  }
+
+  void _pluginsChanged() => setState(() {});
+
   var _stage = _Stage.setup;
   String? _error, _output;
   late final Future<bool> _available = WebExport.available();
@@ -94,6 +116,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
 
   @override
   void dispose() {
+    _plugins?.dispose();
     _title.dispose();
     _from.dispose();
     _to.dispose();
@@ -108,6 +131,7 @@ class _WebExportDialogState extends State<_WebExportDialog> {
       _error = null;
     });
     final recordings = _recordings.length;
+    final plugins = _plugins?.chosen ?? const [];
     try {
       _output = await WebExport.write(
         _c,
@@ -126,7 +150,9 @@ class _WebExportDialogState extends State<_WebExportDialog> {
           barNumbers: _barNumbersShown,
           speed: _speed,
           view: _hasPlayerMap || _hasMidiView ? _view : const WebChoice(PageShows.score),
+          plugins: [for (final p in plugins) p.plugin],
         ),
+        plugins: [for (final p in plugins) p.package],
         takes: [for (final t in _takes) if (_whole.contains(t.id)) t.id],
         captions: _captions,
         chapters: _chapters,
@@ -316,8 +342,152 @@ class _WebExportDialogState extends State<_WebExportDialog> {
         onOpen: (v) => setState(() => _instruments = _instruments.copyWith(open: v)),
         child: Text('As curated'.tr, style: TextStyle(fontSize: 14, color: context.colors.textMuted)),
       ),
+      if (_plugins case final plugins?) ...[
+        gap,
+        ExportHeading('Plugins', trailing: _PluginsMenu(plugins)),
+        for (final p in plugins.packages) _PluginRow(plugins, p),
+      ],
     ];
   }
+}
+
+/// By Plugins: a web plugin added from its file, and the docs for writing one.
+class _PluginsMenu extends StatelessWidget {
+  const _PluginsMenu(this.plugins);
+  final WebPlugins plugins;
+
+  static const _types = XTypeGroup(label: 'Curator Web Plugin', extensions: [WebPluginPackage.fileExtension]);
+
+  /// Adds the plugin in the .cwp file the user chooses, in place of the one the app has with
+  /// its id.
+  Future<void> _add(BuildContext context) async {
+    final file = await openFile(acceptedTypeGroups: const [_types]);
+    if (file == null) return;
+    try {
+      plugins.add(WebPluginPackage.read(await File(file.path).readAsBytes()));
+    } on FormatException catch (e) {
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, e.message.tr);
+    } on FileSystemException catch (e) {
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AppPopupMenuButton<VoidCallback>(
+        tooltip: 'More'.tr,
+        iconSize: 18,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 150),
+        icon: Icon(AppIcon.more.of(context), color: context.colors.textMuted),
+        onSelected: (action) => action(),
+        itemBuilder: (_) => [
+          menuItem(context, value: () => _add(context), child: Text('Add Plugin from File…'.tr)),
+          menuItem(context,
+              value: () => saveFileAs(context,
+                  types: const [XTypeGroup(label: 'Zip', extensions: ['zip'])],
+                  suggestedName: 'Curator Web Plugin Docs.zip',
+                  extension: 'zip',
+                  failTitle: 'Couldn’t Save the Docs'.tr,
+                  write: (file) async => file.writeAsBytes(await webPluginPack())),
+              child: Text('Download Docs for AI…'.tr)),
+        ],
+      );
+}
+
+/// A web plugin: ticked, it goes into the page. Its settings (those plugin.json lists) and,
+/// for one the user added, Remove are at the row's end.
+class _PluginRow extends StatelessWidget {
+  const _PluginRow(this.plugins, this.package);
+  final WebPlugins plugins;
+  final WebPluginPackage package;
+
+  @override
+  Widget build(BuildContext context) {
+    final own = plugins.isOwn(package.id), colors = context.colors;
+    Widget button(String tip, AppIcon icon, VoidCallback onPressed) => Tip(
+          message: tip,
+          child: IconButton(
+            iconSize: 16,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            color: colors.textMuted,
+            onPressed: onPressed,
+            icon: Icon(icon.of(context)),
+          ),
+        );
+    final row = AppCheckRow(
+      value: plugins.isOn(package.id),
+      label: package.name,
+      named: !own, // its maker's name for it
+      onChanged: (on) => plugins.turn(package.id, on ?? false),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (package.settings.isNotEmpty) button('Settings…'.tr, AppIcon.settings, () => _showSettings(context)),
+        if (!own) button('Remove'.tr, AppIcon.delete, () => plugins.remove(package.id)),
+      ]),
+    );
+    final summary = own ? package.summary.tr : package.summary;
+    return summary.isEmpty ? row : Tip(message: summary, child: row);
+  }
+
+  /// The plugin's settings, each kept as it is set.
+  Future<void> _showSettings(BuildContext context) => showAppDialog<void>(
+        context: context,
+        builder: (context) => ListenableBuilder(
+          listenable: plugins,
+          builder: (context, _) {
+            final own = plugins.isOwn(package.id), values = plugins.settingsOf(package);
+            return AppDialog(
+              title: Text(own ? package.name.tr : package.name),
+              content: SizedBox(
+                width: dialogWidth(context, 380),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  for (final setting in package.settings)
+                    if (_SettingField(setting, values[setting.id]!, own: own, onChanged: (v) => plugins.set(package, setting.id, v)) case final field)
+                      // A text has its name over it, as the dialog's other fields have.
+                      setting.type == 'text' ? Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: field) : ExportRow(label: setting.label, child: field),
+                ]),
+              ),
+              actions: [FilledButton(onPressed: () => Navigator.pop(context), child: Text('Done'.tr))],
+            );
+          },
+        ),
+      );
+}
+
+/// One setting of a web plugin's: a switch, a choice among its options, or a text.
+class _SettingField extends StatefulWidget {
+  const _SettingField(this.setting, this.value, {required this.own, required this.onChanged});
+  final WebPluginSetting setting;
+  final Object value;
+
+  /// Whether the plugin is Curator's own: its options' names are the interface's, translated.
+  final bool own;
+  final ValueChanged<Object> onChanged;
+
+  @override
+  State<_SettingField> createState() => _SettingFieldState();
+}
+
+class _SettingFieldState extends State<_SettingField> {
+  late final _text = TextEditingController(text: widget.setting.type == 'text' ? widget.value as String : '');
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => switch (widget.setting.type) {
+        'switch' => AppSwitch(value: widget.value == true, onChanged: widget.onChanged),
+        'choice' => ExportSelect<String>(
+            named: !widget.own,
+            value: widget.value as String,
+            items: [for (final o in widget.setting.options) (o.value, o.label, true)],
+            onChanged: widget.onChanged,
+          ),
+        _ => AppTextField(label: widget.setting.label, controller: _text, maxLength: 200, onChanged: widget.onChanged),
+      };
 }
 
 /// Over the viewer's rows: which column is what they may change.

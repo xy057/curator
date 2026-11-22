@@ -1,0 +1,19 @@
+{
+  "format": "application/x-curator-web-plugin",
+  "id": "transcript",
+  "name": "Transcript",
+  "summary": "The captions as a list beside the score: the one that shows is marked, a click goes to one.",
+  "api": 1,
+  "settings": [
+    {
+      "id": "side",
+      "label": "Side",
+      "type": "choice",
+      "value": "right",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ]
+    }
+  ]
+}

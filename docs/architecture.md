@@ -119,7 +119,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `video_export.dart`, `export_dialog.dart` | Video export: frames drawn as the View lane has them (`paintViews`) piped to FFmpeg as raw RGBA, out as a `VideoCodec` (MP4 H.264 / HEVC, MOV ProRes, WebM VP9, a PNG sequence); the dialog: a large still over a trimmer of the piece (bars dragged by their handles or typed, the still scrubbed; `VideoExport.barStarts`, `musicEnd`), a sidebar of Video (format, size, frame rate: 30–120 or typed, `VideoFormat.parseRate`) and Picture (ratio, paper, transparent, score size); while it writes, the still shows each frame as drawn (`write`'s `onFrame`), never drawing the scene again at its own size: the renderer keeps tiles for one pixel ratio, and switching drops them all |
 | `video_frame.dart` | `VideoRatio`, and `VideoFrame`: where a video's frame sits in a view (the preview's, the web player's) |
 | `web_page.dart`, `web_export.dart`, `web_export_dialog.dart`, `web_guide.dart` | File ▸ Export to Web…: what a page is (`WebPage`, its `page.json`; `WebChoice`, a viewer's choice and whether it is theirs), writing one (`WebExport`), trying it here (`WebPreview`, the folder served on the loopback address to requests naming `localhost` only, so a site rebinding its name here gets nothing; byte ranges, 416 past the end), the dialog and its guide to publishing |
-| `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), drawn and played (`PagePlayer`, `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone) |
+| `web_player/*.dart`, `web/`, `tool/pack_web_player.dart` | The web player, the app package built for the web from `web_player/main.dart` (`make web-player`): the page read (`LoadedPage`), played (`PlayingPage`: what is heard, where it is and what shows, no widget; `PageAudio`: an `<audio>`, `HtmlAudio`, or a clock alone), drawn (`PagePlayer`), and what its plugins ask and add (`PageApi`; `plugin_host.dart`, the browser's side of it, and `web/plugin_host.js`) |
+| `web_plugins.dart`, `web_plugin_docs.dart`, `assets/web_plugins/`, `../web_plugins/` | Web plugins (see *A page's plugins are TypeScript*): those the app keeps and which go into a page (`WebPlugins`, `BundledWebPlugins`), their docs as a folder (`webPluginDocsPack`); Curator's own, each a folder as a `.cwp` holds it, beside the API's types (`curator-web.d.ts`); the host's TypeScript and what builds it (`web_plugins/host.ts`, `build.ts`: `make web-plugins`) |
 | `phrase_search_window.dart` | Edit ▸ Find Phrase… (⌘F): the window that enters a phrase and lists where it is played |
 | `project_tabs.dart` | The tabs along the window's top while a project is open (`ProjectTabs`): Home, then each project by name, a dot for unsaved changes; past the window's width they scroll, a mouse wheel's turn too |
 | `scratch_space.dart` | Where temporary files go (see *Scratch files*) |
@@ -215,6 +216,47 @@ the disk inside one `try`: a folder that can't be read, leftovers that can't be 
 dialog shows any failure, so it is never left on Writing…, which can't be closed. The guide's
 terminal command names the folder in single quotes (`shellQuoted`): a `$` or a quote in its name is
 the shell's in double ones.
+**A page's plugins are TypeScript** (docs/web-plugin-api.md). A web plugin changes the pages the
+export writes, as a plugin (a `.cgp`) changes the app: it adds buttons to the transport, rows to
+Options, keys and elements of its own over or beside the score, and follows and moves what plays.
+It runs in a browser, so it is JavaScript there: a `.cwp` (`WebPluginPackage`, the engine's) holds
+`main.js`, one ES module, built from its `src/main.ts` by whoever wrote it, with `plugin.json`
+(the settings the exporter sets among it, `WebPluginSetting`), `locales/` and `assets/`. The app
+runs none of it. It keeps them (`WebPlugins`: Curator's own, bundled, and those added from a file,
+in the app's Web Plugins folder), Export to Web's Plugins ticks which go into a page
+(`AppSettings.webPluginsOn`) and sets each (`webPluginSettings`), and the export puts what a page
+runs of each (`pageFiles`: no source) in `score/plugins/<id>/` and lists it in `page.json`
+(`WebPagePlugin`, with its settings).
+
+The API is declared once, for TypeScript: `assets/web_plugins/curator-web.d.ts` (its `Curator`:
+`playback`, `view`, `score`, `ui`, `on`, `storage`, `tr`). Two halves do it. The player answers
+by name: `PageApi.call(method, args)` over the `PlayingPage`, everything in and out JSON, with
+times in seconds from the start of what is heard (`PlayingPage.now`) and lists from 0; and it
+tells what happens through one function (`PlayingPage.listener`: play, pause, seek, the time
+each frame, the bar and the chapter as they change, a click on the score, which a plugin may
+keep from playing). Both are plain Dart, so the test asks them with no browser. The host
+(`web_plugins/host.ts`, built into `web/plugin_host.js`, which the player imports only when a
+page lists plugins: `startPagePlugins`) makes each plugin its own `Curator` of that: it loads
+their modules in the page's order, calls each one's default export, translates the texts they
+hand over from their `locales/`, keeps what they keep in the viewer's local storage (apart for
+each page and plugin), and never lets one stop the page: a function that throws is written to
+the console with the plugin's name, and one that fails to start has what it added taken away.
+The player draws in one canvas, so what a plugin adds to its interface (a button, an option, a
+key) is described to it and drawn by it (`PageApi.buttons`, `options`, `keys`; a plugin's key is
+asked before the player's own); elements of the plugin's own are the browser's, in a layer over
+the canvas: an overlay kept over the frame (`PlayingPage.frame`, told as it is laid out; hidden
+while Options is open, which the canvas draws under it) or a dock, for which the player leaves
+room at an edge (`PageApi.insets`). A page's address is its own (`ui_web.urlStrategy = null`):
+what follows `#` is a plugin's to read, not a screen of Flutter's.
+
+Nothing but the bundled examples' and the host's TypeScript needs a TypeScript compiler, and the
+app's build needs none: `make web-plugins` (bun, then TypeScript's own check) writes
+`web/plugin_host.js` and each `assets/web_plugins/<id>/main.js`, which are in git, and writes down
+what they were built from (`web_plugins/sources.sha256`); `in_step_test` fails once a source or
+a built file is anything else, as it does when `docs/web-plugin-api.md` (`make web-plugin-docs`:
+the guide, `assets/help/web-plugins.md`, then the types whole) is behind, or an icon or an event
+the types name isn't one the host and the player know. The API only grows (`WebPluginApi.level`).
+
 A page is the GPL'd player passed on, so it carries Curator's licence (`LICENSE.txt`, packed into the
 player) and where the source of the build that wrote it is (`SOURCE.txt`, `WebExport.source`: the
 commit, or the version's tag), beside Flutter's `assets/NOTICES` and the fonts' licences; installed
@@ -2140,8 +2182,8 @@ The suite is kept to 25 tests at most, `make smoke`'s among them: one per area, 
 there is of the area folded into it as sections. The engine's: the engraving (parts, scroll map, phrase search,
 video frame), curation (regions, auto-curate), tapping, takes and tempo maps, Align, the score editor, PDF import,
 LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
-updater's URLs, the app's folders and downloads, web export, the app's screens, the accessibility tree, what is
-kept in step (the translations, docs/extension-api.md and docs/plugin-api.md, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
+updater's URLs, the app's folders and downloads, web export (with a page's plugins and what the player answers them), the app's screens, the accessibility tree, what is
+kept in step (the translations, docs/extension-api.md, docs/plugin-api.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
 extensions' digests, remote AI's client, the score editor, a LilyPond project, the shortcuts' keys. A new check
 goes into its area's test; a new test only for an area none covers, within the 25. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built

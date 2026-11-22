@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:score_engine/score_engine.dart' show PluginKey;
 
 import 'l10n/l10n.dart';
 import 'ui_kit.dart' show windowsKeys;
@@ -34,6 +35,43 @@ class KeyChord {
       alt: keys.isAltPressed,
       shift: keys.isShiftPressed,
     );
+  }
+
+  static final _named = <String, LogicalKeyboardKey>{
+    'space': LogicalKeyboardKey.space,
+    'enter': LogicalKeyboardKey.enter,
+    'tab': LogicalKeyboardKey.tab,
+    'escape': LogicalKeyboardKey.escape,
+    'backspace': LogicalKeyboardKey.backspace,
+    'delete': LogicalKeyboardKey.delete,
+    'left': LogicalKeyboardKey.arrowLeft,
+    'right': LogicalKeyboardKey.arrowRight,
+    'up': LogicalKeyboardKey.arrowUp,
+    'down': LogicalKeyboardKey.arrowDown,
+    'home': LogicalKeyboardKey.home,
+    'end': LogicalKeyboardKey.end,
+    'pageup': LogicalKeyboardKey.pageUp,
+    'pagedown': LogicalKeyboardKey.pageDown,
+    'f1': LogicalKeyboardKey.f1,
+    'f2': LogicalKeyboardKey.f2,
+    'f3': LogicalKeyboardKey.f3,
+    'f4': LogicalKeyboardKey.f4,
+    'f5': LogicalKeyboardKey.f5,
+    'f6': LogicalKeyboardKey.f6,
+    'f7': LogicalKeyboardKey.f7,
+    'f8': LogicalKeyboardKey.f8,
+    'f9': LogicalKeyboardKey.f9,
+    'f10': LogicalKeyboardKey.f10,
+    'f11': LogicalKeyboardKey.f11,
+    'f12': LogicalKeyboardKey.f12,
+  };
+
+  /// [key], as a plugin wrote it ("cmd+shift+k": the app's plugins' and a web page's), as the
+  /// app takes keys.
+  static KeyChord written(PluginKey key) {
+    final code = key.key.codeUnitAt(0);
+    final logical = _named[key.key] ?? LogicalKeyboardKey.findKeyByKeyId(code) ?? LogicalKeyboardKey(code);
+    return KeyChord(logical, command: key.command, control: key.control, alt: key.alt, shift: key.shift);
   }
 
   static final _modifiers = {

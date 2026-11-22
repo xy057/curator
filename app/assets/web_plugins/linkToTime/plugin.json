@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-web-plugin",
+  "id": "linkToTime",
+  "name": "Link to a Time",
+  "summary": "A link to the page starts where it says; a button copies one to where it is.",
+  "api": 1,
+  "settings": [
+    { "id": "bars", "label": "Link by bar", "type": "switch", "value": false }
+  ]
+}

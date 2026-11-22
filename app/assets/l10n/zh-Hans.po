@@ -518,7 +518,7 @@ msgstr "拍"
 msgid "Beat repeats"
 msgstr "拍反复记号"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart assets/web_plugins/barCounter/plugin.json
 msgid "Beats"
 msgstr "拍点"
 
@@ -1345,7 +1345,7 @@ msgstr "加线长度"
 msgid "Ledger lines"
 msgstr "加线"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Left"
 msgstr "左"
 
@@ -1784,7 +1784,7 @@ msgstr "排练记号"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小节号行中的排练记号"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -1909,7 +1909,7 @@ msgstr "休止符"
 msgid "Rhythm"
 msgstr "节奏"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Right"
 msgstr "右"
 
@@ -2030,7 +2030,7 @@ msgstr "设置"
 msgid "Settings Imported"
 msgstr "已导入设置"
 
-#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Settings…"
 msgstr "设置…"
 
@@ -3332,7 +3332,7 @@ msgstr "速度标记"
 msgid "Staves without an instrument"
 msgstr "没有乐器的谱表"
 
-#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "More"
 msgstr "更多"
 
@@ -4941,7 +4941,7 @@ msgstr "还原"
 msgid "Not Saved"
 msgstr "未保存"
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Couldn’t Save the Docs"
 msgstr "无法保存文档"
 
@@ -4949,7 +4949,7 @@ msgstr "无法保存文档"
 msgid "Copy Docs"
 msgstr "拷贝文档"
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Download Docs for AI…"
 msgstr "下载供 AI 使用的文档…"
 
@@ -4957,7 +4957,7 @@ msgstr "下载供 AI 使用的文档…"
 msgid "New Plugin"
 msgstr "新建插件"
 
-#: lib/plugins/plugin_actions.dart
+#: lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Couldn’t Add the Plugin"
 msgstr "无法添加插件"
 
@@ -5757,3 +5757,83 @@ msgstr "过渡"
 
 msgid "Anchor step"
 msgstr "锚点步长"
+
+#: lib/web_export.dart
+msgid "The plugin “{name}” isn’t in Curator anymore."
+msgstr "插件“{name}”已不在 Curator 中。"
+
+#: lib/web_export_dialog.dart
+msgid "Add Plugin from File…"
+msgstr "从文件添加插件…"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bar Counter"
+msgstr "小节计数"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "The bar that sounds, in a corner of the score."
+msgstr "在乐谱一角显示正在演奏的小节。"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Corner"
+msgstr "角落"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top left"
+msgstr "左上"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top right"
+msgstr "右上"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom left"
+msgstr "左下"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom right"
+msgstr "右下"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Embed Control"
+msgstr "嵌入控制"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "A page in a frame of another site is played from that site."
+msgstr "嵌在其他网站框架中的页面可由该网站控制播放。"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Site"
+msgstr "网站"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link to a Time"
+msgstr "时间链接"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "A link to the page starts where it says; a button copies one to where it is."
+msgstr "页面从链接指定的位置开始；按钮可复制指向当前位置的链接。"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link by bar"
+msgstr "按小节链接"
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "Media Keys"
+msgstr "媒体键"
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "The keyboard’s media keys and the system’s Now Playing control the page."
+msgstr "用键盘媒体键和系统的“正在播放”控制页面。"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Transcript"
+msgstr "文字记录"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "The captions as a list beside the score: the one that shows is marked, a click goes to one."
+msgstr "在乐谱旁以列表显示字幕：标出当前字幕，点击即可跳转。"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Side"
+msgstr "位置"
