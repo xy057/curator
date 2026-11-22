@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2026-11-22 04:04\n"
+"PO-Revision-Date: 2026-11-22 18:50\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -516,7 +516,7 @@ msgstr "Pulso"
 msgid "Beat repeats"
 msgstr "Repeticiones de pulso"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart assets/web_plugins/barCounter/plugin.json
 msgid "Beats"
 msgstr "Pulsos"
 
@@ -1343,7 +1343,7 @@ msgstr "Longitud de las líneas adicionales"
 msgid "Ledger lines"
 msgstr "Líneas adicionales"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Left"
 msgstr "Izquierda"
 
@@ -1782,7 +1782,7 @@ msgstr "Marcas de ensayo"
 msgid "Rehearsal marks in bar numbers"
 msgstr "Incluir marcas de ensayo en los números de compás"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "Quitar"
 
@@ -1907,7 +1907,7 @@ msgstr "Silencios"
 msgid "Rhythm"
 msgstr "Ritmo"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Right"
 msgstr "Derecha"
 
@@ -2028,7 +2028,7 @@ msgstr "Ajustes"
 msgid "Settings Imported"
 msgstr "Ajustes importados"
 
-#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Settings…"
 msgstr "Ajustes…"
 
@@ -3330,7 +3330,7 @@ msgstr "Indicaciones de tempo"
 msgid "Staves without an instrument"
 msgstr "Pentagramas sin instrumento asignado"
 
-#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "More"
 msgstr "Más"
 
@@ -4927,7 +4927,7 @@ msgstr ""
 msgid "Not Saved"
 msgstr ""
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Couldn’t Save the Docs"
 msgstr ""
 
@@ -4935,7 +4935,7 @@ msgstr ""
 msgid "Copy Docs"
 msgstr ""
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Download Docs for AI…"
 msgstr ""
 
@@ -4943,7 +4943,7 @@ msgstr ""
 msgid "New Plugin"
 msgstr ""
 
-#: lib/plugins/plugin_actions.dart
+#: lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Couldn’t Add the Plugin"
 msgstr ""
 
@@ -5742,5 +5742,85 @@ msgid "Transition"
 msgstr ""
 
 msgid "Anchor step"
+msgstr ""
+
+#: lib/web_export.dart
+msgid "The plugin “{name}” isn’t in Curator anymore."
+msgstr ""
+
+#: lib/web_export_dialog.dart
+msgid "Add Plugin from File…"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bar Counter"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "The bar that sounds, in a corner of the score."
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Corner"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top left"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top right"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom left"
+msgstr ""
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom right"
+msgstr ""
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Embed Control"
+msgstr ""
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "A page in a frame of another site is played from that site."
+msgstr ""
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Site"
+msgstr ""
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link to a Time"
+msgstr ""
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "A link to the page starts where it says; a button copies one to where it is."
+msgstr ""
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link by bar"
+msgstr ""
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "Media Keys"
+msgstr ""
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "The keyboard’s media keys and the system’s Now Playing control the page."
+msgstr ""
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Transcript"
+msgstr ""
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "The captions as a list beside the score: the one that shows is marked, a click goes to one."
+msgstr ""
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Side"
 msgstr ""
 
