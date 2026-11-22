@@ -2,6 +2,7 @@
 // builds it). It reads the page from `score/` next to it (see WebPage) and plays it.
 import 'dart:js_interop';
 import 'dart:typed_data';
+import 'dart:ui_web' as ui_web;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:web/web.dart' as web;
@@ -12,8 +13,15 @@ import 'html_audio.dart';
 import 'page_audio.dart';
 import 'page_loader.dart';
 import 'player.dart';
+import 'plugin_host.dart';
 
-void main() => runApp(const _PageApp());
+void main() {
+  // The page is one screen, and its address is its own: left to itself, Flutter reads what
+  // follows `#` as a screen to show (none has that name, and it stops) and writes its own there,
+  // where a link may say where the page starts ("#t=83", a plugin's to read).
+  ui_web.urlStrategy = null;
+  runApp(const _PageApp());
+}
 
 Future<Uint8List> _fetch(String path) async {
   final response = await web.window.fetch('${WebPage.folder}/$path'.toJS).toDart;
@@ -53,7 +61,7 @@ class _PageAppState extends State<_PageApp> {
         future: _page,
         builder: (context, page) => switch (page) {
           AsyncSnapshot(:final data?) =>
-            PagePlayer(data, audioFor: (file) => file == null ? SilentAudio() : HtmlAudio('${WebPage.folder}/$file')),
+            PagePlayer(data, audioFor: (file) => file == null ? SilentAudio() : HtmlAudio('${WebPage.folder}/$file'), plugins: startPagePlugins),
           AsyncSnapshot(:final error?) => Scaffold(
               body: Center(
                 child: Padding(

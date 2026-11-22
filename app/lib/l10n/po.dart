@@ -147,7 +147,7 @@ Iterable<String> translatedLiterals(String source) sync* {
 
 /// Where Curator's own extensions and plugins are kept, each a folder of its files: what
 /// [extensionTexts] is asked of.
-const bundledScriptFolders = ['assets/extensions', 'assets/plugins'];
+const bundledScriptFolders = ['assets/extensions', 'assets/plugins', 'assets/web_plugins'];
 
 /// The texts a bundled extension's or plugin's file translates (`assets/extensions/<id>/…`,
 /// `assets/plugins/<id>/…`): in its Lua, the literals given to `curator.tr("…")` or `tr("…")`,
@@ -174,7 +174,9 @@ Iterable<String> extensionTexts(String path, String source) sync* {
       }
     }
   } else if (path.endsWith('connect.json') || path.endsWith('extension.json') || path.endsWith('plugin.json')) {
-    for (final m in _jsonText.allMatches(source)) {
+    // A web plugin's settings, set in Export to Web, are named there too (`label`).
+    final texts = path.replaceAll(r'\', '/').contains('assets/web_plugins/') ? _jsonLabelled : _jsonText;
+    for (final m in texts.allMatches(source)) {
       if (jsonDecode(m[1]!) case final String text when text.isNotEmpty) yield text;
     }
   }
@@ -184,6 +186,7 @@ final _luaLiteral = RegExp(r'\btr\(\s*(?:' '$_quoted' r')');
 final _luaInContext = RegExp(r'\btr_in\(\s*(?:' '$_quoted' r')\s*,\s*(?:' '$_quoted' r')');
 final _luaShown = RegExp(r'\b(title|confirm|label|menu)\s*=\s*(?:' '$_quoted' r')');
 final _jsonText = RegExp(r'"(?:title|name|summary)"\s*:\s*("(?:[^"\\]|\\.)*")');
+final _jsonLabelled = RegExp(r'"(?:title|name|summary|label)"\s*:\s*("(?:[^"\\]|\\.)*")');
 
 /// A quoted Dart string (no interpolation), its text captured: single, then double quotes.
 const _quoted = r"""'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)""" '"';

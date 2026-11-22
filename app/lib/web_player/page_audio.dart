@@ -9,6 +9,15 @@ abstract class PageAudio {
 
   /// Playback speed, pitch kept.
   set speed(double value);
+
+  /// How loud it is, 0 to 1, and whether it is silenced.
+  double get volume;
+  set volume(double value);
+  bool get muted;
+  set muted(bool value);
+
+  /// What it plays through, for a page's plugins: a browser's `<audio>` element; null: none.
+  Object? get element;
   void dispose();
 }
 
@@ -46,6 +55,13 @@ class SilentAudio implements PageAudio {
     _clock.reset();
     _speed = value;
   }
+
+  @override
+  double volume = 1;
+  @override
+  bool muted = false;
+  @override
+  Object? get element => null;
 
   @override
   void dispose() => _clock.stop();

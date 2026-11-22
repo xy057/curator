@@ -67,6 +67,17 @@ class HtmlAudio implements PageAudio {
   }
 
   @override
+  double get volume => _element.volume;
+  @override
+  set volume(double value) => _element.volume = value;
+  @override
+  bool get muted => _element.muted;
+  @override
+  set muted(bool value) => _element.muted = value;
+  @override
+  Object? get element => _element;
+
+  @override
   void dispose() {
     _element
       ..pause()

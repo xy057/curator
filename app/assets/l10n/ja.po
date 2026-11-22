@@ -518,7 +518,7 @@ msgstr "拍"
 msgid "Beat repeats"
 msgstr "拍の反復記号"
 
-#: lib/settings_dialog.dart
+#: lib/settings_dialog.dart assets/web_plugins/barCounter/plugin.json
 msgid "Beats"
 msgstr "拍"
 
@@ -1345,7 +1345,7 @@ msgstr "加線の長さ"
 msgid "Ledger lines"
 msgstr "加線"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Left"
 msgstr "左"
 
@@ -1784,7 +1784,7 @@ msgstr "リハーサルマーク"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小節番号の行にリハーサルマーク"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "削除"
 
@@ -1909,7 +1909,7 @@ msgstr "休符"
 msgid "Rhythm"
 msgstr "リズム"
 
-#: assets/extensions/captions/src/settings.lua
+#: assets/extensions/captions/src/settings.lua assets/web_plugins/transcript/plugin.json
 msgid "Right"
 msgstr "右"
 
@@ -2030,7 +2030,7 @@ msgstr "設定"
 msgid "Settings Imported"
 msgstr "設定を読み込みました"
 
-#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart
+#: lib/app_menus.dart lib/extensions/extension_actions.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Settings…"
 msgstr "設定…"
 
@@ -3332,7 +3332,7 @@ msgstr "テンポ記号"
 msgid "Staves without an instrument"
 msgstr "楽器のない譜表"
 
-#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/pdf_import.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "More"
 msgstr "その他"
 
@@ -4941,7 +4941,7 @@ msgstr "元に戻す"
 msgid "Not Saved"
 msgstr "未保存"
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Couldn’t Save the Docs"
 msgstr "ドキュメントを保存できませんでした"
 
@@ -4949,7 +4949,7 @@ msgstr "ドキュメントを保存できませんでした"
 msgid "Copy Docs"
 msgstr "ドキュメントをコピー"
 
-#: lib/extensions/extension_docs.dart
+#: lib/extensions/extension_docs.dart lib/web_export_dialog.dart
 msgid "Download Docs for AI…"
 msgstr "AI 用ドキュメントをダウンロード…"
 
@@ -4957,7 +4957,7 @@ msgstr "AI 用ドキュメントをダウンロード…"
 msgid "New Plugin"
 msgstr "新規プラグイン"
 
-#: lib/plugins/plugin_actions.dart
+#: lib/plugins/plugin_actions.dart lib/web_export_dialog.dart
 msgid "Couldn’t Add the Plugin"
 msgstr "プラグインを追加できませんでした"
 
@@ -5757,3 +5757,83 @@ msgstr "トランジション"
 
 msgid "Anchor step"
 msgstr "アンカーのステップ"
+
+#: lib/web_export.dart
+msgid "The plugin “{name}” isn’t in Curator anymore."
+msgstr "プラグイン「{name}」は Curator にもうありません。"
+
+#: lib/web_export_dialog.dart
+msgid "Add Plugin from File…"
+msgstr "ファイルからプラグインを追加…"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bar Counter"
+msgstr "小節カウンター"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "The bar that sounds, in a corner of the score."
+msgstr "鳴っている小節を楽譜の隅に表示します。"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Corner"
+msgstr "隅"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top left"
+msgstr "左上"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Top right"
+msgstr "右上"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom left"
+msgstr "左下"
+
+#: assets/web_plugins/barCounter/plugin.json
+msgid "Bottom right"
+msgstr "右下"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Embed Control"
+msgstr "埋め込み制御"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "A page in a frame of another site is played from that site."
+msgstr "ほかのサイトのフレームに置いたページを、そのサイトから再生します。"
+
+#: assets/web_plugins/embedControl/plugin.json
+msgid "Site"
+msgstr "サイト"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link to a Time"
+msgstr "時間へのリンク"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "A link to the page starts where it says; a button copies one to where it is."
+msgstr "リンクが示す位置からページが始まります。ボタンで現在位置へのリンクをコピーできます。"
+
+#: assets/web_plugins/linkToTime/plugin.json
+msgid "Link by bar"
+msgstr "小節でリンク"
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "Media Keys"
+msgstr "メディアキー"
+
+#: assets/web_plugins/mediaKeys/plugin.json
+msgid "The keyboard’s media keys and the system’s Now Playing control the page."
+msgstr "キーボードのメディアキーとシステムの「再生中」でページを操作します。"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Transcript"
+msgstr "文字起こし"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "The captions as a list beside the score: the one that shows is marked, a click goes to one."
+msgstr "字幕を楽譜の横に一覧表示します。表示中の字幕に印が付き、クリックでそこへ移動します。"
+
+#: assets/web_plugins/transcript/plugin.json
+msgid "Side"
+msgstr "位置"

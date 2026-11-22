@@ -1,4 +1,3 @@
-import '../extensions/extension_reader.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart';
@@ -7,190 +6,96 @@ import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart';
 
 import '../app_colors.dart' show ScorePaper;
+import '../key_bindings.dart';
 import '../l10n/l10n.dart';
 import '../player_map_paint.dart';
 import '../scene_views.dart';
 import '../video_frame.dart';
 import '../web_page.dart';
+import 'page_api.dart';
 import 'page_audio.dart';
+import 'playing_page.dart';
 import 'page_loader.dart';
 
 /// A page: the score scrolling as it is heard, the transport at the foot (hidden while it plays
-/// and the pointer rests), and what the export left the viewer to choose, in a side panel.
+/// and the pointer rests), and what the export left the viewer to choose, in a side panel. What
+/// plays and shows is a [PlayingPage]'s; the page's plugins ([plugins]) are answered by a
+/// [PageApi], and what they add (buttons, options, keys, room at the edges) shows here.
 class PagePlayer extends StatefulWidget {
-  const PagePlayer(this.loaded, {super.key, required this.audioFor});
+  const PagePlayer(this.loaded, {super.key, required this.audioFor, this.plugins});
 
   final LoadedPage loaded;
 
   /// The sound of a recording ([WebRecording.audio], beside the page; null: silent).
   final PageAudio Function(String? file) audioFor;
 
+  /// Starts the page's plugins ([WebPage.plugins]) over the api, and gives what tells them of
+  /// what happens; null (or giving null): the page runs none.
+  final Future<PageListener?> Function(PageApi api)? plugins;
+
   @override
   State<PagePlayer> createState() => _PagePlayerState();
 }
 
 class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateMixin {
+  late final PlayingPage _c = PlayingPage(widget.loaded, audioFor: widget.audioFor)..addListener(_changed);
+  late final PageApi _api = PageApi(_c)
+    ..addListener(_changed)
+    ..onMessage = _message
+    ..onShowOptions = (() => _scaffold.currentState?.openEndDrawer());
+  late final Ticker _ticker = createTicker((_) => _c.tick());
+  final _scaffold = GlobalKey<ScaffoldState>();
+
   LoadedPage get _loaded => widget.loaded;
   WebPage get _page => _loaded.page;
+  WebRecording get _heard => _c.heard;
 
-  late int _recording = _page.recording.value;
-  late double _speed = _page.speed.value;
-  late bool _captions = _page.captions.value, _barNumbers = _page.barNumbers.value;
-  late Map<String, PartShown> _shown = _page.instruments.value;
-
-  /// The project's player map (null: none).
-  late final PlayerMap? _map = _loaded.edits.playerMap;
-
-  /// What the project's Video tab shows when ([SceneView]): the page follows it, as a video does.
-  late final StepLane<SceneView> _views = (_loaded.edits.automation ?? Automation.none).steps(SceneViews.target);
-
-  /// Whether the score's notes can be shown in rows where it is engraved (the MIDI view of a
-  /// score that is notation; a MIDI project's score is rows already).
-  late final bool _hasRows = _loaded.score.hasRows;
-
-  /// Whether a view of the lane's is the MIDI view (and the score has one).
-  late final bool _viewsRows = _hasRows && _views.stretches.any((s) => s.value.kind.showsRows);
-
-  /// Whether there are views to follow: a stretch showing what the page has, a map or the
-  /// score's notes in rows.
-  late final bool _follows = _views.stretches.any((s) => s.value.kind.showsRows ? _hasRows : _map != null);
-
-  /// What shows, as the export set it and the viewer (if it is theirs to change) has it since:
-  /// the score where the page hasn't what it names (no map, no notes to draw in rows, no views
-  /// to follow).
-  late PageShows _shows = switch (_page.view.value) {
-    PageShows.map when _map == null => PageShows.score,
-    PageShows.midi when !_hasRows => PageShows.score,
-    PageShows.views when !_follows => PageShows.score,
-    final shows => shows,
-  };
-
-  /// The score's notes in rows ([LoadedScore.rows]), a scene beside the score's: made when
-  /// first shown (a browser has no isolate to spare), before the page shows where it is to
-  /// from the start.
-  CuratedScene? _rows;
-
-  CuratedScene? get _rowsScene {
-    if (!_hasRows) return null;
-    return _rows ??= CuratedScene(_loaded.score.rows(_loaded.edits.midiLook), style: RenderStyle(staffSpace: _page.staffSpace))
-      ..settings = _scene.settings
-      ..setTimeline(_scene.timeline);
-  }
-
-  /// The views in the recording heard's time.
-  TimedSteps<SceneView> get _timed => _timedViews.of(_views, _scene.timeline);
-
-  final _timedViews = TimedStepsCache<SceneView>();
-
-  late final CuratedScene _scene = CuratedScene(_loaded.score, style: RenderStyle(staffSpace: _page.staffSpace));
-  late Curation _curation = _loaded.curation(_shown);
-  late PageAudio _audio;
-  late final Ticker _ticker = createTicker((_) => _tick());
-
-  /// Seconds of the performance shown ([WebRecording.start]…[WebRecording.end]).
-  final _time = ValueNotifier(0.0);
-  final _controlsShown = ValueNotifier(true);
-  DateTime _moved = DateTime.now();
-
-  WebRecording get _heard => _page.recordings[_recording];
+  /// Where the frame is in the player's own room (the window less what plugins' panels take).
+  Rect _frame = Rect.zero;
 
   @override
   void initState() {
     super.initState();
-    _showSettings();
-    _hear(_recording, at: _heard.start);
-    // Not in the middle of the music, where a view first shows them.
-    if (_shows == PageShows.midi || _viewsRows) _rowsScene;
     _ticker.start();
+    if (widget.plugins case final start? when _page.plugins.isNotEmpty) {
+      start(_api).then((listener) {
+        if (mounted) _c.listener = listener;
+      });
+    }
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _audio.dispose();
-    _scene.dispose();
-    _rows?.dispose();
-    _curation.dispose();
-    _time.dispose();
-    _controlsShown.dispose();
+    _api.dispose();
+    _c.dispose();
     super.dispose();
   }
 
-  void _showSettings() {
-    _scene.settings = _loaded.settings(captions: _captions, barNumbers: _barNumbers, bands: _extensions);
-    _rows?.settings = _scene.settings;
+  void _changed() => setState(() {});
+
+  void _message(String text) =>
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
+
+  /// The frame is at [frame] in the player's room, [scale] of its points a layout point: the
+  /// controller is told where that is in the window, once this frame is built (a plugin told
+  /// of it may change what is being laid out).
+  void _laidOut(Rect frame, double scale) {
+    _frame = frame;
+    final inWindow = frame.shift(Offset(_api.insets[0], _api.insets[1]));
+    if (inWindow == _c.frame && scale == _c.frameScale) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _c.setFrame(inWindow, scale);
+    });
   }
 
-  /// Plays recording [index] from [at] (seconds of its performance).
-  void _hear(int index, {required double at}) {
-    _recording = index;
-    _audio = widget.audioFor(_heard.audio)..speed = _speed;
-    _scene.setTimeline(_loaded.timeline(_heard));
-    _rows?.setTimeline(_scene.timeline);
-    _pulses = null; // as this recording plays the notes
-    _seek(at);
-  }
-
-  /// The score's notes as loud as its dynamics have them, read the first time the map shows (a
-  /// browser has no isolate to spare); the pulses, as the recording heard plays them.
-  PlayerNotes? _notes;
-  PlayerPulses? _pulses;
-
-  PlayerPulses get _mapPulses {
-    if (_map == null) return PlayerPulses.none;
-    final score = _loaded.score, starts = score.timeline.measureStarts;
-    _notes ??= !score.hasNotes
-        ? PlayerNotes.none
-        : PlayerNotes.ofScore(score.musicXML, starts);
-    return _pulses ??= PlayerPulses(_notes!, _scene.timeline);
-  }
-
-  void _tick() {
-    if (_audio.playing) {
-      final t = _heard.start + _audio.position;
-      if (t >= _heard.end) {
-        _audio.pause();
-        _seek(_heard.end);
-        setState(() {}); // the button plays again
-      } else {
-        _time.value = t;
-      }
-    }
-    final rest = _audio.playing && DateTime.now().difference(_moved) > const Duration(seconds: 3);
-    _controlsShown.value = !rest;
-  }
-
-  void _seek(double t) {
-    t = t.clamp(_heard.start, _heard.end);
-    _audio.seek(t - _heard.start);
-    _time.value = t;
-  }
-
-  Future<void> _playPause() async {
-    if (_audio.playing) {
-      _audio.pause();
-    } else {
-      if (_time.value >= _heard.end - 0.05) _seek(_heard.start);
-      await _audio.play();
-    }
-    if (mounted) setState(() {});
-  }
-
-  void _woke() {
-    _moved = DateTime.now();
-    _controlsShown.value = true;
-  }
-
-  /// Another recording, from the same place in the score.
-  void _pick(int index) {
-    if (index == _recording) return;
-    final old = _scene.timeline, playing = _audio.playing;
-    final quarter = old.quarterAtSeconds(_time.value), pass = old.passAt(_time.value);
-    _audio.dispose();
-    final next = _loaded.timeline(_page.recordings[index]);
-    _hear(index, at: next.secondsAtQuarter(quarter, pass: math.min(pass, next.passes.length - 1)));
-    if (playing) _audio.play();
-    setState(() {});
+  /// A plugin's key first: it wins over the player's own.
+  KeyEventResult _key(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent || _api.keys.isEmpty) return KeyEventResult.ignored;
+    final id = switch (KeyChord.of(event)) { final chord? => _api.keys[chord], null => null };
+    if (id == null) return KeyEventResult.ignored;
+    _api.keyed(id);
+    return KeyEventResult.handled;
   }
 
   @override
@@ -199,6 +104,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     final brightness = dark ? Brightness.dark : Brightness.light;
     final paper = ScorePaper.paper(brightness), ink = ScorePaper.ink(brightness);
     final choices = _choices(context);
+    final [left, top, right, bottom] = _api.insets;
     return Shortcuts(
       shortcuts: const {
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
@@ -207,25 +113,36 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
       },
       child: Actions(
         actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _playPause()),
-          _Skip: CallbackAction<_Skip>(onInvoke: (s) => _seek(_time.value + s.seconds)),
+          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) => _c.playPause()),
+          _Skip: CallbackAction<_Skip>(onInvoke: (s) => _c.seek(_c.time.value + s.seconds)),
         },
         child: Focus(
           autofocus: true,
-          child: Scaffold(
-            backgroundColor: paper,
-            endDrawer: choices.isEmpty ? null : Drawer(width: 320, child: SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: choices))),
-            body: MouseRegion(
-              onHover: (_) => _woke(),
-              child: GestureDetector(
-                onTap: () {
-                  _woke();
-                  _playPause();
-                },
-                child: Stack(children: [
-                  Positioned.fill(child: _shows == PageShows.map ? _playerMap(context) : _score(paper, ink)),
-                  Positioned(left: 0, right: 0, bottom: 0, child: _controls(context, choices.isNotEmpty)),
-                ]),
+          onKeyEvent: _key,
+          // The room plugins' panels take is left as paper: their elements lie over it.
+          child: ColoredBox(
+            color: paper,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(left, top, right, bottom),
+              child: Scaffold(
+                key: _scaffold,
+                backgroundColor: paper,
+                onEndDrawerChanged: (open) => _c.listener?.call('options', {'open': open}),
+                endDrawer: choices.isEmpty ? null : Drawer(width: 320, child: SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: choices))),
+                body: MouseRegion(
+                  onHover: (_) => _c.woke(),
+                  child: GestureDetector(
+                    onTapUp: (tap) {
+                      _c.woke();
+                      final at = tap.localPosition - _frame.topLeft;
+                      if (!_c.clicked(at.dx, at.dy)) _c.playPause();
+                    },
+                    child: Stack(children: [
+                      Positioned.fill(child: _c.shows == PageShows.map ? _playerMap(context) : _score(paper, ink)),
+                      Positioned(left: 0, right: 0, bottom: 0, child: _controls(context, choices.isNotEmpty)),
+                    ]),
+                  ),
+                ),
               ),
             ),
           ),
@@ -237,33 +154,38 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
   Widget _score(Color paper, Color ink) => LayoutBuilder(builder: (context, constraints) {
         final ratio = _page.ratio, dpr = MediaQuery.devicePixelRatioOf(context);
         final frame = ratio == null ? VideoFrame.fill(constraints.biggest) : VideoFrame.fit(constraints.biggest, ratio, devicePixelRatio: dpr);
+        _laidOut(frame.rect, frame.scale);
         return Stack(children: [
           Positioned.fromRect(
             rect: frame.rect,
             child: RepaintBoundary(
               child: CustomPaint(
                 size: Size.infinite,
-                painter: _ScorePainter(this, frame.scale, dpr, paper, ink, Directionality.of(context)),
+                painter: _ScorePainter(_c, frame.scale, dpr, paper, ink, Directionality.of(context)),
               ),
             ),
           ),
         ]);
       });
 
-  Widget _playerMap(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // over the controls
-        child: RepaintBoundary(
-          child: CustomPaint(
-            size: Size.infinite,
-            painter: PlayerMapPainter(map: _map!, pulses: _mapPulses, time: _time, textDirection: Directionality.of(context)),
+  Widget _playerMap(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
+        const padding = EdgeInsets.fromLTRB(16, 16, 16, 80); // over the controls
+        _laidOut(padding.deflateRect(Offset.zero & constraints.biggest), 1);
+        return Padding(
+          padding: padding,
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: PlayerMapPainter(map: _c.map!, pulses: _c.mapPulses, time: _c.time, textDirection: Directionality.of(context)),
+            ),
           ),
-        ),
-      );
+        );
+      });
 
   Widget _controls(BuildContext context, bool hasChoices) {
     final theme = Theme.of(context);
     return ValueListenableBuilder(
-      valueListenable: _controlsShown,
+      valueListenable: _c.controlsShown,
       builder: (context, shown, child) => AnimatedOpacity(
         opacity: shown ? 1 : 0,
         duration: const Duration(milliseconds: 190),
@@ -281,20 +203,20 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
           ),
           child: Row(children: [
             IconButton(
-              tooltip: (_audio.playing ? 'Pause' : 'Play').tr,
-              icon: Icon(_audio.playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
-              onPressed: _playPause,
+              tooltip: (_c.playing ? 'Pause' : 'Play').tr,
+              icon: Icon(_c.playing ? Icons.pause_rounded : Icons.play_arrow_rounded),
+              onPressed: _c.playPause,
             ),
             Expanded(
               child: ValueListenableBuilder(
-                valueListenable: _time,
+                valueListenable: _c.time,
                 builder: (context, t, _) => Row(children: [
                   Expanded(
                     child: Slider(
                       min: _heard.start,
                       max: math.max(_heard.end, _heard.start + 0.001),
                       value: t.clamp(_heard.start, _heard.end),
-                      onChanged: _seek,
+                      onChanged: _c.seek,
                     ),
                   ),
                   Text('${_clock(t - _heard.start)} / ${_clock(_heard.end - _heard.start)}',
@@ -302,23 +224,24 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                 ]),
               ),
             ),
-            if ((_map != null || _hasRows) && _page.view.open)
+            if ((_c.map != null || _c.hasRows) && _page.view.open)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: SegmentedButton<PageShows>(
                   showSelectedIcon: false,
                   style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   segments: [
-                    if (_follows) ButtonSegment(value: PageShows.views, label: Text('Auto'.tr)),
+                    if (_c.follows) ButtonSegment(value: PageShows.views, label: Text('Auto'.tr)),
                     // A MIDI project's score is its rows of notes, named as the app names them.
                     ButtonSegment(value: PageShows.score, label: Text(_loaded.score.isRoll ? 'MIDI View'.tr : 'Score'.tr)),
-                    if (_hasRows) ButtonSegment(value: PageShows.midi, label: Text('MIDI View'.tr)),
-                    if (_map != null) ButtonSegment(value: PageShows.map, label: Text('Player Map'.tr)),
+                    if (_c.hasRows) ButtonSegment(value: PageShows.midi, label: Text('MIDI View'.tr)),
+                    if (_c.map != null) ButtonSegment(value: PageShows.map, label: Text('Player Map'.tr)),
                   ],
-                  selected: {_shows},
-                  onSelectionChanged: (s) => setState(() => _shows = s.single),
+                  selected: {_c.shows},
+                  onSelectionChanged: (s) => _c.shows = s.single,
                 ),
               ),
+            for (final button in _api.buttons) _pluginButton(button),
             if (hasChoices)
               Builder(
                 builder: (context) => IconButton(
@@ -333,30 +256,42 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
     );
   }
 
+  /// A plugin's button: its icon, else its text (or its name) as its face; its name is its tip.
+  /// (The name is the plugin's, translated by it: never through `.tr`.)
+  Widget _pluginButton(PageButton button) {
+    final run = button.enabled ? () => _api.pressed(button.id) : null;
+    if (pageIcons[button.icon] case final icon? when button.text == null) {
+      return IconButton(tooltip: button.title, isSelected: button.checked, icon: Icon(icon), onPressed: run);
+    }
+    const style = ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap);
+    final face = Text(button.text ?? button.title);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Tooltip(
+        message: button.title,
+        child: button.checked ? FilledButton.tonal(style: style, onPressed: run, child: face) : TextButton(style: style, onPressed: run, child: face),
+      ),
+    );
+  }
+
   static String _clock(double seconds) {
     final s = seconds.clamp(0, double.infinity).floor();
     return '${s ~/ 60}:${'${s % 60}'.padLeft(2, '0')}';
   }
 
-  /// The page's chapters as the recording heard has them, timed from its start: none while
-  /// no extension that is on gives any (Chapters).
-  List<ChapterCue> get _chapters => _extensions.chapters(_heard.start, _heard.end);
-
-  /// The page's extensions (those on in its project), reading the recording heard.
-  late final ExtensionReaders _extensions = _loaded.extensions(() => _scene.timeline);
-
-  /// What the export left the viewer to choose, under the chapters to jump to.
+  /// What the export left the viewer to choose, under the chapters to jump to; then what the
+  /// page's plugins offer, each under its name.
   List<Widget> _choices(BuildContext context) {
     final theme = Theme.of(context), edits = _loaded.edits;
     Widget heading(String text) =>
         Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Text(text, style: theme.textTheme.titleSmall));
-    final hasCaptions = _extensions.captions.isNotEmpty;
-    final chapters = _chapters;
+    final hasCaptions = _c.extensions.captions.isNotEmpty;
+    final chapters = _c.chapters;
     return [
       if (chapters.isNotEmpty) ...[
         heading('Chapters'.tr),
         ValueListenableBuilder(
-          valueListenable: _time,
+          valueListenable: _c.time,
           builder: (context, t, _) => Column(children: [
             for (final cue in chapters)
               ListTile(
@@ -365,7 +300,7 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                 selected: t - _heard.start >= cue.start - 1e-3 && t - _heard.start < cue.end - 1e-3,
                 title: Text(cue.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: Text(_clock(cue.start), style: theme.textTheme.bodySmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-                onTap: () => _seek(_heard.start + cue.start),
+                onTap: () => _c.seek(_heard.start + cue.start),
               ),
           ]),
         ),
@@ -373,8 +308,8 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
       if (_page.recording.open && _page.recordings.length > 1) ...[
         heading('Recording'.tr),
         RadioGroup<int>(
-          groupValue: _recording,
-          onChanged: (i) => _pick(i!),
+          groupValue: _c.recording,
+          onChanged: (i) => _c.pick(i!),
           child: Column(children: [
             for (final (i, r) in _page.recordings.indexed)
               RadioListTile<int>(dense: true, contentPadding: EdgeInsets.zero, value: i, title: Text(r.label)),
@@ -384,37 +319,15 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
       if (_page.speed.open) ...[
         heading('Speed'.tr),
         Wrap(spacing: 6, runSpacing: 6, children: [
-          for (final s in WebPage.speeds)
-            ChoiceChip(
-              label: Text('$s×'),
-              selected: _speed == s,
-              onSelected: (_) => setState(() => _audio.speed = _speed = s),
-            ),
+          for (final s in WebPage.speeds) ChoiceChip(label: Text('$s×'), selected: _c.speed == s, onSelected: (_) => _c.speed = s),
         ]),
       ],
       if ((_page.captions.open && hasCaptions) || (_page.barNumbers.open && edits.barNumbers)) heading('Show'.tr),
       if (_page.captions.open && hasCaptions)
-        SwitchListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: Text('Captions'.tr),
-          value: _captions,
-          onChanged: (on) => setState(() {
-            _captions = on;
-            _showSettings();
-          }),
-        ),
+        SwitchListTile(dense: true, contentPadding: EdgeInsets.zero, title: Text('Captions'.tr), value: _c.captions, onChanged: (on) => _c.captions = on),
       if (_page.barNumbers.open && edits.barNumbers)
         SwitchListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: Text('Bar numbers'.tr),
-          value: _barNumbers,
-          onChanged: (on) => setState(() {
-            _barNumbers = on;
-            _showSettings();
-          }),
-        ),
+            dense: true, contentPadding: EdgeInsets.zero, title: Text('Bar numbers'.tr), value: _c.barNumbers, onChanged: (on) => _c.barNumbers = on),
       if (_page.instruments.open) ...[
         heading('Instruments'.tr),
         for (final part in _loaded.score.metadata.parts)
@@ -430,19 +343,96 @@ class _PagePlayerState extends State<PagePlayer> with SingleTickerProviderStateM
                   ButtonSegment(value: PartShown.shown, label: Text('Show'.tr)),
                   ButtonSegment(value: PartShown.hidden, label: Text('Hide'.tr)),
                 ],
-                selected: {_shown[part.id] ?? PartShown.curated},
-                onSelectionChanged: (s) => setState(() {
-                  _shown = {..._shown, part.id: s.single};
-                  _curation.dispose();
-                  _curation = _loaded.curation(_shown);
-                }),
+                selected: {_c.shown[part.id] ?? PartShown.curated},
+                onSelectionChanged: (s) => _c.show(part.id, s.single),
               ),
             ]),
           ),
       ],
+      for (final (i, option) in _api.options.indexed) ...[
+        if (i == 0 || _api.options[i - 1].group != option.group) heading(option.group),
+        _pluginOption(option),
+      ],
     ];
   }
+
+  /// A plugin's row of Options: a switch, a choice among its options, or something to do.
+  Widget _pluginOption(PageOption option) => switch (option.type) {
+        'switch' => SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(option.label),
+            value: option.value == true,
+            onChanged: option.enabled ? (on) => _api.changed(option.id, on) : null,
+          ),
+        'choice' => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(option.label)),
+              Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final choice in option.options)
+                  ChoiceChip(
+                    label: Text(choice.label),
+                    selected: option.value == choice.value,
+                    onSelected: option.enabled ? (_) => _api.changed(option.id, choice.value) : null,
+                  ),
+              ]),
+            ]),
+          ),
+        _ => Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: OutlinedButton(onPressed: option.enabled ? () => _api.pressed(option.id) : null, child: Text(option.label)),
+            ),
+          ),
+      };
 }
+
+/// The icons a plugin's button may name (`Icon` in curator-web.d.ts).
+const pageIcons = <String, IconData>{
+  'play': Icons.play_arrow_rounded,
+  'pause': Icons.pause_rounded,
+  'stop': Icons.stop_rounded,
+  'previous': Icons.skip_previous_rounded,
+  'next': Icons.skip_next_rounded,
+  'rewind': Icons.fast_rewind_rounded,
+  'forward': Icons.fast_forward_rounded,
+  'replay': Icons.replay_rounded,
+  'loop': Icons.repeat_rounded,
+  'shuffle': Icons.shuffle_rounded,
+  'volume': Icons.volume_up_rounded,
+  'mute': Icons.volume_off_rounded,
+  'fullscreen': Icons.fullscreen_rounded,
+  'exitFullscreen': Icons.fullscreen_exit_rounded,
+  'link': Icons.link_rounded,
+  'share': Icons.share_rounded,
+  'copy': Icons.content_copy_rounded,
+  'download': Icons.download_rounded,
+  'info': Icons.info_outline_rounded,
+  'help': Icons.help_outline_rounded,
+  'settings': Icons.settings_rounded,
+  'bookmark': Icons.bookmark_outline_rounded,
+  'star': Icons.star_outline_rounded,
+  'heart': Icons.favorite_outline_rounded,
+  'search': Icons.search_rounded,
+  'list': Icons.format_list_bulleted_rounded,
+  'text': Icons.notes_rounded,
+  'captions': Icons.closed_caption_outlined,
+  'music': Icons.music_note_rounded,
+  'piano': Icons.piano_rounded,
+  'clock': Icons.schedule_rounded,
+  'show': Icons.visibility_outlined,
+  'hide': Icons.visibility_off_outlined,
+  'zoomIn': Icons.zoom_in_rounded,
+  'zoomOut': Icons.zoom_out_rounded,
+  'close': Icons.close_rounded,
+  'check': Icons.check_rounded,
+  'add': Icons.add_rounded,
+  'remove': Icons.remove_rounded,
+  'more': Icons.more_horiz_rounded,
+  'language': Icons.language_rounded,
+};
 
 class _Skip extends Intent {
   const _Skip(this.seconds);
@@ -452,8 +442,8 @@ class _Skip extends Intent {
 class _ScorePainter extends CustomPainter {
   _ScorePainter(this.state, this.scale, this.devicePixelRatio, this.paper, this.ink, this.textDirection)
       // A PDF score's systems arrive as they are fetched: drawn again then.
-      : super(repaint: Listenable.merge([state._time, ?state._loaded.score.pdf]));
-  final _PagePlayerState state;
+      : super(repaint: Listenable.merge([state.time, ?state.loaded.score.pdf]));
+  final PlayingPage state;
 
   /// View points a layout point ([VideoFrame.scale]): 1 when filling the window.
   final double scale;
@@ -469,23 +459,23 @@ class _ScorePainter extends CustomPainter {
     canvas
       ..clipRect(Offset.zero & size)
       ..scale(scale);
-    final s = state, time = s._time.value, end = s._heard.end, map = s._map;
-    final views = s._shows == PageShows.views;
+    final s = state, time = s.time.value, end = s.heard.end, map = s.map;
+    final views = s.shows == PageShows.views;
     // The score's notes in rows, where the viewer or a view of the lane's has the MIDI view.
-    final rows = s._shows == PageShows.midi || (views && s._viewsRows) ? s._rowsScene : null;
-    final only = s._shows == PageShows.midi ? SceneView.midi : SceneView.score;
+    final rows = s.shows == PageShows.midi || (views && s.viewsRows) ? s.rowsScene : null;
+    final only = s.shows == PageShows.midi ? SceneView.midi : SceneView.score;
     void draw(CuratedScene scene, Canvas canvas, Size layout) =>
-        scene.paint(canvas, layout, time: time, curation: s._curation, devicePixelRatio: devicePixelRatio * scale, end: end, paper: paper, ink: ink);
+        scene.paint(canvas, layout, time: time, curation: s.curation, devicePixelRatio: devicePixelRatio * scale, end: end, paper: paper, ink: ink);
     paintViews(
       canvas,
       size / scale,
-      views ? s._timed.at(time) : (from: only, to: only, mix: 0.0),
-      score: (canvas, layout) => draw(s._scene, canvas, layout),
+      views ? s.timedViews.at(time) : (from: only, to: only, mix: 0.0),
+      score: (canvas, layout) => draw(s.scene, canvas, layout),
       rows: rows == null ? null : (canvas, layout) => draw(rows, canvas, layout),
-      map: !views || map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: s._mapPulses, time: s._time, textDirection: textDirection).paintAt(canvas, size, time),
+      map: !views || map == null ? null : (canvas, size) => PlayerMapPainter(map: map, pulses: s.mapPulses, time: s.time, textDirection: textDirection).paintAt(canvas, size, time),
       paper: paper,
       ink: ink,
-      fade: s._scene.endFadeAt(time, end),
+      fade: s.scene.endFadeAt(time, end),
     );
   }
 

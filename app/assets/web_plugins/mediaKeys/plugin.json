@@ -1,0 +1,7 @@
+{
+  "format": "application/x-curator-web-plugin",
+  "id": "mediaKeys",
+  "name": "Media Keys",
+  "summary": "The keyboard’s media keys and the system’s Now Playing control the page.",
+  "api": 1
+}

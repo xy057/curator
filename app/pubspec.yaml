@@ -1,7 +1,7 @@
 name: curated_score
 description: "Curator: animated score videos, curated instrument by instrument."
 publish_to: 'none'
-version: 0.10.633+633
+version: 0.10.634+634
 
 environment:
   sdk: ^3.13.4
@@ -62,7 +62,23 @@ flutter:
     - assets/plugins/reopenLast/src/
     - assets/plugins/saveBeforeExport/
     - assets/plugins/saveBeforeExport/src/
-    - assets/help/ # the guides the extension editor's and the plugin editor's Help show (extensions.md, plugins.md)
+    # Curator's own web plugins, each a folder laid out as a .cwp is (lib/web_plugins.dart): its main.js is built from
+    # src/main.ts by `make web-plugins`. Beside them, the web plugin API as TypeScript declares it.
+    - assets/web_plugins/
+    - assets/web_plugins/barCounter/
+    - assets/web_plugins/barCounter/src/
+    - assets/web_plugins/barCounter/locales/
+    - assets/web_plugins/embedControl/
+    - assets/web_plugins/embedControl/src/
+    - assets/web_plugins/linkToTime/
+    - assets/web_plugins/linkToTime/src/
+    - assets/web_plugins/linkToTime/locales/
+    - assets/web_plugins/mediaKeys/
+    - assets/web_plugins/mediaKeys/src/
+    - assets/web_plugins/transcript/
+    - assets/web_plugins/transcript/src/
+    - assets/web_plugins/transcript/locales/
+    - assets/help/ # the guides the extension editor's and the plugin editor's Help show (extensions.md, plugins.md), and the web plugins' (web-plugins.md)
     - assets/icon/ # the app icon, at the top of Settings ▸ About (a copy of the macOS one), and the mascot a click on it shows (on the same tile)
     - assets/LICENSE.txt # Curator's own licence (the GPL asks that a copy go with every copy), first in Settings ▸ About ▸ Licenses; the repository's LICENSE, kept the same by about_page_test
     # The fonts' licences (Apache 2.0 and the OFL ask that a copy go with them; not every font

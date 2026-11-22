@@ -442,41 +442,8 @@ class Plugins extends ChangeNotifier {
 
   // MARK: Keys
 
-  static final _keyNames = <String, LogicalKeyboardKey>{
-    'space': LogicalKeyboardKey.space,
-    'enter': LogicalKeyboardKey.enter,
-    'tab': LogicalKeyboardKey.tab,
-    'escape': LogicalKeyboardKey.escape,
-    'backspace': LogicalKeyboardKey.backspace,
-    'delete': LogicalKeyboardKey.delete,
-    'left': LogicalKeyboardKey.arrowLeft,
-    'right': LogicalKeyboardKey.arrowRight,
-    'up': LogicalKeyboardKey.arrowUp,
-    'down': LogicalKeyboardKey.arrowDown,
-    'home': LogicalKeyboardKey.home,
-    'end': LogicalKeyboardKey.end,
-    'pageup': LogicalKeyboardKey.pageUp,
-    'pagedown': LogicalKeyboardKey.pageDown,
-    'f1': LogicalKeyboardKey.f1,
-    'f2': LogicalKeyboardKey.f2,
-    'f3': LogicalKeyboardKey.f3,
-    'f4': LogicalKeyboardKey.f4,
-    'f5': LogicalKeyboardKey.f5,
-    'f6': LogicalKeyboardKey.f6,
-    'f7': LogicalKeyboardKey.f7,
-    'f8': LogicalKeyboardKey.f8,
-    'f9': LogicalKeyboardKey.f9,
-    'f10': LogicalKeyboardKey.f10,
-    'f11': LogicalKeyboardKey.f11,
-    'f12': LogicalKeyboardKey.f12,
-  };
-
   /// [key], as a plugin wrote it, as the app takes keys.
-  static KeyChord chordOf(PluginKey key) {
-    final code = key.key.codeUnitAt(0);
-    final logical = _keyNames[key.key] ?? LogicalKeyboardKey.findKeyByKeyId(code) ?? LogicalKeyboardKey(code);
-    return KeyChord(logical, command: key.command, control: key.control, alt: key.alt, shift: key.shift);
-  }
+  static KeyChord chordOf(PluginKey key) => KeyChord.written(key);
 
   final _warned = <String>{};
 

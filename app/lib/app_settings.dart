@@ -73,6 +73,7 @@ class AppSettings extends ChangeNotifier {
         aiHidden = _prefs?.getBool(_hideAiKey) ?? false,
         _engravingPreview = _prefs?.getBool(_engravingPreviewKey) ?? true,
         _pluginsOn = Set.unmodifiable(_prefs?.getStringList(_pluginsOnKey) ?? const <String>[]),
+        _webPluginsOn = Set.unmodifiable(_prefs?.getStringList(_webPluginsOnKey) ?? const <String>[]),
         _keys = KeyMap.read(_prefs?.getString(_keysKey)),
         _toolbars = {for (final kind in BarKind.values) kind: ToolbarLayout.read(kind, _prefs?.getString(_toolbarKey(kind)))} {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
@@ -113,6 +114,7 @@ class AppSettings extends ChangeNotifier {
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
   static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
+  static const _webPluginsOnKey = 'webPluginsOn';
   /// The editor's toolbar under `toolbar`, the timeline's under `toolbar.audio`…
   static String _toolbarKey(BarKind kind) => kind == BarKind.editor ? 'toolbar' : 'toolbar.${kind.name}';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
@@ -767,6 +769,38 @@ class AppSettings extends ChangeNotifier {
     if (_pluginsOn.contains(id) == on) return;
     _pluginsOn = Set.unmodifiable(on ? {..._pluginsOn, id} : ({..._pluginsOn}..remove(id)));
     _prefs?.setStringList(_pluginsOnKey, _pluginsOn.toList()..sort());
+    notifyListeners();
+  }
+
+  /// The web plugins that go into the pages exported (Export to Web's Plugins), by id.
+  Set<String> get webPluginsOn => _webPluginsOn;
+  Set<String> _webPluginsOn;
+  void setWebPluginOn(String id, bool on) {
+    if (_webPluginsOn.contains(id) == on) return;
+    _webPluginsOn = Set.unmodifiable(on ? {..._webPluginsOn, id} : ({..._webPluginsOn}..remove(id)));
+    _prefs?.setStringList(_webPluginsOnKey, _webPluginsOn.toList()..sort());
+    notifyListeners();
+  }
+
+  /// What was set since the app started, by web plugin (as [_pluginSettings]).
+  final _webPluginSettings = <String, Object?>{};
+
+  /// Web plugin [id]'s settings as they were set in Export to Web, by the setting's id; null:
+  /// none was.
+  Object? webPluginSettings(String id) {
+    if (_webPluginSettings.containsKey(id)) return _webPluginSettings[id];
+    final saved = _prefs?.getString('webPlugin.$id');
+    if (saved == null) return null;
+    try {
+      return jsonDecode(saved);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  void setWebPluginSettings(String id, Map<String, Object?> json) {
+    _webPluginSettings[id] = json;
+    _prefs?.setString('webPlugin.$id', jsonEncode(json));
     notifyListeners();
   }
 

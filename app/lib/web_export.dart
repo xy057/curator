@@ -69,7 +69,9 @@ abstract final class WebExport {
 
   /// Writes [editor]'s project to the folder [output] as [page] says (its recordings, fonts and
   /// name colours are filled in here): [takes] heard whole as well as the performance, the
-  /// captions, the chapters and the images only if [captions], [chapters] and [images]. Written beside it and moved in at
+  /// captions, the chapters and the images only if [captions], [chapters] and [images]; the web
+  /// plugins it lists ([WebPage.plugins]) are those of [plugins], each put in a folder of its
+  /// own beside the score ([WebPage.pluginFolder]). Written beside it and moved in at
   /// the end. A folder there already is written into only if it holds an earlier page, and then
   /// only what the export writes is replaced: what else it holds (a repository, a host's own
   /// files) stays. Returns the
@@ -81,6 +83,7 @@ abstract final class WebExport {
       bool captions = true,
       bool chapters = true,
       bool images = true,
+      List<WebPluginPackage> plugins = const [],
       @visibleForTesting Uint8List? player}) async {
     final score = editor.score;
     if (score == null) throw const VideoExportException('Nothing is open.');
@@ -177,6 +180,18 @@ abstract final class WebExport {
         fonts.add((family: TextFonts.familyOf(name), files: files));
       }
 
+      // The page's plugins: what a page carries of each (its code, its texts, its assets).
+      final carried = {for (final p in plugins) p.id: p};
+      for (final listed in page.plugins) {
+        final package = carried[listed.id];
+        if (package == null) throw VideoExportException('The plugin “{name}” isn’t in Curator anymore.'.fill({'name': listed.name}));
+        package.pageFiles.forEach((path, bytes) {
+          File('$folder/${WebPage.pluginFolder(listed.id)}/$path')
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(bytes);
+        });
+      }
+
       // Each way to hear it, its sound mixed as a video's would be.
       final recordings = <WebRecording>[];
       final all = editor.pageState.takes;
@@ -215,6 +230,9 @@ abstract final class WebExport {
         barNumbers: page.barNumbers,
         speed: page.speed,
         view: page.view,
+        plugins: page.plugins,
+        release: appRelease,
+        build: appBuild,
       );
       File('$folder/${WebPage.pageFile}').writeAsStringSync(const JsonEncoder.withIndent(' ').convert(written.toJson()));
       _title(File('${part.path}/index.html'), page.title);

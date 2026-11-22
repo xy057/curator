@@ -1,0 +1,10 @@
+{
+  "format": "application/x-curator-web-plugin",
+  "id": "embedControl",
+  "name": "Embed Control",
+  "summary": "A page in a frame of another site is played from that site.",
+  "api": 1,
+  "settings": [
+    { "id": "origin", "label": "Site", "type": "text", "value": "*" }
+  ]
+}
