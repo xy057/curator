@@ -404,6 +404,11 @@ void main() {
       lanes.setLane('v1', const [Region(0, 48)]);
       expect(run('let winds = "Flute*"\nonly winds from 3 until mark A'), isEmpty);
       expect([lanes.lane('fl'), lanes.lane('fl2'), lanes.lane('v1')], const [[Region(0, 20)], [Region(0, 6), Region(8, 20)], [Region(0, 8), Region(16, 48)]]);
+      // A group written by its own name is the one before it with more; one of groups without end isn't taken.
+      expect([for (final p in LaneScript.parse('let winds = "Flute 1"\nlet winds = winds, "Piano"\nlet winds = winds except "Flute 1"\nshow winds 12\nshow winds except "Piano"').check(host)) '$p'],
+          ['Line 5: That leaves no lane.']);
+      expect([for (final p in LaneScript.parse(['let a = all', for (var i = 0; i < 20; i++) 'let a = a'].join('\n')).check(host)) '$p'],
+          [for (var line = 17; line <= 21; line++) 'Line $line: That is a group of groups too many.']);
       // A stretch with its own transitions that leaves out a staff; shown whole over it, it gives way.
       expect(run('show "Piano" 1-4 transition in 0.5 out 1 without staff 2\nshow "Piano" 3-6'), isEmpty);
       expect(lanes.lane('pf'), const [Region(0, 8, transitionIn: 0.5, transitionOut: 1, hiddenStaves: [2]), Region(8, 24)]);

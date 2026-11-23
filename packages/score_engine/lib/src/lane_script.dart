@@ -156,6 +156,16 @@ typedef _Range = ({_Place? from, _Place? through, _Place? until, bool whole});
 typedef _Term = ({String? name, String? group, bool all, int? nth, int? staff});
 typedef _Lanes = ({List<_Term> include, List<_Term> exclude});
 
+/// Lanes a `let` named, with the groups there were when it did: a name among them means those
+/// (so a group written by its own name is the one before it), and [depth] is how many groups
+/// deep it goes.
+class _Group {
+  const _Group(this.lanes, this.groups, this.depth);
+  final _Lanes lanes;
+  final Map<String, _Group> groups;
+  final int depth;
+}
+
 /// A transition as written: not [given], the project's ([seconds] null), or its own.
 typedef _Fade = ({bool given, double? seconds});
 
@@ -420,7 +430,10 @@ class _Run {
 
   /// Whether a `hear` has gone before: a `match` goes by it.
   bool heard = false;
-  final groups = <String, _Lanes>{};
+  Map<String, _Group> groups = const {};
+
+  /// How many groups deep a group may go.
+  static const deepest = 16;
 
   /// The lanes as the statements so far would leave them, when nothing is changed.
   final List<ScriptLane>? _lanes;
@@ -432,13 +445,13 @@ class _Run {
 
   // MARK: Lanes
 
-  List<ScriptLane> _of(_Term term) {
+  List<ScriptLane> _of(_Term term, Map<String, _Group> groups) {
     final all = lanes;
     if (term.all) return all;
-    if (term.group case final group?) {
-      final lanes = groups[group];
-      if (lanes == null) throw _Fail('There is no group “$group”. A lane’s name goes in quotes: "$group".');
-      return resolve(lanes);
+    if (term.group case final name?) {
+      final group = groups[name];
+      if (group == null) throw _Fail('There is no group “$name”. A lane’s name goes in quotes: "$name".');
+      return resolve(group.lanes, group.groups);
     }
     final name = term.name!, matches = LaneScript._matcher(name);
     var found = [for (final lane in all) if (matches.hasMatch(LaneScript._plain(lane.name))) lane];
@@ -463,10 +476,12 @@ class _Run {
     return found;
   }
 
-  /// The lanes [written] names, top to bottom, each once.
-  List<ScriptLane> resolve(_Lanes written) {
-    final wanted = {for (final term in written.include) for (final lane in _of(term)) lane.id};
-    final left = wanted.difference({for (final term in written.exclude) for (final lane in _of(term)) lane.id});
+  /// The lanes [written] names, top to bottom, each once; a group's, among the groups [within]
+  /// which it was named.
+  List<ScriptLane> resolve(_Lanes written, [Map<String, _Group>? within]) {
+    final groups = within ?? this.groups;
+    final wanted = {for (final term in written.include) for (final lane in _of(term, groups)) lane.id};
+    final left = wanted.difference({for (final term in written.exclude) for (final lane in _of(term, groups)) lane.id});
     if (left.isEmpty) throw const _Fail('That leaves no lane.');
     return [for (final lane in lanes) if (left.contains(lane.id)) lane];
   }
@@ -1014,7 +1029,10 @@ class _Parser {
         _end();
         return (run) {
           run.resolve(lanes);
-          run.groups[name.text] = lanes;
+          // (Each use of a group reads it through, so groups of groups stop somewhere.)
+          final depth = 1 + [for (final term in [...lanes.include, ...lanes.exclude]) run.groups[term.group]?.depth ?? 0].fold<int>(0, math.max);
+          if (depth > _Run.deepest) throw const _Fail('That is a group of groups too many.');
+          run.groups = {...run.groups, name.text: _Group(lanes, run.groups, depth)};
         };
     }
   }
