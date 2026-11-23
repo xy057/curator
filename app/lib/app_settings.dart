@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart' show Color, ThemeMode;
 import 'package:score_engine/score_engine.dart'
-    show EngravingOptions, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
+    show EngravingOptions, LaneMacro, MusicFont, PdfAiExamResult, ScoreMotion, ScoreTypography, TextDynamics, TextFonts;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_providers.dart';
@@ -75,6 +75,7 @@ class AppSettings extends ChangeNotifier {
         _pluginsOn = Set.unmodifiable(_prefs?.getStringList(_pluginsOnKey) ?? const <String>[]),
         _webPluginsOn = Set.unmodifiable(_prefs?.getStringList(_webPluginsOnKey) ?? const <String>[]),
         _keys = KeyMap.read(_prefs?.getString(_keysKey)),
+        _macros = List.unmodifiable(LaneMacro.read(_prefs?.getString(_macrosKey))),
         _toolbars = {for (final kind in BarKind.values) kind: ToolbarLayout.read(kind, _prefs?.getString(_toolbarKey(kind)))} {
     // Classic is gone: it opens as Refined (UiStyle.named), and is saved so from now on.
     if (_prefs?.getString(_uiStyleKey) == 'classic') _prefs?.setString(_uiStyleKey, _uiStyle.name);
@@ -114,7 +115,7 @@ class AppSettings extends ChangeNotifier {
   static const _rememberWindowKey = 'rememberWindow', _windowFrameKey = 'windowFrame';
   static const _aiProvidersKey = 'aiProviders', _pdfAiModelKey = 'pdfAiModel', _pdfAiExamsKey = 'pdfAiExams';
   static const _hideAiKey = 'hideAi', _keysKey = 'keyBindings', _pluginsOnKey = 'pluginsOn';
-  static const _webPluginsOnKey = 'webPluginsOn';
+  static const _webPluginsOnKey = 'webPluginsOn', _macrosKey = 'macros';
   /// The editor's toolbar under `toolbar`, the timeline's under `toolbar.audio`…
   static String _toolbarKey(BarKind kind) => kind == BarKind.editor ? 'toolbar' : 'toolbar.${kind.name}';
   static const _textDynamicsKey = 'textDynamics', _engravingPreviewKey = 'engravingPreview';
@@ -607,6 +608,17 @@ class AppSettings extends ChangeNotifier {
     if (listEquals(value, _aiProviders)) return;
     _aiProviders = List.unmodifiable(value);
     _prefs?.setString(_aiProvidersKey, AiProvider.write(value));
+    notifyListeners();
+  }
+
+  /// The macros (Edit ▸ Macros…), in the order they are listed and their keys count them: the
+  /// same for every project.
+  List<LaneMacro> get macros => _macros;
+  List<LaneMacro> _macros;
+  set macros(List<LaneMacro> value) {
+    if (listEquals(value, _macros)) return;
+    _macros = List.unmodifiable(value);
+    _prefs?.setString(_macrosKey, LaneMacro.write(value));
     notifyListeners();
   }
 

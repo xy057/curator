@@ -130,7 +130,8 @@ Future<void> _letGo(AudioSource source) async {
 /// A loaded recording. For a video, it is the soundtrack taken out of it.
 class AudioTrack {
   AudioTrack._(this.path, this.name, this.source, this.length, this.waveform, this._samples, this._sampleRate, this._scratch,
-      {required this.decodedBytes}) {
+      {required this.decodedBytes})
+      : _notesForTesting = null {
     _open.add(this);
   }
 
@@ -143,8 +144,9 @@ class AudioTrack {
 
   /// A silent track (no playback) for tests and previews.
   @visibleForTesting
-  AudioTrack.forTesting({required this.name, required this.length, required this.waveform})
-      : path = name,
+  AudioTrack.forTesting({required this.name, required this.length, required this.waveform, Float32List? notes})
+      : _notesForTesting = notes,
+        path = name,
         source = null,
         _samples = name,
         _sampleRate = null,
@@ -182,6 +184,7 @@ class AudioTrack {
   /// held whole; [progress] hears how far it has got (0–1). Null when there is no sound to read,
   /// or its sample rate isn't known.
   Future<Float32List?> notes({void Function(double done)? progress}) async {
+    if (_notesForTesting != null) return _notesForTesting;
     final rate = _sampleRate;
     if (source == null || rate == null) return null;
     final weights = await (_weights ??= rootBundle.load(BasicPitch.asset).then((d) => d.buffer.asUint8List(d.offsetInBytes, d.lengthInBytes)));
@@ -210,6 +213,9 @@ class AudioTrack {
     await Future.wait([for (var w = 0; w < math.max(1, math.min(stretches, Platform.numberOfProcessors ~/ 2)); w++) work()], eagerError: true);
     return frames;
   }
+
+  /// What a track made for a test is heard as.
+  final Float32List? _notesForTesting;
 
   /// Basic Pitch's weights (the app's asset), read once.
   static Future<Uint8List>? _weights;

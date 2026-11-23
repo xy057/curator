@@ -112,7 +112,20 @@ class _DialogRoute<T> extends DialogRoute<T> {
 
 /// Whether a text field has the keyboard, so its keys (a letter, an arrow, Return) are its own
 /// and not a page's.
-bool get textFieldFocused => FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+bool get textFieldFocused => switch (FocusManager.instance.primaryFocus?.context) {
+      final context? => context.findAncestorWidgetOfExactType<EditableText>() != null || context.findAncestorWidgetOfExactType<TypingArea>() != null,
+      null => false,
+    };
+
+/// Something typed in that isn't a text field (a code editor in a page): while the keyboard is
+/// in it, its keys are its own ([textFieldFocused]).
+class TypingArea extends StatelessWidget {
+  const TypingArea({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
 
 /// A dialog's keys while nothing in it has taken them: Return presses its default button, and Esc
 /// closes one whose route doesn't close on it (not dismissed by a click outside).

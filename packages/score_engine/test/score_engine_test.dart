@@ -389,6 +389,190 @@ void main() {
     c.paint(['vn'], const Region(0, 5), shown: false);
     expect(c.lane('vn'), const [Region(13, 16)]);
 
+    // A script curates as the tools do: a statement a line, names in quotes, bars as they are numbered.
+    {
+      final host = _ScriptLanes(
+        [('fl', 'Flute 1', 1), ('fl2', 'Flute 2', 1), ('pf', 'Piano', 2), ('v1', 'Violin', 1), ('v2', 'Violin', 1)],
+        BeatGrid([for (var m = 0; m <= 12; m++) m * 4.0]),
+      );
+      final lanes = host.curation;
+      List<String> run(String source) => [for (final p in LaneScript.parse(source).run(host)) '$p'];
+      // Draw and Erase: whole bars, beats, names however they are cased and spaced.
+      expect(run('# The flutes.\nshow "Flute 1", "flute  2" bars 1-2, 5\nHIDE "Flute 2" 2.3-2.4 # its last two beats'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2')], const [[Region(0, 8), Region(16, 20)], [Region(0, 6), Region(16, 20)]]);
+      // A group, a wildcard, a rehearsal mark; only hides the others there.
+      lanes.setLane('v1', const [Region(0, 48)]);
+      expect(run('let winds = "Flute*"\nonly winds from 3 until mark A'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2'), lanes.lane('v1')], const [[Region(0, 20)], [Region(0, 6), Region(8, 20)], [Region(0, 8), Region(16, 48)]]);
+      // A stretch with its own transitions that leaves out a staff; shown whole over it, it gives way.
+      expect(run('show "Piano" 1-4 transition in 0.5 out 1 without staff 2\nshow "Piano" 3-6'), isEmpty);
+      expect(lanes.lane('pf'), const [Region(0, 8, transitionIn: 0.5, transitionOut: 1, hiddenStaves: [2]), Region(8, 24)]);
+      expect(run('show "Piano" 1 without staves 1, 2'), ['Line 1: That leaves “Piano” no staff.']);
+      // A staff's lane, once its instrument is split.
+      expect(run('show "Piano"/2 1-2'), ['Line 1: “Piano” isn’t split: write split "Piano" first.']);
+      expect(run('split "Piano"\nshow "Piano"/2 1-2\nshow "Piano"/3'), ['Line 3: “Piano” is on 2 staves.']);
+      expect([host.split, lanes.lane('pf/2')], [{'pf'}, const [Region(0, 24)]]);
+      expect(run('split "Flute 1"'), ['Line 1: “Flute 1” is on one staff.']);
+      expect([run('join all'), host.split], [isEmpty, isEmpty]);
+      // The project's transition, and regions' own at the edges inside a range.
+      expect(run('transition 0.4\ntransition "Flute 2" 3-5 in 1 out default'), isEmpty);
+      expect([lanes.transition, lanes.lane('fl2')], [0.4, const [Region(0, 6), Region(8, 20, transitionIn: 1)]]);
+      // One of two lanes of a name; Tidy; Auto-Curate; moving.
+      expect(run('copy "Violin" to "Flute 1"'), ['Line 1: One lane is copied, and that names 2.']);
+      expect(run('copy "Flute 1" to "Violin"[2]\nbridge rests 1 in "Flute 2"\nremove short 6 in "Flute 2"\nauto "Flute*"'), isEmpty);
+      expect([lanes.lane('v2'), lanes.lane('fl2'), host.autoCurated], [const [Region(0, 20)], isEmpty, ['fl', 'fl2']]);
+      expect(run('move "Violin"[2] to top\nmove "Flute 1" after "Piano"'), isEmpty);
+      expect([for (final lane in host.lanes) lane.id], ['v2', 'fl2', 'pf', 'fl', 'v1']);
+      expect([run('restore order'), host.lanes.first.id], [isEmpty, 'fl']);
+      host.auto = false;
+      expect(run('auto'), ['Line 1: This score’s lanes can’t be auto-curated.']);
+      // What doesn't read is said with its line, and nothing runs; what can't be done is left out.
+      final before = lanes.lanes;
+      expect(run('clear\nshw "Flute 1"\nshow "Flute 1\nshow "Flute 1" 1 2'), [
+        'Line 2: A line starts with what it does (show, hide, auto…), not “shw”.',
+        'Line 3: A name’s closing quote is missing.',
+        'Line 4: “2” isn’t expected here.',
+      ]);
+      expect(lanes.lanes, before);
+      expect(run('show Flute 1-8\nshow "Oboe"\nshow "Flute 1" 13\nshow "Flute 1" 4-2\nshow all except all'), [
+        'Line 1: There is no group “Flute”. A lane’s name goes in quotes: "Flute".',
+        'Line 2: There is no lane named “Oboe”.',
+        'Line 3: There is no bar 13.',
+        'Line 4: The range ends before it starts.',
+        'Line 5: That leaves no lane.',
+      ]);
+      // A check finds the same and changes nothing, a split and what follows it included.
+      expect([for (final p in LaneScript.parse('split "Piano"\nclear\nshow "Piano"/1 1\nshow "Oboe"\nshw').check(host)) '$p'],
+          ['Line 4: There is no lane named “Oboe”.', 'Line 5: A line starts with what it does (show, hide, auto…), not “shw”.']);
+      expect([host.split, lanes.lanes], [isEmpty, before]);
+      // The lanes written as a script make themselves again: a place off the beats in quarters.
+      lanes.setLanes({'v1': const [Region(4 / 3, 9)], 'fl2': const [Region(1.25, 48)]});
+      host.setSplit('pf', true);
+      final written = LaneScript.write(host), kept = lanes.lanes;
+      expect(written.split('\n'), containsAll(['join all', 'split "Piano"', 'transition 0.4', 'show "Flute 1" 1-5', 'show "Flute 2" from 1.2.25',
+        'show "Violin"[1] from @${4 / 3} until 3.2', 'show "Piano"/2 1-6 transition in 0.5 out 1']));
+      lanes.transition = 1;
+      expect([run('show all\njoin all\n$written'), lanes.lanes, lanes.transition, host.split], [isEmpty, kept, 0.4, {'pf'}]);
+      // Each run coloured, the language's words whatever their case.
+      expect(LaneScript.tokens('Show "A"[2]/1 1-8.2 # all'), [('keyword', 'Show'), (null, ' '), ('string', '"A"'), (null, '['), ('number', '2'), (null, ']'), (null, '/'),
+        ('number', '1'), (null, ' '), ('number', '1'), (null, '-'), ('number', '8.2'), (null, ' '), ('comment', '# all')]);
+      expect({for (final s in LaneScript.statements) s.word}.difference(LaneScript.keywords), isEmpty);
+      expect([for (final s in LaneScript.statements) ...LaneScript.parse(s.example).problems], isEmpty);
+
+      // A macro is steps put together from choices, written as a script for the moment: the lanes selected, where the
+      // playhead is, the bars of what is selected, bars asked for; a line a step.
+      const macro = LaneMacro(name: 'Solo', steps: [
+        MacroStep(MacroAction.only, range: MacroRange.fromPlayhead),
+        MacroStep(MacroAction.show, lanes: MacroLanes.named, names: ['Flute*'], range: MacroRange.ask),
+        MacroStep(MacroAction.hide, lanes: MacroLanes.others, range: MacroRange.playheadBar),
+        MacroStep(MacroAction.transition, lanes: MacroLanes.all, range: MacroRange.selection, number: 2),
+        MacroStep(MacroAction.bridge, lanes: MacroLanes.all),
+        MacroStep(MacroAction.moveTop),
+      ]);
+      final asScript = macro.script(MacroContext.of(host, selected: ['v2', 'pf/1'], playhead: 18, span: (8, 16), asked: '1-2, 9'));
+      expect(asScript.problems, isEmpty);
+      expect(asScript.script.split('\n'), [
+        'only "Piano"/1, "Violin"[2] from 5.3',
+        'show "Flute*" 1-2, 9',
+        'hide all except "Piano"/1, "Violin"[2] 5',
+        'transition all 3-4 in 2 out 2',
+        'bridge rests 1 in all',
+        'move "Piano"/1, "Violin"[2] to top',
+      ]);
+      expect(run(asScript.script), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('v2'), host.lanes.first.id], [const [Region(0, 16, transitionOut: 2), Region(32, 36)], const [Region(0, 48)], 'pf/1']);
+      // What a step needs and isn't there is said by its step, and so is what its script gets wrong.
+      final nothing = macro.script(const MacroContext(asked: '1 # 2'));
+      expect([for (final p in nothing.problems) '$p'], ['Step 1: lanes', 'Step 2: bars', 'Step 3: bars', 'Step 4: regions', 'Step 6: lanes']);
+      expect(nothing.script.split('\n')[4], 'bridge rests 1 in all');
+      expect(const LaneMacro(name: '', steps: [MacroStep(MacroAction.clear, lanes: MacroLanes.named, names: [' '])]).script(const MacroContext()).problems.single.fault, MacroFault.names);
+      expect('${LaneMacro.problemsOf(LaneScript.parse('clear\nshow "Oboe"').check(host)).single}', 'Step 2: There is no lane named “Oboe”.');
+      // Auto-Curate in its two halves: a lane follows its notes (through a rest of a bar; over a range only; one that plays
+      // nothing stays), then gives up what the frame has no room for. The example macro is those two, on every lane.
+      host.plays = {'fl': [for (var m = 0; m < 12; m++) const [0, 1, 3, 6, 7].contains(m)]};
+      lanes.setLane('fl2', const [Region(0, 4)]);
+      expect(run('follow "Flute*" bridge 1'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2')], const [[Region(0, 16), Region(24, 32)], [Region(0, 4)]]);
+      expect([run('follow "Flute 1"'), lanes.lane('fl')], [isEmpty, const [Region(0, 8), Region(12, 16), Region(24, 32)]]);
+      expect([run('clear "Flute 1"\nfollow "Flute 1" 2-4'), lanes.lane('fl')], [isEmpty, const [Region(4, 8), Region(12, 16)]]);
+      // Fitting is three steps, each a statement (the host's to find: here a thin hides bar 4, a refill shows it again, a
+      // lone bar goes), and `fit` is the three, in their order.
+      host.fits = {FitStep.thin: {'fl': const [Region(12, 16)]}, FitStep.refill: {'fl': const [Region(12, 14)]}, FitStep.lone: {'fl': const [Region(4, 8)]}};
+      expect([run('thin "Flute*" phrase 2'), lanes.lane('fl'), host.fitted], [isEmpty, const [Region(4, 8)], ['thin fl,fl2 2']]);
+      expect([run('refill "Flute 1"'), lanes.lane('fl'), host.fitted.last], [isEmpty, const [Region(4, 8), Region(12, 14)], 'refill fl 4']);
+      expect([run('remove lone in "Flute 1"'), lanes.lane('fl'), host.fitted.last], [isEmpty, const [Region(12, 14)], 'lone fl 4']);
+      host.fitted.clear();
+      expect([run('follow "Flute 1" 2-4\nfit "Flute 1" phrase 3'), lanes.lane('fl'), host.fitted], [isEmpty, const [Region(12, 14)], ['thin fl 3', 'refill fl 3', 'lone fl 3']]);
+      expect(LaneMacro.examples.first.script(const MacroContext()).script.split('\n'),
+          ['follow all bridge 1', 'thin all phrase 4', 'refill all', 'remove lone in all']);
+      host.follows = false;
+      expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone').check(host)) '$p'],
+          [for (var line = 1; line <= 5; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);
+      host.follows = true;
+      // Align in its steps: the recording is heard and the anchors matched from it before the script runs (what waits is
+      // made ready, with nothing changed), then they are set and snapped as it runs. A match goes by a hear; `align` is the
+      // three, snapping as the project does, and so is the example macro, its snap left out where the project doesn't.
+      Future<List<Object>> aligned(String source) async {
+        final script = LaneScript.parse(source);
+        host.said.clear();
+        final got = await script.ready(host);
+        return [script.waits, [for (final p in got.problems) '$p'], if (got.problems.isEmpty) [for (final p in script.run(host, ready: got.ready)) '$p'], [...host.said]];
+      }
+
+      final align = LaneMacro.examples[1];
+      expect(await aligned('hear\nmatch\nsnap anchors within 0.08'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2', 'snap 0.08']]);
+      expect(await aligned('align'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2', 'snap 0.05']]);
+      expect(align.script(MacroContext.of(host)).script.split('\n'), ['hear', 'match', 'snap anchors within 0.05']);
+      host.snapping = false;
+      expect(await aligned('align\nhear'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2']], reason: 'heard once, not snapped');
+      expect(align.script(MacroContext.of(host)).script.split('\n'), ['hear', 'match', '# Snap to Notes is off']);
+      host.snapping = true;
+      expect([align.onLanes, align.onRecording, LaneMacro.examples.first.onRecording, LaneScript.parse('show all').waits], [false, true, false, false]);
+      expect([for (final p in LaneScript.parse('match\nsnap anchors within 2').check(host)) '$p'],
+          ['Line 1: Nothing is heard yet: “hear” goes before it.', 'Line 2: Seconds is 1 at most.']);
+      expect(run('hear'), ['Line 1: The recording wasn’t heard.'], reason: 'run without being made ready');
+      host.matched = const [];
+      expect(await aligned('hear\nmatch'), [true, ['Line 2: Couldn’t hear the score in this recording.'], ['hear', 'match tape']]);
+      host.tape = null;
+      expect(await aligned('show all\nalign'), [true, ['Line 2: The recording can’t be heard.'], ['hear']]);
+      host.recording = 'There is no recording.';
+      expect([for (final p in LaneScript.parse('hear\nsnap anchors').check(host)) '$p'], ['Line 1: There is no recording.', 'Line 2: There is no recording.']);
+      host
+        ..recording = null
+        ..tape = 'tape'
+        ..matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
+      // A macro is a graph: its steps the nodes, its wires what is done after what. One with none said is a chain. Steps
+      // are done each after all wired into it (the lower number first where either may go), those that neither hear the
+      // recording nor come after one that does at once and the others when it is heard. A wire closing a ring isn't put
+      // in; a step taken out lets what came before it go on into what came after; a match needs a hear wired into it.
+      const s = MacroStep.new, all = MacroLanes.all;
+      final both = LaneMacro(name: 'Both', steps: [
+        s(MacroAction.hear), s(MacroAction.follow, lanes: all), s(MacroAction.match), //
+        s(MacroAction.thin, lanes: all), s(MacroAction.snap, at: const (40, 300)), s(MacroAction.clear, lanes: all),
+      ], wired: const [(from: 0, to: 2), (from: 2, to: 4), (from: 1, to: 3), (from: 5, to: 1)]);
+      expect([align.wired, align.wires, LaneMacro.examples.first.order], [isNull, const [(from: 0, to: 1), (from: 1, to: 2)], [0, 1, 2, 3]]);
+      expect([both.order, both.stages.now, both.stages.later, both.before(3), both.grid],
+          [[0, 2, 4, 5, 1, 3], [5, 1, 3], [0, 2, 4], {1, 5}, const [(0, 0), (1, 0), (1, 1), (2, 0), (2, 1), (0, 1)]]);
+      expect(both.script(MacroContext.of(host)).script.split('\n'),
+          ['hear', 'match', 'snap anchors within 0.05', 'clear all', 'follow all bridge 1', 'thin all phrase 4']);
+      expect([both.canWire(3, 5), both.canWire(4, 4), both.canWire(0, 2), both.canWire(4, 3), both.withWire(3, 5) == both], [false, false, false, true, true]);
+      final cut = both.withoutStep(2);
+      expect([cut.steps.length, cut.wires, cut.withoutWire(0, 3).wires.length, both.withStep(s(MacroAction.refill), after: 3).wires.last],
+          [5, const [(from: 1, to: 2), (from: 4, to: 1), (from: 0, to: 3)], 2, const (from: 3, to: 6)]);
+      final loose = both.withoutWire(0, 2).script(MacroContext.of(host));
+      expect(['${loose.problems.single}', '${LaneMacro.problemsOf(const [LaneScriptProblem(2, 'x')], both.order).single}'], ['Step 3: heard', 'Step 3: x']);
+      expect(LaneMacro.read(LaneMacro.write([both])), [both]);
+      expect(LaneMacro.read('[{"name": "r", "steps": [{"do": "hear"}, {"do": "fly"}, {"do": "match"}], "wires": [[0, 2], [2, 0], [0, 1], [5, 0], "x"]}]').single.wired,
+          const [(from: 0, to: 1)], reason: 'by the places left, no ring, nothing unknown');
+      // Kept as JSON; what isn't a step, or a macro, is left out.
+      expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
+      expect([macro.copyWith(icon: 'tidy') == macro, macro.toJson().containsKey('icon')], [false, false]);
+      expect(LaneMacro.read('[{"name": "x", "steps": [{"do": "fly"}, {"do": "hide", "lanes": "all", "range": "bars", "bars": "1-2"}, 3]}, {"steps": []}, 7]'),
+          const [LaneMacro(name: 'x', steps: [MacroStep(MacroAction.hide, lanes: MacroLanes.all, range: MacroRange.bars, bars: '1-2')])]);
+      expect([LaneMacro.read('{'), LaneMacro.read(null)], [isEmpty, isEmpty]);
+      expect([for (final m in LaneMacro.examples) ...LaneScript.parse(m.script(MacroContext.of(host, selected: ['fl'], playhead: 4, asked: '2')).script).check(host)], isEmpty);
+    }
+
     // The piano's left hand left out in bar 2: a region of its own, meeting bar 1's.
     final piano = await LoadedScore.load(flutePianoScore);
     final pianoScene = CuratedScene(piano);
@@ -498,6 +682,39 @@ void main() {
       expect(before, containsAll(now), reason: 'only hides (bar ${m + 1})');
       if (before.isNotEmpty) expect(now, isNotEmpty, reason: 'someone left (bar ${m + 1})');
     }
+    // A step at a time (what a script's follow, thin, refill and remove lone do, and a macro of them): the lanes as they
+    // play, then each step's stretches taken off or drawn on, what was hidden kept between them, leaves the same; and
+    // each of the three has something to do here.
+    final stepped = Curation(ids)..setLanes(playing);
+    final cuts = FrameCuts();
+    for (final step in FitStep.values) {
+      final changed = scene.fitStep(stepped, wide, step, lanes: stepped.lanes, salience: score.salience, cuts: cuts);
+      expect(changed.values.any((stretches) => stretches.isNotEmpty), isTrue, reason: '$step');
+      stepped.setLanes({
+        for (final id in ids) id: changed[id]!.fold(stepped.lane(id), (regions, r) => Curation.painted(regions, r, shown: step == FitStep.refill)),
+      });
+      expect(scene.overflowing(stepped, wide), isEmpty, reason: 'fits from the thinning on ($step)');
+    }
+    expect(stepped.lanes, (Curation(ids)..setLanes(fitted)).lanes);
+    // Apart, the steps ask the frame as often as they do together: the piece is planned for every ask, which is what the
+    // cutting costs, so a macro of the steps takes what Auto-Curate does.
+    var asks = 0;
+    List<({double start, double end})> off(Map<String, List<Region>> lanes) {
+      asks++;
+      return scene.overflowing(Curation(ids)..setLanes(lanes), wide);
+    }
+
+    var bars = {for (final id in ids) id: [for (var m = 0; m < starts.length - 1; m++) shownIn(playing[id]!, m)]};
+    final together = fittedBars(shown: bars, measureStarts: starts, salience: score.salience, timeline: score.timeline, overflowing: off);
+    final asked = asks;
+    asks = 0;
+    final kept = FrameCuts();
+    for (final step in FitStep.values) {
+      bars = fittedBars(shown: bars, measureStarts: starts, salience: score.salience, timeline: score.timeline, overflowing: off, steps: {step}, cuts: kept);
+    }
+    expect([bars, asks, asked > 20], [together, asked, isTrue]);
+    // (A refill by itself, with nothing hidden before it, shows nothing.)
+    expect(scene.fitStep(stepped, wide, FitStep.refill, lanes: stepped.lanes, salience: score.salience, cuts: FrameCuts()).values.expand((s) => s), isEmpty);
     // Upright there is room for the opening's few: none goes.
     final tallFit = scene.curatedToFit(base, upright, partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
     for (var m = 0; m < 5; m++) {
@@ -505,4 +722,97 @@ void main() {
     }
     scene.dispose();
   });
+}
+
+/// Lanes for a script to run over: [parts] (id, name, staves) top to bottom.
+class _ScriptLanes extends LaneScriptHost {
+  _ScriptLanes(this.parts, this.beats) : curation = Curation([for (final (id, _, _) in parts) id]) {
+    _original = [...parts];
+  }
+  List<(String, String, int)> parts;
+  late final List<(String, String, int)> _original;
+  final split = <String>{}, autoCurated = <String>[];
+  bool auto = true, follows = true;
+
+  /// The bars each instrument plays in (none: it plays nothing of its own), what each step of
+  /// a fit is to change, and what was asked of them.
+  Map<String, List<bool>> plays = {};
+  Map<FitStep, Map<String, List<Region>>> fits = {};
+  final fitted = <String>[];
+
+  /// The recording: why it can't be heard, whether the project snaps, what is heard and matched
+  /// from it, and what was asked about it.
+  String? recording;
+  bool snapping = true;
+  Object? tape = 'tape';
+  List<SyncAnchor> matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
+  final said = <String>[];
+
+  @override
+  String? get unheard => recording;
+  @override
+  bool get snaps => snapping;
+  @override
+  Future<Object?> hear() async {
+    said.add('hear');
+    return tape;
+  }
+
+  @override
+  Future<List<SyncAnchor>> match(Object heard) async {
+    said.add('match $heard');
+    return matched;
+  }
+
+  @override
+  void setAnchors(List<SyncAnchor> anchors) => said.add('set ${anchors.length}');
+  @override
+  void snapAnchors(double within) => said.add('snap $within');
+
+  @override
+  bool get curates => follows;
+  @override
+  List<bool>? playing(String id) => plays[Curation.staffOfLane(id)?.$1 ?? id];
+  @override
+  Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
+    fitted.add('${step.name} ${ids.join(',')} $phrase');
+    return fits[step] ?? const {};
+  }
+
+  @override
+  final BeatGrid beats;
+  @override
+  final Curation curation;
+  @override
+  List<(String, double)> get marks => const [('A', 16)];
+  @override
+  List<ScriptLane> get lanes => [
+        for (final (id, name, staves) in parts)
+          if (split.contains(id))
+            for (var n = 1; n <= staves; n++) ScriptLane(id: Curation.staffLaneId(id, n), name: name, instrument: id, staff: n, staves: staves)
+          else
+            ScriptLane(id: id, name: name, staves: staves),
+      ];
+  @override
+  bool autoCurate(List<String> ids) {
+    if (auto) autoCurated.addAll(ids);
+    return auto;
+  }
+
+  @override
+  void setSplit(String instrument, bool on) {
+    on ? split.add(instrument) : split.remove(instrument);
+    curation.setSplit({for (final (id, _, staves) in parts) if (split.contains(id)) id: staves});
+  }
+
+  @override
+  void moveLanes(List<String> ids, {String? before}) {
+    final moving = {for (final id in ids) Curation.staffOfLane(id)?.$1 ?? id};
+    final rest = [for (final p in parts) if (!moving.contains(p.$1)) p];
+    final target = before == null ? null : Curation.staffOfLane(before)?.$1 ?? before;
+    parts = rest..insertAll(target == null ? rest.length : rest.indexWhere((p) => p.$1 == target), [for (final p in parts) if (moving.contains(p.$1)) p]);
+  }
+
+  @override
+  void restoreOrder() => parts = [..._original];
 }

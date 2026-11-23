@@ -166,16 +166,7 @@ class BarSalience {
 }
 
 /// The lanes of [partIds] as auto-curation fills them ([autoCurateMeasures]: where each part
-/// plays), then, wherever notation would run off the frame ([overflowing], asked of [others]'
-/// lanes kept as they are and these), cut back: in each [phrase] bars that overflow, the
-/// staff that matters least there ([salience]; a doubling, while what it doubles is shown,
-/// counts a quarter, and what plays every note of one hidden counts as much as it does) is
-/// hidden, and the frame asked again, until it fits, nothing more can go (one staff left), or
-/// [rounds] have been tried. Then, once it fits, each staff hidden is tried back (the one
-/// that matters most first, its phrase else bar by bar, [refills] tries at most), kept where
-/// the frame still holds it: cut
-/// while the segments around were fuller, there may be room for it now. A staff left for a
-/// single bar between bars it was hidden for goes too.
+/// plays), then cut back wherever notation would run off the frame ([fittedBars]).
 Map<String, List<Region>> fittedCuratedLanes({
   required Iterable<String> partIds,
   required Map<String, List<bool>> activeMeasures,
@@ -189,9 +180,8 @@ Map<String, List<Region>> fittedCuratedLanes({
   int refills = 96,
 }) {
   final bars = math.max(0, measureStarts.length - 1);
-  final ids = partIds.toList();
   final shown = {
-    for (final id in ids)
+    for (final id in partIds)
       id: () {
         final mask = List.filled(bars, false);
         for (final (first, end) in autoCurateMeasures(activeMeasures[id] ?? const [])) {
@@ -202,7 +192,99 @@ Map<String, List<Region>> fittedCuratedLanes({
         return mask;
       }(),
   };
-  final cut = {for (final id in ids) id: List.filled(bars, false)};
+  return _lanesOf(
+    fittedBars(
+        shown: shown, measureStarts: measureStarts, salience: salience, timeline: timeline, overflowing: overflowing, others: others, phrase: phrase, rounds: rounds, refills: refills),
+    measureStarts,
+  );
+}
+
+/// Lanes shown in the bars their masks say: a region for each run of bars.
+Map<String, List<Region>> _lanesOf(Map<String, List<bool>> shown, List<double> measureStarts) => {
+      for (final MapEntry(key: id, value: mask) in shown.entries)
+        id: [
+          for (final (first, end) in autoCurateMeasures(mask, bridge: 0)) Region(measureStarts[first], measureStarts[end]),
+        ],
+    };
+
+/// What fitting the frame is made of ([fittedBars]), in the order it is done.
+enum FitStep {
+  /// Where notation runs off the frame, the staff that matters least is hidden, a phrase at a
+  /// time, until it fits.
+  thin,
+
+  /// What was hidden is tried back, what matters most first, and kept where the frame holds it.
+  refill,
+
+  /// A staff left for a single bar between bars it was hidden for goes too.
+  lone,
+}
+
+/// What fitting has hidden ([fittedBars]): each part's bars, and each cut as it was made. One
+/// kept from a step to the next lets them be done apart (a script's `thin`, `refill`,
+/// `remove lone`) and come to what they do together.
+class FrameCuts {
+  final _bars = <String, List<bool>>{};
+  final _made = <({String id, List<int> bars, double weight})>[];
+
+  /// [id]'s bars hidden, a bar each of [shown]'s: one shown again since, by whatever did, is
+  /// no cut any more.
+  List<bool> _of(String id, List<bool> shown) =>
+      _bars[id] = [for (final (m, on) in shown.indexed) !on && (_bars[id]?.elementAtOrNull(m) ?? false)];
+
+  bool _cut(String id, int m) => _bars[id]?.elementAtOrNull(m) ?? false;
+
+  /// The lanes the frame was last asked about (and what else its answer goes by), with its
+  /// answer: asked the same again, as a step is after another where nothing changed between,
+  /// the piece isn't planned a second time.
+  ({Object? state, Map<String, List<Region>> lanes, List<({double start, double end})> off})? _asked;
+
+  static bool _same(Map<String, List<Region>> a, Map<String, List<Region>> b) {
+    if (a.length != b.length) return false;
+    for (final MapEntry(:key, :value) in a.entries) {
+      final other = b[key];
+      if (other == null || other.length != value.length) return false;
+      for (var i = 0; i < value.length; i++) {
+        if (value[i] != other[i]) return false;
+      }
+    }
+    return true;
+  }
+}
+
+/// The bars each part of [shown] is still shown in (a bar each, as [shown] has them: where it
+/// is shown now) once notation no longer runs off the frame ([overflowing], asked of [others]'
+/// lanes kept as they are and these), in three [steps]. [FitStep.thin]: in each [phrase] bars
+/// that overflow, the staff that matters least there ([salience]; a doubling, while what it
+/// doubles is shown, counts a quarter, and what plays every note of one hidden counts as much
+/// as it does) is hidden, and the frame asked again, until it fits, nothing more can go (one
+/// staff left), or [rounds] have been tried. [FitStep.refill]: once it fits, each staff hidden
+/// is tried back (the one that matters most first, its phrase else bar by bar, [refills] tries
+/// at most), kept where the frame still holds it: cut while the segments around were fuller,
+/// there may be room for it now. [FitStep.lone]: a staff left for a single bar between bars
+/// it was hidden for goes too. All three only ever hide: a bar not shown stays so. One step
+/// by itself goes by what those before it hid ([cuts], kept between them), and a refill shows
+/// those bars again. The frame is never asked twice running about the same lanes ([state]:
+/// what else its answer goes by, where that may change between steps), so the steps apart ask
+/// it as often as they do together.
+Map<String, List<bool>> fittedBars({
+  required Map<String, List<bool>> shown,
+  required List<double> measureStarts,
+  required BarSalience salience,
+  required ScoreTimeline timeline,
+  required List<({double start, double end})> Function(Map<String, List<Region>> lanes) overflowing,
+  Map<String, List<Region>> others = const {},
+  int phrase = 4,
+  int rounds = 32,
+  int refills = 96,
+  Set<FitStep> steps = const {FitStep.thin, FitStep.refill, FitStep.lone},
+  FrameCuts? cuts,
+  Object? state,
+}) {
+  final bars = math.max(0, measureStarts.length - 1);
+  final ids = shown.keys.toList(), memory = cuts ?? FrameCuts();
+  shown = {for (final id in ids) id: [for (var m = 0; m < bars; m++) shown[id]!.elementAtOrNull(m) ?? false]};
+  final cut = {for (final id in ids) id: memory._of(id, shown[id]!)};
   // The lanes kept as they are, bar by bar (shown at the bar's middle).
   final kept = {
     for (final MapEntry(:key, :value) in others.entries)
@@ -213,18 +295,21 @@ Map<String, List<Region>> fittedCuratedLanes({
   };
   bool isShown(String id, int m) => (shown[id] ?? kept[id])?.elementAtOrNull(m) ?? false;
 
-  Map<String, List<Region>> lanes() => {
-        for (final id in ids)
-          id: [
-            for (final (first, end) in autoCurateMeasures(shown[id]!, bridge: 0))
-              Region(measureStarts[first], measureStarts[end]),
-          ],
-      };
+  Map<String, List<Region>> lanes() => _lanesOf(shown, measureStarts);
+
+  /// When the lanes as they are now run off the frame.
+  List<({double start, double end})> off() {
+    final now = {...others, ...lanes()};
+    if (memory._asked case final last? when last.state == state && FrameCuts._same(last.lanes, now)) return last.off;
+    final answer = overflowing(now);
+    memory._asked = (state: state, lanes: now, off: answer);
+    return answer;
+  }
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
-    for (final x in ids) {
-      if (cut[x]![m] && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
+    for (final x in memory._bars.keys) {
+      if (memory._cut(x, m) && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
         s = math.max(s, salience.scores[x]![m]);
       }
     }
@@ -235,16 +320,17 @@ Map<String, List<Region>> fittedCuratedLanes({
   int barAt(double seconds) =>
       segmentAt(measureStarts.length, timeline.quarterAtSeconds(seconds), (i) => measureStarts[i]).clamp(0, math.max(0, bars - 1));
 
-  final cuts = <({String id, List<int> bars, double weight})>[];
-  var fits = bars == 0;
-  for (var round = 0; round < rounds && bars > 0; round++) {
-    final off = overflowing({...others, ...lanes()});
-    if (off.isEmpty) {
+  final made = memory._made;
+  // (Known once the thinning has seen it fit; else asked before a refill.)
+  bool? fits = bars == 0 ? true : null;
+  for (var round = 0; round < rounds && bars > 0 && steps.contains(FitStep.thin); round++) {
+    final over = off();
+    if (over.isEmpty) {
       fits = true;
       break;
     }
     final hit = <int>{};
-    for (final s in off) {
+    for (final s in over) {
       for (var t = s.start; t < s.end; t += 0.1) {
         hit.add(barAt(t));
       }
@@ -276,16 +362,14 @@ Map<String, List<Region>> fittedCuratedLanes({
         shown[least]![m] = false;
         cut[least]![m] = true;
       }
-      cuts.add((id: least!, bars: hidden, weight: lowest));
+      made.add((id: least!, bars: hidden, weight: lowest));
       changed = true;
     }
     if (!changed) break;
   }
-  if (!fits && cuts.isNotEmpty) fits = overflowing({...others, ...lanes()}).isEmpty;
-
   // Cut while the segments around were fuller: back, the heaviest first, where it still fits.
-  if (fits) {
-    cuts.sort((a, b) => b.weight.compareTo(a.weight));
+  if (steps.contains(FitStep.refill) && made.any((c) => cut.containsKey(c.id)) && (fits ??= off().isEmpty)) {
+    made.sort((a, b) => b.weight.compareTo(a.weight));
     var tries = 0;
     bool tryBack(String id, List<int> bars) {
       final back = [for (final m in bars) if (cut[id]![m]) m];
@@ -298,13 +382,14 @@ Map<String, List<Region>> fittedCuratedLanes({
       }
 
       mark(true);
-      if (overflowing({...others, ...lanes()}).isEmpty) return true;
+      if (off().isEmpty) return true;
       mark(false);
       return false;
     }
 
     // The whole phrase, else bar by bar.
-    for (final c in cuts) {
+    for (final c in made) {
+      if (!cut.containsKey(c.id)) continue; // another call's lane
       if (!tryBack(c.id, c.bars) && c.bars.length > 1) {
         for (final m in c.bars) {
           tryBack(c.id, [m]);
@@ -314,12 +399,12 @@ Map<String, List<Region>> fittedCuratedLanes({
   }
 
   // No staff left showing for one bar between bars it was cut from.
-  for (final id in ids) {
+  for (final id in steps.contains(FitStep.lone) ? ids : const <String>[]) {
     final mask = shown[id]!, gone = cut[id]!;
     for (var m = 0; m < bars; m++) {
       final alone = mask[m] && (m == 0 || !mask[m - 1]) && (m + 1 == bars || !mask[m + 1]);
       if (alone && ((m > 0 && gone[m - 1]) || (m + 1 < bars && gone[m + 1]))) mask[m] = false;
     }
   }
-  return lanes();
+  return shown;
 }

@@ -34,6 +34,7 @@ import 'export_dialog.dart';
 import 'file_names.dart';
 import 'home_screen.dart';
 import 'key_bindings.dart';
+import 'macros.dart';
 import 'l10n/l10n.dart';
 import 'lilypond.dart';
 import 'lilypond_dialog.dart';
@@ -263,6 +264,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
             plugins: plugins,
             child: KeyMapScope(
             keys: plugins.keysOver(settings.keys),
+            // The macros reach every window too: a toolbar's buttons for them, by their names and icons.
+            child: MacrosScope(
+            macros: settings.macros,
             child: _StillBoundary(
               key: _windowKey,
               child: Stack(fit: StackFit.expand, children: [
@@ -288,6 +292,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
                         ),
                 ),
               ]),
+            ),
             ),
             ),
           ),
@@ -815,6 +820,7 @@ class _AppWindowState extends State<AppWindow> implements PluginWindow {
           'delete': edit != null && edit.delete ? commands!.delete : null,
           'selectAll': edit != null && commands!.canSelectAll ? commands.selectAll : null,
           'findPhrase': open && !_typing.value && free && page.controller.hasNotes ? page._findPhrase : null,
+          'editMacros': open && free ? page._editMacros : null,
           'projectSettings': open ? page._projectSettings : null,
           'showPreview': open ? () => page._showPreview(!page._previewShown) : null,
           'showTimeline': open ? () => page._showTimeline(!page._timelineShown) : null,
@@ -1587,6 +1593,14 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     return true;
   }
 
+  /// Edit ▸ Macros…: the app's macros, put together from choices and tried on this project.
+  void _editMacros() => showMacrosDialog(context, settings, controller);
+
+  /// ⌃1–9: the macro at [index] of the list, where it can be run ([macroAction]).
+  void _runMacro(int index) {
+    if (index < settings.macros.length) macroAction(context, controller, settings.macros[index])?.call();
+  }
+
   void _projectSettings() =>
       showProjectSettingsDialog(context, settings, controller,
           editScore: _editScore, replaceScore: _replaceScore, downloadHub: widget.onDownloadHub);
@@ -1929,6 +1943,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         KeyCommand.trimEnd,
       ])
         if (keys[command] case final key?) key.activator: does[command.name]!,
+      for (final (i, key) in KeyCommand.runMacro.also.indexed) key.activator: () => _runMacro(i),
     };
   }
 

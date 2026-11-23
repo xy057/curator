@@ -74,6 +74,7 @@ class LaneEditing {
   void _reset() {
     _clear();
     _laneAnchor = null;
+    _script = '';
   }
 
   /// Nothing selected: no regions, no lanes.
@@ -422,10 +423,9 @@ class LaneEditing {
     _editor.clearSelection();
   }
 
-  /// What [autoCurate] fills [partIds] with (null without a score).
-  Map<String, List<Region>>? _curated(Iterable<String> partIds) {
-    final score = _editor._score, curation = _curation, scene = _editor._scene;
-    if (score == null || curation == null) return null;
+  /// The bars each lane's instrument plays in (a condensed pair's lane: either player's), and
+  /// the pairs condensed: what auto-curation fills the lanes from.
+  ({Map<String, List<bool>> active, List<List<String>> pairs}) _activity(LoadedScore score) {
     final active = {...score.metadata.activeMeasures};
     final pairs = <List<String>>[];
     for (final g in _editor.condensable) {
@@ -434,6 +434,14 @@ class LaneEditing {
       active[g.partIds.first] = [for (var m = 0; m < math.max(a.length, b.length); m++) a.elementAtOrNull(m) == true || b.elementAtOrNull(m) == true];
       pairs.add(g.partIds);
     }
+    return (active: active, pairs: pairs);
+  }
+
+  /// What [autoCurate] fills [partIds] with (null without a score).
+  Map<String, List<Region>>? _curated(Iterable<String> partIds) {
+    final score = _editor._score, curation = _curation, scene = _editor._scene;
+    if (score == null || curation == null) return null;
+    final (:active, :pairs) = _activity(score);
     if (scene == null) return Curation.autoCuratedLanes(partIds, active, score.timeline.measureStarts);
     return scene.curatedToFit(curation, _editor._videoLayout,
         partIds: partIds, activeMeasures: active, salience: score.salience.condensed(pairs));
@@ -474,4 +482,274 @@ class LaneEditing {
     _curation?.copyLane(from, to);
     _editor.clearSelection();
   }
+
+  // MARK: Script
+
+  /// Whether the Instruments tab shows the script in the lanes' place.
+  bool get scripting => _scripting;
+  bool _scripting = false;
+  set scripting(bool value) {
+    if (value == _scripting) return;
+    _scripting = value;
+    _editor._changed();
+  }
+
+  /// The project's script ([LaneScript]) as it was left: saved with it, and no edit (what it
+  /// did when it ran is).
+  String get script => _script;
+  String _script = '';
+  set script(String value) {
+    if (value == _script) return;
+    _script = value;
+    _editor.editRevision.value++;
+  }
+
+  /// What is wrong with [source] as a script, were it run now; nothing changes.
+  List<LaneScriptProblem> checkScript(String source) =>
+      _curation == null ? const [] : LaneScript.parse(source).check(_ScriptHost(_editor));
+
+  /// Runs [source], every statement, as one Undo step: what the tools would do, done by
+  /// writing. What is wrong with it is given back, and then nothing has changed; [changed]:
+  /// whether anything did.
+  ({List<LaneScriptProblem> problems, bool changed}) runScript(String source) {
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (_curation == null) return (problems: const [], changed: false);
+    final problems = script.check(host);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _ran(script, host);
+  }
+
+  /// [runScript] for a script that may wait ([LaneScript.waits]: it hears the recording, as
+  /// Align does): what it waits for is got first, with nothing changed and Align's progress
+  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Nothing where
+  /// an Align is under way, or the project was changed for another meanwhile.
+  Future<({List<LaneScriptProblem> problems, bool changed})> runScriptReady(String source) async {
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (!script.waits) return runScript(source);
+    const nothing = (problems: <LaneScriptProblem>[], changed: false);
+    if (_curation == null) return nothing;
+    final problems = script.check(host);
+    if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final sync = _editor._sync, track = _editor.track;
+    final got = await _editor.anchors._whileAligning((report) {
+      host._report = report;
+      return script.ready(host);
+    });
+    if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return nothing;
+    return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
+  }
+
+  /// Runs [script], checked, as one Undo step ([only]: those of its lines).
+  ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready, Set<int>? only}) {
+    List<LaneScriptProblem> problems;
+    final before = _editor._editState;
+    _editor.beginEdit();
+    try {
+      problems = script.run(host, ready: ready, only: only);
+      // What only running finds (lanes that can't be auto-curated): as it was, as Undo puts it.
+      if (problems.isNotEmpty) _editor._restore(before);
+    } finally {
+      _editor.endEdit();
+    }
+    _editor.clearSelection();
+    return (problems: problems, changed: _editor._editState != before);
+  }
+
+  // MARK: Macros
+
+  /// [macro] as a script for now: with the lanes selected, the beat nearest the playhead, the
+  /// bars from the first selected region's start to the last one's end, and the bars [asked]
+  /// for; and what keeps a step from being written.
+  ({String script, List<MacroProblem> problems, List<int> order}) _macroScript(LaneMacro macro, String? asked) {
+    final regions = _valid.keys;
+    return macro.script(MacroContext.of(
+      _ScriptHost(_editor),
+      selected: selectedPartIds,
+      playhead: _editor._sync!.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat),
+      span: regions.isEmpty ? null : (regions.map((r) => r.region.start).reduce(math.min), regions.map((r) => r.region.end).reduce(math.max)),
+      asked: asked,
+    ));
+  }
+
+  /// What is wrong with [macro] were it run now, by step; nothing changes.
+  List<MacroProblem> checkMacro(LaneMacro macro, {String? asked}) {
+    if (_curation == null || _editor._sync == null) return const [];
+    final (:script, :problems, :order) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? problems : LaneMacro.problemsOf(checkScript(script), order);
+  }
+
+  /// Runs [macro] as the script it is for now ([runScript]: one Undo step, or nothing at all),
+  /// [asked] the bars it asks for. The lanes it was run on stay selected, for the next. (One
+  /// with a step that waits is for [runMacroReady]: here that step fails, and nothing is done.)
+  ({List<MacroProblem> problems, bool changed}) runMacro(LaneMacro macro, {String? asked}) {
+    if (_curation == null || _editor._sync == null) return (problems: const [], changed: false);
+    final lanes = selectedPartIds;
+    final (:script, :problems, :order) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(runScript(script), order, lanes);
+  }
+
+  /// [runMacro] for a macro that may wait (a step hears the recording), as its graph says
+  /// ([LaneMacro.stages]): the steps that neither wait nor come after one that does are done
+  /// at once, one Undo step, before this is waited for; what the others wait for is got
+  /// meanwhile, with nothing changed and Align's progress showing ([SyncEditing.aligning]), and
+  /// then they are done, a step of their own (as Align's anchors are). The whole of it is
+  /// checked before anything is done; what only the hearing finds (a recording that can't be
+  /// read, no score heard in it) leaves what was done at once done. Nothing more where an
+  /// Align is under way, or the recording or the project is another by then.
+  Future<({List<MacroProblem> problems, bool changed})> runMacroReady(LaneMacro macro, {String? asked}) async {
+    const nothing = (problems: <MacroProblem>[], changed: false);
+    if (_curation == null || _editor._sync == null) return nothing;
+    final lanes = selectedPartIds;
+    final (script: source, :problems, :order) = _macroScript(macro, asked);
+    if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (!script.waits) return _macroRan(runScript(source), order, lanes);
+    final wrong = script.check(host);
+    if (wrong.isNotEmpty) return (problems: LaneMacro.problemsOf(wrong, order), changed: false);
+    // A line is its step's place in the order they are done in.
+    final (:now, :later) = macro.stages;
+    Set<int> lines(List<int> steps) => {for (final i in steps) order.indexOf(i) + 1};
+    var changed = false;
+    if (now.isNotEmpty) {
+      final ran = _macroRan(_ran(script, host, only: lines(now)), order, lanes);
+      if (ran.problems.isNotEmpty) return ran;
+      changed = ran.changed;
+    }
+    final sync = _editor._sync, track = _editor.track;
+    final got = await _editor.anchors._whileAligning((report) {
+      host._report = report;
+      return script.ready(host);
+    });
+    if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return (problems: const <MacroProblem>[], changed: changed);
+    if (got.problems.isNotEmpty) return (problems: LaneMacro.problemsOf(got.problems, order), changed: changed);
+    final ran = _macroRan(_ran(script, host, ready: got.ready, only: lines(later)), order, lanes);
+    return (problems: ran.problems, changed: changed || ran.changed);
+  }
+
+  ({List<MacroProblem> problems, bool changed}) _macroRan(({List<LaneScriptProblem> problems, bool changed}) ran, List<int> order, Set<String> lanes) {
+    if (ran.problems.isEmpty && lanes.isNotEmpty) _selectLanes([for (final row in _editor.laneRows) if (lanes.contains(row.id)) row.id]);
+    return (problems: LaneMacro.problemsOf(ran.problems, order), changed: ran.changed);
+  }
+
+  /// The lanes as they are, as a script that makes them again ([LaneScript.write]).
+  String get asScript => _curation == null ? '' : LaneScript.write(_ScriptHost(_editor));
+
+  /// The lanes' names, top to bottom, each once: what a script calls them.
+  List<String> get scriptNames => {for (final lane in _ScriptHost(_editor).lanes) lane.name}.toList();
+}
+
+/// The project a script runs over ([LaneScriptHost]): the lanes as the Instruments tab has
+/// them, by the names it shows.
+class _ScriptHost extends LaneScriptHost {
+  _ScriptHost(this._editor);
+  final EditorController _editor;
+
+  @override
+  List<ScriptLane> get lanes {
+    final instruments = {for (final p in _editor.laneParts) p.id: p};
+    return [
+      for (final row in _editor.laneRows)
+        if (_editor.instrumentOfLane(row.id) case final instrument)
+          ScriptLane(
+            id: row.id,
+            name: _editor.laneName(instruments[instrument] ?? row),
+            instrument: instrument,
+            staff: Curation.staffOfLane(row.id)?.$2,
+            staves: _editor.lanes.staffCountOf(instrument),
+          ),
+    ];
+  }
+
+  @override
+  BeatGrid get beats => _editor.beats;
+  @override
+  Curation get curation => _editor._curation!;
+
+  @override
+  List<(String, double)> get marks {
+    final score = _editor._score!, starts = score.timeline.measureStarts;
+    return [
+      for (final text in score.texts)
+        if (text.kind == ScoreTextKind.rehearsal && text.measure >= 0 && text.measure < starts.length - 1) (score.currentText(text), starts[text.measure]),
+    ];
+  }
+
+  @override
+  bool autoCurate(List<String> ids) {
+    if (!_editor.canAutoCurate) return false;
+    _editor.lanes.autoCurate(ids);
+    return true;
+  }
+
+  // Auto-Curate in its halves (`follow`, `fit`) and the second's steps (`thin`, `refill`, `remove lone`), from what
+  // [LaneEditing.autoCurate] is made of.
+
+  late final _activity = _editor.lanes._activity(_editor._score!);
+
+  @override
+  bool get curates => _editor.canAutoCurate;
+
+  /// (A blank lane, a PDF score's, plays nothing; a staff's lane plays what its instrument does.)
+  @override
+  List<bool>? playing(String id) => _editor.isBlankLane(id) ? null : _activity.active[_editor.instrumentOfLane(id)] ?? const [];
+
+  /// What this run's fitting has hidden, from a step to the next.
+  final _cuts = FrameCuts();
+
+  /// (An instrument is fitted as its lanes asked for have it, a staff's lane as its instrument, as Auto-Curate does.)
+  @override
+  Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
+    final scene = _editor._scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
+    if (scene == null || lanes.isEmpty) return const {};
+    final asked = <String, List<Region>>{};
+    for (final id in lanes) {
+      asked.update(_editor.instrumentOfLane(id), (regions) => curation.lane(id).fold(regions, Curation.painted), ifAbsent: () => curation.lane(id));
+    }
+    final changed = scene.fitStep(curation, _editor._videoLayout, step,
+        lanes: asked, salience: _editor._score!.salience.condensed(_activity.pairs), cuts: _cuts, phrase: phrase);
+    return {for (final id in lanes) id: changed[_editor.instrumentOfLane(id)] ?? const []};
+  }
+
+  // Align in its steps (`hear`, `match`, `snap anchors`), from what [SyncEditing.align] is made of.
+
+  /// Told how far the hearing has got, while a script is made ready.
+  void Function(double done)? _report;
+
+  @override
+  String? get unheard => _editor.track == null
+      ? 'There is no recording.'
+      : _editor.usesMidiTempo
+          ? 'The anchors follow a MIDI file’s tempo.'
+          : !_editor.hasNotes
+              ? 'This score has no notes to hear.'
+              : !_editor.editsSync
+                  ? 'None of the recordings is the one synced.'
+                  : null;
+
+  @override
+  bool get snaps => _editor.anchors.snapToOnsets;
+
+  @override
+  Future<Object?> hear() => _editor.anchors._hear(_report ?? (_) {});
+
+  @override
+  Future<List<SyncAnchor>> match(Object heard) => _editor.anchors._match(heard as ({Float32List notes, List<ScorePass> passes}));
+
+  @override
+  void setAnchors(List<SyncAnchor> anchors) => _editor.anchors.setAll(anchors);
+
+  @override
+  void snapAnchors(double within) => _editor.anchors.snapAll(within);
+
+  @override
+  void setSplit(String instrument, bool on) => _editor.setSplit(instrument, on: on);
+
+  @override
+  void moveLanes(List<String> ids, {String? before}) {
+    final moving = {for (final id in ids) _editor.instrumentOfLane(id)};
+    final others = [for (final p in _editor.laneParts) if (!moving.contains(p.id)) p.id];
+    _editor.moveLanes(moving, before == null ? others.length : others.indexOf(_editor.instrumentOfLane(before)));
+  }
+
+  @override
+  void restoreOrder() => _editor.restoreScoreOrder();
 }

@@ -7,6 +7,7 @@ import 'custom_bar.dart';
 import 'editor_controller.dart';
 import 'instruments_toolbar.dart';
 import 'key_bindings.dart';
+import 'macros.dart';
 import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 import 'video_panel.dart';
@@ -113,7 +114,7 @@ class PanelItems extends BarItems {
   /// Whether [item] is one this bar makes: a control of the timeline's or, on the Audio tab,
   /// the sync's own Tap and Warp in the commands' place.
   bool _own(BarItem item) => item.command == null
-      ? !item.repeats
+      ? !item.repeats && item.macro == null
       : kind == BarKind.audio && (item == BarItem.tapAnchors || item == BarItem.warp);
 
   static const _buttons = {
@@ -190,6 +191,13 @@ class PanelItems extends BarItems {
       BarItem.transition => c.lanes.selected.isEmpty ? null : TransitionMenu(controller: c),
       BarItem.staves => c.lanes.selected.isEmpty || c.lanes.selectedStaffCount < 2 ? null : StavesMenu(controller: c),
       BarItem.tidy => TidyMenu(controller: c, lanes: c.lanes.selectedPartIds.length),
+      BarItem.script => ToolbarButton(
+          glyph: BarItemIcon(item),
+          tooltip: 'Script\nCurate by writing'.tr,
+          selected: c.lanes.scripting,
+          onPressed: () => c.lanes.scripting = !c.lanes.scripting,
+        ),
+      BarItem.macros => MacrosMenu(controller: c, onEdit: does(context, 'editMacros')),
       BarItem.crossfade => c.takes.length < 2 ? null : CrossfadeMenu(controller: c),
       // (Filled, with its name, while the recording has no anchors.)
       BarItem.align => _button(context, item) == null ? null : Padding(padding: const EdgeInsets.only(right: 2), child: AlignButton(controller: c)),
@@ -229,6 +237,7 @@ class PanelItems extends BarItems {
       final button = _button(context, item);
       return [if (button != null) row(context, item, button.action)];
     }
+    if (item == BarItem.script) return [row(context, item, () => controller.lanes.scripting = !controller.lanes.scripting, selected: controller.lanes.scripting)];
     if (this.item(context, item) == null) return const [];
     // Tap is a choice as the commands are; the rest are the controls themselves.
     return item == BarItem.tapAnchors ? super.entries(context, item) : [control(item)];

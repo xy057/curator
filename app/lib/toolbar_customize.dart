@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'app_colors.dart';
 import 'custom_bar.dart';
 import 'l10n/l10n.dart';
+import 'macros.dart';
 import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 
@@ -72,7 +73,11 @@ class ToolbarCustomizer extends StatelessWidget {
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Expanded(
                       child: SingleChildScrollView(
-                        child: Wrap(spacing: 8, runSpacing: 8, children: [for (final item in layout.palette) _Tile(item)]),
+                        child: Wrap(spacing: 8, runSpacing: 8, children: [
+                          // (A macro's button is offered while there is such a macro.)
+                          for (final item in layout.palette)
+                            if (item.macro == null || item.macro! < MacrosScope.of(context).length) _Tile(item),
+                        ]),
                       ),
                     ),
                     const SizedBox(width: 28),
@@ -131,7 +136,7 @@ class _TileState extends State<_Tile> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 20)),
             const SizedBox(height: 7),
-            Text(item.title,
+            Text(barItemTitle(context, item),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -235,7 +240,7 @@ class _MenuRow extends StatelessWidget {
             : Row(children: [
                 IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 16)),
                 const SizedBox(width: 8),
-                Expanded(child: Text(item.title, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: colors.text))),
+                Expanded(child: Text(barItemTitle(context, item), overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: colors.text))),
               ]),
       ),
     );

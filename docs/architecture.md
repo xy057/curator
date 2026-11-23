@@ -18,6 +18,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
+| `lane_script.dart`, `lane_script_api.dart` | The lanes written (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
+| `lane_macro.dart` | Curating without writing (see *The lanes can be written*): a macro (`LaneMacro`) is steps put together from choices (`MacroStep`: a `MacroAction`, its `MacroLanes`, its `MacroRange`, a number, where its node is) wired into a graph (`MacroWire`, `LaneMacro.wires`: what is done after what; `order`, `stages`, `grid`), written as a script for the moment (`LaneMacro.script` over a `MacroContext`: the lanes selected, the playhead, bars asked for), what keeps a step from being written (`MacroProblem`, `MacroFault`), and the app's list of them as JSON |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
@@ -132,6 +134,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score, and for a score with notes Show MIDI View / Show Score); MIDI, only while a MIDI project shows, or a score in its MIDI view (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
+| `lane_script_view.dart` | The Instruments tab's Script (`LaneScriptView`, in the lanes' place while `LaneEditing.scripting`): the project's script in a `CodeView`, coloured and prompted from the language's own list (`laneScriptCode`, `LaneScriptPrompts`), Run, From Lanes, what is wrong listed under it, the guide beside it |
+| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, the chosen one's icon, name and pin, its steps as nodes on a canvas, wired by dragging, `_Graph`; Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`, `macroAction`: asks for its bars first when it asks, says what is wrong by step), and what a toolbar draws a macro's own button from (`MacrosScope`, `macroIcon`) |
 | `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -280,7 +284,7 @@ a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), rea
 shortcuts would stop (focus falls to the route's scope, above them).
 
 **Align sets the anchors by ear** (the Audio tab's Align, first of the sync's tools: a filled button
-with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
+with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there, its three steps a script's and a macro's too: see *The lanes can be written*; at once when a recording is added to
 a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is heard by
 Spotify's Basic Pitch (the ICASSP 2022 model, Apache 2.0; `app/assets/basic_pitch`, its weights written
 from the release's ONNX export by Tools/make_basic_pitch_weights.py): about 86 times a second, how likely
@@ -874,6 +878,20 @@ part that plays is shown. Once it fits, each cut is tried back (most salient fir
 bar by bar), since it may have been made while the segment around was fuller; a staff left alone
 for one bar between cuts goes. Each try plans the piece (a millisecond or two for the demo).
 Condensed pairs are their first player's lane, louder of the two. Lanes not asked for stay.
+Its two halves are a script's statements too, so it can be put together as a macro and changed
+there (see *The lanes can be written*): `follow` is where each part plays, `fit` the cutting back
+(`fittedBars`, the cutting itself, from whatever is shown: `fittedCuratedLanes` gives it what
+plays). The cutting is three steps (`FitStep`: `thin`, hiding what matters least until it fits;
+`refill`, trying each cut back; `lone`, the single bars left), done together by Auto-Curate and
+one at a time by a script (`CuratedScene.fitStep`: from what the lanes show now, saying what
+the step hides or shows again), what was hidden kept between them (`FrameCuts`: each part's bars
+cut and the cuts as they were made, the heaviest tried back first; a bar shown again since by
+anything else is no cut any more). The steps apart cost what they do together: nearly all of it
+is planning the piece for each ask of the frame (about a hundred for the demo), and the frame is
+never asked twice running about the same lanes (`FrameCuts` keeps its last answer, with what
+else it goes by, `CuratedScene._planStateFor`), so the refill doesn't plan again what the
+thinning ended on; a test counts the asks. What a script adds is its own reading and three
+writes of the lanes, a part in a hundred.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own:
 its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at
@@ -922,6 +940,145 @@ pasting too): an edit of a staff's lane makes the instrument's again from its st
 added between it and its neighbours and, at an outer staff shown, to the instrument's
 (`SpacingPlan`'s `staffRoom`); joining drops it. Which instruments are split is
 `EditState.split`, saved in `curation` (`split`, the part ids, from its version 2).
+
+**The lanes can be written.** The Instruments tab's Script (a code button for its bar, `BarItem.script`,
+not there until it is added: Customize Toolbar…;
+`LaneEditing.scripting`: not saved) shows a script in the lanes' place, in a language of Curator's
+own (docs/lane-script.md), a statement a line: `show "Flute 1", "Oboe*" 1-8 transition in 0.5`,
+`hide`, `only`, `clear`, `auto`, `bridge rests`, `remove short`, `copy … to`, `split`, `join`, `move`,
+`restore order`, `transition`, `let`. It is no second way of curating: each statement is one of the
+tab's own edits (`Curation.painted`, `fillGaps`, `removeShort`, `copyLane`, `LaneEditing.autoCurate`,
+`EditorController.setSplit`, `moveLanes`), so what a script does is what the tools do. The engine
+reads and runs it (`LaneScript`) over a `LaneScriptHost`, the controller's being the lanes as the tab
+has them (`laneRows`, by the names it shows; a condensed pair's is its lane's); a line is parsed
+into what it does, and names and bars are found as it runs, so a `split` changes what the lines
+after it can name. A lane is named in quotes, always: an instrument's name holds numbers and words
+of the language ("Flute 1", "Clarinet in B♭"). Bars are the ruler's (`BeatGrid.parse`, the project's
+first bar number); `1-8` runs through bar 8, `from` and `until` take places exactly.
+Run (⌘R, `LaneEditing.runScript`) is one Undo step, and all or nothing: the script is checked
+first with nothing changed (`LaneScript.check`, which keeps the lanes a split or a move would leave
+only in its head), and what only running finds (lanes that can't be auto-curated) puts the document
+back as Undo would (`_restore`) inside the gesture, so no step is recorded. The same check runs as
+the script is typed, listing what is wrong under it by line. From Lanes writes the lanes as they are
+(`LaneScript.write`: the splits, the project's transition, each lane's regions with their own
+transitions and staves left out; whole bars as `1-8`, a place off the beats in quarters, `@12.5`; a
+name several lanes have by its number, `"Violin"[2]`; not the lanes' order), which run on any lanes
+makes them again. The script is the project's (`ProjectState.script`, the optional `script` module)
+but no edit: typing it marks the project changed (`editRevision`) and records no Undo step. A page
+gets none. The language is listed once (`LaneScriptApi.statements`, `keywords`): the colouring, what
+is offered as it is typed, Help's reference and docs/lane-script.md (the guide,
+`assets/help/script.md`, then the statements; `make script-docs`, which a test holds it to) come
+from it. The code is typed in the project's window, where the editor's keys are letters: while the
+keyboard is in it (`TypingArea`, as `textFieldFocused` tells) they are its own, and its scrolls and
+swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is a document wrapped
+in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
+
+A macro is the same without writing (Edit ▸ Macros…, `macros.dart`): a few steps, each put together
+from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: twenty-one of
+the script's statements), to which lanes (`MacroLanes`: all, those selected, the others, those
+named), over which bars (`MacroRange`: the piece, bars written, the selected regions', from or until
+the playhead, the playhead's bar, asked for as it runs), and a number of bars or seconds. It has no
+variables, conditions or loops, and needs none checked: a macro is never run itself. It is written
+as a script for the moment (`LaneMacro.script`, a line a step, over a `MacroContext`: the lanes
+selected by the names a script calls them, `LaneScript.references`; the beat nearest the playhead,
+`LaneScript.place`) and that script is run (`LaneEditing.runMacro`, through `runScript`), so a macro
+does what the tools do, is checked whole before anything changes, and is one Undo step. What is
+wrong is said by step (a line is its step's place in the order they are done in, which the script
+comes with: `LaneMacro.problemsOf`): what a step needs and isn't there (no lane
+selected: `MacroFault`, said by the app in the user's language) before any script is made, then
+what the script finds (its own words). The lanes a macro was run on stay selected, for the next.
+Macros are the app's, not a project's (`AppSettings.macros`, JSON, what isn't a step this
+version knows left out), since a workflow is worth keeping for the next
+score; so a step names lanes by pattern (`Flute*`), never by id. The first nine are run with ⌃1
+to ⌃9 (`KeyCommand.runMacro`, fixed), and each of those can have a
+button of its own on the editor's toolbar, the Instruments tab's or the Audio tab's (`BarItem.macro1` to `macro9`,
+`BarItem.macro`: a toolbar's items are an enum saved by name, so a button is its macro's place in
+the list, as its key is), under the macro's icon (`LaneMacro.icon`, one of the app's by its name:
+`macroIcon`, chosen from `macroIcons`) with its name and key as the tip; it is there only while
+there is such a macro, offered in Customize Toolbar… likewise, and greyed out while what its steps
+are done to isn't showing (`macroAction`: steps for lanes run in the Instruments tab, steps for the
+recording's anchors in the Audio tab, a macro of both in either; its key and its row of the menu
+go by the same). A toolbar draws them wherever it is from `MacrosScope` (over the window,
+as `KeyMapScope` is: `BarItemIcon`, `barItemTitle`), so the controller keeps no list of them. The
+pin beside a macro's name puts its button on the Instruments bar, the Audio bar for one that is
+all the recording's (`ToolbarLayout.added`: before
+the bar's end, a rule setting the macros apart) or takes it off every toolbar (`without`), and as
+the list changes in the dialog the buttons follow their macros (`macrosMoved`: one moved up takes
+its button with it, one deleted takes it away). A menu of all of them is an item too
+(`BarItem.macros`), and like Script's is on no toolbar until it is added: a toolbar comes with the
+tools everyone uses. One that asks for bars asks in a dialog that takes only bars the macro can be
+run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is changed, and its Run
+tries the macro on the project under it. Its examples are `LaneMacro.examples`, named in the
+user's language when one is added.
+
+A macro's steps are a graph, and the dialog shows it as one: each step a node on a canvas
+(`_Graph` in `macros.dart`: `_Node`, its head the step's number, what it does and its ×, dragged
+by it; its choices under), a wire from a node's right to another's left saying the second is done
+after the first (`MacroWire`, `LaneMacro.wires`; `_WirePainter`'s curves, the dot at a wire's
+middle taking it away, `_WireCut`). A wire is drawn by dragging from a node's right port onto
+another node, and one that would close a ring is not taken (`canWire`). A macro with none kept is
+a chain, each step after the one before (`wired` null: every macro from before the graph, and the
+examples), and stays one as steps are changed; adding, wiring or cutting keeps the wires
+themselves (`withStep`, after the node selected; `withWire`, `withoutWire`; `withoutStep` wires
+what led into the step taken away onto what it led to). A node is where it was dragged to
+(`MacroStep.at`) or where the graph's own layout puts it (`grid`: a column for how deep it comes
+after others, rows as numbered). The canvas pans by scrolling or dragging its ground and has no
+zoom; the dialog is wide for it (`AppDialog.maxWidth`).
+
+The wires are what lets a macro go on without waiting. Its script is written in an order that
+honours every wire, the lower number first where none says (`order`), and a macro with nothing to
+wait for is run as before, at once and as one Undo step. One with a step that hears the recording
+is run in two lots (`stages`, `LaneEditing.runMacroReady`): the steps that neither wait nor are
+wired after one that does are done at once, their own Undo step, while the recording is being
+heard (`LaneScript.run`'s `only`: the lines to do, the rest left for later; the whole is checked
+first), and the others when it has been, a second step, as Align's anchors are. So lanes wired
+apart from the hearing are curated while it goes on, and wired after it they wait for it. `match`
+goes by what a `hear` wired before it heard, so a Set Anchors As Heard with none says so before
+anything runs (`MacroFault.heard`). What only the hearing finds (a recording that can't be read)
+leaves the first lot done. A test runs both examples in one macro, unwired: the lanes are
+curated while Align's progress is still showing, the anchors come after, and Undo takes them
+back apart.
+
+The first of them is Auto-Curate itself, a step for each thing it does: Show Where Playing
+(`follow all bridge 1`), then fitting the frame in its three steps, Hide Least Important
+(`thin all phrase 4`), Show Again Where It Fits (`refill all`) and Remove Lone Bars
+(`remove lone in all`). They are what the button does, taken apart, and leave the same lanes:
+`follow` makes a lane where its part plays (`LaneScriptHost.playing`: the bars its instrument
+sounds in, a condensed pair's both players'; null for a lane that follows no part, a PDF score's
+blank one, which is left as it is), rests of so many bars bridged (`autoCurateMeasures`), the
+whole lane or only the bars given; each of the three asks the host for one step of the fitting
+(`LaneScriptHost.fit` with a `FitStep`: the controller's asks `CuratedScene.fitStep` for the
+video's frame with the score's salience, an instrument as its lanes asked for show it, and
+gives each lane its instrument's stretches), which the script takes off the lanes or, a
+refill's, draws on. What the thinning hid is the host's to remember (`_ScriptHost._cuts`, a
+`FrameCuts`), and a host is a run's: `refill` and `remove lone` go by what was thinned earlier
+in the same script, and do nothing without. `fit` is the three in one statement (Fit to Frame,
+one step of a macro), as `auto` is `follow` and `fit`. Bridging is `follow`'s and not a step of
+its own (`bridge rests` would fill a blank lane's gaps too); where Auto-Curate isn't offered
+(`canAutoCurate`: a PDF score, unless the setting allows) each of them says so (`curates`). A
+test runs the macro, and `follow` with `fit`, against the button (every lane, one lane,
+condensed pairs, a smaller frame, a piano's staves in lanes of their own, one of them with the
+flute), and the engine's holds the three steps, each with something to do, to `curatedToFit`.
+
+The second is the Audio tab's Align, the same way: Hear the Recording (`hear`), Set Anchors As
+Heard (`match`) and Snap Anchors to Notes (`snap anchors within 0.05`), which are what
+`SyncEditing.align` is made of (`_hear`: the recording's notes and the repeats it is played
+through; `_match`: the anchors, on an isolate; `_snapped`), so they leave its anchors. Hearing
+takes a while, and a script runs at once or not at all, so a script that hears (`LaneScript.waits`)
+is made ready first (`LaneScript.ready`: the host's `hear` and `match`, once whatever asks, with
+nothing changed; what can't be had is a problem at its line) and then run with what that got
+(`ScriptReady`), `match` putting the anchors in place and `snap anchors` moving them as it does
+(`LaneScriptHost.setAnchors`, `snapAnchors`). The controller does both in one call
+(`LaneEditing.runScriptReady`, `runMacroReady`, which the Script view and every way of running a
+macro use; `runScript` itself never waits), under Align's own progress and guard
+(`SyncEditing._whileAligning`: one at a time, `aligning` for the Audio bar's button), and runs
+nothing where the recording or the project was changed for another meanwhile. `align` is the
+three in one, snapping where the Audio tab's Snap to Notes is on, as the button does; a macro's
+Snap step is written only then too (`MacroContext.snaps`: a comment in its line's place keeps the
+steps' numbers), which is how the example stays the button whichever way the project is set. A
+step for the recording names no lanes (`MacroAction.onLanes`). A test runs the macro and `align`
+against the button, snapping and not, on a recording made for it (`AudioTrack.forTesting`'s
+`notes`: what it is heard as).
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -2180,10 +2337,10 @@ download (GitHub only, into Downloads).
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
 The suite is kept to 25 tests at most, `make smoke`'s among them: one per area, on its main path, what else
 there is of the area folded into it as sections. The engine's: the engraving (parts, scroll map, phrase search,
-video frame), curation (regions, auto-curate), tapping, takes and tempo maps, Align, the score editor, PDF import,
+video frame), curation (regions, auto-curate, the script language, macros as scripts), tapping, takes and tempo maps, Align, the score editor, PDF import,
 LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
 updater's URLs, the app's folders and downloads, web export (with a page's plugins and what the player answers them), the app's screens, the accessibility tree, what is
-kept in step (the translations, docs/extension-api.md, docs/plugin-api.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
+kept in step (the translations, docs/extension-api.md, docs/plugin-api.md, docs/lane-script.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
 extensions' digests, remote AI's client, the score editor, a LilyPond project, the shortcuts' keys. A new check
 goes into its area's test; a new test only for an area none covers, within the 25. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
@@ -2271,6 +2428,14 @@ on Windows wherever the registry says that folder now is): it never replaces the
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered
   without it and asks for it there (as `ensureLilyPond` does). Local AI is never hidden by Hide AI
   features, which hides remote AI only.
+- **A statement of the script**: a `ScriptStatement` in `LaneScriptApi.statements` (its syntax, what
+  it does, an example that reads), its words in `keywords`, what it does in `_Parser.statement`
+  (`lane_script.dart`) as one of the tab's own edits, never a new one; then `make script-docs`.
+- **A step of a macro**: a `MacroAction` (whether it takes bars, a number of what, the number it
+  comes with, and whether it is done to lanes), the line it
+  writes in `LaneMacro._line` (a statement the script has: a macro does nothing a script can't), its
+  name in `macroActionLabel` (`macros.dart`). What a step can be done to or over is a `MacroLanes`
+  or a `MacroRange`, said to the script by `MacroContext`.
 - **A flag**: a fix for how other programs write their files, on by default (Centered lyrics and
   Dynamics between staves, house styles, are off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),

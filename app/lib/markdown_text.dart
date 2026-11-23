@@ -49,15 +49,16 @@ final _item = RegExp(r'^(\s*)([-*+]|\d{1,9}[.)])\s+(\S.*)$');
 final _task = RegExp(r'^\[([ xX])\]\s+');
 final _quote = RegExp(r'^ {0,3}>\s?(.*)$');
 
-/// [source] as blocks, in order.
-List<MdBlock> parseMarkdown(String source) {
+/// [source] as blocks, in order. [flow]: a line break inside a paragraph is a space, as a
+/// document wrapped in its file has them (a guide), not a break as a description has.
+List<MdBlock> parseMarkdown(String source, {bool flow = false}) {
   final blocks = <MdBlock>[];
   // The paragraph, list item or quote being read: its lines until a blank one or another block.
   MdKind? open;
   var level = 0, marker = '';
   final lines = <String>[];
   void close() {
-    if (open case final kind?) blocks.add(MdBlock(kind, level: level, marker: marker, runs: parseInline(lines.join('\n'))));
+    if (open case final kind?) blocks.add(MdBlock(kind, level: level, marker: marker, runs: parseInline(lines.join(flow ? ' ' : '\n'))));
     open = null;
     lines.clear();
   }
@@ -186,8 +187,11 @@ List<MdRun> parseInline(String text, {bool bold = false, bool italic = false, bo
 
 /// [source], Markdown, as the app's text. A link calls [onLink] when clicked.
 class MarkdownText extends StatefulWidget {
-  const MarkdownText(this.source, {super.key, this.onLink});
+  const MarkdownText(this.source, {super.key, this.onLink, this.flow = false});
   final String source;
+
+  /// Whether a paragraph's lines run on ([parseMarkdown]).
+  final bool flow;
   final void Function(Uri link)? onLink;
 
   @override
@@ -209,7 +213,7 @@ class _MarkdownTextState extends State<MarkdownText> {
   @override
   void didUpdateWidget(MarkdownText old) {
     super.didUpdateWidget(old);
-    if (old.source != widget.source) _read();
+    if (old.source != widget.source || old.flow != widget.flow) _read();
   }
 
   @override
@@ -227,7 +231,7 @@ class _MarkdownTextState extends State<MarkdownText> {
 
   void _read() {
     _forget();
-    _blocks = parseMarkdown(widget.source);
+    _blocks = parseMarkdown(widget.source, flow: widget.flow);
     for (final run in _blocks.expand((b) => b.runs)) {
       if (run.link case final link?) _taps[run] = TapGestureRecognizer()..onTap = () => widget.onLink?.call(link);
     }

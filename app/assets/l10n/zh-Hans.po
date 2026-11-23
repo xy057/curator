@@ -139,7 +139,7 @@ msgstr "Attacca 设置…"
 msgid "Frame"
 msgstr "画面"
 
-#: lib/web_player/player.dart
+#: lib/macros.dart lib/web_player/player.dart
 msgid "Hide"
 msgstr "隐藏"
 
@@ -193,7 +193,7 @@ msgstr "发布网页"
 msgid "Recordings"
 msgstr "录音"
 
-#: lib/web_player/player.dart
+#: lib/macros.dart lib/web_player/player.dart
 msgid "Show"
 msgstr "显示"
 
@@ -246,7 +246,7 @@ msgstr "强调色"
 msgid "Accidentals"
 msgstr "变音记号"
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/macros.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr "添加"
 
@@ -306,7 +306,7 @@ msgstr "高级"
 msgid "Advanced Engraving"
 msgstr "高级刻谱"
 
-#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/macros.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "对齐"
 
@@ -441,7 +441,7 @@ msgstr "音频或视频"
 msgid "Auto"
 msgstr "自动"
 
-#: lib/panel_bar.dart
+#: lib/macros.dart lib/panel_bar.dart
 msgid "Auto-curate"
 msgstr "自动编排"
 
@@ -555,7 +555,7 @@ msgstr "填补不超过 {bars}的休止"
 msgid "c if a < b, else d"
 msgstr "若 a < b 则为 c，否则为 d"
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr "取消"
 
@@ -633,7 +633,7 @@ msgstr "和弦记号"
 msgid "Chords"
 msgstr "和弦"
 
-#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
+#: lib/home_screen.dart lib/macros.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr "清除"
 
@@ -877,7 +877,7 @@ msgstr "虚线长度"
 msgid "Default"
 msgstr "默认"
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/player_map_view.dart lib/script_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/macros.dart lib/player_map_view.dart lib/script_editor.dart
 msgid "Delete"
 msgstr "删除"
 
@@ -896,7 +896,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1237,7 +1237,7 @@ msgstr "二分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高度（谱间距）"
 
-#: lib/app_menus.dart lib/script_editor.dart
+#: lib/app_menus.dart lib/lane_script_view.dart lib/script_editor.dart
 msgid "Help"
 msgstr "帮助"
 
@@ -1436,9 +1436,11 @@ msgstr "缺少“:”。"
 msgid "Mixed"
 msgstr "混合"
 
+#: lib/macros.dart
 msgid "Move to Bottom"
 msgstr "移到底部"
 
+#: lib/macros.dart
 msgid "Move to Top"
 msgstr "移到顶部"
 
@@ -1784,7 +1786,7 @@ msgstr "排练记号"
 msgid "Rehearsal marks in bar numbers"
 msgstr "小节号行中的排练记号"
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/macros.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr "移除"
 
@@ -2599,7 +2601,7 @@ msgstr "撤销历史"
 msgid "Until"
 msgstr "结束"
 
-#: lib/main.dart lib/project_document.dart
+#: lib/macros.dart lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr "未命名"
 
@@ -2705,7 +2707,7 @@ msgstr "网站"
 msgid "Whole (8)"
 msgstr "全音符（8）"
 
-#: lib/export_dialog.dart
+#: lib/export_dialog.dart lib/macros.dart
 msgid "Whole piece"
 msgstr "整首乐曲"
 
@@ -3102,11 +3104,11 @@ msgstr "遮蔽（M）"
 msgid "Measuring system {n} of {count}…"
 msgstr "正在测量第 {n} 个系统（共 {count} 个）…"
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "Move Down"
 msgstr "下移"
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "Move Up"
 msgstr "上移"
 
@@ -3317,6 +3319,7 @@ msgstr "从乐谱读取"
 msgid "Add All"
 msgstr "全部添加"
 
+#: lib/macros.dart
 msgid "Bars"
 msgstr "小节"
 
@@ -3347,11 +3350,11 @@ msgstr "忽略"
 msgid "Select a bar"
 msgstr "选择一个小节"
 
-#: lib/pdf_import.dart
+#: lib/lane_script_view.dart lib/pdf_import.dart
 msgid "Lane"
 msgstr "轨道"
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "All Lanes"
 msgstr "所有轨道"
 
@@ -4024,7 +4027,7 @@ msgstr "没有可刻谱的内容。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "无法导入 LilyPond 乐谱"
 
-#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
+#: lib/lane_script_view.dart lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr "查找（{key}）"
 
@@ -4581,6 +4584,18 @@ msgstr "移动区域或调性"
 msgid "Select in the lane above / below"
 msgstr "选择上方 / 下方轨道"
 
+msgid "Run Script"
+msgstr "运行脚本"
+
+msgid "In the script."
+msgstr "在脚本中。"
+
+msgid "Run a Macro"
+msgstr "运行宏"
+
+msgid "Script"
+msgstr "脚本"
+
 msgid "Note Input"
 msgstr "音符输入"
 
@@ -4801,7 +4816,7 @@ msgstr "无法保存扩展"
 msgid "{name} Copy"
 msgstr "{name} 副本"
 
-#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/macros.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr "复制"
 
@@ -4813,11 +4828,11 @@ msgstr "扩展保持原样。"
 msgid "Reference"
 msgstr "参考"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run ({key})"
 msgstr "运行（{key}）"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/macros.dart lib/script_editor.dart
 msgid "Run"
 msgstr "运行"
 
@@ -4929,7 +4944,7 @@ msgstr "已添加"
 msgid "Plugins"
 msgstr "插件"
 
-#: lib/extensions/connector_view.dart
+#: lib/extensions/connector_view.dart lib/macros.dart
 msgid "Tidy Up"
 msgstr "整理"
 
@@ -5710,7 +5725,7 @@ msgstr "更多工具"
 msgid "Move to Overflow Menu"
 msgstr "移到溢出菜单"
 
-#: lib/custom_bar.dart
+#: lib/custom_bar.dart lib/macros.dart
 msgid "Remove from Toolbar"
 msgstr "从工具栏移除"
 
@@ -5837,3 +5852,211 @@ msgstr "在乐谱旁以列表显示字幕：标出当前字幕，点击即可跳
 #: assets/web_plugins/transcript/plugin.json
 msgid "Side"
 msgstr "位置"
+
+#: lib/lane_script_view.dart lib/macros.dart
+msgid "Nothing changed"
+msgstr "没有变化"
+
+#: lib/lane_script_view.dart
+msgid "Write the lanes as a script"
+msgstr "把轨道写成脚本"
+
+#: lib/lane_script_view.dart
+msgid "From Lanes"
+msgstr "从轨道生成"
+
+#: lib/panel_bar.dart
+msgid ""
+"Script\n"
+"Curate by writing"
+msgstr ""
+"脚本\n"
+"用文字编排"
+
+#: lib/app_menus.dart
+msgid "Macros…"
+msgstr "宏…"
+
+#: lib/macros.dart
+msgid "Show Only"
+msgstr "仅显示"
+
+#: lib/macros.dart
+msgid "Bridge Rests"
+msgstr "填补休止"
+
+#: lib/macros.dart
+msgid "Remove Short Regions"
+msgstr "移除短区域"
+
+#: lib/macros.dart
+msgid "Set Transition"
+msgstr "设置过渡"
+
+#: lib/macros.dart
+msgid "Split into Staves"
+msgstr "按谱表拆分"
+
+#: lib/macros.dart
+msgid "Join Staves"
+msgstr "合并谱表"
+
+#: lib/macros.dart
+msgid "Selected Lanes"
+msgstr "所选轨道"
+
+#: lib/macros.dart
+msgid "Other Lanes"
+msgstr "其他轨道"
+
+#: lib/macros.dart
+msgid "Lanes Named"
+msgstr "指定名称的轨道"
+
+#: lib/macros.dart
+msgid "Selected Regions"
+msgstr "所选区域"
+
+#: lib/macros.dart
+msgid "From the Playhead"
+msgstr "从播放头起"
+
+#: lib/macros.dart
+msgid "Until the Playhead"
+msgstr "到播放头为止"
+
+#: lib/macros.dart
+msgid "Bar at the Playhead"
+msgstr "播放头所在小节"
+
+#: lib/macros.dart
+msgid "Ask Each Time"
+msgstr "每次询问"
+
+#: lib/macros.dart
+msgid "Solo from Here"
+msgstr "从此处起独显"
+
+#: lib/macros.dart
+msgid "Hide from Here"
+msgstr "从此处起隐藏"
+
+#: lib/macros.dart
+msgid "Show Bars…"
+msgstr "显示小节…"
+
+#: lib/macros.dart
+msgid "Step {n}: {problem}"
+msgstr "第 {n} 步：{problem}"
+
+#: lib/macros.dart
+msgid "Select lanes first"
+msgstr "请先选择轨道"
+
+#: lib/macros.dart
+msgid "Select regions first"
+msgstr "请先选择区域"
+
+#: lib/macros.dart
+msgid "Name the lanes"
+msgstr "请填写轨道名称"
+
+#: lib/macros.dart
+msgid "No bars given"
+msgstr "未指定小节"
+
+#: lib/macros.dart
+msgid "Macros"
+msgstr "宏"
+
+#: lib/macros.dart
+msgid "Edit Macros…"
+msgstr "编辑宏…"
+
+#: lib/macros.dart
+msgid "No macros"
+msgstr "没有宏"
+
+#: lib/macros.dart
+msgid "New Macro"
+msgstr "新建宏"
+
+#: lib/macros.dart
+msgid "Examples"
+msgstr "示例"
+
+#: lib/macros.dart
+msgid "Add Step"
+msgstr "添加步骤"
+
+#: lib/macros.dart
+msgid "bars"
+msgstr "小节"
+
+#: lib/custom_bar.dart
+msgid "Macro {n}"
+msgstr "宏 {n}"
+
+#: lib/macros.dart
+msgid "The first nine macros"
+msgstr "仅限前九个宏"
+
+#: lib/macros.dart
+msgid "Add to Toolbar"
+msgstr "添加到工具栏"
+
+#: lib/macros.dart
+msgid "Icon"
+msgstr "图标"
+
+#: lib/macros.dart
+msgid "Show Where Playing"
+msgstr "演奏处显示"
+
+#: lib/macros.dart
+msgid "Fit to Frame"
+msgstr "适应画面"
+
+#: lib/macros.dart
+msgid "Phrases of"
+msgstr "乐句长度"
+
+#: lib/macros.dart
+msgid "Hide Least Important"
+msgstr "隐藏最次要的"
+
+#: lib/macros.dart
+msgid "Show Again Where It Fits"
+msgstr "放得下处重新显示"
+
+#: lib/macros.dart
+msgid "Remove Lone Bars"
+msgstr "移除孤立小节"
+
+#: lib/macros.dart
+msgid "Hear the Recording"
+msgstr "聆听录音"
+
+#: lib/macros.dart
+msgid "Set Anchors As Heard"
+msgstr "按听到的设置锚点"
+
+#: lib/macros.dart
+msgid "Snap Anchors to Notes"
+msgstr "锚点吸附到音符"
+
+#: lib/macros.dart
+msgid "Auto-align"
+msgstr "自动对齐"
+
+#: lib/macros.dart
+msgid "Within"
+msgstr "范围"
+
+#: lib/macros.dart
+msgid "Wire Hear the Recording into it"
+msgstr "把“聆听录音”连到它前面"
+
+#: lib/macros.dart
+msgid "Disconnect"
+msgstr "断开"

@@ -6,6 +6,7 @@ import 'app_colors.dart';
 import 'app_icons.dart';
 import 'editor_controller.dart';
 import 'key_bindings.dart';
+import 'macros.dart';
 import 'menu_kit.dart';
 import 'phrase_search_window.dart';
 import 'plugins/plugins.dart';
@@ -175,7 +176,7 @@ class _CustomBarState extends State<CustomBar> {
       childWhenDragging: Opacity(opacity: 0.25, child: AbsorbPointer(child: face)),
       child: MouseRegion(
         cursor: SystemMouseCursors.grab,
-        child: Tip(message: item.title, waitDuration: const Duration(milliseconds: 600), child: AbsorbPointer(child: face)),
+        child: Tip(message: barItemTitle(context, item), waitDuration: const Duration(milliseconds: 600), child: AbsorbPointer(child: face)),
       ),
     );
   }
@@ -279,6 +280,10 @@ class BarItems {
         return const SizedBox.shrink();
       case BarItem.divider:
         return const ToolbarDivider();
+      // A macro's own button, while there is such a macro.
+      case _ when item.macro != null:
+        final macro = MacrosScope.of(context).elementAtOrNull(item.macro!);
+        return macro == null ? null : ToolbarButton(glyph: BarItemIcon(item), tooltip: tipOf(context, item), onPressed: macroAction(context, controller, macro));
       default:
         // One of the app's commands, as its menu item has it.
         return ToolbarButton(glyph: BarItemIcon(item), tooltip: tipOf(context, item), selected: _selected(item), onPressed: _action(context, item));
@@ -287,6 +292,8 @@ class BarItems {
 
   /// A command's name with its key, as a button's tip has them: "Save (⌘S)".
   static String tipOf(BuildContext context, BarItem item) {
+    // A macro's button: its macro's name, with the key that counts it.
+    if (item.macro case final at?) return '${barItemTitle(context, item)} (${KeyCommand.runMacro.also[at].label})';
     final name = item.title.replaceFirst(RegExp(r'(…|\.\.\.)$'), '');
     final key = switch (KeyCommand.values.asNameMap()[item.command]) { final command? => KeyMap.of(context)[command], null => null };
     return key == null ? name : '$name (${key.label})';
@@ -296,6 +303,9 @@ class BarItems {
   List<PopupMenuEntry<VoidCallback>> entries(BuildContext context, BarItem item) => switch (item) {
         BarItem.space => const [],
         BarItem.divider => [menuDivider(context)],
+        _ when item.macro != null => [
+            if (MacrosScope.of(context).elementAtOrNull(item.macro!) case final macro?) row(context, item, macroAction(context, controller, macro)),
+          ],
         _ => [row(context, item, _action(context, item), selected: _selected(item))],
       };
 
@@ -308,7 +318,7 @@ class BarItems {
         child: Row(children: [
           SizedBox(width: 16, child: IconTheme.merge(data: const IconThemeData(size: 16), child: icon ?? BarItemIcon(item))),
           SizedBox(width: AppStyle.of(context).isCarbon ? 8 : 6),
-          Expanded(child: Text(label ?? item.title)),
+          Expanded(child: Text(label ?? barItemTitle(context, item))),
           if (selected) ...[const SizedBox(width: 16), Icon(AppIcon.check.of(context), size: 16)],
         ]),
       );
@@ -319,7 +329,7 @@ class BarItems {
         child: ListenableBuilder(
           listenable: changes,
           builder: (context, _) => Row(children: [
-            Expanded(child: Text(item.title, overflow: TextOverflow.ellipsis, style: PopupMenuTheme.of(context).textStyle ?? Theme.of(context).textTheme.labelLarge)),
+            Expanded(child: Text(barItemTitle(context, item), overflow: TextOverflow.ellipsis, style: PopupMenuTheme.of(context).textStyle ?? Theme.of(context).textTheme.labelLarge)),
             const SizedBox(width: 12),
             this.item(context, item) ?? const SizedBox.shrink(),
           ]),
@@ -378,6 +388,16 @@ class _MenuWidgetState extends State<MenuWidget> {
       );
 }
 
+/// [item]'s name as shown where [context] is: its own, or for a macro's button its macro's
+/// (Macro 3, while there is no third).
+String barItemTitle(BuildContext context, BarItem item) => switch (item.macro) {
+      null => item.title,
+      final at => switch (MacrosScope.of(context).elementAtOrNull(at)) {
+          final macro? => macroName(macro),
+          null => 'Macro {n}'.fill({'n': at + 1}),
+        },
+    };
+
 /// A toolbar item's icon ([BarItem]): where it is listed to be added, in the menu at the bar's
 /// end, and on the bar for one that is a command.
 class BarItemIcon extends StatelessWidget {
@@ -428,6 +448,8 @@ class BarItemIcon extends StatelessWidget {
     BarItem.tidy: AppIcon.tidy,
     BarItem.autoCurate: AppIcon.autoCurate,
     BarItem.clearLanes: AppIcon.clearLanes,
+    BarItem.script: AppIcon.code,
+    BarItem.macros: AppIcon.repeat,
     BarItem.addRecording: AppIcon.addAudio,
     BarItem.crossfade: AppIcon.transition,
     BarItem.align: AppIcon.align,
@@ -453,6 +475,8 @@ class BarItemIcon extends StatelessWidget {
         ),
       BarItem.space => CustomPaint(size: Size.square(size), painter: _SpaceGlyphPainter(color, divider: false)),
       BarItem.divider => CustomPaint(size: Size.square(size), painter: _SpaceGlyphPainter(color, divider: true)),
+      // A macro's button: its macro's icon (every macro's, while there is no such macro).
+      _ when item.macro != null => Icon(macroIcon(MacrosScope.of(context).elementAtOrNull(item.macro!)).of(context)),
       _ => Icon(_icons[item]!.of(context)),
     };
     return IconTheme.merge(
@@ -518,7 +542,7 @@ class BarItemChip extends StatelessWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             IconTheme.merge(data: IconThemeData(color: colors.text), child: BarItemIcon(item, size: 16)),
             const SizedBox(width: 8),
-            Text(item.title, style: TextStyle(fontSize: 12.5, color: colors.text)),
+            Text(barItemTitle(context, item), style: TextStyle(fontSize: 12.5, color: colors.text)),
           ]),
         ),
       ),

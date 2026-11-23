@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/attacca_version.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
@@ -14,9 +15,12 @@ import 'package:curated_score/file_names.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/toolbar_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/painting.dart' show Size;
 import 'package:score_engine/score_engine.dart';
 
+import '../../packages/score_engine/test/demo_score.dart' show flutePianoScore;
 import 'demo_project.dart';
 
 void main() {
@@ -102,6 +106,190 @@ void main() {
       c.undo();
       c.redo();
       expect(c.score, isNull);
+    }
+
+    // A script curates as the tools do, as one Undo step; one with something wrong changes nothing; the lanes written
+    // as a script make themselves again; the script is kept with the project, and typing it is no edit.
+    {
+      await open();
+      final names = c.lanes.scriptNames, before = c.curation!.lanes, starts = c.timeline.measureStarts;
+      final ran = c.lanes.runScript('clear\nshow ${LaneScript.quoted(names.first)} 1-4\nonly ${LaneScript.quoted(names.last)} 9\ntransition 0.6');
+      expect([ran.problems, ran.changed], [isEmpty, true]);
+      expect(c.curation!.lane(c.laneRows.first.id), [Region(starts[0], starts[4])]);
+      expect(c.curation!.lane(c.laneRows.last.id), [Region(starts[8], starts[9])]);
+      expect(c.curation!.transition, 0.6);
+      c.undo();
+      expect([c.curation!.lanes, c.curation!.transition, c.canUndo], [before, 0.3, false], reason: 'one step');
+      final wrong = c.lanes.runScript('clear\nshow "No Such Lane" 1');
+      expect(['${wrong.problems.single}', wrong.changed, c.curation!.lanes, c.canRedo], ['Line 2: There is no lane named “No Such Lane”.', false, before, true]);
+      expect([for (final p in c.lanes.checkScript('show all 99')) '$p'], ['Line 1: There is no bar 99.']);
+
+      final written = c.lanes.asScript;
+      c.lanes.clear();
+      expect(c.lanes.runScript(written).problems, isEmpty);
+      expect(c.curation!.lanes, before);
+
+      final revision = c.editRevision.value;
+      c.undo();
+      c.lanes.script = written;
+      expect([c.editRevision.value > revision, c.canRedo], [true, true], reason: 'saved, and no edit');
+      final saved = ProjectModules.toJson(c.projectState);
+      expect(ProjectModules.script.read(JsonReader(saved['script'], 'script'), const ProjectState(), (_, {required limit}) => null).script, written);
+
+      // A macro runs as the script it is for now (the lanes selected, from the playhead): one Undo step, its lanes still
+      // selected; a step that needs what isn't there changes nothing; the bars it asks for are checked; the app keeps macros.
+      const solo = LaneMacro(name: 'Solo', steps: [MacroStep(MacroAction.only, range: MacroRange.fromPlayhead), MacroStep(MacroAction.bridge, lanes: MacroLanes.all)]);
+      final kept = c.curation!.lanes, top = c.laneRows.first.id;
+      c.clearSelection();
+      final none = c.lanes.runMacro(solo);
+      expect(['${none.problems.single}', none.changed, c.curation!.lanes], ['Step 1: lanes', false, kept]);
+      c.lanes.selectLane(top);
+      expect([c.lanes.runMacro(solo).changed, c.lanes.selectedPartIds], [true, {top}]);
+      expect([c.curation!.lane(top), c.curation!.lane(c.laneRows.last.id)], [[Region(0, starts.last)], isEmpty]);
+      c.undo();
+      expect(c.curation!.lanes, kept, reason: 'one step');
+      const asks = LaneMacro(name: 'Show', steps: [MacroStep(MacroAction.show, lanes: MacroLanes.all, range: MacroRange.ask)]);
+      expect([for (final p in c.lanes.checkMacro(asks, asked: '99')) '$p'], ['Step 1: There is no bar 99.']);
+      expect([asks.asks, c.lanes.checkMacro(asks, asked: '1-2')], [true, isEmpty]);
+      // Auto-curate as a macro (the first example: follow, then fitting's three steps, thin, refill, remove lone) leaves
+      // what the button does, cut to the frame alike: every lane, one lane, a condensed pair's, in a smaller frame; and a
+      // piano's staves, each in a lane of its own, one of them with the flute. `fit` is the three steps in one.
+      Future<void> sameAsAutoCurate() async {
+        const whole = MacroLanes.all, chosen = MacroLanes.selected;
+        final auto = LaneMacro.examples.first;
+        expect([for (final s in auto.steps) s.action], [MacroAction.follow, MacroAction.thin, MacroAction.refill, MacroAction.lone]);
+        Map<String, List<Region>> now() => {...c.curation!.lanes, for (final row in c.laneRows) row.id: c.curation!.lane(row.id)};
+        void same(String what, {String? lane, List<String>? lanes}) {
+          lanes ??= lane == null ? null : [lane];
+          c.lanes.runScript('show all');
+          c.lanes.autoCurate(lanes);
+          final button = now();
+          c.lanes.runScript('show all');
+          for (final id in lanes ?? const <String>[]) {
+            c.lanes.selectLane(id, add: id != lanes!.first);
+          }
+          final ran = c.lanes.runMacro(auto.copyWith(steps: [for (final s in auto.steps) s.copyWith(lanes: lanes == null ? whole : chosen)]));
+          expect([ran.problems, now()], [isEmpty, button], reason: what);
+          if (lanes != null) return;
+          c.lanes.runScript('show all');
+          expect([c.lanes.runScript('follow all bridge 1\nfit').problems, now()], [isEmpty, button], reason: '$what, fit whole');
+        }
+
+        expect(c.overflowing, isEmpty, reason: 'the demo is curated to fit');
+        c.lanes.runScript('follow all bridge 1');
+        expect(c.overflowing, isNotEmpty, reason: 'as it plays, it runs off the frame: there is something to cut');
+        same('every lane');
+        expect(c.overflowing, isEmpty);
+        same('one lane', lane: c.laneRows[3].id);
+        c.setCondensed([c.condensable.first.id, c.condensable.last.id], on: true);
+        same('pairs condensed');
+        same('a pair’s lane', lane: c.condensable.first.partIds.first);
+        c.videoLayout = const Size(540, 304);
+        same('a smaller frame');
+        c.dispose();
+        c = EditorController(vsync: const TestVSync());
+        await c.openMusicXml('piano.musicxml', Uint8List.fromList(utf8.encode(flutePianoScore)));
+        c.setSplit(c.laneParts.firstWhere((p) => c.lanes.staffCountOf(p.id) > 1).id, on: true);
+        c.videoLayout = const Size(300, 120);
+        same('a split piano');
+        same('a staff’s lane', lane: c.laneRows.last.id);
+        same('a staff’s lane and the flute', lanes: [c.laneRows.first.id, c.laneRows.last.id]);
+      }
+
+      await sameAsAutoCurate();
+
+      // Align as a macro (the second example: hear, match, snap anchors) leaves the anchors the button does, with the
+      // project snapping them and not, as one Undo step; `align` is the three in one. The recording: the demo as it
+      // would be heard played evenly, two quarters a second after a second of silence, a click 20 ms after every bar.
+      Future<void> sameAsAlign() async {
+        await open();
+        final align = LaneMacro.examples[1];
+        expect('${(await c.lanes.runMacroReady(align)).problems.first}', 'Step 1: There is no recording.');
+        final starts = c.score!.timeline.measureStarts;
+        const lead = 1.0, perQuarter = 0.5, rate = 2000.0, keys = BasicPitch.keys;
+        final length = lead + starts.last * perQuarter + 1, frames = (length * AudioNotes.frameRate).floor() + 1;
+        final heard = Float32List(frames * AudioNotes.values);
+        for (final n in soundingNotes(c.score!.musicXML, starts)) {
+          final key = n.midi - BasicPitch.lowestKey;
+          if (key < 0 || key >= keys) continue;
+          final from = ((lead + n.start * perQuarter) * AudioNotes.frameRate).round(), to = ((lead + n.end * perQuarter) * AudioNotes.frameRate).round();
+          for (var f = from; f <= to && f < frames; f++) {
+            heard[f * AudioNotes.values + key] = 1;
+            heard[f * AudioNotes.values + 2 * keys] = 0.01;
+          }
+          if (!n.tied && from < frames) heard[from * AudioNotes.values + keys + key] = 1;
+        }
+        final samples = Float32List((length * rate).ceil());
+        for (final q in starts) {
+          final at = ((lead + q * perQuarter + 0.02) * rate).round();
+          for (var i = at; i < at + 60 && i < samples.length; i++) {
+            samples[i] = 0.8 * (i.isEven ? 1 : -1);
+          }
+        }
+        await c.debugAddTake(AudioTrack.forTesting(name: 'Played.flac', length: length, waveform: await Waveform.analyze(samples, rate), notes: heard));
+        Future<List<SyncAnchor>> after(Future<Object?> Function() run) async {
+          c.anchors.clear();
+          await run();
+          expect(c.anchors.aligning, isNull);
+          return c.sync!.anchors;
+        }
+
+        final found = <bool, List<SyncAnchor>>{};
+        for (final snap in [true, false]) {
+          c.anchors.snapToOnsets = snap;
+          final button = found[snap] = await after(c.anchors.align);
+          expect(button.length, greaterThan(1), reason: 'the score is heard');
+          expect(await after(() => c.lanes.runMacroReady(align)), button, reason: 'snapping $snap');
+          c.undo();
+          expect(c.sync!.anchors, isEmpty, reason: 'one step');
+          expect(await after(() => c.lanes.runScriptReady('align')), button, reason: 'align, snapping $snap');
+        }
+        expect(found[true], isNot(found[false]), reason: 'there are notes to snap to');
+        expect(c.lanes.runScript('hear').problems, hasLength(1), reason: 'not without waiting');
+
+        // A macro is a graph, and its branches don't wait for each other: Auto-curate and Auto-align in one, with no wire
+        // between the two, curates at once (before the recording is heard: a step of its own) and sets the anchors when
+        // it has been, as the two macros do apart. A match with no hear wired into it is told so, and nothing is done.
+        final curate = LaneMacro.examples.first, shift = curate.steps.length;
+        final both = LaneMacro(
+          name: 'Both',
+          steps: [...curate.steps, ...align.steps],
+          wired: [...curate.wires, for (final w in align.wires) (from: w.from + shift, to: w.to + shift)],
+        );
+        expect([both.stages.now, both.stages.later], [[0, 1, 2, 3], [4, 5, 6]]);
+        Map<String, List<Region>> lanes() => {...c.curation!.lanes};
+        c.anchors.snapToOnsets = true;
+        c.anchors.clear(); // (what fits the frame goes by the time a bar takes)
+        c.lanes.runScript('show all');
+        c.lanes.autoCurate();
+        final curated = lanes();
+        c.lanes.runScript('show all');
+        final running = c.lanes.runMacroReady(both);
+        expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, isEmpty, isNotNull], reason: 'curated while it listens');
+        final ran = await running;
+        expect([ran.problems, ran.changed], [isEmpty, isTrue]);
+        expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, found[true], isNull]);
+        c.undo();
+        expect([lanes(), c.sync!.anchors], [curated, isEmpty], reason: 'the anchors are a step');
+        c.undo();
+        expect(lanes(), isNot(curated), reason: 'the lanes another');
+        final loose = both.withoutWire(shift, shift + 1);
+        expect(['${(await c.lanes.runMacroReady(loose)).problems.single}', lanes()], ['Step 6: heard', isNot(curated)]);
+      }
+
+      await sameAsAlign();
+
+      // The app keeps them; a macro's own toolbar button follows it as the list changes, and goes with it.
+      final settings = AppSettings.memory()..macros = [solo, asks.copyWith(icon: 'tidy')];
+      expect([settings.macros.last.icon, LaneMacro.read(LaneMacro.write(settings.macros))], ['tidy', settings.macros]);
+      final bar = ToolbarLayout.standard(BarKind.instruments);
+      expect([bar.bar.contains(BarItem.script), bar.bar.contains(BarItem.macros), bar.palette.contains(BarItem.script)], [false, false, true]);
+      final pinned = bar.added(BarItem.macro2);
+      expect([pinned.bar.indexOf(BarItem.macro2), pinned.added(BarItem.macro2), pinned.without(BarItem.macro2)], [bar.bar.indexOf(BarItem.zoomOut), pinned, bar]);
+      expect(pinned.added(BarItem.macro5).bar.length, pinned.bar.length + 1, reason: 'one rule sets the macros apart');
+      expect(pinned.macrosMoved((at) => at == 1 ? 0 : 1).bar.contains(BarItem.macro1), isTrue);
+      expect(pinned.macrosMoved((at) => at == 1 ? null : at), bar);
+      expect(ToolbarLayout.read(BarKind.instruments, pinned.write()), pinned);
     }
 
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.

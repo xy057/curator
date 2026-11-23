@@ -34,7 +34,7 @@ ATTACCA_SOURCES = find daw_link/CMakeLists.txt daw_link/src daw_link/mac -type f
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs script-docs test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -48,6 +48,7 @@ help:
 	@echo "make l10n    – put new interface text into the translation files (app/assets/l10n, synced with Crowdin)"
 	@echo "make extension-docs – write docs/extension-api.md from the guide and the extension API's own list"
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
+	@echo "make script-docs – write docs/lane-script.md from the guide and the script language's own list"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
 	@echo "make versions – check that updater.dart says the version pubspec.yaml does (patch = build), the release patch, and Attacca's seal"
@@ -172,6 +173,11 @@ plugin-docs:
 # test/in_step_test.dart fails until it has been run.
 web-plugin-docs:
 	cd app && dart run tool/web_plugin_docs.dart
+
+# docs/lane-script.md: the guide to curating by script (app/assets/help/script.md) and the
+# language's statements, from LaneScriptApi. test/in_step_test.dart fails until it has been run.
+script-docs:
+	cd app && dart run tool/script_docs.dart
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

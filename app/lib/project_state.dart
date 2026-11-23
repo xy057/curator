@@ -643,6 +643,7 @@ class ProjectState {
       this.foreign = const {},
       this.packages = const {},
       this.dataVersions = const {},
+      this.script = '',
       this.pdf,
       this.lilypond,
       ProjectKind? kind})
@@ -679,6 +680,10 @@ class ProjectState {
   /// [EditState.extensionData] was saved with, by id.
   final Map<String, int> dataVersions;
 
+  /// The script the Instruments tab's Script holds ([LaneScript]), as it was left: not an edit,
+  /// what it did when it ran is.
+  final String script;
+
   ProjectState copyWith(
           {EditState? edits,
           Map<String, PatchImage>? images,
@@ -686,6 +691,7 @@ class ProjectState {
           Map<String, ForeignModule>? foreign,
           Map<String, ExtensionPackage>? packages,
           Map<String, int>? dataVersions,
+          String? script,
           PdfScoreLayout? Function()? pdf,
           LilyPondProject? Function()? lilypond,
           ProjectKind? kind}) =>
@@ -696,6 +702,7 @@ class ProjectState {
           foreign: foreign ?? this.foreign,
           packages: packages ?? this.packages,
           dataVersions: dataVersions ?? this.dataVersions,
+          script: script ?? this.script,
           pdf: pdf == null ? this.pdf : pdf(),
           lilypond: lilypond == null ? this.lilypond : lilypond(),
           kind: kind ?? this.kind);

@@ -215,6 +215,16 @@ class ViewportGestures extends StatefulWidget {
   static ValueListenable<Axis?> swipeAxisOf(BuildContext context) =>
       context.findAncestorStateOfType<_ViewportGesturesState>()!._swipe.axis;
 
+  /// [child] with its scrolls, swipes and pinches left to itself: something in the lanes' place
+  /// that scrolls by itself (the script). It hears each event first, and says so.
+  static Widget apart({Key? key, required Widget child}) => Builder(
+        key: key,
+        builder: (context) {
+          void mine(PointerEvent e) => context.findAncestorStateOfType<_ViewportGesturesState>()?._apart = e.original ?? e;
+          return Listener(onPointerSignal: mine, onPointerPanZoomStart: mine, onPointerPanZoomUpdate: mine, onPointerPanZoomEnd: mine, child: child);
+        },
+      );
+
   @override
   State<ViewportGestures> createState() => _ViewportGesturesState();
 }
@@ -224,6 +234,10 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
 
   /// The swipe has zoomed too (a pinch): it doesn't glide.
   bool _pinched = false;
+
+  /// The event something under it kept for itself ([ViewportGestures.apart]).
+  PointerEvent? _apart;
+  bool _kept(PointerEvent e) => identical(e.original ?? e, _apart);
 
   late final _swipe = SideSwipe(this, onMove: (dx) {
     final v = widget.controller.viewport, from = v.origin;
@@ -243,6 +257,7 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
     return Listener(
       onPointerDown: (_) => _swipe.press(),
       onPointerSignal: (e) {
+        if (_kept(e)) return;
         if (e is PointerScrollInertiaCancelEvent) return _swipe.stop();
         if (e is! PointerScrollEvent) return;
         _swipe.stop();
@@ -254,11 +269,13 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
         }
       },
       onPointerPanZoomStart: (e) {
+        if (_kept(e)) return;
         _lastScale = 1;
         _pinched = false;
         _swipe.start(e);
       },
       onPointerPanZoomUpdate: (e) {
+        if (_kept(e)) return;
         if (e.scale != _lastScale) {
           v.zoom(e.scale / _lastScale, e.localPosition.dx - kLaneHeaderWidth);
           _lastScale = e.scale;
@@ -271,7 +288,7 @@ class _ViewportGesturesState extends State<ViewportGestures> with SingleTickerPr
           _swipe.update(e);
         }
       },
-      onPointerPanZoomEnd: (_) => _pinched || isZoomModifierPressed ? _swipe.stop() : _swipe.end(),
+      onPointerPanZoomEnd: (e) => _kept(e) || _pinched || isZoomModifierPressed ? _swipe.stop() : _swipe.end(),
       child: widget.child,
     );
   }

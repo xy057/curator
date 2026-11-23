@@ -176,12 +176,26 @@ class SyncEditing {
   /// own ([ScoreForm.passes]); with [snapToOnsets] each anchor moves onto a note heard within
   /// 50 ms. Returns how many anchors it set: 0 when it heard no music, null when it couldn't
   /// run (no recording, a MIDI tempo map followed, already running) or the document changed
-  /// meanwhile. Throws when the recording can't be read.
-  Future<int?> align() async {
-    final sync = _sync, track = _editor.track, score = _editor._score;
-    if (sync == null || track == null || score == null || _aligning != null) return null;
-    final starts = score.timeline.measureStarts;
-    final passes = sync.passes.length > 1 ? sync.passes : score.metadata.form.passes(starts);
+  /// meanwhile. Throws when the recording can't be read. It is three steps, which a script does
+  /// one at a time (`hear`, `match`, `snap anchors`: [_hear], [_match], [_snapped]).
+  Future<int?> align() => _whileAligning((report) async {
+        final sync = _sync, track = _editor.track;
+        final heard = await _hear(report);
+        if (heard == null) return null;
+        var anchors = await _match(heard);
+        if (_editor._disposed || _sync != sync || _editor.track != track || sync == null || track == null) return null;
+        if (snapToOnsets) anchors = _snapped(anchors, track, alignSnap);
+        setAll(anchors);
+        return sync.anchors.length;
+      });
+
+  /// How near a note heard starting Align snaps an anchor to it, in seconds.
+  static const alignSnap = 0.05;
+
+  /// Does [work] as Align: one at a time ([aligning] tells how far it says it has got, from 0
+  /// until it ends); null where one is under way.
+  Future<T?> _whileAligning<T>(Future<T?> Function(void Function(double done) report) work) async {
+    if (_aligning != null) return null;
     var over = false;
     void report(double done) {
       if (over) return; // a stretch still being heard as it ended (another's failed) tells nothing
@@ -191,23 +205,48 @@ class SyncEditing {
 
     report(0);
     try {
-      Float32List? heard;
-      // In turn: replacing the recording deletes the file read.
-      await _editor.inTurn(() async => heard = await track.notes(progress: (done) => report(0.9 * done)));
-      if (heard == null) return null;
-      var anchors = await _alignOff(score.musicXML, starts, heard!, passes);
-      if (_editor._disposed || _sync != sync || _editor.track != track) return null;
-      if (snapToOnsets) {
-        anchors = [for (final a in anchors) a.at(track.waveform.nearestOnset(a.seconds, 0.05) ?? a.seconds)];
-      }
-      if (anchors.isNotEmpty) sync.load(anchors, leadIn: sync.leadIn);
-      _deselect();
-      return sync.anchors.length;
+      return await work(report);
     } finally {
       over = true;
       _aligning = null;
       if (!_editor._disposed) _editor._changed();
     }
+  }
+
+  /// The recording as Align hears it ([AudioTrack.notes]: nine tenths of the work, as [report]
+  /// is told), with the repeats the score is played through as they are now; null with nothing
+  /// to hear.
+  Future<({Float32List notes, List<ScorePass> passes})?> _hear(void Function(double done) report) async {
+    final sync = _sync, track = _editor.track, score = _editor._score;
+    if (sync == null || track == null || score == null) return null;
+    final passes = sync.passes.length > 1 ? sync.passes : score.metadata.form.passes(score.timeline.measureStarts);
+    Float32List? notes;
+    // In turn: replacing the recording deletes the file read.
+    await _editor.inTurn(() async => notes = await track.notes(progress: (done) => report(0.9 * done)));
+    return notes == null ? null : (notes: notes!, passes: passes);
+  }
+
+  /// The anchors what was [heard] gives against the score; none without one.
+  Future<List<SyncAnchor>> _match(({Float32List notes, List<ScorePass> passes}) heard) async {
+    final score = _editor._score;
+    return score == null ? const [] : _alignOff(score.musicXML, score.timeline.measureStarts, heard.notes, heard.passes);
+  }
+
+  /// [anchors], each on the nearest note [track] is heard starting, [within] seconds of it.
+  static List<SyncAnchor> _snapped(List<SyncAnchor> anchors, AudioTrack track, double within) =>
+      [for (final a in anchors) a.at(track.waveform.nearestOnset(a.seconds, within) ?? a.seconds)];
+
+  /// Puts [anchors] in place of those there (none: those there stay), with nothing selected.
+  void setAll(List<SyncAnchor> anchors) {
+    final sync = _sync;
+    if (sync != null && anchors.isNotEmpty) sync.load(anchors, leadIn: sync.leadIn);
+    _deselect();
+  }
+
+  /// Moves every anchor onto the nearest note heard starting, [within] seconds of it.
+  void snapAll(double within) {
+    final sync = _sync, track = _editor.track;
+    if (sync != null && track != null) setAll(_snapped(sync.anchors, track, within));
   }
 
   /// On an isolate, from a static function: a closure made beside one that uses the controller
