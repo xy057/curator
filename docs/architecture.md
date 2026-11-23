@@ -1025,9 +1025,11 @@ what led into the step taken away onto what it led to). A node is where it was d
 after others, rows as numbered). The canvas pans by scrolling or dragging its ground and has no
 zoom; the dialog is wide for it (`AppDialog.maxWidth`).
 
-The wires are what lets a macro go on without waiting. Its script is written in an order that
-honours every wire, the lower number first where none says (`order`), and a macro with nothing to
-wait for is run as before, at once and as one Undo step. One with a step that hears the recording
+The wires are what lets a macro go on without waiting. Its script is written in the order its
+steps are done in (`order`): one that honours every wire, the lower number first where none says,
+the steps that wait for the recording after all that don't, so the check, which reads the lines
+top to bottom, finds what a run would. A macro with nothing to wait for is run as before, at once
+and as one Undo step. One with a step that hears the recording
 is run in two lots (`stages`, `LaneEditing.runMacroReady`): the steps that neither wait nor are
 wired after one that does are done at once, their own Undo step, while the recording is being
 heard (`LaneScript.run`'s `only`: the lines to do, the rest left for later; the whole is checked
