@@ -124,6 +124,19 @@ void main() {
       expect(['${wrong.problems.single}', wrong.changed, c.curation!.lanes, c.canRedo], ['Line 2: There is no lane named “No Such Lane”.', false, before, true]);
       expect([for (final p in c.lanes.checkScript('show all 99')) '$p'], ['Line 1: There is no bar 99.']);
 
+      // While the script is in the lanes' place, the window's keys leave the lanes behind it as they are.
+      c.tab = BottomTab.instruments;
+      c.lanes.selectAll();
+      expect([c.commands.canDelete, c.commands.canCopy], [true, true]);
+      c.lanes.scripting = true;
+      c.commands
+        ..delete()
+        ..trim(start: false)
+        ..selectAll();
+      expect([c.commands.canDelete, c.commands.canCopy, c.commands.pastesRegions, c.curation!.lanes], [false, false, false, before]);
+      c.lanes.scripting = false;
+      c.clearSelection();
+
       final written = c.lanes.asScript;
       c.lanes.clear();
       expect(c.lanes.runScript(written).problems, isEmpty);

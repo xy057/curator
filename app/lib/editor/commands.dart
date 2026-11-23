@@ -9,7 +9,10 @@ class EditCommands {
   final EditorController _editor;
 
   bool get _open => _editor._score != null;
-  bool get _curating => _open && _editor._tab == BottomTab.instruments;
+
+  /// Whether the instruments' lanes are showing: in their tab, and the script not in their
+  /// place ([LaneEditing.scripting]), where what a key did to them wouldn't be seen.
+  bool get _curating => _open && _editor._tab == BottomTab.instruments && !_lanes.scripting;
   bool get _syncing => _open && _editor._tab == BottomTab.audio;
   LaneEditing get _lanes => _editor.lanes;
   SyncEditing get _anchors => _editor.anchors;
@@ -47,7 +50,7 @@ class EditCommands {
           _editor.extensions.hasSelection ||
           _editor.spacers.hasSelection ||
           _editor.automation.hasSelection ||
-          (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _lanes.selected.isNotEmpty));
+          (_syncing ? !_anchors._isEmpty || _editor.takeSelection != null : _curating && _lanes.selected.isNotEmpty));
 
   /// Delete: a selected image goes first, then what is selected in an extension's lane (a caption, a key area), a selected
   /// spacer, then what is selected in the tab showing.
@@ -62,7 +65,11 @@ class EditCommands {
     if (_editor.automation.hasSelection) return _editor.automation.removeSelected();
     if (_editor._tab == BottomTab.video) return;
     if (_syncing && _editor.takeSelection != null) return _editor.removeTakeRegion();
-    _syncing ? _anchors.delete() : _lanes.delete();
+    if (_syncing) {
+      _anchors.delete();
+    } else if (_curating) {
+      _lanes.delete();
+    }
   }
 
   bool get canSelectAll => _open;
