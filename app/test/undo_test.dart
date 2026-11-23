@@ -135,6 +135,11 @@ void main() {
       expect([c.editRevision.value > revision, c.canRedo], [true, true], reason: 'saved, and no edit');
       final saved = ProjectModules.toJson(c.projectState);
       expect(ProjectModules.script.read(JsonReader(saved['script'], 'script'), const ProjectState(), (_, {required limit}) => null).script, written);
+      // One too long to be a script isn't saved, and a project saved with one opens, without it.
+      c.lanes.script = '#' * (LaneScript.maxLength + 1);
+      expect((ProjectModules.toJson(c.projectState)['script'] as Map?)?['text'], isNull);
+      expect(ProjectModules.script.read(JsonReader({'text': c.lanes.script}, 'script'), const ProjectState(), (_, {required limit}) => null).script, isEmpty);
+      c.lanes.script = written;
 
       // A macro runs as the script it is for now (the lanes selected, from the playhead): one Undo step, its lanes still
       // selected; a step that needs what isn't there changes nothing; the bars it asks for are checked; the app keeps macros.
