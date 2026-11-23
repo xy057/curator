@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:score_engine/score_engine.dart'
@@ -106,6 +109,7 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
         MacroFault.regions => 'Select regions first'.tr,
         MacroFault.names => 'Name the lanes'.tr,
         MacroFault.bars => 'No bars given'.tr,
+        MacroFault.heard => 'Wire Hear the Recording into it'.tr,
         MacroFault.script => problem.message,
       },
     });
@@ -346,9 +350,10 @@ class _MacrosDialogState extends State<_MacrosDialog> {
       title: Text('Macros'.tr),
       divided: true,
       confirmsOnReturn: false,
+      maxWidth: 1300,
       content: SizedBox(
-        width: dialogWidth(context, 650),
-        height: 440,
+        width: dialogWidth(context, 1000),
+        height: 520,
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SizedBox(width: 190, child: _list(context)),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: VerticalDivider(width: 1, color: colors.line)),
@@ -422,11 +427,6 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   }
 
   Widget _steps(BuildContext context, LaneMacro macro) {
-    final steps = macro.steps;
-    void set(List<MacroStep> steps) => _change(macro.copyWith(steps: List.unmodifiable(steps)));
-    void swap(int i, int j) => set([...steps]
-      ..[i] = steps[j]
-      ..[j] = steps[i]);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         // (At the field's top, as its outline is: a text field is drawn in its box's top.)
@@ -455,40 +455,8 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         ),
       ]),
       const SizedBox(height: 14),
-      Expanded(
-        child: ListView(children: [
-          for (final (i, step) in steps.indexed)
-            _StepCard(
-              // (A macro's steps are its own: another's fields start from its own.)
-              key: ValueKey((_at, i)),
-              number: i + 1,
-              step: step,
-              onChanged: (changed) => set([...steps]..[i] = changed),
-              onRemove: () => set([...steps]..removeAt(i)),
-              onUp: i == 0 ? null : () => swap(i, i - 1),
-              onDown: i == steps.length - 1 ? null : () => swap(i, i + 1),
-            ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OverlaySemantics(
-              child: AppPopupMenuButton<MacroAction>(
-                enabled: steps.length < LaneMacro.maxSteps,
-                position: PopupMenuPosition.under,
-                style: toolbarMenuStyle(context, left: 6),
-                constraints: const BoxConstraints(minWidth: 220),
-                onSelected: (action) => set([...steps, MacroStep(action, lanes: action == MacroAction.clear || action.unit == MacroUnit.bars ? MacroLanes.all : MacroLanes.selected)]),
-                itemBuilder: (menu) => [for (final action in MacroAction.values) menuItem(menu, value: action, child: Text(macroActionLabel(action)))],
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(AppIcon.add.of(context), size: 16),
-                  const SizedBox(width: 5),
-                  Text('Add Step'.tr, style: const TextStyle(fontSize: 13)),
-                  const SizedBox(width: 8),
-                ]),
-              ),
-            ),
-          ),
-        ]),
-      ),
+      // (A macro's graph is its own: another's starts where it is, with nothing chosen.)
+      Expanded(child: _Graph(key: ValueKey(_at), macro: macro, onChanged: _change)),
     ]);
   }
 }
@@ -564,33 +532,350 @@ class _IconGridState extends State<_IconGrid> {
   }
 }
 
-/// A step, as a row of choices read left to right: what it does, to which lanes (their names
-/// typed, for those named), over which bars (typed, for bars written), and its number of bars
-/// or seconds; then what moves it among the steps and takes it out.
-class _StepCard extends StatefulWidget {
-  const _StepCard({super.key, required this.number, required this.step, required this.onChanged, required this.onRemove, required this.onUp, required this.onDown});
-  final int number;
-  final MacroStep step;
-  final ValueChanged<MacroStep> onChanged;
-  final VoidCallback onRemove;
-  final VoidCallback? onUp, onDown;
+/// A node's width, its head's height (the ports are at its middle), and how far apart the
+/// graph's own layout puts the nodes ([LaneMacro.grid]).
+const _nodeWidth = 252.0, _nodeHead = 36.0, _gridX = _nodeWidth + 44, _gridY = 240.0;
+
+/// A macro as a graph: its steps the nodes, each a card of its choices, and its wires drawn
+/// from a node's right side into another's left: what is done after what. A node is moved by
+/// its head; a wire is drawn out of the port at a node's right onto another node (one that
+/// would close a ring isn't taken) and cut at the dot in its middle; the ground is dragged
+/// or scrolled about. Add Step puts one after the node chosen (the last added, with none).
+class _Graph extends StatefulWidget {
+  const _Graph({super.key, required this.macro, required this.onChanged});
+  final LaneMacro macro;
+  final ValueChanged<LaneMacro> onChanged;
 
   @override
-  State<_StepCard> createState() => _StepCardState();
+  State<_Graph> createState() => _GraphState();
 }
 
-class _StepCardState extends State<_StepCard> {
+class _GraphState extends State<_Graph> {
+  static const _inset = Offset(20, 16);
+
+  Offset _pan = Offset.zero;
+  Size _view = Size.zero;
+  int? _selected;
+
+  /// The node being moved, with where it is; the wire being drawn out of a node, with where
+  /// its end is (both on the graph's own ground).
+  (int, Offset)? _moving, _wiring;
+
+  /// Where the node being moved was taken from.
+  Offset? _from;
+
+  LaneMacro get _macro => widget.macro;
+
+  /// Where each node is: where it was put, else where the graph's layout has it.
+  List<Offset> get _places {
+    final grid = _macro.grid;
+    return [
+      for (final (i, step) in _macro.steps.indexed)
+        if (_moving case (final at, final where) when at == i)
+          where
+        else if (step.at case (final x, final y))
+          Offset(x, y)
+        else
+          Offset(grid[i].$1 * _gridX, grid[i].$2 * _gridY),
+    ];
+  }
+
+  static Offset _in(Offset place) => place + const Offset(0, _nodeHead / 2);
+  static Offset _out(Offset place) => place + const Offset(_nodeWidth, _nodeHead / 2);
+
+  /// [pan] kept to where there are nodes: never past the first, nor the last out of sight.
+  Offset _held(Offset pan, List<Offset> places) {
+    var right = 0.0, bottom = 0.0;
+    for (final p in places) {
+      right = math.max(right, p.dx + _nodeWidth + 2 * _inset.dx);
+      bottom = math.max(bottom, p.dy + 260);
+    }
+    return Offset(pan.dx.clamp(math.min(0.0, _view.width - right), 0.0), pan.dy.clamp(math.min(0.0, _view.height - bottom), 0.0));
+  }
+
+  /// The node a wire from [from] let go at [point] goes into, if it can.
+  int? _target(int from, Offset point, List<Offset> places) {
+    for (final (i, p) in places.indexed) {
+      if (Rect.fromLTWH(p.dx - 20, p.dy - 10, _nodeWidth + 20, _nodeHead + 20).contains(point) && _macro.canWire(from, i)) return i;
+    }
+    return null;
+  }
+
+  void _add(MacroAction action) {
+    final macro = _macro, places = _places, after = _selected ?? (macro.steps.isEmpty ? null : macro.steps.length - 1);
+    var at = after == null ? Offset.zero : places[after] + const Offset(_gridX, 0);
+    while (places.any((p) => (p - at).distance < 60)) {
+      at += const Offset(0, 150);
+    }
+    final lanes = action == MacroAction.clear || action.unit == MacroUnit.bars ? MacroLanes.all : MacroLanes.selected;
+    widget.onChanged(macro.withStep(MacroStep(action, lanes: lanes, at: after == null ? null : (at.dx, at.dy)), after: after));
+    setState(() {
+      _selected = macro.steps.length;
+      // Into sight.
+      _pan = Offset(math.min(_pan.dx, _view.width - at.dx - _nodeWidth - 2 * _inset.dx), math.min(_pan.dy, _view.height - at.dy - 220));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context), macro = _macro, places = _places;
+    return LayoutBuilder(builder: (context, box) {
+      _view = box.biggest;
+      final pan = _held(_pan, places), origin = _inset + pan;
+      void move(Offset by) => setState(() => _pan = _held(pan + by, places));
+      final target = switch (_wiring) { (final from, final end) => _target(from, end, places), null => null };
+      return DecoratedBox(
+        decoration: BoxDecoration(color: colors.well, border: Border.all(color: colors.line), borderRadius: style.radius(8)),
+        child: ClipRRect(
+          borderRadius: style.radius(8),
+          child: Listener(
+            onPointerSignal: (signal) {
+              if (signal is PointerScrollEvent) move(-signal.scrollDelta);
+            },
+            onPointerPanZoomUpdate: (swipe) => move(swipe.panDelta),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _selected = null),
+              onPanUpdate: (drag) => move(drag.delta),
+              child: Stack(children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _WirePainter(
+                      [for (final w in macro.wires) (_out(places[w.from]) + origin, _in(places[w.to]) + origin)],
+                      switch (_wiring) { (final from, final end) => (_out(places[from]) + origin, (target == null ? end : _in(places[target])) + origin), null => null },
+                      colors.textMuted,
+                      colors.accent,
+                    ),
+                  ),
+                ),
+                for (final w in macro.wires)
+                  if ((_out(places[w.from]) + _in(places[w.to])) / 2 + origin case final middle)
+                    Positioned(
+                      left: middle.dx - 10,
+                      top: middle.dy - 10,
+                      child: _WireCut(key: ValueKey('macro wire ${w.from + 1} ${w.to + 1}'), onCut: () => widget.onChanged(macro.withoutWire(w.from, w.to))),
+                    ),
+                for (final (i, step) in macro.steps.indexed)
+                  Positioned(
+                    left: places[i].dx + origin.dx,
+                    top: places[i].dy + origin.dy,
+                    width: _nodeWidth,
+                    child: _Node(
+                      // (A node's fields are its own: another's start from its own.)
+                      key: ValueKey(i),
+                      number: i + 1,
+                      step: step,
+                      selected: i == _selected,
+                      onChanged: (changed) => widget.onChanged(macro.withStepAt(i, changed)),
+                      onRemove: () {
+                        setState(() => _selected = null);
+                        widget.onChanged(macro.withoutStep(i));
+                      },
+                      onSelect: () => setState(() => _selected = i),
+                      onMove: (by) => setState(() {
+                        final to = (_from ??= places[i]) + by;
+                        _moving = (i, Offset(math.max(0, to.dx), math.max(0, to.dy)));
+                      }),
+                      onMoved: () {
+                        final at = _moving?.$2;
+                        setState(() => _moving = _from = null);
+                        if (at != null) widget.onChanged(macro.withStepAt(i, step.copyWith(at: (at.dx, at.dy))));
+                      },
+                    ),
+                  ),
+                // The ports: a wire goes into a node at its left, and is drawn out of its right.
+                for (final (i, place) in places.indexed) ...[
+                  Positioned(
+                    left: _in(place).dx + origin.dx - 6,
+                    top: _in(place).dy + origin.dy - 6,
+                    child: IgnorePointer(child: _Port(lit: i == target)),
+                  ),
+                  Positioned(
+                    left: _out(place).dx + origin.dx - 12,
+                    top: _out(place).dy + origin.dy - 12,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.precise,
+                      child: GestureDetector(
+                        key: ValueKey('macro out ${i + 1}'),
+                        behavior: HitTestBehavior.opaque,
+                        onPanStart: (_) => setState(() => _wiring = (i, _out(place))),
+                        onPanUpdate: (drag) => setState(() => _wiring = (i, (_wiring?.$2 ?? _out(place)) + drag.delta)),
+                        onPanCancel: () => setState(() => _wiring = null),
+                        onPanEnd: (_) {
+                          setState(() => _wiring = null);
+                          if (target != null) widget.onChanged(macro.withWire(i, target));
+                        },
+                        child: SizedBox(width: 24, height: 24, child: Center(child: _Port(lit: _wiring?.$1 == i))),
+                      ),
+                    ),
+                  ),
+                ],
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: colors.chrome, border: Border.all(color: colors.line), borderRadius: style.radius(8)),
+                    child: OverlaySemantics(
+                      child: AppPopupMenuButton<MacroAction>(
+                        enabled: macro.steps.length < LaneMacro.maxSteps,
+                        style: toolbarMenuStyle(context, left: 6),
+                        constraints: const BoxConstraints(minWidth: 220),
+                        onSelected: _add,
+                        itemBuilder: (menu) => [for (final action in MacroAction.values) menuItem(menu, value: action, child: Text(macroActionLabel(action)))],
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(AppIcon.add.of(context), size: 16),
+                          const SizedBox(width: 5),
+                          Text('Add Step'.tr, style: const TextStyle(fontSize: 13)),
+                          const SizedBox(width: 8),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+/// The wires, each a curve leaving a node level and coming into the next level; [drawing]:
+/// one being drawn out, in the accent colour.
+class _WirePainter extends CustomPainter {
+  _WirePainter(this.wires, this.drawing, this.color, this.accent);
+  final List<(Offset, Offset)> wires;
+  final (Offset, Offset)? drawing;
+  final Color color, accent;
+
+  static Path _curve(Offset from, Offset to) {
+    final reach = math.max(40.0, (to.dx - from.dx).abs() / 2);
+    return Path()
+      ..moveTo(from.dx, from.dy)
+      ..cubicTo(from.dx + reach, from.dy, to.dx - reach, to.dy, to.dx, to.dy);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = color;
+    for (final (from, to) in wires) {
+      canvas.drawPath(_curve(from, to), line);
+    }
+    if (drawing case (final from, final to)) {
+      canvas.drawPath(
+          _curve(from, to),
+          line
+            ..color = accent
+            ..strokeWidth = 2);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WirePainter old) => !listEquals(old.wires, wires) || old.drawing != drawing || old.color != color || old.accent != accent;
+}
+
+/// A port of a node: where a wire meets it.
+class _Port extends StatelessWidget {
+  const _Port({required this.lit});
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: lit ? colors.accent : colors.surface, border: Border.all(color: lit ? colors.accent : colors.textMuted, width: 1.5)),
+    );
+  }
+}
+
+/// The dot in a wire's middle: a click cuts the wire.
+class _WireCut extends StatefulWidget {
+  const _WireCut({super.key, required this.onCut});
+  final VoidCallback onCut;
+
+  @override
+  State<_WireCut> createState() => _WireCutState();
+}
+
+class _WireCutState extends State<_WireCut> {
+  bool _over = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Tip(
+      message: 'Disconnect'.tr,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _over = true),
+        onExit: (_) => setState(() => _over = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onCut,
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: Center(
+              child: Container(
+                width: _over ? 16 : 7,
+                height: _over ? 16 : 7,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: _over ? colors.surface : colors.textMuted, border: _over ? Border.all(color: colors.textMuted) : null),
+                child: _over ? Icon(AppIcon.close.of(context), size: 10, color: colors.text) : null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A step as a node: its head (its number, what it does, taken out by its ×; dragged, it moves
+/// the node) over its choices, each a row.
+class _Node extends StatefulWidget {
+  const _Node({
+    super.key,
+    required this.number,
+    required this.step,
+    required this.selected,
+    required this.onChanged,
+    required this.onRemove,
+    required this.onSelect,
+    required this.onMove,
+    required this.onMoved,
+  });
+  final int number;
+  final MacroStep step;
+  final bool selected;
+  final ValueChanged<MacroStep> onChanged;
+  final VoidCallback onRemove, onSelect, onMoved;
+  final ValueChanged<Offset> onMove;
+
+  @override
+  State<_Node> createState() => _NodeState();
+}
+
+class _NodeState extends State<_Node> {
   late final _names = TextEditingController(text: widget.step.names.join(', '));
   late final _bars = TextEditingController(text: widget.step.bars);
   late final _number = TextEditingController(text: _numberText(widget.step));
 
+  /// How far the node has been dragged since its head was taken.
+  Offset _dragged = Offset.zero;
+
   static String _numberText(MacroStep step) => step.number == null ? '' : LaneScript.number(step.amount);
   static List<String> _split(String names) => [for (final name in names.split(RegExp('[,，、]'))) if (name.trim().isNotEmpty) name.trim()];
 
-  /// What is typed stays as typed; a step that says something else (moved here, its action
-  /// another) is shown as it is.
+  /// What is typed stays as typed; a step that says something else (its action another, the
+  /// one before it taken out) is shown as it is.
   @override
-  void didUpdateWidget(_StepCard old) {
+  void didUpdateWidget(_Node old) {
     super.didUpdateWidget(old);
     final step = widget.step;
     if (!listEquals(_split(_names.text), step.names)) _names.text = step.names.join(', ');
@@ -606,73 +891,89 @@ class _StepCardState extends State<_StepCard> {
     super.dispose();
   }
 
-  Widget _choice<T>(double width, T value, List<T> values, String Function(T) label, ValueChanged<T> onChanged) => SizedBox(
-        width: width,
-        child: AppDropdown<T>(
-          value: value,
-          boxed: true,
-          isExpanded: true,
-          onChanged: (v) => onChanged(v as T),
-          items: [for (final v in values) DropdownMenuItem<T>(value: v, child: Text(label(v), overflow: TextOverflow.ellipsis))],
-        ),
+  Widget _choice<T>(T value, List<T> values, String Function(T) label, ValueChanged<T> onChanged, {bool boxed = true}) => AppDropdown<T>(
+        value: value,
+        boxed: boxed,
+        isExpanded: true,
+        onChanged: (v) => onChanged(v as T),
+        items: [for (final v in values) DropdownMenuItem<T>(value: v, child: Text(label(v), overflow: TextOverflow.ellipsis))],
       );
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors, style = AppStyle.of(context), step = widget.step, unit = step.action.unit;
+    final rows = [
+      if (step.action.onLanes) _choice(step.lanes, MacroLanes.values, _lanesLabel, (lanes) => widget.onChanged(step.copyWith(lanes: lanes))),
+      if (step.action.onLanes && step.lanes == MacroLanes.named)
+        AppTextField(controller: _names, label: '', hint: 'Flute*, Oboe*', onChanged: (names) => widget.onChanged(step.copyWith(names: _split(names)))),
+      if (step.action.ranged) _choice(step.range, MacroRange.values, _rangeLabel, (range) => widget.onChanged(step.copyWith(range: range))),
+      if (step.action.ranged && step.range == MacroRange.bars)
+        AppTextField(controller: _bars, label: '', hint: '1-8, 17-24', onChanged: (bars) => widget.onChanged(step.copyWith(bars: bars))),
+      if (unit != null)
+        Row(children: [
+          // What the number is of, where the step's name doesn't say.
+          if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit || MacroAction.thin => 'Phrases of'.tr, MacroAction.snap => 'Within'.tr, _ => null } case final String of) ...[
+            Flexible(child: Text(of, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: colors.textMuted))),
+            const SizedBox(width: 6),
+          ],
+          SizedBox(
+            width: 60,
+            child: AppTextField(
+              controller: _number,
+              label: '',
+              hint: LaneScript.number(step.action.standard),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              // (None typed: as a new step has it.)
+              onChanged: (text) => widget.onChanged(MacroStep(step.action,
+                  lanes: step.lanes, names: step.names, range: step.range, bars: step.bars, number: double.tryParse(text)?.clamp(0, unit.most).toDouble(), at: step.at)),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(unit == MacroUnit.bars ? 'bars'.tr : 's', style: TextStyle(fontSize: 13, color: colors.textMuted)),
+        ]),
+    ];
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-      decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: style.radius(8)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(
-          width: 28,
-          height: style.field,
-          child: Center(child: Text('${widget.number}', style: TextStyle(fontSize: 12, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]))),
-        ),
-        Expanded(
-          child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            _choice(214, step.action, MacroAction.values, macroActionLabel, (action) => widget.onChanged(step.copyWith(action: action))),
-            if (step.action.onLanes) _choice(150, step.lanes, MacroLanes.values, _lanesLabel, (lanes) => widget.onChanged(step.copyWith(lanes: lanes))),
-            if (step.action.onLanes && step.lanes == MacroLanes.named)
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border.all(color: widget.selected ? colors.accent : colors.line, width: widget.selected ? 1.5 : 1),
+        borderRadius: style.radius(8),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+        // The head: taken anywhere but its ×, it moves the node; a click chooses it.
+        GestureDetector(
+          key: ValueKey('macro node ${widget.number}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onSelect,
+          onPanStart: (_) {
+            _dragged = Offset.zero;
+            widget.onSelect();
+          },
+          onPanUpdate: (drag) => widget.onMove(_dragged += drag.delta),
+          onPanEnd: (_) => widget.onMoved(),
+          onPanCancel: widget.onMoved,
+          child: SizedBox(
+            height: _nodeHead,
+            child: Row(children: [
               SizedBox(
-                width: 180,
-                child: AppTextField(controller: _names, label: '', hint: 'Flute*, Oboe*', onChanged: (names) => widget.onChanged(step.copyWith(names: _split(names)))),
+                width: 30,
+                child: Center(child: Text('${widget.number}', style: TextStyle(fontSize: 12, color: colors.textMuted, fontFeatures: const [FontFeature.tabularFigures()]))),
               ),
-            if (step.action.ranged) _choice(180, step.range, MacroRange.values, _rangeLabel, (range) => widget.onChanged(step.copyWith(range: range))),
-            if (step.action.ranged && step.range == MacroRange.bars)
-              SizedBox(
-                width: 140,
-                child: AppTextField(controller: _bars, label: '', hint: '1-8, 17-24', onChanged: (bars) => widget.onChanged(step.copyWith(bars: bars))),
-              ),
-            if (unit != null)
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                // What the number is of, where the step's name doesn't say.
-                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit || MacroAction.thin => 'Phrases of'.tr, MacroAction.snap => 'Within'.tr, _ => null } case final String of) ...[
-                  Text(of, style: TextStyle(fontSize: 13, color: colors.textMuted)),
-                  const SizedBox(width: 6),
-                ],
-                SizedBox(
-                  width: 60,
-                  child: AppTextField(
-                    controller: _number,
-                    label: '',
-                    hint: LaneScript.number(step.action.standard),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                    // (None typed: as a new step has it.)
-                    onChanged: (text) => widget.onChanged(MacroStep(step.action,
-                        lanes: step.lanes, names: step.names, range: step.range, bars: step.bars, number: double.tryParse(text)?.clamp(0, unit.most).toDouble())),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(unit == MacroUnit.bars ? 'bars'.tr : 's', style: TextStyle(fontSize: 13, color: colors.textMuted)),
-              ]),
-          ]),
+              Expanded(child: _choice(step.action, MacroAction.values, macroActionLabel, (action) => widget.onChanged(step.copyWith(action: action)), boxed: false)),
+              ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Remove'.tr, onPressed: widget.onRemove),
+              const SizedBox(width: 2),
+            ]),
+          ),
         ),
-        ToolbarButton(icon: AppIcon.moveUp.of(context), tooltip: 'Move Up'.tr, onPressed: widget.onUp),
-        ToolbarButton(icon: AppIcon.moveDown.of(context), tooltip: 'Move Down'.tr, onPressed: widget.onDown),
-        ToolbarButton(icon: AppIcon.close.of(context), tooltip: 'Remove'.tr, onPressed: widget.onRemove),
+        if (rows.isNotEmpty) ...[
+          Divider(height: 1, color: colors.line),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              for (final (i, row) in rows.indexed) Padding(padding: EdgeInsets.only(top: i == 0 ? 0 : 8), child: row),
+            ]),
+          ),
+        ],
       ]),
     );
   }

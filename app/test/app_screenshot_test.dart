@@ -8,6 +8,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
+import 'package:curated_score/macros.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/panel_bar.dart';
 import 'package:curated_score/phrase_search_window.dart';
@@ -127,6 +128,51 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(button, findsNothing);
+
+    // Edit ▸ Macros…: a macro is a graph, its steps the nodes and its wires what is done after what. A node is moved by
+    // its head; a wire is drawn out of a node's right port onto another node (not one that would close a ring) and cut
+    // at the dot in its middle; a step is taken out by its ×, its wires with it.
+    settings.macros = const [
+      LaneMacro(name: 'Both', steps: [
+        MacroStep(MacroAction.hear), MacroStep(MacroAction.follow, lanes: MacroLanes.all), MacroStep(MacroAction.match), //
+        MacroStep(MacroAction.thin, lanes: MacroLanes.all),
+      ], wired: [(from: 0, to: 2), (from: 1, to: 3)]),
+    ];
+    LaneMacro graph() => settings.macros.single;
+    unawaited(showMacrosDialog(page, settings, state.controller as EditorController));
+    await settle();
+    Finder node(int n) => find.byKey(ValueKey('macro node $n'));
+    expect([for (var n = 1; n <= 4; n++) node(n).evaluate().length], [1, 1, 1, 1]);
+    await screenshot(tester, 'macros-graph', inside: find.text('Add Step'), outermost: true);
+    Future<void> pull(Offset from, Offset to) async {
+      final gesture = await tester.startGesture(from, kind: PointerDeviceKind.mouse);
+      await gesture.moveBy(const Offset(6, 0));
+      await tester.pump();
+      await gesture.moveTo(to);
+      await tester.pump();
+      await gesture.up();
+      await settle();
+    }
+
+    final four = tester.getTopLeft(node(4));
+    await pull(four + const Offset(14, 18), four + const Offset(14 + 6 + 30, 18 + 120));
+    expect(graph().steps[3].at, isNotNull);
+    expect(tester.getTopLeft(node(4)) - four, within(distance: 1.5, from: const Offset(30, 120)));
+    Offset port(int n) => tester.getCenter(find.byKey(ValueKey('macro out $n')));
+    await pull(port(2), tester.getCenter(node(3)));
+    expect(graph().wires, contains((from: 1, to: 2)));
+    await pull(port(3), tester.getCenter(node(1)));
+    expect(graph().wires, hasLength(3), reason: 'no ring');
+    await screenshot(tester, 'macros-graph-wired', inside: find.text('Add Step'), outermost: true);
+    await tester.tap(find.byKey(const ValueKey('macro wire 2 3')));
+    await settle();
+    expect(graph().wires, const [(from: 0, to: 2), (from: 1, to: 3)]);
+    await tester.tap(find.descendant(of: node(1), matching: find.byTooltip('Remove')));
+    await settle();
+    expect([graph().steps.length, graph().wires, graph().steps.first.action], [3, const [(from: 0, to: 2)], MacroAction.follow]);
+    await tester.tap(find.text('Done'));
+    await settle();
+    settings.macros = const [];
 
     // The toolbar is the user's. An item's own menu (a right click) moves it into the menu at the
     // bar's end, where it still works. View ▸ Customize Toolbar… lists what can be added in the

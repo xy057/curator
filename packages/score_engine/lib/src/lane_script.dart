@@ -251,8 +251,9 @@ class LaneScript {
   /// Does every statement over [host], in order. One that can't be done (a lane there isn't, a
   /// bar past the end) is left out and listed: whoever runs it puts the lanes back then. A
   /// script that doesn't read ([problems]) does nothing.
-  /// One that [waits] is run with what it was made [ready] with.
-  List<LaneScriptProblem> run(LaneScriptHost host, {ScriptReady? ready}) => _go(_Run(host, dry: false, ready: ready));
+  /// One that [waits] is run with what it was made [ready] with. [only]: the lines to do, the
+  /// others left for another run (a macro's steps that wait, done after those that don't).
+  List<LaneScriptProblem> run(LaneScriptHost host, {ScriptReady? ready, Set<int>? only}) => _go(_Run(host, dry: false, ready: ready), only);
 
   /// What a script that [waits] needs before it runs, got from [host]: the recording heard
   /// (once, whichever statements go by it) and the anchors matched from it, which take a while
@@ -288,10 +289,11 @@ class LaneScript {
   /// the lines that do would get wrong, by line.
   List<LaneScriptProblem> check(LaneScriptHost host) => _go(_Run(host, dry: true));
 
-  List<LaneScriptProblem> _go(_Run run) {
+  List<LaneScriptProblem> _go(_Run run, [Set<int>? only]) {
     if (problems.isNotEmpty && !run.dry) return problems;
     final found = [...problems];
     for (final (line, statement) in _statements) {
+      if (only != null && !only.contains(line)) continue;
       try {
         statement(run);
       } on _Fail catch (e) {

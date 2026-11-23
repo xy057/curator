@@ -59,6 +59,14 @@ Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is o
 a script's is. A macro runs where what it changes is showing: steps for lanes in the Instruments
 tab, steps for the anchors in the Audio tab.
 
+The steps are nodes on a canvas, and a wire from one to the next says what is done after what.
+Drag from the circle on a node's right onto another node to wire them, click the dot on a wire
+to take it away, and drag a node by its top to put it elsewhere; scroll, or drag the ground, to
+move about. Steps with no wire between them don't wait for each other: while a step hears the
+recording, which takes a while, the steps not wired after it are done at once, and those wired
+after it when it is through (two Undo steps then: what was done at once, and the rest). Set
+Anchors As Heard goes by what it is wired after, so it needs a Hear the Recording before it.
+
 The first example is Auto-Curate itself, a step for each thing it does: Show Where Playing
 (`follow`: each lane where its part plays, short rests bridged), Hide Least Important (`thin`:
 where the staves run off the video's frame, the one that matters least in each phrase hidden,

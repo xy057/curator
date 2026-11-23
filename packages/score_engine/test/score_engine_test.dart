@@ -541,6 +541,29 @@ void main() {
         ..recording = null
         ..tape = 'tape'
         ..matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
+      // A macro is a graph: its steps the nodes, its wires what is done after what. One with none said is a chain. Steps
+      // are done each after all wired into it (the lower number first where either may go), those that neither hear the
+      // recording nor come after one that does at once and the others when it is heard. A wire closing a ring isn't put
+      // in; a step taken out lets what came before it go on into what came after; a match needs a hear wired into it.
+      const s = MacroStep.new, all = MacroLanes.all;
+      final both = LaneMacro(name: 'Both', steps: [
+        s(MacroAction.hear), s(MacroAction.follow, lanes: all), s(MacroAction.match), //
+        s(MacroAction.thin, lanes: all), s(MacroAction.snap, at: const (40, 300)), s(MacroAction.clear, lanes: all),
+      ], wired: const [(from: 0, to: 2), (from: 2, to: 4), (from: 1, to: 3), (from: 5, to: 1)]);
+      expect([align.wired, align.wires, LaneMacro.examples.first.order], [isNull, const [(from: 0, to: 1), (from: 1, to: 2)], [0, 1, 2, 3]]);
+      expect([both.order, both.stages.now, both.stages.later, both.before(3), both.grid],
+          [[0, 2, 4, 5, 1, 3], [5, 1, 3], [0, 2, 4], {1, 5}, const [(0, 0), (1, 0), (1, 1), (2, 0), (2, 1), (0, 1)]]);
+      expect(both.script(MacroContext.of(host)).script.split('\n'),
+          ['hear', 'match', 'snap anchors within 0.05', 'clear all', 'follow all bridge 1', 'thin all phrase 4']);
+      expect([both.canWire(3, 5), both.canWire(4, 4), both.canWire(0, 2), both.canWire(4, 3), both.withWire(3, 5) == both], [false, false, false, true, true]);
+      final cut = both.withoutStep(2);
+      expect([cut.steps.length, cut.wires, cut.withoutWire(0, 3).wires.length, both.withStep(s(MacroAction.refill), after: 3).wires.last],
+          [5, const [(from: 1, to: 2), (from: 4, to: 1), (from: 0, to: 3)], 2, const (from: 3, to: 6)]);
+      final loose = both.withoutWire(0, 2).script(MacroContext.of(host));
+      expect(['${loose.problems.single}', '${LaneMacro.problemsOf(const [LaneScriptProblem(2, 'x')], both.order).single}'], ['Step 3: heard', 'Step 3: x']);
+      expect(LaneMacro.read(LaneMacro.write([both])), [both]);
+      expect(LaneMacro.read('[{"name": "r", "steps": [{"do": "hear"}, {"do": "fly"}, {"do": "match"}], "wires": [[0, 2], [2, 0], [0, 1], [5, 0], "x"]}]').single.wired,
+          const [(from: 0, to: 1)], reason: 'by the places left, no ring, nothing unknown');
       // Kept as JSON; what isn't a step, or a macro, is left out.
       expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
       expect([macro.copyWith(icon: 'tidy') == macro, macro.toJson().containsKey('icon')], [false, false]);

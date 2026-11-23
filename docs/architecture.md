@@ -19,7 +19,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `lane_script.dart`, `lane_script_api.dart` | The lanes written (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
-| `lane_macro.dart` | Curating without writing (see *The lanes can be written*): a macro (`LaneMacro`) is steps put together from choices (`MacroStep`: a `MacroAction`, its `MacroLanes`, its `MacroRange`, a number), written as a script for the moment (`LaneMacro.script` over a `MacroContext`: the lanes selected, the playhead, bars asked for), what keeps a step from being written (`MacroProblem`, `MacroFault`), and the app's list of them as JSON |
+| `lane_macro.dart` | Curating without writing (see *The lanes can be written*): a macro (`LaneMacro`) is steps put together from choices (`MacroStep`: a `MacroAction`, its `MacroLanes`, its `MacroRange`, a number, where its node is) wired into a graph (`MacroWire`, `LaneMacro.wires`: what is done after what; `order`, `stages`, `grid`), written as a script for the moment (`LaneMacro.script` over a `MacroContext`: the lanes selected, the playhead, bars asked for), what keeps a step from being written (`MacroProblem`, `MacroFault`), and the app's list of them as JSON |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
@@ -135,7 +135,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
 | `lane_script_view.dart` | The Instruments tab's Script (`LaneScriptView`, in the lanes' place while `LaneEditing.scripting`): the project's script in a `CodeView`, coloured and prompted from the language's own list (`laneScriptCode`, `LaneScriptPrompts`), Run, From Lanes, what is wrong listed under it, the guide beside it |
-| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, the chosen one's icon, name and pin, each step a row of choices, Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`, `macroAction`: asks for its bars first when it asks, says what is wrong by step), and what a toolbar draws a macro's own button from (`MacrosScope`, `macroIcon`) |
+| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, the chosen one's icon, name and pin, its steps as nodes on a canvas, wired by dragging, `_Graph`; Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`, `macroAction`: asks for its bars first when it asks, says what is wrong by step), and what a toolbar draws a macro's own button from (`MacrosScope`, `macroIcon`) |
 | `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -983,7 +983,8 @@ as a script for the moment (`LaneMacro.script`, a line a step, over a `MacroCont
 selected by the names a script calls them, `LaneScript.references`; the beat nearest the playhead,
 `LaneScript.place`) and that script is run (`LaneEditing.runMacro`, through `runScript`), so a macro
 does what the tools do, is checked whole before anything changes, and is one Undo step. What is
-wrong is said by step, a line's number being its step's: what a step needs and isn't there (no lane
+wrong is said by step (a line is its step's place in the order they are done in, which the script
+comes with: `LaneMacro.problemsOf`): what a step needs and isn't there (no lane
 selected: `MacroFault`, said by the app in the user's language) before any script is made, then
 what the script finds (its own words). The lanes a macro was run on stay selected, for the next.
 Macros are the app's, not a project's (`AppSettings.macros`, JSON, what isn't a step this
@@ -1009,6 +1010,34 @@ tools everyone uses. One that asks for bars asks in a dialog that takes only bar
 run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is changed, and its Run
 tries the macro on the project under it. Its examples are `LaneMacro.examples`, named in the
 user's language when one is added.
+
+A macro's steps are a graph, and the dialog shows it as one: each step a node on a canvas
+(`_Graph` in `macros.dart`: `_Node`, its head the step's number, what it does and its ×, dragged
+by it; its choices under), a wire from a node's right to another's left saying the second is done
+after the first (`MacroWire`, `LaneMacro.wires`; `_WirePainter`'s curves, the dot at a wire's
+middle taking it away, `_WireCut`). A wire is drawn by dragging from a node's right port onto
+another node, and one that would close a ring is not taken (`canWire`). A macro with none kept is
+a chain, each step after the one before (`wired` null: every macro from before the graph, and the
+examples), and stays one as steps are changed; adding, wiring or cutting keeps the wires
+themselves (`withStep`, after the node selected; `withWire`, `withoutWire`; `withoutStep` wires
+what led into the step taken away onto what it led to). A node is where it was dragged to
+(`MacroStep.at`) or where the graph's own layout puts it (`grid`: a column for how deep it comes
+after others, rows as numbered). The canvas pans by scrolling or dragging its ground and has no
+zoom; the dialog is wide for it (`AppDialog.maxWidth`).
+
+The wires are what lets a macro go on without waiting. Its script is written in an order that
+honours every wire, the lower number first where none says (`order`), and a macro with nothing to
+wait for is run as before, at once and as one Undo step. One with a step that hears the recording
+is run in two lots (`stages`, `LaneEditing.runMacroReady`): the steps that neither wait nor are
+wired after one that does are done at once, their own Undo step, while the recording is being
+heard (`LaneScript.run`'s `only`: the lines to do, the rest left for later; the whole is checked
+first), and the others when it has been, a second step, as Align's anchors are. So lanes wired
+apart from the hearing are curated while it goes on, and wired after it they wait for it. `match`
+goes by what a `hear` wired before it heard, so a Set Anchors As Heard with none says so before
+anything runs (`MacroFault.heard`). What only the hearing finds (a recording that can't be read)
+leaves the first lot done. A test runs both examples in one macro, unwired: the lanes are
+curated while Align's progress is still showing, the anchors come after, and Undo takes them
+back apart.
 
 The first of them is Auto-Curate itself, a step for each thing it does: Show Where Playing
 (`follow all bridge 1`), then fitting the frame in its three steps, Hide Least Important

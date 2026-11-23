@@ -37,6 +37,7 @@ class AppDialog extends StatelessWidget {
     this.divided = false,
     this.confirmsOnReturn = true,
     this.onEscape,
+    this.maxWidth = 820,
   });
 
   final Widget title;
@@ -52,6 +53,9 @@ class AppDialog extends StatelessWidget {
 
   /// Esc, in a dialog a click outside doesn't close (so Esc doesn't either); null: nothing more.
   final VoidCallback? onEscape;
+
+  /// The widest it gets: more for a body that is a canvas (a macro's graph).
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +104,7 @@ class AppDialog extends StatelessWidget {
         insetPadding: const EdgeInsets.all(32),
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 380, maxWidth: 820),
+          constraints: BoxConstraints(minWidth: 380, maxWidth: maxWidth),
           child: IntrinsicWidth(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: body),
           ),

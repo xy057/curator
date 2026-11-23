@@ -6052,3 +6052,11 @@ msgstr "自動對齊"
 #: lib/macros.dart
 msgid "Within"
 msgstr "範圍"
+
+#: lib/macros.dart
+msgid "Wire Hear the Recording into it"
+msgstr "把「聆聽錄音」連到它前面"
+
+#: lib/macros.dart
+msgid "Disconnect"
+msgstr "斷開"

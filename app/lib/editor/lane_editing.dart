@@ -538,13 +538,13 @@ class LaneEditing {
     return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
   }
 
-  /// Runs [script], checked, as one Undo step.
-  ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready}) {
+  /// Runs [script], checked, as one Undo step ([only]: those of its lines).
+  ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready, Set<int>? only}) {
     List<LaneScriptProblem> problems;
     final before = _editor._editState;
     _editor.beginEdit();
     try {
-      problems = script.run(host, ready: ready);
+      problems = script.run(host, ready: ready, only: only);
       // What only running finds (lanes that can't be auto-curated): as it was, as Undo puts it.
       if (problems.isNotEmpty) _editor._restore(before);
     } finally {
@@ -559,7 +559,7 @@ class LaneEditing {
   /// [macro] as a script for now: with the lanes selected, the beat nearest the playhead, the
   /// bars from the first selected region's start to the last one's end, and the bars [asked]
   /// for; and what keeps a step from being written.
-  ({String script, List<MacroProblem> problems}) _macroScript(LaneMacro macro, String? asked) {
+  ({String script, List<MacroProblem> problems, List<int> order}) _macroScript(LaneMacro macro, String? asked) {
     final regions = _valid.keys;
     return macro.script(MacroContext.of(
       _ScriptHost(_editor),
@@ -573,30 +573,61 @@ class LaneEditing {
   /// What is wrong with [macro] were it run now, by step; nothing changes.
   List<MacroProblem> checkMacro(LaneMacro macro, {String? asked}) {
     if (_curation == null || _editor._sync == null) return const [];
-    final (:script, :problems) = _macroScript(macro, asked);
-    return problems.isNotEmpty ? problems : LaneMacro.problemsOf(checkScript(script));
+    final (:script, :problems, :order) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? problems : LaneMacro.problemsOf(checkScript(script), order);
   }
 
   /// Runs [macro] as the script it is for now ([runScript]: one Undo step, or nothing at all),
-  /// [asked] the bars it asks for. The lanes it was run on stay selected, for the next.
+  /// [asked] the bars it asks for. The lanes it was run on stay selected, for the next. (One
+  /// with a step that waits is for [runMacroReady]: here that step fails, and nothing is done.)
   ({List<MacroProblem> problems, bool changed}) runMacro(LaneMacro macro, {String? asked}) {
     if (_curation == null || _editor._sync == null) return (problems: const [], changed: false);
     final lanes = selectedPartIds;
-    final (:script, :problems) = _macroScript(macro, asked);
-    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(runScript(script), lanes);
+    final (:script, :problems, :order) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(runScript(script), order, lanes);
   }
 
-  /// [runMacro] for a macro that may wait (a step hears the recording): see [runScriptReady].
+  /// [runMacro] for a macro that may wait (a step hears the recording), as its graph says
+  /// ([LaneMacro.stages]): the steps that neither wait nor come after one that does are done
+  /// at once, one Undo step, before this is waited for; what the others wait for is got
+  /// meanwhile, with nothing changed and Align's progress showing ([SyncEditing.aligning]), and
+  /// then they are done, a step of their own (as Align's anchors are). The whole of it is
+  /// checked before anything is done; what only the hearing finds (a recording that can't be
+  /// read, no score heard in it) leaves what was done at once done. Nothing more where an
+  /// Align is under way, or the recording or the project is another by then.
   Future<({List<MacroProblem> problems, bool changed})> runMacroReady(LaneMacro macro, {String? asked}) async {
-    if (_curation == null || _editor._sync == null) return (problems: const <MacroProblem>[], changed: false);
+    const nothing = (problems: <MacroProblem>[], changed: false);
+    if (_curation == null || _editor._sync == null) return nothing;
     final lanes = selectedPartIds;
-    final (:script, :problems) = _macroScript(macro, asked);
-    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(await runScriptReady(script), lanes);
+    final (script: source, :problems, :order) = _macroScript(macro, asked);
+    if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (!script.waits) return _macroRan(runScript(source), order, lanes);
+    final wrong = script.check(host);
+    if (wrong.isNotEmpty) return (problems: LaneMacro.problemsOf(wrong, order), changed: false);
+    // A line is its step's place in the order they are done in.
+    final (:now, :later) = macro.stages;
+    Set<int> lines(List<int> steps) => {for (final i in steps) order.indexOf(i) + 1};
+    var changed = false;
+    if (now.isNotEmpty) {
+      final ran = _macroRan(_ran(script, host, only: lines(now)), order, lanes);
+      if (ran.problems.isNotEmpty) return ran;
+      changed = ran.changed;
+    }
+    final sync = _editor._sync, track = _editor.track;
+    final got = await _editor.anchors._whileAligning((report) {
+      host._report = report;
+      return script.ready(host);
+    });
+    if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return (problems: const <MacroProblem>[], changed: changed);
+    if (got.problems.isNotEmpty) return (problems: LaneMacro.problemsOf(got.problems, order), changed: changed);
+    final ran = _macroRan(_ran(script, host, ready: got.ready, only: lines(later)), order, lanes);
+    return (problems: ran.problems, changed: changed || ran.changed);
   }
 
-  ({List<MacroProblem> problems, bool changed}) _macroRan(({List<LaneScriptProblem> problems, bool changed}) ran, Set<String> lanes) {
+  ({List<MacroProblem> problems, bool changed}) _macroRan(({List<LaneScriptProblem> problems, bool changed}) ran, List<int> order, Set<String> lanes) {
     if (ran.problems.isEmpty && lanes.isNotEmpty) _selectLanes([for (final row in _editor.laneRows) if (lanes.contains(row.id)) row.id]);
-    return (problems: LaneMacro.problemsOf(ran.problems), changed: ran.changed);
+    return (problems: LaneMacro.problemsOf(ran.problems, order), changed: ran.changed);
   }
 
   /// The lanes as they are, as a script that makes them again ([LaneScript.write]).

@@ -6036,3 +6036,11 @@ msgstr ""
 #: lib/macros.dart
 msgid "Within"
 msgstr ""
+
+#: lib/macros.dart
+msgid "Wire Hear the Recording into it"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Disconnect"
+msgstr ""

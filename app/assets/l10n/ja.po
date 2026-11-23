@@ -6052,3 +6052,11 @@ msgstr "自動で揃える"
 #: lib/macros.dart
 msgid "Within"
 msgstr "範囲"
+
+#: lib/macros.dart
+msgid "Wire Hear the Recording into it"
+msgstr "「録音を聴く」をこの前につなぐ"
+
+#: lib/macros.dart
+msgid "Disconnect"
+msgstr "切断"

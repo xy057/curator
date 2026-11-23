@@ -246,6 +246,35 @@ void main() {
         }
         expect(found[true], isNot(found[false]), reason: 'there are notes to snap to');
         expect(c.lanes.runScript('hear').problems, hasLength(1), reason: 'not without waiting');
+
+        // A macro is a graph, and its branches don't wait for each other: Auto-curate and Auto-align in one, with no wire
+        // between the two, curates at once (before the recording is heard: a step of its own) and sets the anchors when
+        // it has been, as the two macros do apart. A match with no hear wired into it is told so, and nothing is done.
+        final curate = LaneMacro.examples.first, shift = curate.steps.length;
+        final both = LaneMacro(
+          name: 'Both',
+          steps: [...curate.steps, ...align.steps],
+          wired: [...curate.wires, for (final w in align.wires) (from: w.from + shift, to: w.to + shift)],
+        );
+        expect([both.stages.now, both.stages.later], [[0, 1, 2, 3], [4, 5, 6]]);
+        Map<String, List<Region>> lanes() => {...c.curation!.lanes};
+        c.anchors.snapToOnsets = true;
+        c.anchors.clear(); // (what fits the frame goes by the time a bar takes)
+        c.lanes.runScript('show all');
+        c.lanes.autoCurate();
+        final curated = lanes();
+        c.lanes.runScript('show all');
+        final running = c.lanes.runMacroReady(both);
+        expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, isEmpty, isNotNull], reason: 'curated while it listens');
+        final ran = await running;
+        expect([ran.problems, ran.changed], [isEmpty, isTrue]);
+        expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, found[true], isNull]);
+        c.undo();
+        expect([lanes(), c.sync!.anchors], [curated, isEmpty], reason: 'the anchors are a step');
+        c.undo();
+        expect(lanes(), isNot(curated), reason: 'the lanes another');
+        final loose = both.withoutWire(shift, shift + 1);
+        expect(['${(await c.lanes.runMacroReady(loose)).problems.single}', lanes()], ['Step 6: heard', isNot(curated)]);
       }
 
       await sameAsAlign();
