@@ -1,9 +1,9 @@
 // What is made or copied from elsewhere is in step with it: every text the code translates is in
 // the template (assets/l10n/curator.pot, `make l10n`), every language's file has the template's
 // texts with the same placeholders and the languages the app ships are wholly translated, the
-// shortcuts' names are there too, docs/extension-api.md, docs/plugin-api.md and
-// docs/web-plugin-api.md are the guides and the APIs as they are (`make extension-docs`,
-// `make plugin-docs`, `make web-plugin-docs`), what is built from TypeScript is built from it
+// shortcuts' names are there too, docs/extension-api.md, docs/plugin-api.md, docs/lane-script.md
+// and docs/web-plugin-api.md are the guides and the APIs as they are (`make extension-docs`,
+// `make plugin-docs`, `make script-docs`, `make web-plugin-docs`), what is built from TypeScript is built from it
 // as it is (`make web-plugins`), the commands plugins are told of are the app's, and the
 // licence the app carries is the repository's.
 
@@ -21,6 +21,7 @@ import 'package:score_engine/score_engine.dart' show PluginApi;
 
 import '../tool/extension_docs.dart';
 import '../tool/plugin_docs.dart';
+import '../tool/script_docs.dart';
 import '../tool/web_plugin_docs.dart';
 
 void main() {
@@ -90,6 +91,7 @@ void main() {
     final guide = File('assets/help/extensions.md').readAsStringSync();
     expect(File('../docs/extension-api.md').readAsStringSync(), extensionDocs(guide), reason: 'run `make extension-docs`');
     expect(File('../docs/plugin-api.md').readAsStringSync(), pluginDocs(File('assets/help/plugins.md').readAsStringSync()), reason: 'run `make plugin-docs`');
+    expect(File('../docs/lane-script.md').readAsStringSync(), laneScriptDocs(File('assets/help/script.md').readAsStringSync()), reason: 'run `make script-docs`');
 
     // docs/web-plugin-api.md is the web plugins' guide and their API as TypeScript declares it;
     // what is built from TypeScript (the web player's plugin host, Curator's own web plugins'

@@ -18,6 +18,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
+| `lane_script.dart`, `lane_script_api.dart` | The lanes written (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
@@ -132,6 +133,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `app_menus.dart` | The menu bar (native on macOS): File (New Project, ⌘N: a blank one-staff score as an unsaved project, `blankMusicXml`; New LilyPond Score…; Export Video…, Export to Web…, also the toolbar's Export menu); Edit (Project Settings… then Settings… at its foot, on macOS too); View (Hide / Show Preview and Timeline, one of them always shown; Maximize Preview / Timeline, the other at its smallest; Show Player Map / Show Score, and for a score with notes Show MIDI View / Show Score); MIDI, only while a MIDI project shows, or a score in its MIDI view (`MidiMenu`; see *A MIDI project is its notes*); Window on macOS, Help elsewhere. Edit's items are greyed out with nothing to do, and while a text field or a dialog has the keyboard, since on macOS a key Flutter leaves unhandled goes on to the menu; under a dialog Open, Open Recent, Close and Show Next / Previous Tab are too (the dialog belongs to the tab showing: ⌘W would otherwise close the project under it) |
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
+| `lane_script_view.dart` | The Instruments tab's Script (`LaneScriptView`, in the lanes' place while `LaneEditing.scripting`): the project's script in a `CodeView`, coloured and prompted from the language's own list (`laneScriptCode`, `LaneScriptPrompts`), Run, From Lanes, what is wrong listed under it, the guide beside it |
 | `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -922,6 +924,37 @@ pasting too): an edit of a staff's lane makes the instrument's again from its st
 added between it and its neighbours and, at an outer staff shown, to the instrument's
 (`SpacingPlan`'s `staffRoom`); joining drops it. Which instruments are split is
 `EditState.split`, saved in `curation` (`split`, the part ids, from its version 2).
+
+**The lanes can be written.** The Instruments tab's Script (its bar's code button, `BarItem.script`,
+`LaneEditing.scripting`: not saved) shows a script in the lanes' place, in a language of Curator's
+own (docs/lane-script.md), a statement a line: `show "Flute 1", "Oboe*" 1-8 transition in 0.5`,
+`hide`, `only`, `clear`, `auto`, `bridge rests`, `remove short`, `copy … to`, `split`, `join`, `move`,
+`restore order`, `transition`, `let`. It is no second way of curating: each statement is one of the
+tab's own edits (`Curation.painted`, `fillGaps`, `removeShort`, `copyLane`, `LaneEditing.autoCurate`,
+`EditorController.setSplit`, `moveLanes`), so what a script does is what the tools do. The engine
+reads and runs it (`LaneScript`) over a `LaneScriptHost`, the controller's being the lanes as the tab
+has them (`laneRows`, by the names it shows; a condensed pair's is its lane's); a line is parsed
+into what it does, and names and bars are found as it runs, so a `split` changes what the lines
+after it can name. A lane is named in quotes, always: an instrument's name holds numbers and words
+of the language ("Flute 1", "Clarinet in B♭"). Bars are the ruler's (`BeatGrid.parse`, the project's
+first bar number); `1-8` runs through bar 8, `from` and `until` take places exactly.
+Run (⌘R, `LaneEditing.runScript`) is one Undo step, and all or nothing: the script is checked
+first with nothing changed (`LaneScript.check`, which keeps the lanes a split or a move would leave
+only in its head), and what only running finds (lanes that can't be auto-curated) puts the document
+back as Undo would (`_restore`) inside the gesture, so no step is recorded. The same check runs as
+the script is typed, listing what is wrong under it by line. From Lanes writes the lanes as they are
+(`LaneScript.write`: the splits, the project's transition, each lane's regions with their own
+transitions and staves left out; whole bars as `1-8`, a place off the beats in quarters, `@12.5`; a
+name several lanes have by its number, `"Violin"[2]`; not the lanes' order), which run on any lanes
+makes them again. The script is the project's (`ProjectState.script`, the optional `script` module)
+but no edit: typing it marks the project changed (`editRevision`) and records no Undo step. A page
+gets none. The language is listed once (`LaneScriptApi.statements`, `keywords`): the colouring, what
+is offered as it is typed, Help's reference and docs/lane-script.md (the guide,
+`assets/help/script.md`, then the statements; `make script-docs`, which a test holds it to) come
+from it. The code is typed in the project's window, where the editor's keys are letters: while the
+keyboard is in it (`TypingArea`, as `textFieldFocused` tells) they are its own, and its scrolls and
+swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is a document wrapped
+in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -2180,10 +2213,10 @@ download (GitHub only, into Downloads).
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
 The suite is kept to 25 tests at most, `make smoke`'s among them: one per area, on its main path, what else
 there is of the area folded into it as sections. The engine's: the engraving (parts, scroll map, phrase search,
-video frame), curation (regions, auto-curate), tapping, takes and tempo maps, Align, the score editor, PDF import,
+video frame), curation (regions, auto-curate, the script language), tapping, takes and tempo maps, Align, the score editor, PDF import,
 LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
 updater's URLs, the app's folders and downloads, web export (with a page's plugins and what the player answers them), the app's screens, the accessibility tree, what is
-kept in step (the translations, docs/extension-api.md, docs/plugin-api.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
+kept in step (the translations, docs/extension-api.md, docs/plugin-api.md, docs/lane-script.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
 extensions' digests, remote AI's client, the score editor, a LilyPond project, the shortcuts' keys. A new check
 goes into its area's test; a new test only for an area none covers, within the 25. `Samples/` is for trying things by hand only. A test's tap that something
 else would catch fails (`flutter_test_config.dart`). `make smoke` runs the app as built
@@ -2271,6 +2304,9 @@ on Windows wherever the registry says that folder now is): it never replaces the
   an `_Item` on Settings ▸ Download Hub, the one place it is downloaded; what takes it is offered
   without it and asks for it there (as `ensureLilyPond` does). Local AI is never hidden by Hide AI
   features, which hides remote AI only.
+- **A statement of the script**: a `ScriptStatement` in `LaneScriptApi.statements` (its syntax, what
+  it does, an example that reads), its words in `keywords`, what it does in `_Parser.statement`
+  (`lane_script.dart`) as one of the tab's own edits, never a new one; then `make script-docs`.
 - **A flag**: a fix for how other programs write their files, on by default (Centered lyrics and
   Dynamics between staves, house styles, are off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),

@@ -101,6 +101,9 @@ enum BarItem {
   autoCurate('Auto-curate', on: _instruments),
   clearLanes('Clear all lanes', on: _instruments),
 
+  /// The lanes written instead of drawn: the script in their place.
+  script('Script', on: _instruments),
+
   // The Audio tab's. Those of the sync are there only while a recording's sync is edited.
   addRecording('Add Recording…', on: _audio),
   crossfade('Crossfade', on: _audio),
@@ -186,7 +189,7 @@ class ToolbarLayout {
       BarItem.laneTools, //
       BarItem.space,
       BarItem.trimStart, BarItem.trimEnd, BarItem.remove, BarItem.divider, BarItem.transition, BarItem.staves, BarItem.divider, //
-      BarItem.tidy, BarItem.autoCurate, BarItem.clearLanes, BarItem.divider, ..._panelEnd,
+      BarItem.tidy, BarItem.autoCurate, BarItem.clearLanes, BarItem.script, BarItem.divider, ..._panelEnd,
     ], []),
     BarKind.audio: ToolbarLayout._(BarKind.audio, [
       BarItem.addRecording, BarItem.laneTools, BarItem.crossfade, BarItem.divider, //

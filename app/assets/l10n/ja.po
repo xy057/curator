@@ -896,7 +896,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -1237,7 +1237,7 @@ msgstr "2 分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高さ（譜線間隔）"
 
-#: lib/app_menus.dart lib/script_editor.dart
+#: lib/app_menus.dart lib/lane_script_view.dart lib/script_editor.dart
 msgid "Help"
 msgstr "ヘルプ"
 
@@ -3347,7 +3347,7 @@ msgstr "閉じる"
 msgid "Select a bar"
 msgstr "小節を選んでください"
 
-#: lib/pdf_import.dart
+#: lib/lane_script_view.dart lib/pdf_import.dart
 msgid "Lane"
 msgstr "レーン"
 
@@ -4024,7 +4024,7 @@ msgstr "浄書するものがありません。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "LilyPond の楽譜を読み込めませんでした"
 
-#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
+#: lib/lane_script_view.dart lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr "検索（{key}）"
 
@@ -4581,6 +4581,15 @@ msgstr "リージョンまたは調を移動"
 msgid "Select in the lane above / below"
 msgstr "上 / 下のレーンを選択"
 
+msgid "Run Script"
+msgstr "スクリプトを実行"
+
+msgid "In the script."
+msgstr "スクリプト内。"
+
+msgid "Script"
+msgstr "スクリプト"
+
 msgid "Note Input"
 msgstr "音符入力"
 
@@ -4813,11 +4822,11 @@ msgstr "拡張機能は元のままです。"
 msgid "Reference"
 msgstr "リファレンス"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run ({key})"
 msgstr "実行（{key}）"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run"
 msgstr "実行"
 
@@ -5837,3 +5846,23 @@ msgstr "字幕を楽譜の横に一覧表示します。表示中の字幕に印
 #: assets/web_plugins/transcript/plugin.json
 msgid "Side"
 msgstr "位置"
+
+#: lib/lane_script_view.dart
+msgid "Nothing changed"
+msgstr "変更なし"
+
+#: lib/lane_script_view.dart
+msgid "Write the lanes as a script"
+msgstr "レーンをスクリプトとして書き出す"
+
+#: lib/lane_script_view.dart
+msgid "From Lanes"
+msgstr "レーンから作成"
+
+#: lib/panel_bar.dart
+msgid ""
+"Script\n"
+"Curate by writing"
+msgstr ""
+"スクリプト\n"
+"書いてキュレート"

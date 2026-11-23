@@ -5,6 +5,7 @@ import 'app_colors.dart';
 import 'audio_panel.dart';
 import 'extensions/extension_lane.dart';
 import 'editor_controller.dart';
+import 'lane_script_view.dart';
 import 'lanes_common.dart';
 import 'panel_bar.dart';
 import 'spacer_lane.dart';
@@ -49,6 +50,7 @@ class BottomPanel extends StatelessWidget {
           curation: controller.curation,
           sync: controller.sync,
           tab: controller.tab,
+          scripting: controller.lanes.scripting,
           spacers: controller.spacers.enabled,
           // (Which runtime too: one run again from its files is another.)
           extensions: [for (final lane in controller.extensions.lanes) '${lane.runtime.id} ${lane.node.id} ${identityHashCode(lane.runtime)}'].join('\n'),
@@ -105,6 +107,8 @@ class BottomPanel extends StatelessWidget {
                     child: switch (c.tab) {
                       BottomTab.audio => AudioLanes(key: const ValueKey('audio'), controller: c),
                       BottomTab.video => Align(alignment: Alignment.topCenter, child: VideoLanes(key: const ValueKey('video'), controller: c)),
+                      BottomTab.instruments when c.lanes.scripting =>
+                        ViewportGestures.apart(key: const ValueKey('script'), child: LaneScriptView(controller: c)),
                       BottomTab.instruments => InstrumentLanes(key: const ValueKey('instruments'), controller: c),
                     },
                   ),

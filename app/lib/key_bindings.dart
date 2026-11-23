@@ -242,6 +242,7 @@ enum KeyCommand {
   moveRegions('Move regions or a key area', 'Instruments', KeyPlace.editor, [_K(_L.arrowLeft), _K(_L.arrowRight)],
       help: 'A bar · ⇧ a beat'),
   nextLane('Select in the lane above / below', 'Instruments', KeyPlace.editor, [_K(_L.arrowUp), _K(_L.arrowDown)]),
+  runScript('Run Script', 'Instruments', KeyPlace.editor, [_K(_L.keyR, command: true)], help: 'In the script.'),
 
   // The score editor (Project Info ▸ Score ▸ Edit…).
   noteInput('Note Input', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.enter), _K(_L.keyN, shift: true)]),

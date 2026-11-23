@@ -74,6 +74,7 @@ class LaneEditing {
   void _reset() {
     _clear();
     _laneAnchor = null;
+    _script = '';
   }
 
   /// Nothing selected: no regions, no lanes.
@@ -474,4 +475,113 @@ class LaneEditing {
     _curation?.copyLane(from, to);
     _editor.clearSelection();
   }
+
+  // MARK: Script
+
+  /// Whether the Instruments tab shows the script in the lanes' place.
+  bool get scripting => _scripting;
+  bool _scripting = false;
+  set scripting(bool value) {
+    if (value == _scripting) return;
+    _scripting = value;
+    _editor._changed();
+  }
+
+  /// The project's script ([LaneScript]) as it was left: saved with it, and no edit (what it
+  /// did when it ran is).
+  String get script => _script;
+  String _script = '';
+  set script(String value) {
+    if (value == _script) return;
+    _script = value;
+    _editor.editRevision.value++;
+  }
+
+  /// What is wrong with [source] as a script, were it run now; nothing changes.
+  List<LaneScriptProblem> checkScript(String source) =>
+      _curation == null ? const [] : LaneScript.parse(source).check(_ScriptHost(_editor));
+
+  /// Runs [source], every statement, as one Undo step: what the tools would do, done by
+  /// writing. What is wrong with it is given back, and then nothing has changed; [changed]:
+  /// whether anything did.
+  ({List<LaneScriptProblem> problems, bool changed}) runScript(String source) {
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (_curation == null) return (problems: const [], changed: false);
+    var problems = script.check(host);
+    if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final before = _editor._editState;
+    _editor.beginEdit();
+    try {
+      problems = script.run(host);
+      // What only running finds (lanes that can't be auto-curated): as it was, as Undo puts it.
+      if (problems.isNotEmpty) _editor._restore(before);
+    } finally {
+      _editor.endEdit();
+    }
+    _editor.clearSelection();
+    return (problems: problems, changed: _editor._editState != before);
+  }
+
+  /// The lanes as they are, as a script that makes them again ([LaneScript.write]).
+  String get asScript => _curation == null ? '' : LaneScript.write(_ScriptHost(_editor));
+
+  /// The lanes' names, top to bottom, each once: what a script calls them.
+  List<String> get scriptNames => {for (final lane in _ScriptHost(_editor).lanes) lane.name}.toList();
+}
+
+/// The project a script runs over ([LaneScriptHost]): the lanes as the Instruments tab has
+/// them, by the names it shows.
+class _ScriptHost extends LaneScriptHost {
+  _ScriptHost(this._editor);
+  final EditorController _editor;
+
+  @override
+  List<ScriptLane> get lanes {
+    final instruments = {for (final p in _editor.laneParts) p.id: p};
+    return [
+      for (final row in _editor.laneRows)
+        if (_editor.instrumentOfLane(row.id) case final instrument)
+          ScriptLane(
+            id: row.id,
+            name: _editor.laneName(instruments[instrument] ?? row),
+            instrument: instrument,
+            staff: Curation.staffOfLane(row.id)?.$2,
+            staves: _editor.lanes.staffCountOf(instrument),
+          ),
+    ];
+  }
+
+  @override
+  BeatGrid get beats => _editor.beats;
+  @override
+  Curation get curation => _editor._curation!;
+
+  @override
+  List<(String, double)> get marks {
+    final score = _editor._score!, starts = score.timeline.measureStarts;
+    return [
+      for (final text in score.texts)
+        if (text.kind == ScoreTextKind.rehearsal && text.measure >= 0 && text.measure < starts.length - 1) (score.currentText(text), starts[text.measure]),
+    ];
+  }
+
+  @override
+  bool autoCurate(List<String> ids) {
+    if (!_editor.canAutoCurate) return false;
+    _editor.lanes.autoCurate(ids);
+    return true;
+  }
+
+  @override
+  void setSplit(String instrument, bool on) => _editor.setSplit(instrument, on: on);
+
+  @override
+  void moveLanes(List<String> ids, {String? before}) {
+    final moving = {for (final id in ids) _editor.instrumentOfLane(id)};
+    final others = [for (final p in _editor.laneParts) if (!moving.contains(p.id)) p.id];
+    _editor.moveLanes(moving, before == null ? others.length : others.indexOf(_editor.instrumentOfLane(before)));
+  }
+
+  @override
+  void restoreOrder() => _editor.restoreScoreOrder();
 }

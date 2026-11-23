@@ -896,7 +896,7 @@ msgstr "取消选择（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先保存对“{name}”的更改吗？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完成"
 
@@ -1237,7 +1237,7 @@ msgstr "二分音符（7）"
 msgid "Height (staff spaces)"
 msgstr "高度（谱间距）"
 
-#: lib/app_menus.dart lib/script_editor.dart
+#: lib/app_menus.dart lib/lane_script_view.dart lib/script_editor.dart
 msgid "Help"
 msgstr "帮助"
 
@@ -3347,7 +3347,7 @@ msgstr "忽略"
 msgid "Select a bar"
 msgstr "选择一个小节"
 
-#: lib/pdf_import.dart
+#: lib/lane_script_view.dart lib/pdf_import.dart
 msgid "Lane"
 msgstr "轨道"
 
@@ -4024,7 +4024,7 @@ msgstr "没有可刻谱的内容。"
 msgid "Couldn’t Import LilyPond Score"
 msgstr "无法导入 LilyPond 乐谱"
 
-#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
+#: lib/lane_script_view.dart lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr "查找（{key}）"
 
@@ -4581,6 +4581,15 @@ msgstr "移动区域或调性"
 msgid "Select in the lane above / below"
 msgstr "选择上方 / 下方轨道"
 
+msgid "Run Script"
+msgstr "运行脚本"
+
+msgid "In the script."
+msgstr "在脚本中。"
+
+msgid "Script"
+msgstr "脚本"
+
 msgid "Note Input"
 msgstr "音符输入"
 
@@ -4813,11 +4822,11 @@ msgstr "扩展保持原样。"
 msgid "Reference"
 msgstr "参考"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run ({key})"
 msgstr "运行（{key}）"
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run"
 msgstr "运行"
 
@@ -5837,3 +5846,23 @@ msgstr "在乐谱旁以列表显示字幕：标出当前字幕，点击即可跳
 #: assets/web_plugins/transcript/plugin.json
 msgid "Side"
 msgstr "位置"
+
+#: lib/lane_script_view.dart
+msgid "Nothing changed"
+msgstr "没有变化"
+
+#: lib/lane_script_view.dart
+msgid "Write the lanes as a script"
+msgstr "把轨道写成脚本"
+
+#: lib/lane_script_view.dart
+msgid "From Lanes"
+msgstr "从轨道生成"
+
+#: lib/panel_bar.dart
+msgid ""
+"Script\n"
+"Curate by writing"
+msgstr ""
+"脚本\n"
+"用文字编排"

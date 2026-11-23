@@ -389,6 +389,77 @@ void main() {
     c.paint(['vn'], const Region(0, 5), shown: false);
     expect(c.lane('vn'), const [Region(13, 16)]);
 
+    // A script curates as the tools do: a statement a line, names in quotes, bars as they are numbered.
+    {
+      final host = _ScriptLanes(
+        [('fl', 'Flute 1', 1), ('fl2', 'Flute 2', 1), ('pf', 'Piano', 2), ('v1', 'Violin', 1), ('v2', 'Violin', 1)],
+        BeatGrid([for (var m = 0; m <= 12; m++) m * 4.0]),
+      );
+      final lanes = host.curation;
+      List<String> run(String source) => [for (final p in LaneScript.parse(source).run(host)) '$p'];
+      // Draw and Erase: whole bars, beats, names however they are cased and spaced.
+      expect(run('# The flutes.\nshow "Flute 1", "flute  2" bars 1-2, 5\nHIDE "Flute 2" 2.3-2.4 # its last two beats'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2')], const [[Region(0, 8), Region(16, 20)], [Region(0, 6), Region(16, 20)]]);
+      // A group, a wildcard, a rehearsal mark; only hides the others there.
+      lanes.setLane('v1', const [Region(0, 48)]);
+      expect(run('let winds = "Flute*"\nonly winds from 3 until mark A'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2'), lanes.lane('v1')], const [[Region(0, 20)], [Region(0, 6), Region(8, 20)], [Region(0, 8), Region(16, 48)]]);
+      // A stretch with its own transitions that leaves out a staff; shown whole over it, it gives way.
+      expect(run('show "Piano" 1-4 transition in 0.5 out 1 without staff 2\nshow "Piano" 3-6'), isEmpty);
+      expect(lanes.lane('pf'), const [Region(0, 8, transitionIn: 0.5, transitionOut: 1, hiddenStaves: [2]), Region(8, 24)]);
+      expect(run('show "Piano" 1 without staves 1, 2'), ['Line 1: That leaves “Piano” no staff.']);
+      // A staff's lane, once its instrument is split.
+      expect(run('show "Piano"/2 1-2'), ['Line 1: “Piano” isn’t split: write split "Piano" first.']);
+      expect(run('split "Piano"\nshow "Piano"/2 1-2\nshow "Piano"/3'), ['Line 3: “Piano” is on 2 staves.']);
+      expect([host.split, lanes.lane('pf/2')], [{'pf'}, const [Region(0, 24)]]);
+      expect(run('split "Flute 1"'), ['Line 1: “Flute 1” is on one staff.']);
+      expect([run('join all'), host.split], [isEmpty, isEmpty]);
+      // The project's transition, and regions' own at the edges inside a range.
+      expect(run('transition 0.4\ntransition "Flute 2" 3-5 in 1 out default'), isEmpty);
+      expect([lanes.transition, lanes.lane('fl2')], [0.4, const [Region(0, 6), Region(8, 20, transitionIn: 1)]]);
+      // One of two lanes of a name; Tidy; Auto-Curate; moving.
+      expect(run('copy "Violin" to "Flute 1"'), ['Line 1: One lane is copied, and that names 2.']);
+      expect(run('copy "Flute 1" to "Violin"[2]\nbridge rests 1 in "Flute 2"\nremove short 6 in "Flute 2"\nauto "Flute*"'), isEmpty);
+      expect([lanes.lane('v2'), lanes.lane('fl2'), host.autoCurated], [const [Region(0, 20)], isEmpty, ['fl', 'fl2']]);
+      expect(run('move "Violin"[2] to top\nmove "Flute 1" after "Piano"'), isEmpty);
+      expect([for (final lane in host.lanes) lane.id], ['v2', 'fl2', 'pf', 'fl', 'v1']);
+      expect([run('restore order'), host.lanes.first.id], [isEmpty, 'fl']);
+      host.auto = false;
+      expect(run('auto'), ['Line 1: This score’s lanes can’t be auto-curated.']);
+      // What doesn't read is said with its line, and nothing runs; what can't be done is left out.
+      final before = lanes.lanes;
+      expect(run('clear\nshw "Flute 1"\nshow "Flute 1\nshow "Flute 1" 1 2'), [
+        'Line 2: A line starts with what it does (show, hide, auto…), not “shw”.',
+        'Line 3: A name’s closing quote is missing.',
+        'Line 4: “2” isn’t expected here.',
+      ]);
+      expect(lanes.lanes, before);
+      expect(run('show Flute 1-8\nshow "Oboe"\nshow "Flute 1" 13\nshow "Flute 1" 4-2\nshow all except all'), [
+        'Line 1: There is no group “Flute”. A lane’s name goes in quotes: "Flute".',
+        'Line 2: There is no lane named “Oboe”.',
+        'Line 3: There is no bar 13.',
+        'Line 4: The range ends before it starts.',
+        'Line 5: That leaves no lane.',
+      ]);
+      // A check finds the same and changes nothing, a split and what follows it included.
+      expect([for (final p in LaneScript.parse('split "Piano"\nclear\nshow "Piano"/1 1\nshow "Oboe"\nshw').check(host)) '$p'],
+          ['Line 4: There is no lane named “Oboe”.', 'Line 5: A line starts with what it does (show, hide, auto…), not “shw”.']);
+      expect([host.split, lanes.lanes], [isEmpty, before]);
+      // The lanes written as a script make themselves again: a place off the beats in quarters.
+      lanes.setLanes({'v1': const [Region(4 / 3, 9)], 'fl2': const [Region(1.25, 48)]});
+      host.setSplit('pf', true);
+      final written = LaneScript.write(host), kept = lanes.lanes;
+      expect(written.split('\n'), containsAll(['join all', 'split "Piano"', 'transition 0.4', 'show "Flute 1" 1-5', 'show "Flute 2" from 1.2.25',
+        'show "Violin"[1] from @${4 / 3} until 3.2', 'show "Piano"/2 1-6 transition in 0.5 out 1']));
+      lanes.transition = 1;
+      expect([run('show all\njoin all\n$written'), lanes.lanes, lanes.transition, host.split], [isEmpty, kept, 0.4, {'pf'}]);
+      // Each run coloured, the language's words whatever their case.
+      expect(LaneScript.tokens('Show "A"[2]/1 1-8.2 # all'), [('keyword', 'Show'), (null, ' '), ('string', '"A"'), (null, '['), ('number', '2'), (null, ']'), (null, '/'),
+        ('number', '1'), (null, ' '), ('number', '1'), (null, '-'), ('number', '8.2'), (null, ' '), ('comment', '# all')]);
+      expect({for (final s in LaneScript.statements) s.word}.difference(LaneScript.keywords), isEmpty);
+      expect([for (final s in LaneScript.statements) ...LaneScript.parse(s.example).problems], isEmpty);
+    }
+
     // The piano's left hand left out in bar 2: a region of its own, meeting bar 1's.
     final piano = await LoadedScore.load(flutePianoScore);
     final pianoScene = CuratedScene(piano);
@@ -505,4 +576,52 @@ void main() {
     }
     scene.dispose();
   });
+}
+
+/// Lanes for a script to run over: [parts] (id, name, staves) top to bottom.
+class _ScriptLanes extends LaneScriptHost {
+  _ScriptLanes(this.parts, this.beats) : curation = Curation([for (final (id, _, _) in parts) id]) {
+    _original = [...parts];
+  }
+  List<(String, String, int)> parts;
+  late final List<(String, String, int)> _original;
+  final split = <String>{}, autoCurated = <String>[];
+  bool auto = true;
+
+  @override
+  final BeatGrid beats;
+  @override
+  final Curation curation;
+  @override
+  List<(String, double)> get marks => const [('A', 16)];
+  @override
+  List<ScriptLane> get lanes => [
+        for (final (id, name, staves) in parts)
+          if (split.contains(id))
+            for (var n = 1; n <= staves; n++) ScriptLane(id: Curation.staffLaneId(id, n), name: name, instrument: id, staff: n, staves: staves)
+          else
+            ScriptLane(id: id, name: name, staves: staves),
+      ];
+  @override
+  bool autoCurate(List<String> ids) {
+    if (auto) autoCurated.addAll(ids);
+    return auto;
+  }
+
+  @override
+  void setSplit(String instrument, bool on) {
+    on ? split.add(instrument) : split.remove(instrument);
+    curation.setSplit({for (final (id, _, staves) in parts) if (split.contains(id)) id: staves});
+  }
+
+  @override
+  void moveLanes(List<String> ids, {String? before}) {
+    final moving = {for (final id in ids) Curation.staffOfLane(id)?.$1 ?? id};
+    final rest = [for (final p in parts) if (!moving.contains(p.$1)) p];
+    final target = before == null ? null : Curation.staffOfLane(before)?.$1 ?? before;
+    parts = rest..insertAll(target == null ? rest.length : rest.indexWhere((p) => p.$1 == target), [for (final p in parts) if (moving.contains(p.$1)) p]);
+  }
+
+  @override
+  void restoreOrder() => parts = [..._original];
 }

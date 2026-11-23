@@ -707,6 +707,7 @@ class EditorController extends ChangeNotifier {
     if (keepRecording) _tab = tab;
     final edits = state.edits, view = state.view;
     _foreign = state.foreign;
+    lanes._script = state.script;
     extensions._load(state);
     _score = score;
     _kind = state.kind;
@@ -2705,6 +2706,7 @@ class EditorController extends ChangeNotifier {
         foreign: _foreign,
         packages: extensions._carried,
         dataVersions: extensions._savedVersions,
+        script: lanes._script,
         pdf: _score?.pdf?.layout,
         lilypond: _lilypond,
         kind: _kind,

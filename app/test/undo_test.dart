@@ -104,6 +104,35 @@ void main() {
       expect(c.score, isNull);
     }
 
+    // A script curates as the tools do, as one Undo step; one with something wrong changes nothing; the lanes written
+    // as a script make themselves again; the script is kept with the project, and typing it is no edit.
+    {
+      await open();
+      final names = c.lanes.scriptNames, before = c.curation!.lanes, starts = c.timeline.measureStarts;
+      final ran = c.lanes.runScript('clear\nshow ${LaneScript.quoted(names.first)} 1-4\nonly ${LaneScript.quoted(names.last)} 9\ntransition 0.6');
+      expect([ran.problems, ran.changed], [isEmpty, true]);
+      expect(c.curation!.lane(c.laneRows.first.id), [Region(starts[0], starts[4])]);
+      expect(c.curation!.lane(c.laneRows.last.id), [Region(starts[8], starts[9])]);
+      expect(c.curation!.transition, 0.6);
+      c.undo();
+      expect([c.curation!.lanes, c.curation!.transition, c.canUndo], [before, 0.3, false], reason: 'one step');
+      final wrong = c.lanes.runScript('clear\nshow "No Such Lane" 1');
+      expect(['${wrong.problems.single}', wrong.changed, c.curation!.lanes, c.canRedo], ['Line 2: There is no lane named “No Such Lane”.', false, before, true]);
+      expect([for (final p in c.lanes.checkScript('show all 99')) '$p'], ['Line 1: There is no bar 99.']);
+
+      final written = c.lanes.asScript;
+      c.lanes.clear();
+      expect(c.lanes.runScript(written).problems, isEmpty);
+      expect(c.curation!.lanes, before);
+
+      final revision = c.editRevision.value;
+      c.undo();
+      c.lanes.script = written;
+      expect([c.editRevision.value > revision, c.canRedo], [true, true], reason: 'saved, and no edit');
+      final saved = ProjectModules.toJson(c.projectState);
+      expect(ProjectModules.script.read(JsonReader(saved['script'], 'script'), const ProjectState(), (_, {required limit}) => null).script, written);
+    }
+
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.
     {
       await open();

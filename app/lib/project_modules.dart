@@ -70,6 +70,7 @@ abstract final class ProjectModules {
   static const packages = _Packages();
   static const extensionData = _ExtensionData();
   static const view = _View();
+  static const script = _Script();
   static const pdf = _Pdf();
   static const lilypond = _LilyPond();
   static const midi = _Midi();
@@ -77,7 +78,7 @@ abstract final class ProjectModules {
   /// Every module: a project (.ccs).
   static const List<ProjectModule> all = [
     pdf, lilypond, midi, fonts, engraving, display, extensions, instruments, texts, curation, sync, takes, stems, images, captions, chapters, //
-    tonality, spacers, packages, extensionData, playerMap, automation, view,
+    tonality, spacers, packages, extensionData, playerMap, automation, view, script,
   ];
 
   /// The score-wide settings, what a page of Project Settings sets for the whole score: a
@@ -1033,6 +1034,22 @@ final class _LilyPond extends ProjectModule {
         data: text(_data),
       ),
     );
+  }
+}
+
+/// The script the Instruments tab's Script holds, as it was left (see *The lanes can be written*).
+/// Optional: nothing shown hangs on it, and a Curator that knows nothing of it keeps it.
+final class _Script extends ProjectModule {
+  const _Script() : super('script', optional: true);
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {if (state.script.isNotEmpty) 'text': state.script};
+
+  @override
+  ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
+    final text = r.string('text') ?? '';
+    if (text.length > LaneScript.maxLength) throw _damaged('${r.where}.text is too long.');
+    return state.copyWith(script: text);
   }
 }
 

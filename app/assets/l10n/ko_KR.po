@@ -894,7 +894,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1235,7 +1235,7 @@ msgstr ""
 msgid "Height (staff spaces)"
 msgstr ""
 
-#: lib/app_menus.dart lib/script_editor.dart
+#: lib/app_menus.dart lib/lane_script_view.dart lib/script_editor.dart
 msgid "Help"
 msgstr ""
 
@@ -3345,7 +3345,7 @@ msgstr ""
 msgid "Select a bar"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/lane_script_view.dart lib/pdf_import.dart
 msgid "Lane"
 msgstr ""
 
@@ -4010,7 +4010,7 @@ msgstr ""
 msgid "Couldn’t Import LilyPond Score"
 msgstr ""
 
-#: lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
+#: lib/lane_script_view.dart lib/lilypond_editor.dart lib/score_editor.dart lib/script_editor.dart
 msgid "Find ({key})"
 msgstr ""
 
@@ -4567,6 +4567,15 @@ msgstr ""
 msgid "Select in the lane above / below"
 msgstr ""
 
+msgid "Run Script"
+msgstr ""
+
+msgid "In the script."
+msgstr ""
+
+msgid "Script"
+msgstr ""
+
 msgid "Note Input"
 msgstr ""
 
@@ -4799,11 +4808,11 @@ msgstr ""
 msgid "Reference"
 msgstr ""
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run ({key})"
 msgstr ""
 
-#: lib/script_editor.dart
+#: lib/lane_script_view.dart lib/script_editor.dart
 msgid "Run"
 msgstr ""
 
@@ -5822,4 +5831,22 @@ msgstr ""
 
 #: assets/web_plugins/transcript/plugin.json
 msgid "Side"
+msgstr ""
+
+#: lib/lane_script_view.dart
+msgid "Nothing changed"
+msgstr ""
+
+#: lib/lane_script_view.dart
+msgid "Write the lanes as a script"
+msgstr ""
+
+#: lib/lane_script_view.dart
+msgid "From Lanes"
+msgstr ""
+
+#: lib/panel_bar.dart
+msgid ""
+"Script\n"
+"Curate by writing"
 msgstr ""
