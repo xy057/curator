@@ -293,6 +293,16 @@ void main() {
         expect(lanes(), isNot(curated), reason: 'the lanes another');
         final loose = both.withoutWire(shift, shift + 1);
         expect(['${(await c.lanes.runMacroReady(loose)).problems.single}', lanes()], ['Step 6: heard', isNot(curated)]);
+        // A fit after the anchors are set in the same run goes by them, as one run after another does.
+        c.anchors.clear();
+        await c.lanes.runScriptReady('align');
+        c.scene;
+        c.lanes.runScript('show all\nfollow all bridge 1\nfit');
+        final apart = lanes();
+        c.anchors.clear();
+        c.scene;
+        expect([(await c.lanes.runScriptReady('show all\nalign\nfollow all bridge 1\nfit')).problems, lanes(), apart == curated], [isEmpty, apart, isFalse],
+            reason: 'fitted to the anchors just set, which change what fits');
       }
 
       await sameAsAlign();

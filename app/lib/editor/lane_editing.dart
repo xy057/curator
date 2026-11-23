@@ -439,7 +439,8 @@ class LaneEditing {
 
   /// What [autoCurate] fills [partIds] with (null without a score).
   Map<String, List<Region>>? _curated(Iterable<String> partIds) {
-    final score = _editor._score, curation = _curation, scene = _editor._scene;
+    // (The scene as the anchors now are: only asking for it makes it follow a sync changed since.)
+    final score = _editor._score, curation = _curation, scene = _editor.scene;
     if (score == null || curation == null) return null;
     final (:active, :pairs) = _activity(score);
     if (scene == null) return Curation.autoCuratedLanes(partIds, active, score.timeline.measureStarts);
@@ -698,7 +699,8 @@ class _ScriptHost extends LaneScriptHost {
   /// (An instrument is fitted as its lanes asked for have it, a staff's lane as its instrument, as Auto-Curate does.)
   @override
   Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
-    final scene = _editor._scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
+    // (The scene as the anchors now are: a `match` or a `snap anchors` earlier in the run changed what a bar takes.)
+    final scene = _editor.scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
     if (scene == null || lanes.isEmpty) return const {};
     final asked = <String, List<Region>>{};
     for (final id in lanes) {
