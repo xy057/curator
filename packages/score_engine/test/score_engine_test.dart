@@ -458,6 +458,10 @@ void main() {
         'show "Violin"[1] from @${4 / 3} until 3.2', 'show "Piano"/2 1-6 transition in 0.5 out 1']));
       lanes.transition = 1;
       expect([run('show all\njoin all\n$written'), lanes.lanes, lanes.transition, host.split], [isEmpty, kept, 0.4, {'pf'}]);
+      // A name with a line break in it is written on one line, and still names its lane.
+      host.parts = [...host.parts, ('hn', 'Horn in F\n 1 "a"*', 1)];
+      expect(LaneScript.references(host.lanes)['hn'], r'"Horn in F 1 \"a\"\*"');
+      expect([LaneScript.parse('show ${LaneScript.references(host.lanes)['hn']} 1\nshow "horn in f 1 \\"A\\"\\*"').check(host), host.parts.removeLast().$1], [isEmpty, 'hn']);
       // Each run coloured, the language's words whatever their case.
       expect(LaneScript.tokens('Show "A"[2]/1 1-8.2 # all'), [('keyword', 'Show'), (null, ' '), ('string', '"A"'), (null, '['), ('number', '2'), (null, ']'), (null, '/'),
         ('number', '1'), (null, ' '), ('number', '1'), (null, '-'), ('number', '8.2'), (null, ' '), ('comment', '# all')]);

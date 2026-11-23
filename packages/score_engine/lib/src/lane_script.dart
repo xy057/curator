@@ -315,8 +315,9 @@ class LaneScript {
 
   // MARK: Writing
 
-  /// [name] as a script writes it, in quotes.
-  static String quoted(String name) => '"${name.replaceAllMapped(RegExp(r'[\\"*]'), (m) => '\\${m[0]}')}"';
+  /// [name] as a script writes it, in quotes: on one line, a line break in it a space as any
+  /// run of spaces is (names are compared so, and a statement is a line).
+  static String quoted(String name) => '"${name.replaceAll(_spaces, ' ').trim().replaceAllMapped(RegExp(r'[\\"*]'), (m) => '\\${m[0]}')}"';
 
   /// The lanes of [host] as they are, as a script that makes them again from any others: which
   /// instruments are split, the project's transition, then every lane's regions with their own
