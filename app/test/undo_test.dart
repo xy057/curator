@@ -284,6 +284,14 @@ void main() {
         c.lanes.runScript('show all');
         final running = c.lanes.runMacroReady(both);
         expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, isEmpty, isNotNull], reason: 'curated while it listens');
+        // Another that hears is told an Align is under way, at what waits and before it does anything.
+        final clears = LaneMacro(
+          name: 'Clears',
+          steps: [const MacroStep(MacroAction.clear, lanes: MacroLanes.all), ...align.steps],
+          wired: [for (final w in align.wires) (from: w.from + 1, to: w.to + 1)],
+        );
+        expect(['${(await c.lanes.runMacroReady(clears)).problems.single}', '${(await c.lanes.runScriptReady('clear\nalign')).problems.single}', lanes()],
+            ['Step 2: An Align is under way.', 'Line 2: An Align is under way.', curated]);
         final ran = await running;
         expect([ran.problems, ran.changed], [isEmpty, isTrue]);
         expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, found[true], isNull]);

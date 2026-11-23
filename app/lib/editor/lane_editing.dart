@@ -521,8 +521,9 @@ class LaneEditing {
 
   /// [runScript] for a script that may wait ([LaneScript.waits]: it hears the recording, as
   /// Align does): what it waits for is got first, with nothing changed and Align's progress
-  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Nothing where
-  /// an Align is under way, or the project was changed for another meanwhile.
+  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Where an Align
+  /// is under way it says so at the line that waits, and nothing where the project was changed
+  /// for another meanwhile.
   Future<({List<LaneScriptProblem> problems, bool changed})> runScriptReady(String source) async {
     final script = LaneScript.parse(source), host = _ScriptHost(_editor);
     if (!script.waits) return runScript(source);
@@ -530,6 +531,7 @@ class LaneEditing {
     if (_curation == null) return nothing;
     final problems = script.check(host);
     if (problems.isNotEmpty) return (problems: problems, changed: false);
+    if (_busy(script) case final busy?) return (problems: [busy], changed: false);
     final sync = _editor._sync, track = _editor.track;
     final got = await _editor.anchors._whileAligning((report) {
       host._report = report;
@@ -538,6 +540,12 @@ class LaneEditing {
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return nothing;
     return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
   }
+
+  /// What keeps [script], which waits, from being made ready now: an Align under way (the
+  /// button's, or another script's or macro's hearing), one at a time as it is. Said at its
+  /// first line that waits, before anything is done.
+  LaneScriptProblem? _busy(LaneScript script) =>
+      _editor.anchors.aligning == null ? null : LaneScriptProblem(script.waitsAt ?? 1, 'An Align is under way.');
 
   /// Runs [script], checked, as one Undo step ([only]: those of its lines).
   ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready, Set<int>? only}) {
@@ -594,8 +602,9 @@ class LaneEditing {
   /// meanwhile, with nothing changed and Align's progress showing ([SyncEditing.aligning]), and
   /// then they are done, a step of their own (as Align's anchors are). The whole of it is
   /// checked before anything is done; what only the hearing finds (a recording that can't be
-  /// read, no score heard in it) leaves what was done at once done. Nothing more where an
-  /// Align is under way, or the recording or the project is another by then.
+  /// read, no score heard in it) leaves what was done at once done. Where an Align is under
+  /// way it says so at the step that waits, with nothing done; nothing more where the recording
+  /// or the project is another by then.
   Future<({List<MacroProblem> problems, bool changed})> runMacroReady(LaneMacro macro, {String? asked}) async {
     const nothing = (problems: <MacroProblem>[], changed: false);
     if (_curation == null || _editor._sync == null) return nothing;
@@ -606,6 +615,7 @@ class LaneEditing {
     if (!script.waits) return _macroRan(runScript(source), order, lanes);
     final wrong = script.check(host);
     if (wrong.isNotEmpty) return (problems: LaneMacro.problemsOf(wrong, order), changed: false);
+    if (_busy(script) case final busy?) return (problems: LaneMacro.problemsOf([busy], order), changed: false);
     // A line is its step's place in the order they are done in.
     final (:now, :later) = macro.stages;
     Set<int> lines(List<int> steps) => {for (final i in steps) order.indexOf(i) + 1};

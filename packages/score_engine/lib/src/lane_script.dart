@@ -188,6 +188,9 @@ class LaneScript {
   /// Whether it has to be made [ready] before it runs: it hears the recording.
   bool get waits => _waits.isNotEmpty;
 
+  /// The line of the first statement that waits; null where none does.
+  int? get waitsAt => _waits.firstOrNull?.$1;
+
   /// What doesn't read, by line: none, and it can be [run].
   final List<LaneScriptProblem> problems;
 

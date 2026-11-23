@@ -338,9 +338,18 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         }
       });
 
+  /// Whether a run from here is still going (one that hears the recording takes a while).
+  bool _trying = false;
+
   Future<void> _try() async {
-    final said = await _run(context, widget.controller, _macro!);
-    if (mounted) setState(() => _said = said ?? (text: 'Done'.tr, failed: false));
+    if (_trying) return;
+    setState(() => _trying = true);
+    try {
+      final said = await _run(context, widget.controller, _macro!);
+      if (mounted) setState(() => _said = said ?? (text: 'Done'.tr, failed: false));
+    } finally {
+      if (mounted) setState(() => _trying = false);
+    }
   }
 
   @override
@@ -364,7 +373,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
           ),
         ]),
       ),
-      leading: [TextButton(onPressed: macro == null || macro.steps.isEmpty ? null : _try, child: Text('Run'.tr))],
+      leading: [TextButton(onPressed: macro == null || macro.steps.isEmpty || _trying ? null : _try, child: Text('Run'.tr))],
       status: said == null
           ? null
           : Text(said.text,
