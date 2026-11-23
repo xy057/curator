@@ -12,6 +12,7 @@ import 'editor_controller.dart';
 import 'key_bindings.dart';
 import 'l10n/l10n.dart';
 import 'menu_kit.dart';
+import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 
 // Macros: curating without writing (see *The lanes can be written*). A macro ([LaneMacro]) is
@@ -57,6 +58,36 @@ List<String> get _exampleNames => ['Solo from Here'.tr, 'Hide from Here'.tr, 'Sh
 
 String _nameOf(LaneMacro macro) => macro.name.trim().isEmpty ? 'Untitled'.tr : macro.name;
 
+/// A macro's name as shown: its own, or Untitled.
+String macroName(LaneMacro macro) => _nameOf(macro);
+
+/// The icons a macro can be given, the first the one every macro has.
+const macroIcons = [
+  AppIcon.repeat, AppIcon.show, AppIcon.hide, AppIcon.pointer, AppIcon.draw, AppIcon.erase, AppIcon.tidy, AppIcon.autoCurate, //
+  AppIcon.clearLanes, AppIcon.transition, AppIcon.lanes, AppIcon.score, AppIcon.music, AppIcon.play, AppIcon.trimStart, AppIcon.trimEnd, //
+  AppIcon.condense, AppIcon.expand, AppIcon.collapse, AppIcon.moveUp, AppIcon.moveDown, AppIcon.snap, AppIcon.pin, AppIcon.link, //
+  AppIcon.check, AppIcon.add, AppIcon.delete, AppIcon.reset, AppIcon.copy, AppIcon.chapters, AppIcon.tonality, AppIcon.captions, //
+  AppIcon.image, AppIcon.frame, AppIcon.audio, AppIcon.speed, AppIcon.search, AppIcon.code, AppIcon.test, AppIcon.vision,
+];
+
+/// [macro]'s icon ([LaneMacro.icon], one of the app's by its name); the first of [macroIcons]
+/// for one with none, for none at all, and for a name this version hasn't got.
+AppIcon macroIcon(LaneMacro? macro) => AppIcon.values.asNameMap()[macro?.icon] ?? macroIcons.first;
+
+/// Gives the widgets under it the app's macros ([MacrosScope.of]): the app puts one over the
+/// window, with [AppSettings.macros], so a toolbar's buttons for them ([BarItem.macro]) have
+/// their names and icons wherever they are drawn.
+class MacrosScope extends InheritedWidget {
+  const MacrosScope({super.key, required this.macros, required super.child});
+  final List<LaneMacro> macros;
+
+  /// The macros where [context] is; none outside a scope.
+  static List<LaneMacro> of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<MacrosScope>()?.macros ?? const [];
+
+  @override
+  bool updateShouldNotify(MacrosScope oldWidget) => !listEquals(macros, oldWidget.macros);
+}
+
 /// What is wrong with a macro, as it is said: "Step 2: Select lanes first". A script's own
 /// words (in English) for what only it finds.
 String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
@@ -85,6 +116,13 @@ Future<({String text, bool failed})?> _run(BuildContext context, EditorControlle
 }
 
 /// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
+/// What running [macro] from a toolbar or a menu does now; null while it can't be run: it has
+/// no steps, or the lanes aren't showing (another tab, the script in their place).
+VoidCallback? macroAction(BuildContext context, EditorController controller, LaneMacro macro) =>
+    macro.steps.isEmpty || controller.curation == null || controller.tab != BottomTab.instruments || controller.lanes.scripting
+        ? null
+        : () => playMacro(context, controller, macro);
+
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   final said = await _run(context, controller, macro);
@@ -107,7 +145,7 @@ class MacrosMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final macros = controller.lanes.macros, keys = KeyCommand.runMacro.also;
+    final macros = MacrosScope.of(context), keys = KeyCommand.runMacro.also;
     return OverlaySemantics(
       child: AppPopupMenuButton<VoidCallback>(
         tooltip: 'Macros'.tr,
@@ -128,6 +166,8 @@ class MacrosMenu extends StatelessWidget {
               value: () => playMacro(context, controller, macro),
               enabled: macro.steps.isNotEmpty,
               child: Row(children: [
+                Icon(macroIcon(macro).of(menu), size: 16),
+                SizedBox(width: AppStyle.of(menu).isCarbon ? 8 : 6),
                 Expanded(child: Text(_nameOf(macro), overflow: TextOverflow.ellipsis)),
                 if (i < keys.length) ...[const SizedBox(width: 24), Text(keys[i].label, style: TextStyle(fontSize: 12, color: menu.colors.textMuted))],
               ]),
@@ -225,8 +265,19 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     super.dispose();
   }
 
-  void _keep(List<LaneMacro> macros, {int? at}) => setState(() {
-        widget.settings.macros = macros;
+  /// The toolbars a macro's button can be on.
+  static const _bars = [BarKind.editor, BarKind.instruments];
+
+  /// [macros] kept as the app's, the one at [at] chosen; [moved]: where each macro of the list
+  /// went (null: gone), which its toolbar button follows ([ToolbarLayout.macrosMoved]).
+  void _keep(List<LaneMacro> macros, {int? at, int? Function(int at)? moved}) => setState(() {
+        final settings = widget.settings;
+        if (moved != null) {
+          for (final kind in _bars) {
+            settings.setToolbar(settings.toolbarOf(kind).macrosMoved(moved));
+          }
+        }
+        settings.macros = macros;
         _said = null;
         if (at != null) {
           _at = at.clamp(0, macros.isEmpty ? 0 : macros.length - 1);
@@ -240,9 +291,31 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   void _add(LaneMacro macro) => _keep([..._macros, macro], at: _macros.length);
 
   void _move(int by) {
-    final macros = [..._macros], macro = macros.removeAt(_at);
-    _keep(macros..insert(_at + by, macro), at: _at + by);
+    final from = _at, to = _at + by, macros = [..._macros], macro = macros.removeAt(from);
+    _keep(macros..insert(to, macro), at: to, moved: (at) => at == from ? to : (at == to ? from : at));
   }
+
+  void _remove() {
+    final gone = _at;
+    _keep([for (final (i, m) in _macros.indexed) if (i != gone) m], at: gone, moved: (at) => at == gone ? null : (at > gone ? at - 1 : at));
+  }
+
+  /// The chosen macro's button, if it can have one (the first nine do), and whether a toolbar
+  /// has it, on its bar or in its menu.
+  BarItem? get _button => _at < BarItem.macroButtons.length ? BarItem.macroButtons[_at] : null;
+  bool get _onToolbar => _bars.any((kind) => widget.settings.toolbarOf(kind).bar.contains(_button) || widget.settings.toolbarOf(kind).menu.contains(_button));
+
+  /// Puts the chosen macro's button on the Instruments tab's bar, or takes it off every toolbar.
+  void _pin() => setState(() {
+        final settings = widget.settings, button = _button!;
+        if (_onToolbar) {
+          for (final kind in _bars) {
+            settings.setToolbar(settings.toolbarOf(kind).without(button));
+          }
+        } else {
+          settings.setToolbar(settings.toolbarOf(BarKind.instruments).added(button));
+        }
+      });
 
   Future<void> _try() async {
     final said = await _run(context, widget.controller, _macro!);
@@ -286,7 +359,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         child: ListView(children: [
           for (final (i, macro) in macros.indexed)
             SidebarTile(
-              icon: null,
+              icon: macroIcon(macro).of(context),
               label: _nameOf(macro),
               selected: i == _at,
               onTap: () => setState(() {
@@ -325,7 +398,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         ToolbarButton(
           icon: AppIcon.delete.of(context),
           tooltip: 'Delete'.tr,
-          onPressed: _macro == null ? null : () => _keep([for (final (i, m) in macros.indexed) if (i != _at) m], at: _at),
+          onPressed: _macro == null ? null : _remove,
         ),
       ]),
     ]);
@@ -338,7 +411,32 @@ class _MacrosDialogState extends State<_MacrosDialog> {
       ..[i] = steps[j]
       ..[j] = steps[i]);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      AppTextField(controller: _name, label: 'Name', maxLength: 60, onChanged: (name) => _change(macro.copyWith(name: name))),
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        // (At the field's top, as its outline is: a text field is drawn in its box's top.)
+        SizedBox(
+          height: AppStyle.of(context).field,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: _IconButton(icon: macroIcon(macro), onChanged: (icon) => _change(macro.copyWith(icon: icon == macroIcons.first ? '' : icon.name))),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: AppTextField(controller: _name, label: 'Name', maxLength: 60, onChanged: (name) => _change(macro.copyWith(name: name)))),
+        const SizedBox(width: 6),
+        // Its own button on a toolbar (the first nine have one), there or not.
+        SizedBox(
+          height: AppStyle.of(context).field,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ToolbarButton(
+              icon: AppIcon.pin.of(context),
+              tooltip: _button == null ? 'The first nine macros'.tr : (_onToolbar ? 'Remove from Toolbar'.tr : 'Add to Toolbar'.tr),
+              selected: _button != null && _onToolbar,
+              onPressed: _button == null ? null : _pin,
+            ),
+          ),
+        ),
+      ]),
       const SizedBox(height: 14),
       Expanded(
         child: ListView(children: [
@@ -375,6 +473,77 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         ]),
       ),
     ]);
+  }
+}
+
+/// A macro's icon, as a field showing it: a click opens the icons it can be given, in a grid.
+class _IconButton extends StatelessWidget {
+  const _IconButton({required this.icon, required this.onChanged});
+  final AppIcon icon;
+  final ValueChanged<AppIcon> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppStyle.of(context), colors = context.colors;
+    return OverlaySemantics(
+      child: AppPopupMenuButton<AppIcon>(
+        tooltip: 'Icon'.tr,
+        padding: EdgeInsets.zero,
+        position: PopupMenuPosition.under,
+        onSelected: onChanged,
+        itemBuilder: (_) => [_IconGrid(chosen: icon)],
+        child: Container(
+          width: style.control + 4,
+          height: style.control,
+          decoration: BoxDecoration(color: fieldFill(context), border: Border.all(color: colors.line), borderRadius: style.radius(8)),
+          child: Icon(icon.of(context), size: 18, color: colors.text),
+        ),
+      ),
+    );
+  }
+}
+
+/// The icons a macro can be given ([macroIcons]) as a menu's one entry: a grid, the one it has
+/// marked, a click on one choosing it.
+class _IconGrid extends PopupMenuEntry<AppIcon> {
+  const _IconGrid({required this.chosen});
+  final AppIcon chosen;
+
+  static const _columns = 8, _cell = 32.0;
+
+  @override
+  double get height => (macroIcons.length / _columns).ceil() * _cell;
+
+  @override
+  bool represents(AppIcon? value) => false;
+
+  @override
+  State<_IconGrid> createState() => _IconGridState();
+}
+
+class _IconGridState extends State<_IconGrid> {
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors, style = AppStyle.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: SizedBox(
+        width: _IconGrid._columns * _IconGrid._cell,
+        child: Wrap(children: [
+          for (final icon in macroIcons)
+            InkWell(
+              borderRadius: style.radius(6),
+              onTap: () => Navigator.pop(context, icon),
+              child: Container(
+                width: _IconGrid._cell,
+                height: _IconGrid._cell,
+                decoration: icon == widget.chosen ? BoxDecoration(color: colors.accent.withValues(alpha: 0.16), borderRadius: style.radius(6)) : null,
+                child: Icon(icon.of(context), size: 18, color: icon == widget.chosen ? colors.accent : colors.text),
+              ),
+            ),
+        ]),
+      ),
+    );
   }
 }
 

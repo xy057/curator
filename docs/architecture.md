@@ -135,7 +135,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
 | `lane_script_view.dart` | The Instruments tab's Script (`LaneScriptView`, in the lanes' place while `LaneEditing.scripting`): the project's script in a `CodeView`, coloured and prompted from the language's own list (`laneScriptCode`, `LaneScriptPrompts`), Run, From Lanes, what is wrong listed under it, the guide beside it |
-| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, each step a row of choices, Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`: asks for its bars first when it asks, says what is wrong by step) |
+| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, the chosen one's icon, name and pin, each step a row of choices, Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`, `macroAction`: asks for its bars first when it asks, says what is wrong by step), and what a toolbar draws a macro's own button from (`MacrosScope`, `macroIcon`) |
 | `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -927,7 +927,8 @@ added between it and its neighbours and, at an outer staff shown, to the instrum
 (`SpacingPlan`'s `staffRoom`); joining drops it. Which instruments are split is
 `EditState.split`, saved in `curation` (`split`, the part ids, from its version 2).
 
-**The lanes can be written.** The Instruments tab's Script (its bar's code button, `BarItem.script`,
+**The lanes can be written.** The Instruments tab's Script (a code button for its bar, `BarItem.script`,
+not there until it is added: Customize Toolbar…;
 `LaneEditing.scripting`: not saved) shows a script in the lanes' place, in a language of Curator's
 own (docs/lane-script.md), a statement a line: `show "Flute 1", "Oboe*" 1-8 transition in 0.5`,
 `hide`, `only`, `clear`, `auto`, `bridge rests`, `remove short`, `copy … to`, `split`, `join`, `move`,
@@ -971,14 +972,26 @@ does what the tools do, is checked whole before anything changes, and is one Und
 wrong is said by step, a line's number being its step's: what a step needs and isn't there (no lane
 selected: `MacroFault`, said by the app in the user's language) before any script is made, then
 what the script finds (its own words). The lanes a macro was run on stay selected, for the next.
-Macros are the app's, not a project's (`AppSettings.macros`, JSON; the controller is given them,
-`LaneEditing.macros`, as it is the other settings), since a workflow is worth keeping for the next
-score; so a step names lanes by pattern (`Flute*`), never by id. They are run from the Instruments
-bar's Macros menu (`BarItem.macros`) and, the first nine, with ⌃1 to ⌃9 (`KeyCommand.runMacro`,
-fixed, in the Instruments tab's lanes); one that asks for bars asks in a dialog that takes only bars
-the macro can be run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is
-changed, and its Run tries the macro on the project under it. Its examples are `LaneMacro.examples`,
-named in the user's language when one is added.
+Macros are the app's, not a project's (`AppSettings.macros`, JSON, what isn't a step this
+version knows left out), since a workflow is worth keeping for the next
+score; so a step names lanes by pattern (`Flute*`), never by id. The first nine are run with ⌃1
+to ⌃9 (`KeyCommand.runMacro`, fixed, in the Instruments tab's lanes), and each of those can have a
+button of its own on the editor's toolbar or the Instruments tab's (`BarItem.macro1` to `macro9`,
+`BarItem.macro`: a toolbar's items are an enum saved by name, so a button is its macro's place in
+the list, as its key is), under the macro's icon (`LaneMacro.icon`, one of the app's by its name:
+`macroIcon`, chosen from `macroIcons`) with its name and key as the tip; it is there only while
+there is such a macro, offered in Customize Toolbar… likewise, and greyed out while the lanes aren't
+showing (`macroAction`). A toolbar draws them wherever it is from `MacrosScope` (over the window,
+as `KeyMapScope` is: `BarItemIcon`, `barItemTitle`), so the controller keeps no list of them. The
+pin beside a macro's name puts its button on the Instruments bar (`ToolbarLayout.added`: before
+the bar's end, a rule setting the macros apart) or takes it off every toolbar (`without`), and as
+the list changes in the dialog the buttons follow their macros (`macrosMoved`: one moved up takes
+its button with it, one deleted takes it away). A menu of all of them is an item too
+(`BarItem.macros`), and like Script's is on no toolbar until it is added: a toolbar comes with the
+tools everyone uses. One that asks for bars asks in a dialog that takes only bars the macro can be
+run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is changed, and its Run
+tries the macro on the project under it. Its examples are `LaneMacro.examples`, named in the
+user's language when one is added.
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the

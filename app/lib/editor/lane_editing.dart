@@ -524,16 +524,6 @@ class LaneEditing {
 
   // MARK: Macros
 
-  /// The app's macros (every project's: [AppSettings.macros]), as the Instruments tab lists
-  /// and runs them.
-  List<LaneMacro> get macros => _macros;
-  List<LaneMacro> _macros = const [];
-  set macros(List<LaneMacro> value) {
-    if (listEquals(value, _macros)) return;
-    _macros = value;
-    _editor._changed();
-  }
-
   /// [macro] as a script for now: with the lanes selected, the beat nearest the playhead, the
   /// bars from the first selected region's start to the last one's end, and the bars [asked]
   /// for; and what keeps a step from being written.

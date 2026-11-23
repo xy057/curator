@@ -5725,7 +5725,7 @@ msgstr "その他のツール"
 msgid "Move to Overflow Menu"
 msgstr "オーバーフローメニューに移動"
 
-#: lib/custom_bar.dart
+#: lib/custom_bar.dart lib/macros.dart
 msgid "Remove from Toolbar"
 msgstr "ツールバーから削除"
 
@@ -5992,3 +5992,19 @@ msgstr "ステップを追加"
 #: lib/macros.dart
 msgid "bars"
 msgstr "小節"
+
+#: lib/custom_bar.dart
+msgid "Macro {n}"
+msgstr "マクロ {n}"
+
+#: lib/macros.dart
+msgid "The first nine macros"
+msgstr "最初の 9 個のマクロのみ"
+
+#: lib/macros.dart
+msgid "Add to Toolbar"
+msgstr "ツールバーに追加"
+
+#: lib/macros.dart
+msgid "Icon"
+msgstr "アイコン"

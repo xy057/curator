@@ -264,6 +264,9 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
             plugins: plugins,
             child: KeyMapScope(
             keys: plugins.keysOver(settings.keys),
+            // The macros reach every window too: a toolbar's buttons for them, by their names and icons.
+            child: MacrosScope(
+            macros: settings.macros,
             child: _StillBoundary(
               key: _windowKey,
               child: Stack(fit: StackFit.expand, children: [
@@ -289,6 +292,7 @@ class _CuratedScoreAppState extends State<CuratedScoreApp> with SingleTickerProv
                         ),
                 ),
               ]),
+            ),
             ),
             ),
           ),

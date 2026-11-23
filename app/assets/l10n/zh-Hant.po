@@ -5725,7 +5725,7 @@ msgstr "更多工具"
 msgid "Move to Overflow Menu"
 msgstr "移到溢位選單"
 
-#: lib/custom_bar.dart
+#: lib/custom_bar.dart lib/macros.dart
 msgid "Remove from Toolbar"
 msgstr "從工具列移除"
 
@@ -5992,3 +5992,19 @@ msgstr "加入步驟"
 #: lib/macros.dart
 msgid "bars"
 msgstr "小節"
+
+#: lib/custom_bar.dart
+msgid "Macro {n}"
+msgstr "巨集 {n}"
+
+#: lib/macros.dart
+msgid "The first nine macros"
+msgstr "僅限前九個巨集"
+
+#: lib/macros.dart
+msgid "Add to Toolbar"
+msgstr "加入工具列"
+
+#: lib/macros.dart
+msgid "Icon"
+msgstr "圖示"

@@ -114,7 +114,7 @@ class PanelItems extends BarItems {
   /// Whether [item] is one this bar makes: a control of the timeline's or, on the Audio tab,
   /// the sync's own Tap and Warp in the commands' place.
   bool _own(BarItem item) => item.command == null
-      ? !item.repeats
+      ? !item.repeats && item.macro == null
       : kind == BarKind.audio && (item == BarItem.tapAnchors || item == BarItem.warp);
 
   static const _buttons = {

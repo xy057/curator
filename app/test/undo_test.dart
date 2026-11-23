@@ -8,7 +8,6 @@ import 'package:archive/archive.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/attacca_version.dart';
 import 'package:curated_score/audio_track.dart';
-import 'package:curated_score/controller_settings.dart';
 import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
 import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -16,6 +15,7 @@ import 'package:curated_score/file_names.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
+import 'package:curated_score/toolbar_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -149,9 +149,17 @@ void main() {
       const asks = LaneMacro(name: 'Show', steps: [MacroStep(MacroAction.show, lanes: MacroLanes.all, range: MacroRange.ask)]);
       expect([for (final p in c.lanes.checkMacro(asks, asked: '99')) '$p'], ['Step 1: There is no bar 99.']);
       expect([asks.asks, c.lanes.checkMacro(asks, asked: '1-2')], [true, isEmpty]);
-      final settings = AppSettings.memory()..macros = [solo, asks];
-      c.takeSettings(settings);
-      expect([settings.macros, c.lanes.macros], [[solo, asks], [solo, asks]]);
+      // The app keeps them; a macro's own toolbar button follows it as the list changes, and goes with it.
+      final settings = AppSettings.memory()..macros = [solo, asks.copyWith(icon: 'tidy')];
+      expect([settings.macros.last.icon, LaneMacro.read(LaneMacro.write(settings.macros))], ['tidy', settings.macros]);
+      final bar = ToolbarLayout.standard(BarKind.instruments);
+      expect([bar.bar.contains(BarItem.script), bar.bar.contains(BarItem.macros), bar.palette.contains(BarItem.script)], [false, false, true]);
+      final pinned = bar.added(BarItem.macro2);
+      expect([pinned.bar.indexOf(BarItem.macro2), pinned.added(BarItem.macro2), pinned.without(BarItem.macro2)], [bar.bar.indexOf(BarItem.zoomOut), pinned, bar]);
+      expect(pinned.added(BarItem.macro5).bar.length, pinned.bar.length + 1, reason: 'one rule sets the macros apart');
+      expect(pinned.macrosMoved((at) => at == 1 ? 0 : 1).bar.contains(BarItem.macro1), isTrue);
+      expect(pinned.macrosMoved((at) => at == 1 ? null : at), bar);
+      expect(ToolbarLayout.read(BarKind.instruments, pinned.write()), pinned);
     }
 
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.

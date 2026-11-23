@@ -488,7 +488,8 @@ void main() {
       expect(const LaneMacro(name: '', steps: [MacroStep(MacroAction.clear, lanes: MacroLanes.named, names: [' '])]).script(const MacroContext()).problems.single.fault, MacroFault.names);
       expect('${LaneMacro.problemsOf(LaneScript.parse('clear\nshow "Oboe"').check(host)).single}', 'Step 2: There is no lane named “Oboe”.');
       // Kept as JSON; what isn't a step, or a macro, is left out.
-      expect(LaneMacro.read(LaneMacro.write([macro, ...LaneMacro.examples])), [macro, ...LaneMacro.examples]);
+      expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
+      expect([macro.copyWith(icon: 'tidy') == macro, macro.toJson().containsKey('icon')], [false, false]);
       expect(LaneMacro.read('[{"name": "x", "steps": [{"do": "fly"}, {"do": "hide", "lanes": "all", "range": "bars", "bars": "1-2"}, 3]}, {"steps": []}, 7]'),
           const [LaneMacro(name: 'x', steps: [MacroStep(MacroAction.hide, lanes: MacroLanes.all, range: MacroRange.bars, bars: '1-2')])]);
       expect([LaneMacro.read('{'), LaneMacro.read(null)], [isEmpty, isEmpty]);

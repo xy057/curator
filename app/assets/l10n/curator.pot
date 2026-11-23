@@ -5702,7 +5702,7 @@ msgstr ""
 msgid "Move to Overflow Menu"
 msgstr ""
 
-#: lib/custom_bar.dart
+#: lib/custom_bar.dart lib/macros.dart
 msgid "Remove from Toolbar"
 msgstr ""
 
@@ -5966,4 +5966,20 @@ msgstr ""
 
 #: lib/macros.dart
 msgid "bars"
+msgstr ""
+
+#: lib/custom_bar.dart
+msgid "Macro {n}"
+msgstr ""
+
+#: lib/macros.dart
+msgid "The first nine macros"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Add to Toolbar"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Icon"
 msgstr ""

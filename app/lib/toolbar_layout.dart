@@ -30,6 +30,7 @@ const _panel = [BarKind.instruments, BarKind.audio, BarKind.video];
 const _instruments = [BarKind.instruments];
 const _audio = [BarKind.audio];
 const _video = [BarKind.video];
+const _macroBars = [BarKind.editor, BarKind.instruments];
 
 /// What a toolbar can hold (View ▸ Customize Toolbar…), by the name it is saved under, and
 /// which toolbars ([on]). One with a [command] is a button doing that command of the app's
@@ -107,6 +108,18 @@ enum BarItem {
   /// The app's macros, run from a menu, and what edits them.
   macros('Macros', on: _instruments),
 
+  /// A macro as a button of its own, under its icon: one for each of the first nine, as their
+  /// keys count them ([macro]: which). There only while there is such a macro.
+  macro1('Macro 1', on: _macroBars, macro: 0),
+  macro2('Macro 2', on: _macroBars, macro: 1),
+  macro3('Macro 3', on: _macroBars, macro: 2),
+  macro4('Macro 4', on: _macroBars, macro: 3),
+  macro5('Macro 5', on: _macroBars, macro: 4),
+  macro6('Macro 6', on: _macroBars, macro: 5),
+  macro7('Macro 7', on: _macroBars, macro: 6),
+  macro8('Macro 8', on: _macroBars, macro: 7),
+  macro9('Macro 9', on: _macroBars, macro: 8),
+
   // The Audio tab's. Those of the sync are there only while a recording's sync is edited.
   addRecording('Add Recording…', on: _audio),
   crossfade('Crossfade', on: _audio),
@@ -131,7 +144,10 @@ enum BarItem {
   space('Flexible Space', repeats: true),
   divider('Divider', repeats: true);
 
-  const BarItem(this.label, {this.command, this.repeats = false, this.on = _everywhere, this.context});
+  const BarItem(this.label, {this.command, this.repeats = false, this.on = _everywhere, this.context, this.macro});
+
+  /// The macros' buttons, the first macro's first.
+  static const macroButtons = [macro1, macro2, macro3, macro4, macro5, macro6, macro7, macro8, macro9];
 
   /// Its name, in English ([title]: translated).
   final String label;
@@ -141,6 +157,9 @@ enum BarItem {
 
   /// The app's command it does, by its id; null for a control of a toolbar's own.
   final String? command;
+
+  /// The macro it runs, by its place in the app's list (0 the first); null for any other item.
+  final int? macro;
 
   /// Whether a toolbar can hold several.
   final bool repeats;
@@ -192,7 +211,7 @@ class ToolbarLayout {
       BarItem.laneTools, //
       BarItem.space,
       BarItem.trimStart, BarItem.trimEnd, BarItem.remove, BarItem.divider, BarItem.transition, BarItem.staves, BarItem.divider, //
-      BarItem.tidy, BarItem.autoCurate, BarItem.clearLanes, BarItem.script, BarItem.macros, BarItem.divider, ..._panelEnd,
+      BarItem.tidy, BarItem.autoCurate, BarItem.clearLanes, BarItem.divider, ..._panelEnd,
     ], []),
     BarKind.audio: ToolbarLayout._(BarKind.audio, [
       BarItem.addRecording, BarItem.laneTools, BarItem.crossfade, BarItem.divider, //
@@ -257,6 +276,41 @@ class ToolbarLayout {
     }
     return ToolbarLayout(kind: kind, bar: lists[BarArea.bar]!, menu: lists[BarArea.menu]!);
   }
+
+  /// The macros' buttons following their macros to other places in the app's list ([to]: where
+  /// the macro at a place is now; null: gone, and its button with it, as is one past the ninth).
+  ToolbarLayout macrosMoved(int? Function(int at) to) {
+    BarItem? moved(BarItem item) {
+      final at = item.macro;
+      if (at == null) return item;
+      final now = to(at);
+      return now == null || now < 0 || now >= BarItem.macroButtons.length ? null : BarItem.macroButtons[now];
+    }
+
+    return ToolbarLayout(kind: kind, bar: _ruledOnce([for (final item in bar) ?moved(item)]), menu: [for (final item in menu) ?moved(item)]);
+  }
+
+  /// [items] without a rule that another follows: what an item taken from between two leaves.
+  List<BarItem> _ruledOnce(List<BarItem> items) => items.length == bar.length
+      ? items
+      : [for (final (i, item) in items.indexed) if (item != BarItem.divider || i + 1 == items.length || items[i + 1] != BarItem.divider) item];
+
+  /// With [item] on the bar, before its end's group (the zoom and what follows, where it has
+  /// one) or last, a rule setting it apart from a tool before it (not from another macro's
+  /// button); as it is when [item] is there already, on the bar or in the menu.
+  ToolbarLayout added(BarItem item) {
+    if (!item.on.contains(kind) || bar.contains(item) || menu.contains(item)) return this;
+    var at = bar.indexOf(BarItem.zoomOut);
+    if (at > 0 && bar[at - 1] == BarItem.divider) at--;
+    if (at < 0) at = bar.length;
+    final before = at > 0 ? bar[at - 1] : null;
+    final apart = before != null && before != BarItem.divider && before != BarItem.space && before.macro == null;
+    return ToolbarLayout(kind: kind, bar: [...bar]..insertAll(at, [if (apart) BarItem.divider, item]), menu: menu);
+  }
+
+  /// Without [item], on the bar or in the menu (and the rule that set it apart, with the last).
+  ToolbarLayout without(BarItem item) =>
+      ToolbarLayout(kind: kind, bar: _ruledOnce([for (final each in bar) if (each != item) each]), menu: [for (final each in menu) if (each != item) each]);
 
   /// As saved: `{"bar": ["goToStart", "space", …], "menu": []}`, by name.
   String write() => jsonEncode({'bar': [for (final item in bar) item.name], 'menu': [for (final item in menu) item.name]});

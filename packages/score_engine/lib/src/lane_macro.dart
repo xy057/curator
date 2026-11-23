@@ -201,9 +201,12 @@ class MacroContext {
 /// A macro: its [name] and its steps, done in order.
 @immutable
 class LaneMacro {
-  const LaneMacro({required this.name, this.steps = const []});
+  const LaneMacro({required this.name, this.steps = const [], this.icon = ''});
   final String name;
   final List<MacroStep> steps;
+
+  /// Its icon, by the name the app has for it; '' for the one every macro has.
+  final String icon;
 
   /// The most steps one has.
   static const maxSteps = 40;
@@ -211,7 +214,8 @@ class LaneMacro {
   /// Whether running it asks for bars first.
   bool get asks => steps.any((s) => s.action.ranged && s.range == MacroRange.ask);
 
-  LaneMacro copyWith({String? name, List<MacroStep>? steps}) => LaneMacro(name: name ?? this.name, steps: steps ?? this.steps);
+  LaneMacro copyWith({String? name, List<MacroStep>? steps, String? icon}) =>
+      LaneMacro(name: name ?? this.name, steps: steps ?? this.steps, icon: icon ?? this.icon);
 
   /// A few to begin with, by their names in English.
   static const examples = [
@@ -296,14 +300,18 @@ class LaneMacro {
 
   // MARK: Keeping
 
-  Map<String, Object?> toJson() => {'name': name, 'steps': [for (final step in steps) step.toJson()]};
+  Map<String, Object?> toJson() => {'name': name, if (icon.isNotEmpty) 'icon': icon, 'steps': [for (final step in steps) step.toJson()]};
 
   /// What [toJson] wrote, the steps this version doesn't know left out; null for no macro.
   static LaneMacro? fromJson(Object? json) {
     if (json is! Map) return null;
     final name = json['name'], steps = json['steps'];
     if (name is! String) return null;
-    return LaneMacro(name: name, steps: List.unmodifiable([if (steps is List) ...steps.map(MacroStep.fromJson).nonNulls.take(maxSteps)]));
+    return LaneMacro(
+      name: name,
+      steps: List.unmodifiable([if (steps is List) ...steps.map(MacroStep.fromJson).nonNulls.take(maxSteps)]),
+      icon: switch (json['icon']) { final String icon => icon, _ => '' },
+    );
   }
 
   /// [macros] as the app keeps them.
@@ -320,8 +328,8 @@ class LaneMacro {
   }
 
   @override
-  bool operator ==(Object other) => other is LaneMacro && other.name == name && listEquals(other.steps, steps);
+  bool operator ==(Object other) => other is LaneMacro && other.name == name && other.icon == icon && listEquals(other.steps, steps);
 
   @override
-  int get hashCode => Object.hash(name, Object.hashAll(steps));
+  int get hashCode => Object.hash(name, icon, Object.hashAll(steps));
 }

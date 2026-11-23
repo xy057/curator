@@ -1,8 +1,8 @@
 <!-- Made by app/tool/script_docs.dart (make script-docs): edit app/assets/help/script.md and LaneScriptApi instead. -->
 # Curating by script
 
-The Instruments tab's Script (the code button on its bar) shows a script in the lanes' place. A
-script says when each lane is shown, a statement a line. Run (⌘R) does them all as one Undo
+The Instruments tab's Script shows a script in the lanes' place (its button is added to the
+tab's bar with View ▸ Customize Toolbar…). A script says when each lane is shown, a statement a line. Run (⌘R) does them all as one Undo
 step, and what they do is what the tab's tools do: `show` is Draw, `hide` is Erase, `auto` is
 Auto-Curate. What is wrong with a script is listed under it with its line, and then nothing
 is changed.
@@ -52,8 +52,10 @@ from, and a way to take one project's lanes to another. The script is kept with 
 A macro does a few statements without writing them. Edit ▸ Macros… puts one together from
 choices: what to do, to which lanes, over which bars. It is kept for every project, and can
 use what a script can't: the lanes selected, where the playhead is, bars asked for as it runs.
-The Macros menu on the Instruments bar runs one, and ⌃1 to ⌃9 run the first nine. A run is one
-Undo step, as a script's is.
+⌃1 to ⌃9 run the first nine, and each of those can have a button of its own on a toolbar,
+under an icon you give it: the pin beside its name puts it on the Instruments bar, and View ▸
+Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
+a script's is.
 
 ## Statements
 
