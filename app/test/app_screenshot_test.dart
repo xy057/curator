@@ -172,6 +172,26 @@ void main() {
     expect([graph().steps.length, graph().wires, graph().steps.first.action], [3, const [(from: 0, to: 2)], MacroAction.follow]);
     await tester.tap(find.text('Done'));
     await settle();
+    // A macro's own button on the editor's toolbar goes by the tab showing: one for the lanes is off in the Audio tab.
+    {
+      final editor = state.controller as EditorController, was = editor.tab, standard = settings.toolbarOf(BarKind.editor);
+      editor.tab = BottomTab.instruments;
+      settings.macros = const [LaneMacro(name: 'Tidy', steps: [MacroStep(MacroAction.bridge, lanes: MacroLanes.all)])];
+      settings.setToolbar(settings.toolbarOf(BarKind.editor).added(BarItem.macro1));
+      await settle();
+      final own = find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Tidy')));
+      bool runs() => tester.widget<ToolbarButton>(own).onPressed != null;
+      expect(runs(), isTrue);
+      editor.tab = BottomTab.audio;
+      await settle();
+      expect(runs(), isFalse, reason: 'the lanes aren’t showing');
+      editor.tab = BottomTab.instruments;
+      await settle();
+      expect(runs(), isTrue);
+      settings.setToolbar(standard);
+      editor.tab = was;
+      await settle();
+    }
     settings.macros = const [];
 
     // The toolbar is the user's. An item's own menu (a right click) moves it into the menu at the
