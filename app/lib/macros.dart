@@ -314,8 +314,13 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     _keep(macros..insert(to, macro), at: to, moved: (at) => at == from ? to : (at == to ? from : at));
   }
 
+  /// How many macros were deleted here: the one that takes a deleted one's place in the list
+  /// is another, with a graph of its own.
+  int _removed = 0;
+
   void _remove() {
     final gone = _at;
+    _removed++;
     _keep([for (final (i, m) in _macros.indexed) if (i != gone) m], at: gone, moved: (at) => at == gone ? null : (at > gone ? at - 1 : at));
   }
 
@@ -465,7 +470,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
       ]),
       const SizedBox(height: 14),
       // (A macro's graph is its own: another's starts where it is, with nothing chosen.)
-      Expanded(child: _Graph(key: ValueKey(_at), macro: macro, onChanged: _change)),
+      Expanded(child: _Graph(key: ValueKey((_at, _removed)), macro: macro, onChanged: _change)),
     ]);
   }
 }
@@ -611,7 +616,8 @@ class _GraphState extends State<_Graph> {
   }
 
   void _add(MacroAction action) {
-    final macro = _macro, places = _places, after = _selected ?? (macro.steps.isEmpty ? null : macro.steps.length - 1);
+    final macro = _macro, places = _places;
+    final after = switch (_selected) { final chosen? when chosen < macro.steps.length => chosen, _ => macro.steps.isEmpty ? null : macro.steps.length - 1 };
     var at = after == null ? Offset.zero : places[after] + const Offset(_gridX, 0);
     while (places.any((p) => (p - at).distance < 60)) {
       at += const Offset(0, 150);

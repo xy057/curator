@@ -182,6 +182,22 @@ void main() {
     await tester.tap(find.descendant(of: node(1), matching: find.byTooltip('Remove')));
     await settle();
     expect([graph().steps.length, graph().wires, graph().steps.first.action], [3, const [(from: 0, to: 2)], MacroAction.follow]);
+    // A macro deleted leaves the next its own graph, with nothing chosen: a step added to it isn't put after the other's.
+    await tester.tap(find.byTooltip('Add').hitTestable());
+    await settle();
+    await tester.tap(find.text('New Macro').last);
+    await settle();
+    await tester.tap(find.text('Both'));
+    await settle();
+    await tester.tapAt(tester.getTopLeft(node(3)) + const Offset(14, 18));
+    await settle();
+    await tester.tap(find.byTooltip('Delete').hitTestable());
+    await settle();
+    await tester.tap(find.text('Add Step'));
+    await settle();
+    await tester.tap(find.text(macroActionLabel(MacroAction.clear)).last);
+    await settle();
+    expect([for (final m in settings.macros) m.steps.length], [1]);
     await tester.tap(find.text('Done'));
     await settle();
     // A macro's own button on the editor's toolbar goes by the tab showing: one for the lanes is off in the Audio tab.
