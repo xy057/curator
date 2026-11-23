@@ -191,6 +191,7 @@ enum KeyCommand {
   selectAll('Select All', 'Edit', KeyPlace.menus, [_K(_L.keyA, command: true)], also: [_K(_L.keyA, control: true)]),
   deselect('Deselect', 'Edit', KeyPlace.editor, [_K(_L.escape)], help: 'Stops tapping, or goes back to Select, first.'),
   findPhrase('Find Phrase…', 'Edit', KeyPlace.menus, [_K(_L.keyF, command: true)], editable: true),
+  editMacros('Macros…', 'Edit', KeyPlace.menus, [], editable: true),
   projectSettings('Project Settings…', 'Edit', KeyPlace.menus, [_K(_L.comma, command: true, shift: true)], editable: true),
   settings('Settings…', 'Edit', KeyPlace.menus, [_K(_L.comma, command: true)]),
   showPreview('Hide / Show Preview', 'View', KeyPlace.menus, [], editable: true),
@@ -243,6 +244,11 @@ enum KeyCommand {
       help: 'A bar · ⇧ a beat'),
   nextLane('Select in the lane above / below', 'Instruments', KeyPlace.editor, [_K(_L.arrowUp), _K(_L.arrowDown)]),
   runScript('Run Script', 'Instruments', KeyPlace.editor, [_K(_L.keyR, command: true)], help: 'In the script.'),
+  // The first nine macros, as Edit ▸ Macros… lists them.
+  runMacro('Run a Macro', 'Instruments', KeyPlace.editor, [], ranges: ['⌃1–9'], also: [
+    _K(_L.digit1, control: true), _K(_L.digit2, control: true), _K(_L.digit3, control: true), _K(_L.digit4, control: true), _K(_L.digit5, control: true), //
+    _K(_L.digit6, control: true), _K(_L.digit7, control: true), _K(_L.digit8, control: true), _K(_L.digit9, control: true),
+  ]),
 
   // The score editor (Project Info ▸ Score ▸ Edit…).
   noteInput('Note Input', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.enter), _K(_L.keyN, shift: true)]),

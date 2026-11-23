@@ -202,6 +202,9 @@ class AppMenus extends StatelessWidget {
           PlatformMenuItemGroup(members: [
             ?_own('findPhrase', 'Find Phrase…'.tr, shortcut: _keyOf(KeyCommand.findPhrase)),
           ]),
+          PlatformMenuItemGroup(members: [
+            ?_own('editMacros', 'Macros…'.tr, shortcut: _keyOf(KeyCommand.editMacros)),
+          ]),
           // The open project's settings, then the app's; on macOS the Curator menu has the
           // app's too, with the shortcut.
           PlatformMenuItemGroup(members: [

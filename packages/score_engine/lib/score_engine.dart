@@ -27,6 +27,7 @@ export 'src/font_files.dart';
 export 'src/frozen_zone.dart';
 export 'src/hex_color.dart';
 export 'src/key_signatures.dart';
+export 'src/lane_macro.dart';
 export 'src/lane_script.dart';
 export 'src/lane_script_api.dart';
 export 'src/lilypond_score.dart';

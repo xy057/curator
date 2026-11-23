@@ -47,6 +47,14 @@ from, and a way to take one project's lanes to another. The script is kept with 
   anything.
 - Statements run in order, each on what the one before left: `clear` first starts from nothing.
 
+## Macros
+
+A macro does a few statements without writing them. Edit ▸ Macros… puts one together from
+choices: what to do, to which lanes, over which bars. It is kept for every project, and can
+use what a script can't: the lanes selected, where the playhead is, bars asked for as it runs.
+The Macros menu on the Instruments bar runs one, and ⌃1 to ⌃9 run the first nine. A run is one
+Undo step, as a script's is.
+
 ## Statements
 
 - `show <lanes> [<ranges>] [transition …] [without staff <n>]`: Shows the lanes over the ranges, as Draw does: joined with what it touches. Without a range, throughout. `transition 0.5` gives the stretch its own transition at both ends, `transition in 0.5 out 1` at each; `without staff 2` leaves a staff of the instrument out there.

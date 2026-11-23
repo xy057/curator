@@ -139,7 +139,7 @@ msgstr ""
 msgid "Frame"
 msgstr ""
 
-#: lib/web_player/player.dart
+#: lib/macros.dart lib/web_player/player.dart
 msgid "Hide"
 msgstr ""
 
@@ -193,7 +193,7 @@ msgstr ""
 msgid "Recordings"
 msgstr ""
 
-#: lib/web_player/player.dart
+#: lib/macros.dart lib/web_player/player.dart
 msgid "Show"
 msgstr ""
 
@@ -246,7 +246,7 @@ msgstr ""
 msgid "Accidentals"
 msgstr ""
 
-#: lib/ai_settings.dart lib/condensing_editor.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
+#: lib/ai_settings.dart lib/condensing_editor.dart lib/macros.dart lib/pdf_import.dart lib/script_editor.dart assets/extensions/captions/src/lane.lua assets/extensions/captions/src/sheet.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua assets/plugins/navigator/src/bookmarks.lua
 msgid "Add"
 msgstr ""
 
@@ -439,7 +439,7 @@ msgstr ""
 msgid "Auto"
 msgstr ""
 
-#: lib/panel_bar.dart
+#: lib/macros.dart lib/panel_bar.dart
 msgid "Auto-curate"
 msgstr ""
 
@@ -553,7 +553,7 @@ msgstr ""
 msgid "c if a < b, else d"
 msgstr ""
 
-#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
+#: lib/ai_settings.dart lib/color_dialog.dart lib/daw_follow_dialog.dart lib/dialog_kit.dart lib/edit_dialogs.dart lib/export_dialog.dart lib/extensions/extension_actions.dart lib/extensions/extension_form.dart lib/extensions/extension_sheet.dart lib/lilypond_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/main.dart lib/motion_settings.dart lib/pdf_ai_model_dialog.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_editor.dart lib/script_editor.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/web_export_dialog.dart
 msgid "Cancel"
 msgstr ""
 
@@ -631,7 +631,7 @@ msgstr ""
 msgid "Chords"
 msgstr ""
 
-#: lib/home_screen.dart lib/phrase_search_window.dart lib/settings_dialog.dart
+#: lib/home_screen.dart lib/macros.dart lib/phrase_search_window.dart lib/settings_dialog.dart
 msgid "Clear"
 msgstr ""
 
@@ -875,7 +875,7 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
-#: lib/ai_settings.dart lib/app_menus.dart lib/player_map_view.dart lib/script_editor.dart
+#: lib/ai_settings.dart lib/app_menus.dart lib/macros.dart lib/player_map_view.dart lib/script_editor.dart
 msgid "Delete"
 msgstr ""
 
@@ -894,7 +894,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -1434,9 +1434,11 @@ msgstr ""
 msgid "Mixed"
 msgstr ""
 
+#: lib/macros.dart
 msgid "Move to Bottom"
 msgstr ""
 
+#: lib/macros.dart
 msgid "Move to Top"
 msgstr ""
 
@@ -1782,7 +1784,7 @@ msgstr ""
 msgid "Rehearsal marks in bar numbers"
 msgstr ""
 
-#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
+#: lib/ai_settings.dart lib/assets_dialog.dart lib/audio_panel.dart lib/extensions/extension_actions.dart lib/extensions/extension_sheet.dart lib/macros.dart lib/pdf_import.dart lib/pdf_import_changes.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart lib/score_view.dart lib/settings_dialog.dart lib/spacer_dialogs.dart lib/stems_dialog.dart lib/take_lanes.dart lib/web_export_dialog.dart assets/extensions/captions/src/lane.lua assets/extensions/chapters/src/lane.lua assets/extensions/tonality/src/lane.lua
 msgid "Remove"
 msgstr ""
 
@@ -2597,7 +2599,7 @@ msgstr ""
 msgid "Until"
 msgstr ""
 
-#: lib/main.dart lib/project_document.dart
+#: lib/macros.dart lib/main.dart lib/project_document.dart
 msgid "Untitled"
 msgstr ""
 
@@ -2703,7 +2705,7 @@ msgstr ""
 msgid "Whole (8)"
 msgstr ""
 
-#: lib/export_dialog.dart
+#: lib/export_dialog.dart lib/macros.dart
 msgid "Whole piece"
 msgstr ""
 
@@ -3100,11 +3102,11 @@ msgstr ""
 msgid "Measuring system {n} of {count}…"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "Move Down"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "Move Up"
 msgstr ""
 
@@ -3315,6 +3317,7 @@ msgstr ""
 msgid "Add All"
 msgstr ""
 
+#: lib/macros.dart
 msgid "Bars"
 msgstr ""
 
@@ -3349,7 +3352,7 @@ msgstr ""
 msgid "Lane"
 msgstr ""
 
-#: lib/pdf_import.dart
+#: lib/macros.dart lib/pdf_import.dart
 msgid "All Lanes"
 msgstr ""
 
@@ -4573,6 +4576,9 @@ msgstr ""
 msgid "In the script."
 msgstr ""
 
+msgid "Run a Macro"
+msgstr ""
+
 msgid "Script"
 msgstr ""
 
@@ -4796,7 +4802,7 @@ msgstr ""
 msgid "{name} Copy"
 msgstr ""
 
-#: lib/extensions/extension_actions.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
+#: lib/extensions/extension_actions.dart lib/macros.dart lib/player_map_view.dart lib/plugins/plugin_actions.dart
 msgid "Duplicate"
 msgstr ""
 
@@ -4812,7 +4818,7 @@ msgstr ""
 msgid "Run ({key})"
 msgstr ""
 
-#: lib/lane_script_view.dart lib/script_editor.dart
+#: lib/lane_script_view.dart lib/macros.dart lib/script_editor.dart
 msgid "Run"
 msgstr ""
 
@@ -4924,7 +4930,7 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
-#: lib/extensions/connector_view.dart
+#: lib/extensions/connector_view.dart lib/macros.dart
 msgid "Tidy Up"
 msgstr ""
 
@@ -5833,7 +5839,7 @@ msgstr ""
 msgid "Side"
 msgstr ""
 
-#: lib/lane_script_view.dart
+#: lib/lane_script_view.dart lib/macros.dart
 msgid "Nothing changed"
 msgstr ""
 
@@ -5849,4 +5855,124 @@ msgstr ""
 msgid ""
 "Script\n"
 "Curate by writing"
+msgstr ""
+
+#: lib/app_menus.dart
+msgid "Macros…"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Show Only"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Bridge Rests"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Remove Short Regions"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Set Transition"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Split into Staves"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Join Staves"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Selected Lanes"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Other Lanes"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Lanes Named"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Selected Regions"
+msgstr ""
+
+#: lib/macros.dart
+msgid "From the Playhead"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Until the Playhead"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Bar at the Playhead"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Ask Each Time"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Solo from Here"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Hide from Here"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Show Bars…"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Step {n}: {problem}"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Select lanes first"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Select regions first"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Name the lanes"
+msgstr ""
+
+#: lib/macros.dart
+msgid "No bars given"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Macros"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Edit Macros…"
+msgstr ""
+
+#: lib/macros.dart
+msgid "No macros"
+msgstr ""
+
+#: lib/macros.dart
+msgid "New Macro"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Examples"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Add Step"
+msgstr ""
+
+#: lib/macros.dart
+msgid "bars"
 msgstr ""

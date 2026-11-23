@@ -522,6 +522,51 @@ class LaneEditing {
     return (problems: problems, changed: _editor._editState != before);
   }
 
+  // MARK: Macros
+
+  /// The app's macros (every project's: [AppSettings.macros]), as the Instruments tab lists
+  /// and runs them.
+  List<LaneMacro> get macros => _macros;
+  List<LaneMacro> _macros = const [];
+  set macros(List<LaneMacro> value) {
+    if (listEquals(value, _macros)) return;
+    _macros = value;
+    _editor._changed();
+  }
+
+  /// [macro] as a script for now: with the lanes selected, the beat nearest the playhead, the
+  /// bars from the first selected region's start to the last one's end, and the bars [asked]
+  /// for; and what keeps a step from being written.
+  ({String script, List<MacroProblem> problems}) _macroScript(LaneMacro macro, String? asked) {
+    final regions = _valid.keys;
+    return macro.script(MacroContext.of(
+      _ScriptHost(_editor),
+      selected: selectedPartIds,
+      playhead: _editor._sync!.nearestGrid(_editor.timeline.quarterAtSeconds(_editor.playback.time.value), SyncGrid.beat),
+      span: regions.isEmpty ? null : (regions.map((r) => r.region.start).reduce(math.min), regions.map((r) => r.region.end).reduce(math.max)),
+      asked: asked,
+    ));
+  }
+
+  /// What is wrong with [macro] were it run now, by step; nothing changes.
+  List<MacroProblem> checkMacro(LaneMacro macro, {String? asked}) {
+    if (_curation == null || _editor._sync == null) return const [];
+    final (:script, :problems) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? problems : LaneMacro.problemsOf(checkScript(script));
+  }
+
+  /// Runs [macro] as the script it is for now ([runScript]: one Undo step, or nothing at all),
+  /// [asked] the bars it asks for. The lanes it was run on stay selected, for the next.
+  ({List<MacroProblem> problems, bool changed}) runMacro(LaneMacro macro, {String? asked}) {
+    if (_curation == null || _editor._sync == null) return (problems: const [], changed: false);
+    final lanes = selectedPartIds;
+    final (:script, :problems) = _macroScript(macro, asked);
+    if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final ran = runScript(script);
+    if (ran.problems.isEmpty && lanes.isNotEmpty) _selectLanes([for (final row in _editor.laneRows) if (lanes.contains(row.id)) row.id]);
+    return (problems: LaneMacro.problemsOf(ran.problems), changed: ran.changed);
+  }
+
   /// The lanes as they are, as a script that makes them again ([LaneScript.write]).
   String get asScript => _curation == null ? '' : LaneScript.write(_ScriptHost(_editor));
 

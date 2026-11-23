@@ -429,6 +429,7 @@ class BarItemIcon extends StatelessWidget {
     BarItem.autoCurate: AppIcon.autoCurate,
     BarItem.clearLanes: AppIcon.clearLanes,
     BarItem.script: AppIcon.code,
+    BarItem.macros: AppIcon.repeat,
     BarItem.addRecording: AppIcon.addAudio,
     BarItem.crossfade: AppIcon.transition,
     BarItem.align: AppIcon.align,

@@ -8,7 +8,7 @@ extension ControllerSettings on EditorController {
   /// added is aligned, whether a score (a PDF) imported is auto-curated, how far ⌥←/→ seek and ←/→ nudge anchors, what a project
   /// starts with (its transition, scroll, motion, typography and fonts), the extensions an old project had on,
   /// the look an extension keeps for its captions, the video's frame (its ratio), the engraving options and flags
-  /// (re-engraving what is open when they change), and the language the key areas are named in. Call it again whenever they change: what
+  /// (re-engraving what is open when they change), the language the key areas are named in, and the macros. Call it again whenever they change: what
   /// is the same already changes nothing.
   void takeSettings(AppSettings settings) {
     undoLimit = settings.undoSteps;
@@ -31,5 +31,6 @@ extension ControllerSettings on EditorController {
     defaultDynamicsBetween = settings.dynamicsBetween;
     videoLayout = VideoFormat.layoutOf(settings.videoRatio.value);
     extensions.followLanguage(settings.language);
+    lanes.macros = settings.macros;
   }
 }

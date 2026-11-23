@@ -458,6 +458,41 @@ void main() {
         ('number', '1'), (null, ' '), ('number', '1'), (null, '-'), ('number', '8.2'), (null, ' '), ('comment', '# all')]);
       expect({for (final s in LaneScript.statements) s.word}.difference(LaneScript.keywords), isEmpty);
       expect([for (final s in LaneScript.statements) ...LaneScript.parse(s.example).problems], isEmpty);
+
+      // A macro is steps put together from choices, written as a script for the moment: the lanes selected, where the
+      // playhead is, the bars of what is selected, bars asked for; a line a step.
+      const macro = LaneMacro(name: 'Solo', steps: [
+        MacroStep(MacroAction.only, range: MacroRange.fromPlayhead),
+        MacroStep(MacroAction.show, lanes: MacroLanes.named, names: ['Flute*'], range: MacroRange.ask),
+        MacroStep(MacroAction.hide, lanes: MacroLanes.others, range: MacroRange.playheadBar),
+        MacroStep(MacroAction.transition, lanes: MacroLanes.all, range: MacroRange.selection, number: 2),
+        MacroStep(MacroAction.bridge, lanes: MacroLanes.all),
+        MacroStep(MacroAction.moveTop),
+      ]);
+      final asScript = macro.script(MacroContext.of(host, selected: ['v2', 'pf/1'], playhead: 18, span: (8, 16), asked: '1-2, 9'));
+      expect(asScript.problems, isEmpty);
+      expect(asScript.script.split('\n'), [
+        'only "Piano"/1, "Violin"[2] from 5.3',
+        'show "Flute*" 1-2, 9',
+        'hide all except "Piano"/1, "Violin"[2] 5',
+        'transition all 3-4 in 2 out 2',
+        'bridge rests 1 in all',
+        'move "Piano"/1, "Violin"[2] to top',
+      ]);
+      expect(run(asScript.script), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('v2'), host.lanes.first.id], [const [Region(0, 16, transitionOut: 2), Region(32, 36)], const [Region(0, 48)], 'pf/1']);
+      // What a step needs and isn't there is said by its step, and so is what its script gets wrong.
+      final nothing = macro.script(const MacroContext(asked: '1 # 2'));
+      expect([for (final p in nothing.problems) '$p'], ['Step 1: lanes', 'Step 2: bars', 'Step 3: bars', 'Step 4: regions', 'Step 6: lanes']);
+      expect(nothing.script.split('\n')[4], 'bridge rests 1 in all');
+      expect(const LaneMacro(name: '', steps: [MacroStep(MacroAction.clear, lanes: MacroLanes.named, names: [' '])]).script(const MacroContext()).problems.single.fault, MacroFault.names);
+      expect('${LaneMacro.problemsOf(LaneScript.parse('clear\nshow "Oboe"').check(host)).single}', 'Step 2: There is no lane named “Oboe”.');
+      // Kept as JSON; what isn't a step, or a macro, is left out.
+      expect(LaneMacro.read(LaneMacro.write([macro, ...LaneMacro.examples])), [macro, ...LaneMacro.examples]);
+      expect(LaneMacro.read('[{"name": "x", "steps": [{"do": "fly"}, {"do": "hide", "lanes": "all", "range": "bars", "bars": "1-2"}, 3]}, {"steps": []}, 7]'),
+          const [LaneMacro(name: 'x', steps: [MacroStep(MacroAction.hide, lanes: MacroLanes.all, range: MacroRange.bars, bars: '1-2')])]);
+      expect([LaneMacro.read('{'), LaneMacro.read(null)], [isEmpty, isEmpty]);
+      expect([for (final m in LaneMacro.examples) ...LaneScript.parse(m.script(MacroContext.of(host, selected: ['fl'], playhead: 4, asked: '2')).script).check(host)], isEmpty);
     }
 
     // The piano's left hand left out in bar 2: a region of its own, meeting bar 1's.

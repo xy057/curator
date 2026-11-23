@@ -7,6 +7,7 @@ import 'custom_bar.dart';
 import 'editor_controller.dart';
 import 'instruments_toolbar.dart';
 import 'key_bindings.dart';
+import 'macros.dart';
 import 'toolbar_layout.dart';
 import 'ui_kit.dart';
 import 'video_panel.dart';
@@ -196,6 +197,7 @@ class PanelItems extends BarItems {
           selected: c.lanes.scripting,
           onPressed: () => c.lanes.scripting = !c.lanes.scripting,
         ),
+      BarItem.macros => MacrosMenu(controller: c, onEdit: does(context, 'editMacros')),
       BarItem.crossfade => c.takes.length < 2 ? null : CrossfadeMenu(controller: c),
       // (Filled, with its name, while the recording has no anchors.)
       BarItem.align => _button(context, item) == null ? null : Padding(padding: const EdgeInsets.only(right: 2), child: AlignButton(controller: c)),

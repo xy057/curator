@@ -19,6 +19,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
 | `lane_script.dart`, `lane_script_api.dart` | The lanes written (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
+| `lane_macro.dart` | Curating without writing (see *The lanes can be written*): a macro (`LaneMacro`) is steps put together from choices (`MacroStep`: a `MacroAction`, its `MacroLanes`, its `MacroRange`, a number), written as a script for the moment (`LaneMacro.script` over a `MacroContext`: the lanes selected, the playhead, bars asked for), what keeps a step from being written (`MacroProblem`, `MacroFault`), and the app's list of them as JSON |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
 | `score_form.dart` | The score's form (repeats, endings, D.C., D.S., To Coda, Fine): the order its bars are played in, and the MIDI warps for it |
@@ -134,6 +135,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `l10n/l10n.dart`, `l10n/po.dart` | The interface's language (`AppLanguage`, Settings ▸ General ▸ Language) and its translations, gettext files in `assets/l10n` keyed by the English and read as the app starts (see *Interface text*, docs/translating.md) |
 | `timeline_panel.dart`, `instrument_lanes/*.dart`, `instruments_toolbar.dart` | The Instruments tab: the lanes, in parts (where things are, lanes moved by their names, the pointer among regions, a lane's name and ⋯ menu, the painter); the tab's tools (the lanes' tools, what is selected, its menus) |
 | `lane_script_view.dart` | The Instruments tab's Script (`LaneScriptView`, in the lanes' place while `LaneEditing.scripting`): the project's script in a `CodeView`, coloured and prompted from the language's own list (`laneScriptCode`, `LaneScriptPrompts`), Run, From Lanes, what is wrong listed under it, the guide beside it |
+| `macros.dart` | Macros: the dialog that puts them together without code (`showMacrosDialog`, Edit ▸ Macros…: the list, each step a row of choices, Run on the project under it), the Instruments bar's menu of them (`MacrosMenu`, `BarItem.macros`), what runs one (`playMacro`: asks for its bars first when it asks, says what is wrong by step) |
 | `toolbar_layout.dart`, `toolbar_strip.dart`, `custom_bar.dart`, `toolbar_customize.dart`, `panel_bar.dart` | The toolbars as the user has them (the editor's, and the timeline's in each of its tabs: `BarKind`): what each can hold and where each item is (`BarItem`, `ToolbarLayout`: on the bar, in the menu at its end, or left to add), the row that keeps the items it has no room for out of sight (`ToolbarStrip`), a toolbar drawn from its layout (`CustomBar`, its items a `BarItems`), View ▸ Customize Toolbar…'s panel (`ToolbarCustomizer`), and the timeline's bar (`PanelBar`, `PanelItems`); see *The toolbars are the user's* |
 | `main.dart`, `*_panel.dart`, `score_view.dart`, `editor_toolbar.dart`, … | The UI |
 
@@ -955,6 +957,28 @@ from it. The code is typed in the project's window, where the editor's keys are 
 keyboard is in it (`TypingArea`, as `textFieldFocused` tells) they are its own, and its scrolls and
 swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is a document wrapped
 in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
+
+A macro is the same without writing (Edit ▸ Macros…, `macros.dart`): a few steps, each put together
+from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: twelve of
+the script's statements), to which lanes (`MacroLanes`: all, those selected, the others, those
+named), over which bars (`MacroRange`: the piece, bars written, the selected regions', from or until
+the playhead, the playhead's bar, asked for as it runs), and a number of bars or seconds. It has no
+variables, conditions or loops, and needs none checked: a macro is never run itself. It is written
+as a script for the moment (`LaneMacro.script`, a line a step, over a `MacroContext`: the lanes
+selected by the names a script calls them, `LaneScript.references`; the beat nearest the playhead,
+`LaneScript.place`) and that script is run (`LaneEditing.runMacro`, through `runScript`), so a macro
+does what the tools do, is checked whole before anything changes, and is one Undo step. What is
+wrong is said by step, a line's number being its step's: what a step needs and isn't there (no lane
+selected: `MacroFault`, said by the app in the user's language) before any script is made, then
+what the script finds (its own words). The lanes a macro was run on stay selected, for the next.
+Macros are the app's, not a project's (`AppSettings.macros`, JSON; the controller is given them,
+`LaneEditing.macros`, as it is the other settings), since a workflow is worth keeping for the next
+score; so a step names lanes by pattern (`Flute*`), never by id. They are run from the Instruments
+bar's Macros menu (`BarItem.macros`) and, the first nine, with ⌃1 to ⌃9 (`KeyCommand.runMacro`,
+fixed, in the Instruments tab's lanes); one that asks for bars asks in a dialog that takes only bars
+the macro can be run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is
+changed, and its Run tries the macro on the project under it. Its examples are `LaneMacro.examples`,
+named in the user's language when one is added.
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -2213,7 +2237,7 @@ download (GitHub only, into Downloads).
 6/8 orchestral intro with its recording and curation), so a fresh clone runs them all.
 The suite is kept to 25 tests at most, `make smoke`'s among them: one per area, on its main path, what else
 there is of the area folded into it as sections. The engine's: the engraving (parts, scroll map, phrase search,
-video frame), curation (regions, auto-curate, the script language), tapping, takes and tempo maps, Align, the score editor, PDF import,
+video frame), curation (regions, auto-curate, the script language, macros as scripts), tapping, takes and tempo maps, Align, the score editor, PDF import,
 LilyPond's engraving, Lua, extensions. The app's: save and open (safe save, recordings), older formats, Undo, the
 updater's URLs, the app's folders and downloads, web export (with a page's plugins and what the player answers them), the app's screens, the accessibility tree, what is
 kept in step (the translations, docs/extension-api.md, docs/plugin-api.md, docs/lane-script.md and docs/web-plugin-api.md, what is built from TypeScript, the commands plugins are told of, the licence), extensions in a project and plugins in the app, the ported
@@ -2307,6 +2331,10 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A statement of the script**: a `ScriptStatement` in `LaneScriptApi.statements` (its syntax, what
   it does, an example that reads), its words in `keywords`, what it does in `_Parser.statement`
   (`lane_script.dart`) as one of the tab's own edits, never a new one; then `make script-docs`.
+- **A step of a macro**: a `MacroAction` (whether it takes bars, and a number of what), the line it
+  writes in `LaneMacro._line` (a statement the script has: a macro does nothing a script can't), its
+  name in `macroActionLabel` (`macros.dart`). What a step can be done to or over is a `MacroLanes`
+  or a `MacroRange`, said to the script by `MacroContext`.
 - **A flag**: a fix for how other programs write their files, on by default (Centered lyrics and
   Dynamics between staves, house styles, are off), as an `_Item` on
   Project Settings ▸ Flags with a switch to turn it off: the project's (`EditState`, an edit),

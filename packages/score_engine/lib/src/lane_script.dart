@@ -223,13 +223,10 @@ class LaneScript {
     for (final lane in lanes) {
       if (!instruments.contains(lane.instrument)) instruments.add(lane.instrument);
     }
-    final names = {for (final lane in lanes) lane.instrument: _plain(lane.name)};
-    // An instrument by its name: the nth of that name, where several have it.
-    String instrument(ScriptLane lane) {
-      final same = [for (final id in instruments) if (names[id] == names[lane.instrument]) id];
-      return '${quoted(lane.name)}${same.length > 1 ? '[${same.indexOf(lane.instrument) + 1}]' : ''}';
-    }
-    String named(ScriptLane lane) => '${instrument(lane)}${lane.staff == null ? '' : '/${lane.staff}'}';
+    final called = references(lanes);
+    String named(ScriptLane lane) => called[lane.id]!;
+    // (An instrument's own name: its lane's, without the staff.)
+    String instrument(ScriptLane lane) => lane.staff == null ? named(lane) : named(lane).substring(0, named(lane).lastIndexOf('/'));
 
     if (lanes.any((l) => l.staves > 1)) out.writeln('join all');
     for (final id in instruments) {
@@ -237,43 +234,61 @@ class LaneScript {
       if (lane.staff != null) out.writeln('split ${instrument(lane)}');
     }
     out.writeln('clear');
-    out.writeln('transition ${_number(curation.transition)}');
+    out.writeln('transition ${number(curation.transition)}');
     for (final lane in lanes) {
       final regions = curation.lane(lane.id);
       bool plain(Region r) => r.transitionIn == null && r.transitionOut == null && r.hiddenStaves.isEmpty;
       final whole = regions.where(plain).toList();
-      if (whole.isNotEmpty) out.writeln('show ${named(lane)} ${whole.map((r) => _rangeText(beats, r)).join(', ')}'.trimRight());
+      if (whole.isNotEmpty) out.writeln('show ${named(lane)} ${whole.map((r) => range(beats, r.start, r.end)).join(', ')}'.trimRight());
       for (final r in regions.where((r) => !plain(r))) {
         final fades = r.transitionIn != null && r.transitionIn == r.transitionOut
-            ? ' transition ${_number(r.transitionIn!)}'
+            ? ' transition ${number(r.transitionIn!)}'
             : '${r.transitionIn == null && r.transitionOut == null ? '' : ' transition'}'
-                '${r.transitionIn == null ? '' : ' in ${_number(r.transitionIn!)}'}${r.transitionOut == null ? '' : ' out ${_number(r.transitionOut!)}'}';
+                '${r.transitionIn == null ? '' : ' in ${number(r.transitionIn!)}'}${r.transitionOut == null ? '' : ' out ${number(r.transitionOut!)}'}';
         final staves = r.hiddenStaves.isEmpty ? '' : ' without ${r.hiddenStaves.length == 1 ? 'staff' : 'staves'} ${r.hiddenStaves.join(', ')}';
-        out.writeln('show ${named(lane)} ${_rangeText(beats, r)}'.trimRight() + fades + staves);
+        out.writeln('show ${named(lane)} ${range(beats, r.start, r.end)}'.trimRight() + fades + staves);
       }
     }
     return out.toString();
   }
 
   /// A number as short as it reads back the same: "0.3", "2".
-  static String _number(double n) => n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
+  static String number(double n) => n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
 
-  /// [r]'s stretch as a script writes it: whole bars as "1-8", anything else from a place until
-  /// another; nothing for the whole piece.
-  static String _rangeText(BeatGrid beats, Region r) {
+  /// What a script calls each of [lanes], by its id: its name in quotes, the nth of that name
+  /// where several instruments have it, a staff's lane by its staff (`"Violin"[2]`, `"Piano"/1`).
+  static Map<String, String> references(List<ScriptLane> lanes) {
+    final instruments = <String>[];
+    for (final lane in lanes) {
+      if (!instruments.contains(lane.instrument)) instruments.add(lane.instrument);
+    }
+    final names = {for (final lane in lanes) lane.instrument: _plain(lane.name)};
+    return {
+      for (final lane in lanes)
+        if ([for (final id in instruments) if (names[id] == names[lane.instrument]) id] case final same)
+          lane.id: '${quoted(lane.name)}${same.length > 1 ? '[${same.indexOf(lane.instrument) + 1}]' : ''}${lane.staff == null ? '' : '/${lane.staff}'}',
+    };
+  }
+
+  /// [quarter] as a script writes a place: its bar and beat, or quarters from the start
+  /// (`@12.5`) where that doesn't say it.
+  static String place(BeatGrid beats, double quarter) {
+    final text = beats.format(quarter, compact: true), back = beats.parse(text);
+    return back != null && (back - quarter).abs() <= 1e-9 ? text : '@$quarter';
+  }
+
+  /// The stretch from [start] to [end] as a script writes it: whole bars as "1-8", anything
+  /// else from a place until another; nothing for the whole piece.
+  static String range(BeatGrid beats, double start, double end) {
     final starts = beats.measureStarts, total = beats.totalQuarters;
-    final atStart = r.start <= 1e-9, atEnd = r.end >= total - 1e-9;
+    final atStart = start <= 1e-9, atEnd = end >= total - 1e-9;
     if (atStart && atEnd) return '';
     int barAt(double q) => starts.indexWhere((s) => (s - q).abs() <= 1e-9);
-    final (first, last) = (barAt(r.start), barAt(r.end));
+    final (first, last) = (barAt(start), barAt(end));
     if (first >= 0 && last > first) {
       return last - 1 == first ? '${beats.barNumber(first)}' : '${beats.barNumber(first)}-${beats.barNumber(last - 1)}';
     }
-    String place(double q) {
-      final text = beats.format(q, compact: true), back = beats.parse(text);
-      return back != null && (back - q).abs() <= 1e-9 ? text : '@$q';
-    }
-    return [if (!atStart) 'from ${place(r.start)}', if (!atEnd) 'until ${place(r.end)}'].join(' ');
+    return [if (!atStart) 'from ${place(beats, start)}', if (!atEnd) 'until ${place(beats, end)}'].join(' ');
   }
 
   static final _spaces = RegExp(r'\s+');
@@ -388,7 +403,7 @@ class _Run {
     if (place.start) return 0;
     if (place.end) return total;
     if (place.quarter case final q?) {
-      if (q > total + 1e-9) throw _Fail('The piece is ${LaneScript._number(total)} quarters long.');
+      if (q > total + 1e-9) throw _Fail('The piece is ${LaneScript.number(total)} quarters long.');
       return q;
     }
     if (place.mark case final mark?) {
@@ -517,7 +532,7 @@ class _Parser {
   double _number(String what, {double max = double.infinity}) {
     final t = _next, n = t != null && t.kind == _Kind.number ? double.tryParse(t.text) : null;
     if (n == null) _wanted(what);
-    if (n > max) throw _Fail('$what is ${LaneScript._number(max)} at most.');
+    if (n > max) throw _Fail('$what is ${LaneScript.number(max)} at most.');
     _at++;
     return n;
   }

@@ -5,8 +5,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/attacca_version.dart';
 import 'package:curated_score/audio_track.dart';
+import 'package:curated_score/controller_settings.dart';
 import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
 import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
@@ -131,6 +133,25 @@ void main() {
       expect([c.editRevision.value > revision, c.canRedo], [true, true], reason: 'saved, and no edit');
       final saved = ProjectModules.toJson(c.projectState);
       expect(ProjectModules.script.read(JsonReader(saved['script'], 'script'), const ProjectState(), (_, {required limit}) => null).script, written);
+
+      // A macro runs as the script it is for now (the lanes selected, from the playhead): one Undo step, its lanes still
+      // selected; a step that needs what isn't there changes nothing; the bars it asks for are checked; the app keeps macros.
+      const solo = LaneMacro(name: 'Solo', steps: [MacroStep(MacroAction.only, range: MacroRange.fromPlayhead), MacroStep(MacroAction.bridge, lanes: MacroLanes.all)]);
+      final kept = c.curation!.lanes, top = c.laneRows.first.id;
+      c.clearSelection();
+      final none = c.lanes.runMacro(solo);
+      expect(['${none.problems.single}', none.changed, c.curation!.lanes], ['Step 1: lanes', false, kept]);
+      c.lanes.selectLane(top);
+      expect([c.lanes.runMacro(solo).changed, c.lanes.selectedPartIds], [true, {top}]);
+      expect([c.curation!.lane(top), c.curation!.lane(c.laneRows.last.id)], [[Region(0, starts.last)], isEmpty]);
+      c.undo();
+      expect(c.curation!.lanes, kept, reason: 'one step');
+      const asks = LaneMacro(name: 'Show', steps: [MacroStep(MacroAction.show, lanes: MacroLanes.all, range: MacroRange.ask)]);
+      expect([for (final p in c.lanes.checkMacro(asks, asked: '99')) '$p'], ['Step 1: There is no bar 99.']);
+      expect([asks.asks, c.lanes.checkMacro(asks, asked: '1-2')], [true, isEmpty]);
+      final settings = AppSettings.memory()..macros = [solo, asks];
+      c.takeSettings(settings);
+      expect([settings.macros, c.lanes.macros], [[solo, asks], [solo, asks]]);
     }
 
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.
