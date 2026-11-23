@@ -333,9 +333,12 @@ class LaneScript {
     // (An instrument's own name: its lane's, without the staff.)
     String instrument(ScriptLane lane) => lane.staff == null ? named(lane) : named(lane).substring(0, named(lane).lastIndexOf('/'));
 
-    if (lanes.any((l) => l.staves > 1)) out.writeln('join all');
-    for (final id in instruments) {
-      final lane = lanes.firstWhere((l) => l.instrument == id);
+    // What is joined is joined and what is split split, each left alone where it is so already:
+    // joining what is split to split it again would lose what its staves have of their own.
+    final first = [for (final id in instruments) lanes.firstWhere((l) => l.instrument == id)];
+    final joined = [for (final lane in first) if (lane.staves > 1 && lane.staff == null) named(lane)];
+    if (joined.isNotEmpty) out.writeln('join ${first.any((l) => l.staff != null) ? joined.join(', ') : 'all'}');
+    for (final lane in first) {
       if (lane.staff != null) out.writeln('split ${instrument(lane)}');
     }
     out.writeln('clear');

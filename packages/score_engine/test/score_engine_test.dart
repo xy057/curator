@@ -451,11 +451,14 @@ void main() {
           ['Line 4: There is no lane named “Oboe”.', 'Line 5: A line starts with what it does (show, hide, auto…), not “shw”.']);
       expect([host.split, lanes.lanes], [isEmpty, before]);
       // The lanes written as a script make themselves again: a place off the beats in quarters.
+      // What is split is only split, never joined first; what is joined is joined.
       lanes.setLanes({'v1': const [Region(4 / 3, 9)], 'fl2': const [Region(1.25, 48)]});
+      expect(LaneScript.write(host).split('\n').first, 'join all');
       host.setSplit('pf', true);
       final written = LaneScript.write(host), kept = lanes.lanes;
-      expect(written.split('\n'), containsAll(['join all', 'split "Piano"', 'transition 0.4', 'show "Flute 1" 1-5', 'show "Flute 2" from 1.2.25',
+      expect(written.split('\n'), containsAll(['split "Piano"', 'transition 0.4', 'show "Flute 1" 1-5', 'show "Flute 2" from 1.2.25',
         'show "Violin"[1] from @${4 / 3} until 3.2', 'show "Piano"/2 1-6 transition in 0.5 out 1']));
+      expect(written, isNot(contains('join')));
       lanes.transition = 1;
       expect([run('show all\njoin all\n$written'), lanes.lanes, lanes.transition, host.split], [isEmpty, kept, 0.4, {'pf'}]);
       // A name with a line break in it is written on one line, and still names its lane.
