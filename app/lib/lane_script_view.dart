@@ -40,7 +40,13 @@ class _LaneScriptViewState extends State<LaneScriptView> {
   late final _find = CodeFindController(_code);
   final _focus = FocusNode(debugLabel: 'Script');
 
+  /// What the check finds wrong with the script as it is typed: Run waits for none.
   List<LaneScriptProblem> _problems = const [];
+
+  /// What the last Run found wrong, listed in the check's place until the script is typed in
+  /// again: what only running finds (an Align under way, a recording the score isn't heard in)
+  /// is no reason not to run it again.
+  List<LaneScriptProblem>? _found;
 
   /// What the last Run came to, until the script is typed in again.
   String? _said;
@@ -73,7 +79,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     final text = _code.text;
     if (text == _mine) return; // the caret moved
     _c.lanes.script = _mine = text;
-    if (_said != null) setState(() => _said = null);
+    if (_said != null || _found != null) setState(() => _said = _found = null);
     _checking?.cancel();
     _checking = Timer(const Duration(milliseconds: 350), () {
       if (mounted) setState(() => _problems = _c.lanes.checkScript(_code.text));
@@ -86,23 +92,36 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     _code.text = _mine = _c.lanes.script;
     _checking?.cancel();
     setState(() {
-      _said = null;
+      _said = _found = null;
       _problems = _c.lanes.checkScript(_code.text);
     });
   }
 
-  /// (A script that hears the recording waits for it, with Align's progress in the Audio tab.)
+  /// (A script that hears the recording waits for it, with Align's progress in the Audio tab:
+  /// where this is left for that by the time it ends, what went wrong is said in the window.)
   Future<void> _run() async {
     if (_running) return;
     _checking?.cancel();
+    final messenger = ScaffoldMessenger.maybeOf(context);
     setState(() => _running = true);
-    final (:problems, :changed) = await _c.lanes.runScriptReady(_code.text);
-    if (!mounted) return;
-    setState(() {
-      _running = false;
-      _problems = problems;
-      _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
-    });
+    try {
+      final (:problems, :changed) = await _c.lanes.runScriptReady(_code.text);
+      if (!mounted) {
+        if (problems.firstOrNull case final problem?) {
+          messenger
+            ?..clearSnackBars()
+            ..showSnackBar(SnackBar(content: Text('${'Script'.tr}: ${problem.message}')));
+        }
+        return;
+      }
+      setState(() {
+        _found = problems.isEmpty ? null : problems;
+        _problems = _c.lanes.checkScript(_code.text);
+        _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
+      });
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
   }
 
   /// The lanes as they are in the script's place, as one step of the code's own Undo.
@@ -146,10 +165,10 @@ class _LaneScriptViewState extends State<LaneScriptView> {
                     ),
                   ),
                 ),
-                if (_problems.isNotEmpty) ...[
+                if (_found ?? _problems case final listed when listed.isNotEmpty) ...[
                   Divider(height: 1, color: colors.line),
                   CodeProblemList(problems: [
-                    for (final p in _problems) (text: '${p.line}: ${p.message}', error: true, onTap: () => _goTo(p.line)),
+                    for (final p in listed) (text: '${p.line}: ${p.message}', error: true, onTap: () => _goTo(p.line)),
                   ]),
                 ],
               ]),
