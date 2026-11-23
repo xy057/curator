@@ -174,7 +174,7 @@ void main() {
     await settle();
     // A macro's own button on the editor's toolbar goes by the tab showing: one for the lanes is off in the Audio tab.
     {
-      final editor = state.controller as EditorController, was = editor.tab, standard = settings.toolbarOf(BarKind.editor);
+      final editor = state.controller as EditorController, was = editor.tab;
       editor.tab = BottomTab.instruments;
       settings.macros = const [LaneMacro(name: 'Tidy', steps: [MacroStep(MacroAction.bridge, lanes: MacroLanes.all)])];
       settings.setToolbar(settings.toolbarOf(BarKind.editor).added(BarItem.macro1));
@@ -188,7 +188,7 @@ void main() {
       editor.tab = BottomTab.instruments;
       await settle();
       expect(runs(), isTrue);
-      settings.setToolbar(standard);
+      settings.setToolbar(settings.toolbarOf(BarKind.editor).without(BarItem.macro1));
       editor.tab = was;
       await settle();
     }

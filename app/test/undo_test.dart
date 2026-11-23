@@ -326,6 +326,9 @@ void main() {
       expect(pinned.macrosMoved((at) => at == 1 ? 0 : 1).bar.contains(BarItem.macro1), isTrue);
       expect(pinned.macrosMoved((at) => at == 1 ? null : at), bar);
       expect(ToolbarLayout.read(BarKind.instruments, pinned.write()), pinned);
+      // On the editor's bar a macro's button goes last, and takes its rule with it when it goes.
+      final editors = ToolbarLayout.standard(BarKind.editor), last = editors.added(BarItem.macro1);
+      expect([last.bar.sublist(editors.bar.length), last.without(BarItem.macro1), last.macrosMoved((_) => null)], [const [BarItem.divider, BarItem.macro1], editors, editors]);
     }
 
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.

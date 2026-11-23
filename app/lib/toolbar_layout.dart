@@ -290,10 +290,14 @@ class ToolbarLayout {
     return ToolbarLayout(kind: kind, bar: _ruledOnce([for (final item in bar) ?moved(item)]), menu: [for (final item in menu) ?moved(item)]);
   }
 
-  /// [items] without a rule that another follows: what an item taken from between two leaves.
+  /// [items] without a rule that another follows, or that nothing does where the bar didn't end
+  /// with one: what an item taken from between two, or from after the last, leaves.
   List<BarItem> _ruledOnce(List<BarItem> items) => items.length == bar.length
       ? items
-      : [for (final (i, item) in items.indexed) if (item != BarItem.divider || i + 1 == items.length || items[i + 1] != BarItem.divider) item];
+      : [
+          for (final (i, item) in items.indexed)
+            if (item != BarItem.divider || (i + 1 == items.length ? bar.last == BarItem.divider : items[i + 1] != BarItem.divider)) item,
+        ];
 
   /// With [item] on the bar, before its end's group (the zoom and what follows, where it has
   /// one) or last, a rule setting it apart from a tool before it (not from another macro's
