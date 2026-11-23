@@ -27,6 +27,8 @@ String macroActionLabel(MacroAction action) => switch (action) {
       MacroAction.only => 'Show Only'.tr,
       MacroAction.clear => 'Clear'.tr,
       MacroAction.auto => 'Auto-curate'.tr,
+      MacroAction.follow => 'Show Where Playing'.tr,
+      MacroAction.fit => 'Fit to Frame'.tr,
       MacroAction.bridge => 'Bridge Rests'.tr,
       MacroAction.removeShort => 'Remove Short Regions'.tr,
       MacroAction.transition => 'Set Transition'.tr,
@@ -54,7 +56,7 @@ String _rangeLabel(MacroRange range) => switch (range) {
     };
 
 /// The examples' names ([LaneMacro.examples], in their order), translated.
-List<String> get _exampleNames => ['Solo from Here'.tr, 'Hide from Here'.tr, 'Show Bars…'.tr, 'Tidy Up'.tr];
+List<String> get _exampleNames => ['Auto-curate'.tr, 'Solo from Here'.tr, 'Hide from Here'.tr, 'Show Bars…'.tr, 'Tidy Up'.tr];
 
 String _nameOf(LaneMacro macro) => macro.name.trim().isEmpty ? 'Untitled'.tr : macro.name;
 
@@ -630,12 +632,17 @@ class _StepCardState extends State<_StepCard> {
               ),
             if (unit != null)
               Row(mainAxisSize: MainAxisSize.min, children: [
+                // What the number is of, where the step's name doesn't say.
+                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit => 'Phrases of'.tr, _ => null } case final String of) ...[
+                  Text(of, style: TextStyle(fontSize: 13, color: colors.textMuted)),
+                  const SizedBox(width: 6),
+                ],
                 SizedBox(
                   width: 60,
                   child: AppTextField(
                     controller: _number,
                     label: '',
-                    hint: LaneScript.number(unit.standard),
+                    hint: LaneScript.number(step.action.standard),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                     // (None typed: as a new step has it.)

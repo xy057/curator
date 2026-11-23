@@ -487,6 +487,21 @@ void main() {
       expect(nothing.script.split('\n')[4], 'bridge rests 1 in all');
       expect(const LaneMacro(name: '', steps: [MacroStep(MacroAction.clear, lanes: MacroLanes.named, names: [' '])]).script(const MacroContext()).problems.single.fault, MacroFault.names);
       expect('${LaneMacro.problemsOf(LaneScript.parse('clear\nshow "Oboe"').check(host)).single}', 'Step 2: There is no lane named “Oboe”.');
+      // Auto-Curate in its two halves: a lane follows its notes (through a rest of a bar; over a range only; one that plays
+      // nothing stays), then gives up what the frame has no room for. The example macro is those two, on every lane.
+      host.plays = {'fl': [for (var m = 0; m < 12; m++) const [0, 1, 3, 6, 7].contains(m)]};
+      lanes.setLane('fl2', const [Region(0, 4)]);
+      expect(run('follow "Flute*" bridge 1'), isEmpty);
+      expect([lanes.lane('fl'), lanes.lane('fl2')], const [[Region(0, 16), Region(24, 32)], [Region(0, 4)]]);
+      expect([run('follow "Flute 1"'), lanes.lane('fl')], [isEmpty, const [Region(0, 8), Region(12, 16), Region(24, 32)]]);
+      expect([run('clear "Flute 1"\nfollow "Flute 1" 2-4'), lanes.lane('fl')], [isEmpty, const [Region(4, 8), Region(12, 16)]]);
+      host.hides = {'fl': const [Region(12, 16)]};
+      expect([run('fit "Flute*" phrase 2'), lanes.lane('fl'), host.fitted?.$1, host.fitted?.$2], [isEmpty, const [Region(4, 8)], ['fl', 'fl2'], 2]);
+      expect(LaneMacro.examples.first.script(const MacroContext()).script.split('\n'), ['follow all bridge 1', 'fit all phrase 4']);
+      host.follows = false;
+      expect([for (final p in LaneScript.parse('follow\nfit').check(host)) '$p'],
+          ['Line 1: This score’s lanes can’t be auto-curated.', 'Line 2: This score’s lanes can’t be auto-curated.']);
+      host.follows = true;
       // Kept as JSON; what isn't a step, or a macro, is left out.
       expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
       expect([macro.copyWith(icon: 'tidy') == macro, macro.toJson().containsKey('icon')], [false, false]);
@@ -605,6 +620,13 @@ void main() {
       expect(before, containsAll(now), reason: 'only hides (bar ${m + 1})');
       if (before.isNotEmpty) expect(now, isNotEmpty, reason: 'someone left (bar ${m + 1})');
     }
+    // In its two halves (what a script's follow and fit do, and a macro of them): the lanes as they play, then what to
+    // hide of them for the frame, leaves the same.
+    final hidden = scene.hiddenToFit(base, wide, partIds: ids, salience: score.salience);
+    expect(hidden.values.any((stretches) => stretches.isNotEmpty), isTrue);
+    final halves = Curation(ids)
+      ..setLanes({for (final id in ids) id: hidden[id]!.fold(playing[id]!, (regions, r) => Curation.painted(regions, r, shown: false))});
+    expect(halves.lanes, (Curation(ids)..setLanes(fitted)).lanes);
     // Upright there is room for the opening's few: none goes.
     final tallFit = scene.curatedToFit(base, upright, partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
     for (var m = 0; m < 5; m++) {
@@ -622,7 +644,23 @@ class _ScriptLanes extends LaneScriptHost {
   List<(String, String, int)> parts;
   late final List<(String, String, int)> _original;
   final split = <String>{}, autoCurated = <String>[];
-  bool auto = true;
+  bool auto = true, follows = true;
+
+  /// The bars each instrument plays in (none: it plays nothing of its own), what a fit is to
+  /// hide, and what the last one was asked.
+  Map<String, List<bool>> plays = {};
+  Map<String, List<Region>> hides = {};
+  (List<String>, int)? fitted;
+
+  @override
+  bool get curates => follows;
+  @override
+  List<bool>? playing(String id) => plays[Curation.staffOfLane(id)?.$1 ?? id];
+  @override
+  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) {
+    fitted = (ids, phrase);
+    return hides;
+  }
 
   @override
   final BeatGrid beats;

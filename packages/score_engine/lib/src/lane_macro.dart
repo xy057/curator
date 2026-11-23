@@ -24,13 +24,20 @@ enum MacroUnit {
 }
 
 /// What a step does: one of the script's statements. [ranged]: over some bars; [unit]: with a
-/// number of them, or of seconds.
+/// number of them, or of seconds ([standard]: what a new step has, where it isn't the unit's).
 enum MacroAction {
   show(ranged: true),
   hide(ranged: true),
   only(ranged: true),
   clear,
   auto,
+
+  /// Auto-Curate's first half: shown where it plays, through rests of up to its number of bars.
+  follow(ranged: true, unit: MacroUnit.bars),
+
+  /// Auto-Curate's second half: hidden where the staves run off the frame, in phrases of its
+  /// number of bars.
+  fit(unit: MacroUnit.bars, ownStandard: 4),
   bridge(unit: MacroUnit.bars),
   removeShort(unit: MacroUnit.bars),
   transition(ranged: true, unit: MacroUnit.seconds),
@@ -39,9 +46,15 @@ enum MacroAction {
   moveTop,
   moveBottom;
 
-  const MacroAction({this.ranged = false, this.unit});
+  const MacroAction({this.ranged = false, this.unit, this.ownStandard});
   final bool ranged;
   final MacroUnit? unit;
+
+  /// The number a new step of it has, where that isn't its unit's.
+  final double? ownStandard;
+
+  /// The number a new step of it has; 0 for one that takes none.
+  double get standard => ownStandard ?? unit?.standard ?? 0;
 }
 
 /// Which lanes a step is done to: every one, those selected as it runs, the rest, or those
@@ -74,7 +87,7 @@ class MacroStep {
   final double? number;
 
   /// The step's number as it is used.
-  double get amount => (number ?? action.unit?.standard ?? 0).clamp(0, action.unit?.most ?? 0).toDouble();
+  double get amount => (number ?? action.standard).clamp(0, action.unit?.most ?? 0).toDouble();
 
   MacroStep copyWith({MacroAction? action, MacroLanes? lanes, List<String>? names, MacroRange? range, String? bars, double? number}) => MacroStep(
         action ?? this.action,
@@ -219,6 +232,11 @@ class LaneMacro {
 
   /// A few to begin with, by their names in English.
   static const examples = [
+    // Auto-Curate, whole, as two steps: what `auto` does.
+    LaneMacro(name: 'Auto-curate', icon: 'autoCurate', steps: [
+      MacroStep(MacroAction.follow, lanes: MacroLanes.all, number: 1),
+      MacroStep(MacroAction.fit, lanes: MacroLanes.all, number: 4),
+    ]),
     LaneMacro(name: 'Solo from Here', steps: [MacroStep(MacroAction.only, range: MacroRange.fromPlayhead)]),
     LaneMacro(name: 'Hide from Here', steps: [MacroStep(MacroAction.hide, range: MacroRange.fromPlayhead)]),
     LaneMacro(name: 'Show Bars…', steps: [MacroStep(MacroAction.show, range: MacroRange.ask)]),
@@ -280,6 +298,8 @@ class LaneMacro {
             MacroRange.ask => _written(context.asked ?? ''),
           };
     final n = LaneScript.number(step.amount);
+    // (Bars counted whole: a phrase is one at least.)
+    final whole = step.amount.round();
     return [
       ...switch (step.action) {
         MacroAction.show => ['show', lanes, range],
@@ -287,6 +307,8 @@ class LaneMacro {
         MacroAction.only => ['only', lanes, range],
         MacroAction.clear => ['clear', lanes],
         MacroAction.auto => ['auto', lanes],
+        MacroAction.follow => ['follow', lanes, range, 'bridge', '$whole'],
+        MacroAction.fit => ['fit', lanes, 'phrase', '${whole < 1 ? 1 : whole}'],
         MacroAction.bridge => ['bridge rests', n, 'in', lanes],
         MacroAction.removeShort => ['remove short', n, 'in', lanes],
         MacroAction.transition => ['transition', lanes, range, 'in', n, 'out', n],

@@ -6008,3 +6008,15 @@ msgstr "加入工具列"
 #: lib/macros.dart
 msgid "Icon"
 msgstr "圖示"
+
+#: lib/macros.dart
+msgid "Show Where Playing"
+msgstr "演奏處顯示"
+
+#: lib/macros.dart
+msgid "Fit to Frame"
+msgstr "符合畫面"
+
+#: lib/macros.dart
+msgid "Phrases of"
+msgstr "樂句長度"

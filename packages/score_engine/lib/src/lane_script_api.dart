@@ -18,7 +18,7 @@ abstract final class LaneScriptApi {
   static const keywords = {
     'show', 'hide', 'only', 'clear', 'auto', 'bridge', 'rests', 'remove', 'short', 'in', 'copy', 'to', 'split', 'join', 'move', 'top', 'bottom', //
     'before', 'after', 'restore', 'order', 'transition', 'out', 'default', 'without', 'staff', 'staves', 'let', 'all', 'except', 'bar', 'bars', //
-    'from', 'until', 'start', 'end', 'mark',
+    'from', 'until', 'start', 'end', 'mark', 'follow', 'fit', 'phrase',
   };
 
   static const statements = <ScriptStatement>[
@@ -30,7 +30,15 @@ abstract final class LaneScriptApi {
     ScriptStatement('hide', 'hide <lanes> [<ranges>]', 'Hides the lanes over the ranges, as Erase does: regions there are trimmed, split or removed.', 'hide "Violin II" from 33'),
     ScriptStatement('only', 'only <lanes> [<ranges>]', 'Shows the lanes over the ranges and hides every other lane there.', 'only "Piano" 9-16'),
     ScriptStatement('clear', 'clear [<lanes>]', 'Empties the lanes; without any, every lane.', 'clear'),
-    ScriptStatement('auto', 'auto [<lanes>]', 'Auto-Curate: fills the lanes (every lane without any) from where each instrument plays, cut back to fit the frame.', 'auto "Violin*"'),
+    ScriptStatement('auto', 'auto [<lanes>]', 'Auto-Curate: fills the lanes (every lane without any) from where each instrument plays, cut back to fit the frame (`follow`, then `fit`).', 'auto "Violin*"'),
+    ScriptStatement('follow', 'follow [<lanes>] [<ranges>] [bridge <bars>]',
+        'Auto-Curate’s first half: each lane (every lane without any) is shown where its instrument plays and hidden where it rests, over the ranges '
+            '(without one, throughout). `bridge 1` keeps it through a rest of up to that many bars between two runs. A lane that plays nothing stays as it is.',
+        'follow "Violin*" bridge 1'),
+    ScriptStatement('fit', 'fit [<lanes>] [phrase <bars>]',
+        'Auto-Curate’s second half: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, '
+            'until they fit; the other lanes stay as they are. `follow all bridge 1` and then `fit` is what `auto` does.',
+        'fit'),
     ScriptStatement('bridge', 'bridge rests <bars> [in <lanes>]', 'Tidy’s Bridge Rests: joins regions with at most that many bars between them.', 'bridge rests 2'),
     ScriptStatement('remove', 'remove short <bars> [in <lanes>]', 'Tidy’s Remove Regions Shorter Than: takes out regions shorter than that many bars.', 'remove short 1 in "Timpani"'),
     ScriptStatement('copy', 'copy <lane> to <lanes>', 'Copy Lane To: the lanes get that lane’s regions in place of their own.', 'copy "Violin I" to "Violin II", "Viola"'),

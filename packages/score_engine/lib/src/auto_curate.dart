@@ -166,16 +166,7 @@ class BarSalience {
 }
 
 /// The lanes of [partIds] as auto-curation fills them ([autoCurateMeasures]: where each part
-/// plays), then, wherever notation would run off the frame ([overflowing], asked of [others]'
-/// lanes kept as they are and these), cut back: in each [phrase] bars that overflow, the
-/// staff that matters least there ([salience]; a doubling, while what it doubles is shown,
-/// counts a quarter, and what plays every note of one hidden counts as much as it does) is
-/// hidden, and the frame asked again, until it fits, nothing more can go (one staff left), or
-/// [rounds] have been tried. Then, once it fits, each staff hidden is tried back (the one
-/// that matters most first, its phrase else bar by bar, [refills] tries at most), kept where
-/// the frame still holds it: cut
-/// while the segments around were fuller, there may be room for it now. A staff left for a
-/// single bar between bars it was hidden for goes too.
+/// plays), then cut back wherever notation would run off the frame ([fittedBars]).
 Map<String, List<Region>> fittedCuratedLanes({
   required Iterable<String> partIds,
   required Map<String, List<bool>> activeMeasures,
@@ -189,9 +180,8 @@ Map<String, List<Region>> fittedCuratedLanes({
   int refills = 96,
 }) {
   final bars = math.max(0, measureStarts.length - 1);
-  final ids = partIds.toList();
   final shown = {
-    for (final id in ids)
+    for (final id in partIds)
       id: () {
         final mask = List.filled(bars, false);
         for (final (first, end) in autoCurateMeasures(activeMeasures[id] ?? const [])) {
@@ -202,6 +192,46 @@ Map<String, List<Region>> fittedCuratedLanes({
         return mask;
       }(),
   };
+  return _lanesOf(
+    fittedBars(
+        shown: shown, measureStarts: measureStarts, salience: salience, timeline: timeline, overflowing: overflowing, others: others, phrase: phrase, rounds: rounds, refills: refills),
+    measureStarts,
+  );
+}
+
+/// Lanes shown in the bars their masks say: a region for each run of bars.
+Map<String, List<Region>> _lanesOf(Map<String, List<bool>> shown, List<double> measureStarts) => {
+      for (final MapEntry(key: id, value: mask) in shown.entries)
+        id: [
+          for (final (first, end) in autoCurateMeasures(mask, bridge: 0)) Region(measureStarts[first], measureStarts[end]),
+        ],
+    };
+
+/// The bars each part of [shown] is still shown in (a bar each, as [shown] has them: where it
+/// is shown now) once notation no longer runs off the frame ([overflowing], asked of [others]'
+/// lanes kept as they are and these): in each [phrase] bars that overflow, the
+/// staff that matters least there ([salience]; a doubling, while what it doubles is shown,
+/// counts a quarter, and what plays every note of one hidden counts as much as it does) is
+/// hidden, and the frame asked again, until it fits, nothing more can go (one staff left), or
+/// [rounds] have been tried. Then, once it fits, each staff hidden is tried back (the one
+/// that matters most first, its phrase else bar by bar, [refills] tries at most), kept where
+/// the frame still holds it: cut
+/// while the segments around were fuller, there may be room for it now. A staff left for a
+/// single bar between bars it was hidden for goes too. Only ever hides: a bar not shown stays so.
+Map<String, List<bool>> fittedBars({
+  required Map<String, List<bool>> shown,
+  required List<double> measureStarts,
+  required BarSalience salience,
+  required ScoreTimeline timeline,
+  required List<({double start, double end})> Function(Map<String, List<Region>> lanes) overflowing,
+  Map<String, List<Region>> others = const {},
+  int phrase = 4,
+  int rounds = 32,
+  int refills = 96,
+}) {
+  final bars = math.max(0, measureStarts.length - 1);
+  final ids = shown.keys.toList();
+  shown = {for (final id in ids) id: [for (var m = 0; m < bars; m++) shown[id]!.elementAtOrNull(m) ?? false]};
   final cut = {for (final id in ids) id: List.filled(bars, false)};
   // The lanes kept as they are, bar by bar (shown at the bar's middle).
   final kept = {
@@ -213,13 +243,7 @@ Map<String, List<Region>> fittedCuratedLanes({
   };
   bool isShown(String id, int m) => (shown[id] ?? kept[id])?.elementAtOrNull(m) ?? false;
 
-  Map<String, List<Region>> lanes() => {
-        for (final id in ids)
-          id: [
-            for (final (first, end) in autoCurateMeasures(shown[id]!, bridge: 0))
-              Region(measureStarts[first], measureStarts[end]),
-          ],
-      };
+  Map<String, List<Region>> lanes() => _lanesOf(shown, measureStarts);
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
@@ -321,5 +345,5 @@ Map<String, List<Region>> fittedCuratedLanes({
       if (alone && ((m > 0 && gone[m - 1]) || (m + 1 < bars && gone[m + 1]))) mask[m] = false;
     }
   }
-  return lanes();
+  return shown;
 }

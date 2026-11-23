@@ -423,10 +423,9 @@ class LaneEditing {
     _editor.clearSelection();
   }
 
-  /// What [autoCurate] fills [partIds] with (null without a score).
-  Map<String, List<Region>>? _curated(Iterable<String> partIds) {
-    final score = _editor._score, curation = _curation, scene = _editor._scene;
-    if (score == null || curation == null) return null;
+  /// The bars each lane's instrument plays in (a condensed pair's lane: either player's), and
+  /// the pairs condensed: what auto-curation fills the lanes from.
+  ({Map<String, List<bool>> active, List<List<String>> pairs}) _activity(LoadedScore score) {
     final active = {...score.metadata.activeMeasures};
     final pairs = <List<String>>[];
     for (final g in _editor.condensable) {
@@ -435,6 +434,14 @@ class LaneEditing {
       active[g.partIds.first] = [for (var m = 0; m < math.max(a.length, b.length); m++) a.elementAtOrNull(m) == true || b.elementAtOrNull(m) == true];
       pairs.add(g.partIds);
     }
+    return (active: active, pairs: pairs);
+  }
+
+  /// What [autoCurate] fills [partIds] with (null without a score).
+  Map<String, List<Region>>? _curated(Iterable<String> partIds) {
+    final score = _editor._score, curation = _curation, scene = _editor._scene;
+    if (score == null || curation == null) return null;
+    final (:active, :pairs) = _activity(score);
     if (scene == null) return Curation.autoCuratedLanes(partIds, active, score.timeline.measureStarts);
     return scene.curatedToFit(curation, _editor._videoLayout,
         partIds: partIds, activeMeasures: active, salience: score.salience.condensed(pairs));
@@ -605,6 +612,26 @@ class _ScriptHost extends LaneScriptHost {
     if (!_editor.canAutoCurate) return false;
     _editor.lanes.autoCurate(ids);
     return true;
+  }
+
+  // Auto-Curate in its two halves (`follow`, `fit`), from what [LaneEditing.autoCurate] is made of.
+
+  late final _activity = _editor.lanes._activity(_editor._score!);
+
+  @override
+  bool get curates => _editor.canAutoCurate;
+
+  /// (A blank lane, a PDF score's, plays nothing; a staff's lane plays what its instrument does.)
+  @override
+  List<bool>? playing(String id) => _editor.isBlankLane(id) ? null : _activity.active[_editor.instrumentOfLane(id)] ?? const [];
+
+  @override
+  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) {
+    final scene = _editor._scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
+    if (scene == null || lanes.isEmpty) return const {};
+    final hidden = scene.hiddenToFit(curation, _editor._videoLayout,
+        partIds: {for (final id in lanes) _editor.instrumentOfLane(id)}, salience: _editor._score!.salience.condensed(_activity.pairs), phrase: phrase);
+    return {for (final id in lanes) id: hidden[_editor.instrumentOfLane(id)] ?? const []};
   }
 
   @override

@@ -1167,22 +1167,62 @@ class CuratedScene {
   Map<String, List<Region>> curatedToFit(Curation curation, ui.Size size,
       {required Iterable<String> partIds, required Map<String, List<bool>> activeMeasures, required BarSalience salience}) {
     final ids = partIds.toSet();
-    final trial = Curation(curation.partIds)
-      ..load({for (final id in curation.partIds) id: curation.lane(id)}, transition: curation.transition)
-      ..join(curation.joined);
+    final trial = _trialOf(curation);
     return fittedCuratedLanes(
       partIds: ids,
       activeMeasures: activeMeasures,
       measureStarts: timeline.measureStarts,
       salience: salience,
       timeline: timeline,
-      others: {
-        for (final id in curation.partIds)
-          if (!ids.contains(id) && !ids.contains(curation.joined[id])) id: curation.lane(id), // a follower follows
-      },
+      others: _othersOf(curation, ids),
       overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
     );
   }
+
+  /// What to hide of [partIds]' lanes, as [curation] has them now, so notation doesn't run off
+  /// a frame of [size]: for each, stretches of whole bars ([fittedBars], from the bars each is
+  /// shown in at its middle, in phrases of [phrase] bars); the other lanes stay as they are.
+  /// Auto-curation's second half by itself: on lanes just filled from where their parts play
+  /// it leaves what [curatedToFit] gives.
+  Map<String, List<Region>> hiddenToFit(Curation curation, ui.Size size,
+      {required Iterable<String> partIds, required BarSalience salience, int phrase = 4}) {
+    final ids = partIds.toSet(), starts = timeline.measureStarts, bars = math.max(0, starts.length - 1);
+    final shown = {
+      for (final id in ids)
+        id: [
+          for (var m = 0; m < bars; m++)
+            curation.lane(id).any((r) => r.start <= (starts[m] + starts[m + 1]) / 2 && r.end > (starts[m] + starts[m + 1]) / 2),
+        ],
+    };
+    final trial = _trialOf(curation);
+    final left = fittedBars(
+      shown: shown,
+      measureStarts: starts,
+      salience: salience,
+      timeline: timeline,
+      others: _othersOf(curation, ids),
+      phrase: phrase,
+      overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
+    );
+    return {
+      for (final id in ids)
+        id: [
+          for (final (first, end) in autoCurateMeasures([for (var m = 0; m < bars; m++) shown[id]![m] && !left[id]![m]], bridge: 0))
+            Region(starts[first], starts[end]),
+        ],
+    };
+  }
+
+  /// [curation]'s lanes in one of its own, for trying others in their place.
+  static Curation _trialOf(Curation curation) => Curation(curation.partIds)
+    ..load({for (final id in curation.partIds) id: curation.lane(id)}, transition: curation.transition)
+    ..join(curation.joined);
+
+  /// The lanes of [curation] that stay as they are while [ids]' are fitted.
+  static Map<String, List<Region>> _othersOf(Curation curation, Set<String> ids) => {
+        for (final id in curation.partIds)
+          if (!ids.contains(id) && !ids.contains(curation.joined[id])) id: curation.lane(id), // a follower follows
+      };
 
   /// The layout plan for this curation and frame size, rebuilt only when either changes.
   SpacingPlan _planFor(Curation curation, ui.Size size) {

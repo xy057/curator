@@ -878,6 +878,10 @@ part that plays is shown. Once it fits, each cut is tried back (most salient fir
 bar by bar), since it may have been made while the segment around was fuller; a staff left alone
 for one bar between cuts goes. Each try plans the piece (a millisecond or two for the demo).
 Condensed pairs are their first player's lane, louder of the two. Lanes not asked for stay.
+Its two halves are a script's statements too, so it can be put together as a macro and changed
+there (see *The lanes can be written*): `follow` is where each part plays, `fit` the cutting back
+(`fittedBars`, the cutting itself, from whatever is shown: `fittedCuratedLanes` gives it what
+plays, `CuratedScene.hiddenToFit` what the lanes show now, and says what to hide).
 
 **A region carries its properties.** Besides its bounds a region has properties of its own:
 its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at
@@ -960,7 +964,7 @@ swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is 
 in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
 
 A macro is the same without writing (Edit ▸ Macros…, `macros.dart`): a few steps, each put together
-from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: twelve of
+from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: fourteen of
 the script's statements), to which lanes (`MacroLanes`: all, those selected, the others, those
 named), over which bars (`MacroRange`: the piece, bars written, the selected regions', from or until
 the playhead, the playhead's bar, asked for as it runs), and a number of bars or seconds. It has no
@@ -992,6 +996,21 @@ tools everyone uses. One that asks for bars asks in a dialog that takes only bar
 run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is changed, and its Run
 tries the macro on the project under it. Its examples are `LaneMacro.examples`, named in the
 user's language when one is added.
+
+The first of them is Auto-Curate itself, as two steps: Show Where Playing (`follow all bridge 1`),
+then Fit to Frame (`fit all phrase 4`). They are what the button does, in its halves, and leave
+the same lanes: `follow` makes a lane where its part plays (`LaneScriptHost.playing`: the bars its
+instrument sounds in, a condensed pair's both players'; null for a lane that follows no part, a
+PDF score's blank one, which is left as it is), rests of so many bars bridged
+(`autoCurateMeasures`), the whole lane or only the bars given; `fit` hides what runs off the
+frame from the lanes as they are (`LaneScriptHost.fit`: the controller's asks
+`CuratedScene.hiddenToFit` for the video's frame with the score's salience, and gives each lane
+its instrument's stretches), in phrases of so many bars. Bridging is `follow`'s and not a step
+of its own (`bridge rests` would fill a blank lane's gaps too); where Auto-Curate isn't offered
+(`canAutoCurate`: a PDF score, unless the setting allows) `follow` says so (`curates`). `auto`
+stays the one statement for both. A test runs the two against the button (every lane, one lane,
+condensed pairs, a smaller frame, a piano's staves in lanes of their own) and the engine's holds
+`hiddenToFit` to `curatedToFit`.
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -2344,7 +2363,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A statement of the script**: a `ScriptStatement` in `LaneScriptApi.statements` (its syntax, what
   it does, an example that reads), its words in `keywords`, what it does in `_Parser.statement`
   (`lane_script.dart`) as one of the tab's own edits, never a new one; then `make script-docs`.
-- **A step of a macro**: a `MacroAction` (whether it takes bars, and a number of what), the line it
+- **A step of a macro**: a `MacroAction` (whether it takes bars, a number of what, and the number it
+  comes with), the line it
   writes in `LaneMacro._line` (a statement the script has: a macro does nothing a script can't), its
   name in `macroActionLabel` (`macros.dart`). What a step can be done to or over is a `MacroLanes`
   or a `MacroRange`, said to the script by `MacroContext`.

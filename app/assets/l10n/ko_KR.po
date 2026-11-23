@@ -5992,3 +5992,15 @@ msgstr ""
 #: lib/macros.dart
 msgid "Icon"
 msgstr ""
+
+#: lib/macros.dart
+msgid "Show Where Playing"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Fit to Frame"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Phrases of"
+msgstr ""

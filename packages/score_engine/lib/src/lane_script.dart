@@ -18,8 +18,11 @@
 /// ([LaneScriptApi.statements]): the docs' reference and what the editor offers come from it.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
+import 'auto_curate.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
 import 'lane_script_api.dart';
@@ -60,6 +63,17 @@ abstract class LaneScriptHost {
 
   /// Auto-Curate on the lanes [ids]; false when this score's lanes can't be.
   bool autoCurate(List<String> ids);
+
+  /// Whether this score's lanes can be filled from its notes (`follow`, `fit`).
+  bool get curates => true;
+
+  /// The bars the lane [id] plays in (its instrument's, either player's of a pair), a bar
+  /// each; null for a lane that plays nothing of its own, which stays as it is.
+  List<bool>? playing(String id) => null;
+
+  /// What to hide of the lanes [ids], as they are now, so the staves don't run off the frame:
+  /// each one's stretches, found in phrases of [phrase] bars. None where there is no frame.
+  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) => const {};
 
   /// Splits the lane of [instrument] into a lane a staff, or joins them.
   void setSplit(String instrument, bool on);
@@ -725,6 +739,49 @@ class _Parser {
           } else if (!run.dry && !run.host.autoCurate([for (final lane in found) lane.id])) {
             throw const _Fail('This score’s lanes can’t be auto-curated.');
           }
+        };
+      case 'follow':
+        final lanes = _atTerm ? _lanes() : null, ranges = _ranges();
+        final bridge = _take('bridge') ? _whole('A number of bars') : 0;
+        _end();
+        return (run) {
+          final found = lanes == null ? run.lanes : run.resolve(lanes), stretches = run.stretches(ranges);
+          if (!run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+          if (run.dry) return;
+          final starts = run.beats.measureStarts, bars = starts.length - 1;
+          final playing = {for (final lane in found) lane.id: run.host.playing(lane.id)};
+          run.edit([for (final lane in found) if (playing[lane.id] != null) lane], (lane, regions) {
+            // Where it plays, a rest of up to [bridge] bars between two runs kept: Auto-Curate's own.
+            final runs = [
+              for (final (first, end) in autoCurateMeasures(playing[lane.id]!, bridge: bridge))
+                if (first < bars) Region(starts[first], starts[math.min(end, bars)]),
+            ];
+            if (ranges.isEmpty) return runs;
+            for (final s in stretches) {
+              regions = Curation.painted(regions, s, shown: false);
+              for (final r in runs) {
+                if (r.overlaps(s)) regions = _Run.shown(regions, Region(math.max(r.start, s.start), math.min(r.end, s.end)));
+              }
+            }
+            return regions;
+          });
+        };
+      case 'fit':
+        final lanes = _atTerm ? _lanes() : null;
+        final phrase = _take('phrase') ? _whole('A number of bars') : 4;
+        if (phrase < 1) throw const _Fail('A phrase is a bar at least.');
+        _end();
+        return (run) {
+          final found = lanes == null ? run.lanes : run.resolve(lanes);
+          if (!run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+          if (run.dry) return;
+          final hide = run.host.fit([for (final lane in found) lane.id], phrase: phrase);
+          run.edit([for (final lane in found) if (hide[lane.id]?.isNotEmpty ?? false) lane], (lane, regions) {
+            for (final r in hide[lane.id]!) {
+              regions = Curation.painted(regions, r, shown: false);
+            }
+            return regions;
+          });
         };
       case 'bridge' || 'remove':
         final bridge = first.text == 'bridge';

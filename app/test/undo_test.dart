@@ -17,8 +17,10 @@ import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:curated_score/toolbar_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/painting.dart' show Size;
 import 'package:score_engine/score_engine.dart';
 
+import '../../packages/score_engine/test/demo_score.dart' show flutePianoScore;
 import 'demo_project.dart';
 
 void main() {
@@ -149,6 +151,44 @@ void main() {
       const asks = LaneMacro(name: 'Show', steps: [MacroStep(MacroAction.show, lanes: MacroLanes.all, range: MacroRange.ask)]);
       expect([for (final p in c.lanes.checkMacro(asks, asked: '99')) '$p'], ['Step 1: There is no bar 99.']);
       expect([asks.asks, c.lanes.checkMacro(asks, asked: '1-2')], [true, isEmpty]);
+      // Auto-curate as a macro (the first example: follow, then fit) leaves what the button does, cut to the frame alike:
+      // every lane, one lane, a condensed pair's, in a smaller frame; and a piano's staves, each in a lane of its own.
+      Future<void> sameAsAutoCurate() async {
+        const whole = MacroLanes.all, chosen = MacroLanes.selected;
+        final auto = LaneMacro.examples.first;
+        Map<String, List<Region>> now() => {...c.curation!.lanes, for (final row in c.laneRows) row.id: c.curation!.lane(row.id)};
+        void same(String what, {String? lane}) {
+          c.lanes.runScript('show all');
+          c.lanes.autoCurate(lane == null ? null : [lane]);
+          final button = now();
+          c.lanes.runScript('show all');
+          if (lane != null) c.lanes.selectLane(lane);
+          final ran = c.lanes.runMacro(auto.copyWith(steps: [for (final s in auto.steps) s.copyWith(lanes: lane == null ? whole : chosen)]));
+          expect([ran.problems, now()], [isEmpty, button], reason: what);
+        }
+
+        expect(c.overflowing, isEmpty, reason: 'the demo is curated to fit');
+        c.lanes.runScript('follow all bridge 1');
+        expect(c.overflowing, isNotEmpty, reason: 'as it plays, it runs off the frame: there is something to cut');
+        same('every lane');
+        expect(c.overflowing, isEmpty);
+        same('one lane', lane: c.laneRows[3].id);
+        c.setCondensed([c.condensable.first.id, c.condensable.last.id], on: true);
+        same('pairs condensed');
+        same('a pair’s lane', lane: c.condensable.first.partIds.first);
+        c.videoLayout = const Size(540, 304);
+        same('a smaller frame');
+        c.dispose();
+        c = EditorController(vsync: const TestVSync());
+        await c.openMusicXml('piano.musicxml', Uint8List.fromList(utf8.encode(flutePianoScore)));
+        c.setSplit(c.laneParts.firstWhere((p) => c.lanes.staffCountOf(p.id) > 1).id, on: true);
+        c.videoLayout = const Size(300, 120);
+        same('a split piano');
+        same('a staff’s lane', lane: c.laneRows.last.id);
+      }
+
+      await sameAsAutoCurate();
+
       // The app keeps them; a macro's own toolbar button follows it as the list changes, and goes with it.
       final settings = AppSettings.memory()..macros = [solo, asks.copyWith(icon: 'tidy')];
       expect([settings.macros.last.icon, LaneMacro.read(LaneMacro.write(settings.macros))], ['tidy', settings.macros]);

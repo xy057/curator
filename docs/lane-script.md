@@ -57,6 +57,12 @@ under an icon you give it: the pin beside its name puts it on the Instruments ba
 Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
 a script's is.
 
+The first example is Auto-Curate itself, in two steps to change: Show Where Playing (`follow`:
+each lane where its part plays, short rests bridged), then Fit to Frame (`fit`: what runs off
+the video's frame hidden, the staff that matters least in each phrase first). As they come they
+do what the button does; show only the strings first, bridge longer rests, or fit in phrases of
+eight bars, and it is yours.
+
 ## Statements
 
 - `show <lanes> [<ranges>] [transition …] [without staff <n>]`: Shows the lanes over the ranges, as Draw does: joined with what it touches. Without a range, throughout. `transition 0.5` gives the stretch its own transition at both ends, `transition in 0.5 out 1` at each; `without staff 2` leaves a staff of the instrument out there.
@@ -83,10 +89,22 @@ only "Piano" 9-16
 clear
 ```
 
-- `auto [<lanes>]`: Auto-Curate: fills the lanes (every lane without any) from where each instrument plays, cut back to fit the frame.
+- `auto [<lanes>]`: Auto-Curate: fills the lanes (every lane without any) from where each instrument plays, cut back to fit the frame (`follow`, then `fit`).
 
 ```
 auto "Violin*"
+```
+
+- `follow [<lanes>] [<ranges>] [bridge <bars>]`: Auto-Curate’s first half: each lane (every lane without any) is shown where its instrument plays and hidden where it rests, over the ranges (without one, throughout). `bridge 1` keeps it through a rest of up to that many bars between two runs. A lane that plays nothing stays as it is.
+
+```
+follow "Violin*" bridge 1
+```
+
+- `fit [<lanes>] [phrase <bars>]`: Auto-Curate’s second half: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, until they fit; the other lanes stay as they are. `follow all bridge 1` and then `fit` is what `auto` does.
+
+```
+fit
 ```
 
 - `bridge rests <bars> [in <lanes>]`: Tidy’s Bridge Rests: joins regions with at most that many bars between them.

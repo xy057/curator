@@ -55,3 +55,9 @@ use what a script can't: the lanes selected, where the playhead is, bars asked f
 under an icon you give it: the pin beside its name puts it on the Instruments bar, and View ▸
 Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
 a script's is.
+
+The first example is Auto-Curate itself, in two steps to change: Show Where Playing (`follow`:
+each lane where its part plays, short rests bridged), then Fit to Frame (`fit`: what runs off
+the video's frame hidden, the staff that matters least in each phrase first). As they come they
+do what the button does; show only the strings first, bridge longer rests, or fit in phrases of
+eight bars, and it is yours.

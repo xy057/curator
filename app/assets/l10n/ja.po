@@ -6008,3 +6008,15 @@ msgstr "ツールバーに追加"
 #: lib/macros.dart
 msgid "Icon"
 msgstr "アイコン"
+
+#: lib/macros.dart
+msgid "Show Where Playing"
+msgstr "演奏箇所を表示"
+
+#: lib/macros.dart
+msgid "Fit to Frame"
+msgstr "フレームに収める"
+
+#: lib/macros.dart
+msgid "Phrases of"
+msgstr "フレーズの長さ"
