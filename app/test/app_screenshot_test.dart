@@ -154,6 +154,18 @@ void main() {
       await settle();
     }
 
+    // A trackpad's two-finger swipe scrolls the graph: it moves no node it starts over, and draws no wire.
+    for (final from in [tester.getTopLeft(node(2)) + const Offset(14, 18), tester.getCenter(find.byKey(const ValueKey('macro out 2')))]) {
+      final swipe = TestPointer(71, PointerDeviceKind.trackpad);
+      await tester.sendEventToBinding(swipe.panZoomStart(from));
+      for (final by in const [Offset(30, 40), Offset(60, 90), Offset(90, 140)]) {
+        await tester.sendEventToBinding(swipe.panZoomUpdate(from, pan: by));
+        await tester.pump();
+      }
+      await tester.sendEventToBinding(swipe.panZoomEnd());
+      await settle();
+    }
+    expect([graph().steps[1].at, graph().wires], [isNull, const [(from: 0, to: 2), (from: 1, to: 3)]]);
     final four = tester.getTopLeft(node(4));
     await pull(four + const Offset(14, 18), four + const Offset(14 + 6 + 30, 18 + 120));
     expect(graph().steps[3].at, isNotNull);

@@ -642,8 +642,10 @@ class _GraphState extends State<_Graph> {
               if (signal is PointerScrollEvent) move(-signal.scrollDelta);
             },
             onPointerPanZoomUpdate: (swipe) => move(swipe.panDelta),
+            // (A drag is a pointer's: a trackpad's swipe is the Listener's, which pans, and moves nothing it passes over.)
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
+              supportedDevices: kDragDevices,
               onTap: () => setState(() => _selected = null),
               onPanUpdate: (drag) => move(drag.delta),
               child: Stack(children: [
@@ -707,6 +709,7 @@ class _GraphState extends State<_Graph> {
                       child: GestureDetector(
                         key: ValueKey('macro out ${i + 1}'),
                         behavior: HitTestBehavior.opaque,
+                        supportedDevices: kDragDevices,
                         onPanStart: (_) => setState(() => _wiring = (i, _out(place))),
                         onPanUpdate: (drag) => setState(() => _wiring = (i, (_wiring?.$2 ?? _out(place)) + drag.delta)),
                         onPanCancel: () => setState(() => _wiring = null),
@@ -953,6 +956,7 @@ class _NodeState extends State<_Node> {
         GestureDetector(
           key: ValueKey('macro node ${widget.number}'),
           behavior: HitTestBehavior.opaque,
+          supportedDevices: kDragDevices,
           onTap: widget.onSelect,
           onPanStart: (_) {
             _dragged = Offset.zero;
