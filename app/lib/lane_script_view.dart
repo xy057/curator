@@ -61,6 +61,18 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     _problems = _c.lanes.checkScript(_code.text);
     _code.addListener(_typed);
     _c.addListener(_projectChanged);
+    _focus.addListener(_keyboardMoved);
+  }
+
+  /// The code's editor lets the keyboard go on a click outside it, which leaves it with the
+  /// route, above the window's shortcuts: Space, the arrows and ⌃1–9 would stop until the
+  /// script was clicked again. Where nothing else took it, it goes to what is around this (the
+  /// window's own node, as a text field's does: its keys are heard from there).
+  void _keyboardMoved() {
+    if (!mounted || _focus.hasFocus || FocusManager.instance.primaryFocus is! FocusScopeNode) return;
+    for (var node = Focus.maybeOf(context, createDependency: false); node != null && node is! FocusScopeNode; node = node.parent) {
+      if (node.canRequestFocus) return node.requestFocus();
+    }
   }
 
   @override
@@ -68,6 +80,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     _checking?.cancel();
     _c.removeListener(_projectChanged);
     _code.removeListener(_typed);
+    _focus.removeListener(_keyboardMoved);
     _find.dispose();
     _code.dispose();
     _focus.dispose();

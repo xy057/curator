@@ -8,6 +8,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
+import 'package:curated_score/lane_script_view.dart';
 import 'package:curated_score/macros.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/panel_bar.dart';
@@ -217,6 +218,16 @@ void main() {
       await settle();
       expect(runs(), isTrue);
       settings.setToolbar(settings.toolbarOf(BarKind.editor).without(BarItem.macro1));
+      // The script's editor lets the keyboard go on a click outside it, and the window's keys still work then.
+      editor.lanes.scripting = true;
+      await settle();
+      await tester.tapAt(tester.getCenter(find.byType(LaneScriptView)));
+      await settle();
+      expect(textFieldFocused, isTrue, reason: 'typing in the script');
+      await tester.tapAt(tester.getTopLeft(find.byType(LaneScriptView)) + const Offset(360, 18));
+      await settle();
+      expect([textFieldFocused, await tester.sendKeyEvent(LogicalKeyboardKey.escape)], [false, true], reason: 'the window’s keys');
+      editor.lanes.scripting = false;
       editor.tab = was;
       await settle();
     }
