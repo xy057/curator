@@ -44,7 +44,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
 
   /// What the last Run came to, until the script is typed in again.
   String? _said;
-  bool _help = false;
+  bool _help = false, _running = false;
   Timer? _checking;
 
   EditorController get _c => widget.controller;
@@ -91,10 +91,15 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     });
   }
 
-  void _run() {
+  /// (A script that hears the recording waits for it, with Align's progress in the Audio tab.)
+  Future<void> _run() async {
+    if (_running) return;
     _checking?.cancel();
-    final (:problems, :changed) = _c.lanes.runScript(_code.text);
+    setState(() => _running = true);
+    final (:problems, :changed) = await _c.lanes.runScriptReady(_code.text);
+    if (!mounted) return;
     setState(() {
+      _running = false;
       _problems = problems;
       _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
     });
@@ -174,7 +179,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
       child: Row(children: [
         Tip(
           message: 'Run ({key})'.fill({'key': shortcut('⌘R')}),
-          child: FilledButton(style: compact, onPressed: _problems.isEmpty && _code.text.trim().isNotEmpty ? _run : null, child: Text('Run'.tr)),
+          child: FilledButton(style: compact, onPressed: _problems.isEmpty && _code.text.trim().isNotEmpty && !_running ? _run : null, child: Text('Run'.tr)),
         ),
         const SizedBox(width: 8),
         Tip(

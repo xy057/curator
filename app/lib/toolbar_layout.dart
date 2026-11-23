@@ -30,7 +30,7 @@ const _panel = [BarKind.instruments, BarKind.audio, BarKind.video];
 const _instruments = [BarKind.instruments];
 const _audio = [BarKind.audio];
 const _video = [BarKind.video];
-const _macroBars = [BarKind.editor, BarKind.instruments];
+const _macroBars = [BarKind.editor, BarKind.instruments, BarKind.audio];
 
 /// What a toolbar can hold (View ▸ Customize Toolbar…), by the name it is saved under, and
 /// which toolbars ([on]). One with a [command] is a button doing that command of the app's
@@ -106,7 +106,7 @@ enum BarItem {
   script('Script', on: _instruments),
 
   /// The app's macros, run from a menu, and what edits them.
-  macros('Macros', on: _instruments),
+  macros('Macros', on: [BarKind.instruments, BarKind.audio]),
 
   /// A macro as a button of its own, under its icon: one for each of the first nine, as their
   /// keys count them ([macro]: which). There only while there is such a macro.

@@ -25,6 +25,7 @@ enum MacroUnit {
 
 /// What a step does: one of the script's statements. [ranged]: over some bars; [unit]: with a
 /// number of them, or of seconds ([standard]: what a new step has, where it isn't the unit's).
+/// One not [onLanes] is done to the recording's anchors (the Audio tab's), and names no lanes.
 enum MacroAction {
   show(ranged: true),
   hide(ranged: true),
@@ -47,11 +48,22 @@ enum MacroAction {
   split,
   join,
   moveTop,
-  moveBottom;
+  moveBottom,
 
-  const MacroAction({this.ranged = false, this.unit, this.ownStandard});
+  /// The Audio tab's Align, whole; the three after it are its steps, each by itself: the
+  /// recording heard, the anchors matched from it, each snapped to a note heard starting
+  /// within its number of seconds (where the project snaps them: [MacroContext.snaps]).
+  align(onLanes: false),
+  hear(onLanes: false),
+  match(onLanes: false),
+  snap(onLanes: false, unit: MacroUnit.seconds, ownStandard: 0.05);
+
+  const MacroAction({this.ranged = false, this.unit, this.ownStandard, this.onLanes = true});
   final bool ranged;
   final MacroUnit? unit;
+
+  /// Whether it is done to lanes (the Instruments tab's); else to the recording's anchors.
+  final bool onLanes;
 
   /// The number a new step of it has, where that isn't its unit's.
   final double? ownStandard;
@@ -104,8 +116,8 @@ class MacroStep {
 
   Map<String, Object?> toJson() => {
         'do': action.name,
-        'lanes': lanes.name,
-        if (lanes == MacroLanes.named) 'names': names,
+        if (action.onLanes) 'lanes': lanes.name,
+        if (action.onLanes && lanes == MacroLanes.named) 'names': names,
         if (action.ranged) 'range': range.name,
         if (action.ranged && range == MacroRange.bars) 'bars': bars,
         if (action.unit != null && number != null) 'number': number,
@@ -176,7 +188,7 @@ class MacroProblem {
 /// What a macro is run with: what is selected and where the playhead is, as a script says them.
 @immutable
 class MacroContext {
-  const MacroContext({this.selected = const [], this.playhead, this.bar, this.span, this.asked});
+  const MacroContext({this.selected = const [], this.playhead, this.bar, this.span, this.asked, this.snaps = true});
 
   /// Of the project [host] is: its lanes [selected] (by their ids), the [playhead] in quarters,
   /// the [span] of the regions selected (from the first's start to the last's end, in
@@ -196,6 +208,7 @@ class MacroContext {
       bar: bar,
       span: span == null ? null : LaneScript.range(beats, span.$1, span.$2),
       asked: asked,
+      snaps: host.snaps,
     );
   }
 
@@ -214,6 +227,10 @@ class MacroContext {
 
   /// The bars asked for, as a script writes them; null: not asked.
   final String? asked;
+
+  /// Whether the project snaps anchors to the notes heard starting (the Audio tab's Snap to
+  /// Onsets): a Snap Anchors step is done only then, as Align's own snapping is.
+  final bool snaps;
 }
 
 /// A macro: its [name] and its steps, done in order.
@@ -232,6 +249,11 @@ class LaneMacro {
   /// Whether running it asks for bars first.
   bool get asks => steps.any((s) => s.action.ranged && s.range == MacroRange.ask);
 
+  /// Whether any step is done to lanes, and whether any is to the recording's anchors: where
+  /// it can be run (the Instruments tab, the Audio tab).
+  bool get onLanes => steps.any((s) => s.action.onLanes);
+  bool get onRecording => steps.any((s) => !s.action.onLanes);
+
   LaneMacro copyWith({String? name, List<MacroStep>? steps, String? icon}) =>
       LaneMacro(name: name ?? this.name, steps: steps ?? this.steps, icon: icon ?? this.icon);
 
@@ -243,6 +265,12 @@ class LaneMacro {
       MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4),
       MacroStep(MacroAction.refill, lanes: MacroLanes.all),
       MacroStep(MacroAction.lone, lanes: MacroLanes.all),
+    ]),
+    // Align, whole, a step for each thing it does: what `align` does.
+    LaneMacro(name: 'Auto-align', icon: 'align', steps: [
+      MacroStep(MacroAction.hear),
+      MacroStep(MacroAction.match),
+      MacroStep(MacroAction.snap, number: 0.05),
     ]),
     LaneMacro(name: 'Solo from Here', steps: [MacroStep(MacroAction.only, range: MacroRange.fromPlayhead)]),
     LaneMacro(name: 'Hide from Here', steps: [MacroStep(MacroAction.hide, range: MacroRange.fromPlayhead)]),
@@ -284,15 +312,17 @@ class LaneMacro {
   }
 
   static String _line(MacroStep step, MacroContext context) {
-    final lanes = switch (step.lanes) {
-      MacroLanes.all => 'all',
-      MacroLanes.selected => context.selected.isEmpty ? throw MacroFault.lanes : context.selected.join(', '),
-      MacroLanes.others => context.selected.isEmpty ? 'all' : 'all except ${context.selected.join(', ')}',
-      MacroLanes.named => switch ([for (final name in step.names) if (name.trim().isNotEmpty) _quoted(name.trim())]) {
-          [] => throw MacroFault.names,
-          final names => names.join(', '),
-        },
-    };
+    final lanes = !step.action.onLanes
+        ? ''
+        : switch (step.lanes) {
+            MacroLanes.all => 'all',
+            MacroLanes.selected => context.selected.isEmpty ? throw MacroFault.lanes : context.selected.join(', '),
+            MacroLanes.others => context.selected.isEmpty ? 'all' : 'all except ${context.selected.join(', ')}',
+            MacroLanes.named => switch ([for (final name in step.names) if (name.trim().isNotEmpty) _quoted(name.trim())]) {
+                [] => throw MacroFault.names,
+                final names => names.join(', '),
+              },
+          };
     final range = !step.action.ranged
         ? ''
         : switch (step.range) {
@@ -326,6 +356,11 @@ class LaneMacro {
         MacroAction.join => ['join', lanes],
         MacroAction.moveTop => ['move', lanes, 'to top'],
         MacroAction.moveBottom => ['move', lanes, 'to bottom'],
+        MacroAction.align => ['align'],
+        MacroAction.hear => ['hear'],
+        MacroAction.match => ['match'],
+        // (Left to the project, as Align's own snapping is: a line that does nothing keeps the steps' numbers.)
+        MacroAction.snap => [context.snaps ? 'snap anchors within ${step.amount > 1 ? '1' : n}' : '# Snap to Notes is off'],
       },
     ].where((part) => part.isNotEmpty).join(' ');
   }

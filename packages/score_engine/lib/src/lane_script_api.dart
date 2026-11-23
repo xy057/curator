@@ -18,7 +18,7 @@ abstract final class LaneScriptApi {
   static const keywords = {
     'show', 'hide', 'only', 'clear', 'auto', 'bridge', 'rests', 'remove', 'short', 'in', 'copy', 'to', 'split', 'join', 'move', 'top', 'bottom', //
     'before', 'after', 'restore', 'order', 'transition', 'out', 'default', 'without', 'staff', 'staves', 'let', 'all', 'except', 'bar', 'bars', //
-    'from', 'until', 'start', 'end', 'mark', 'follow', 'fit', 'phrase', 'thin', 'refill', 'lone',
+    'from', 'until', 'start', 'end', 'mark', 'follow', 'fit', 'phrase', 'thin', 'refill', 'lone', 'hear', 'match', 'snap', 'anchors', 'within', 'align',
   };
 
   static const statements = <ScriptStatement>[
@@ -49,6 +49,19 @@ abstract final class LaneScriptApi {
         'refill'),
     ScriptStatement('remove', 'remove lone [in <lanes>]',
         'The third step of `fit`: a lane left showing for a single bar, next to bars `thin` hid of it, is hidden there too.', 'remove lone'),
+    ScriptStatement('align', 'align',
+        'The Audio tab’s Align: sets the anchors from the recording, heard against the score, in place of those there. '
+            'It is `hear`, `match` and, where the Audio tab’s Snap to Notes is on, `snap anchors`.',
+        'align'),
+    ScriptStatement('hear', 'hear',
+        'The first step of `align`: listens to the recording for the notes in it. It takes a while and changes nothing; what is heard is kept until the script ends, for `match`.',
+        'hear'),
+    ScriptStatement('match', 'match',
+        'The second step of `align`: finds the score in what `hear` heard (through its repeats: the warps set by hand, or with none the score’s own) '
+            'and sets the anchors from it, in place of those there.',
+        'match'),
+    ScriptStatement('snap', 'snap anchors [within <seconds>]',
+        'The third step of `align`: moves each anchor onto the nearest note heard starting, within 0.05 seconds of it or as given.', 'snap anchors within 0.08'),
     ScriptStatement('bridge', 'bridge rests <bars> [in <lanes>]', 'Tidy’s Bridge Rests: joins regions with at most that many bars between them.', 'bridge rests 2'),
     ScriptStatement('remove', 'remove short <bars> [in <lanes>]', 'Tidy’s Remove Regions Shorter Than: takes out regions shorter than that many bars.', 'remove short 1 in "Timpani"'),
     ScriptStatement('copy', 'copy <lane> to <lanes>', 'Copy Lane To: the lanes get that lane’s regions in place of their own.', 'copy "Violin I" to "Violin II", "Viola"'),

@@ -509,6 +509,38 @@ void main() {
       expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone').check(host)) '$p'],
           [for (var line = 1; line <= 5; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);
       host.follows = true;
+      // Align in its steps: the recording is heard and the anchors matched from it before the script runs (what waits is
+      // made ready, with nothing changed), then they are set and snapped as it runs. A match goes by a hear; `align` is the
+      // three, snapping as the project does, and so is the example macro, its snap left out where the project doesn't.
+      Future<List<Object>> aligned(String source) async {
+        final script = LaneScript.parse(source);
+        host.said.clear();
+        final got = await script.ready(host);
+        return [script.waits, [for (final p in got.problems) '$p'], if (got.problems.isEmpty) [for (final p in script.run(host, ready: got.ready)) '$p'], [...host.said]];
+      }
+
+      final align = LaneMacro.examples[1];
+      expect(await aligned('hear\nmatch\nsnap anchors within 0.08'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2', 'snap 0.08']]);
+      expect(await aligned('align'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2', 'snap 0.05']]);
+      expect(align.script(MacroContext.of(host)).script.split('\n'), ['hear', 'match', 'snap anchors within 0.05']);
+      host.snapping = false;
+      expect(await aligned('align\nhear'), [true, isEmpty, isEmpty, ['hear', 'match tape', 'set 2']], reason: 'heard once, not snapped');
+      expect(align.script(MacroContext.of(host)).script.split('\n'), ['hear', 'match', '# Snap to Notes is off']);
+      host.snapping = true;
+      expect([align.onLanes, align.onRecording, LaneMacro.examples.first.onRecording, LaneScript.parse('show all').waits], [false, true, false, false]);
+      expect([for (final p in LaneScript.parse('match\nsnap anchors within 2').check(host)) '$p'],
+          ['Line 1: Nothing is heard yet: “hear” goes before it.', 'Line 2: Seconds is 1 at most.']);
+      expect(run('hear'), ['Line 1: The recording wasn’t heard.'], reason: 'run without being made ready');
+      host.matched = const [];
+      expect(await aligned('hear\nmatch'), [true, ['Line 2: Couldn’t hear the score in this recording.'], ['hear', 'match tape']]);
+      host.tape = null;
+      expect(await aligned('show all\nalign'), [true, ['Line 2: The recording can’t be heard.'], ['hear']]);
+      host.recording = 'There is no recording.';
+      expect([for (final p in LaneScript.parse('hear\nsnap anchors').check(host)) '$p'], ['Line 1: There is no recording.', 'Line 2: There is no recording.']);
+      host
+        ..recording = null
+        ..tape = 'tape'
+        ..matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
       // Kept as JSON; what isn't a step, or a macro, is left out.
       expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
       expect([macro.copyWith(icon: 'tidy') == macro, macro.toJson().containsKey('icon')], [false, false]);
@@ -684,6 +716,35 @@ class _ScriptLanes extends LaneScriptHost {
   Map<String, List<bool>> plays = {};
   Map<FitStep, Map<String, List<Region>>> fits = {};
   final fitted = <String>[];
+
+  /// The recording: why it can't be heard, whether the project snaps, what is heard and matched
+  /// from it, and what was asked about it.
+  String? recording;
+  bool snapping = true;
+  Object? tape = 'tape';
+  List<SyncAnchor> matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
+  final said = <String>[];
+
+  @override
+  String? get unheard => recording;
+  @override
+  bool get snaps => snapping;
+  @override
+  Future<Object?> hear() async {
+    said.add('hear');
+    return tape;
+  }
+
+  @override
+  Future<List<SyncAnchor>> match(Object heard) async {
+    said.add('match $heard');
+    return matched;
+  }
+
+  @override
+  void setAnchors(List<SyncAnchor> anchors) => said.add('set ${anchors.length}');
+  @override
+  void snapAnchors(double within) => said.add('snap $within');
 
   @override
   bool get curates => follows;

@@ -306,7 +306,7 @@ msgstr "詳細"
 msgid "Advanced Engraving"
 msgstr "詳細な浄書"
 
-#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/macros.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "揃える"
 
@@ -6032,3 +6032,23 @@ msgstr "収まる所は再表示"
 #: lib/macros.dart
 msgid "Remove Lone Bars"
 msgstr "孤立した小節を削除"
+
+#: lib/macros.dart
+msgid "Hear the Recording"
+msgstr "録音を聴く"
+
+#: lib/macros.dart
+msgid "Set Anchors As Heard"
+msgstr "聴いた通りにアンカーを設定"
+
+#: lib/macros.dart
+msgid "Snap Anchors to Notes"
+msgstr "アンカーを音符にスナップ"
+
+#: lib/macros.dart
+msgid "Auto-align"
+msgstr "自動で揃える"
+
+#: lib/macros.dart
+msgid "Within"
+msgstr "範囲"

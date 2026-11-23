@@ -45,6 +45,8 @@ from, and a way to take one project's lanes to another. The script is kept with 
 - A statement that names a lane or a bar there isn't stops the script before it changes
   anything.
 - Statements run in order, each on what the one before left: `clear` first starts from nothing.
+- A script can set the Audio tab's anchors too: `align` is its Align. It listens to the recording
+  first, which takes a while (the Audio tab's Align shows how far it has got), and then runs.
 
 ## Macros
 
@@ -54,7 +56,8 @@ use what a script can't: the lanes selected, where the playhead is, bars asked f
 ⌃1 to ⌃9 run the first nine, and each of those can have a button of its own on a toolbar,
 under an icon you give it: the pin beside its name puts it on the Instruments bar, and View ▸
 Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
-a script's is.
+a script's is. A macro runs where what it changes is showing: steps for lanes in the Instruments
+tab, steps for the anchors in the Audio tab.
 
 The first example is Auto-Curate itself, a step for each thing it does: Show Where Playing
 (`follow`: each lane where its part plays, short rests bridged), Hide Least Important (`thin`:
@@ -64,3 +67,8 @@ most first) and Remove Lone Bars (`remove lone`: a staff left for a single bar g
 they come they do what the button does; show only the strings first, bridge longer rests, thin
 in phrases of eight bars or leave a step out, and it is yours. Fit to Frame (`fit`) is the last
 three as one step.
+
+The second is the Audio tab's Align: Hear the Recording (`hear`: the notes in it), Set Anchors
+As Heard (`match`: the score found in them, the anchors set from it) and Snap Anchors to Notes
+(`snap anchors`: each onto a note starting within 0.05 seconds, done while the Audio tab's Snap
+to Notes is on, as Align's own is). Align (`align`) is the three as one step.

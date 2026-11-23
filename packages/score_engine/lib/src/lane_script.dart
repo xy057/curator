@@ -26,6 +26,7 @@ import 'auto_curate.dart';
 import 'beat_grid.dart';
 import 'curation.dart';
 import 'lane_script_api.dart';
+import 'sync_map.dart';
 
 /// A lane as a script names it: by its [name], as the lane shows it.
 @immutable
@@ -77,6 +78,31 @@ abstract class LaneScriptHost {
   /// as long as it is a run's. None where there is no frame.
   Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) => const {};
 
+  // The recording's anchors (the Audio tab's Align, in its steps: `hear`, `match`, `snap anchors`).
+
+  /// Why the recording can't be heard and the anchors set from it (there is none, they follow
+  /// a MIDI file); null when it can.
+  String? get unheard => 'There is no recording.';
+
+  /// Whether the anchors are snapped to the notes heard starting, as the project is set
+  /// (`align` snaps them then, as Align does).
+  bool get snaps => true;
+
+  /// Hears the recording: what a [match] goes by (the host's own to say what), null when it
+  /// can't be heard. It takes a while, so it is done before the script runs
+  /// ([LaneScript.ready]).
+  Future<Object?> hear() async => null;
+
+  /// The anchors that what was [heard] gives against the score; none when the score isn't
+  /// heard in it. Before the script runs too.
+  Future<List<SyncAnchor>> match(Object heard) async => const [];
+
+  /// Puts [anchors] in place of those there.
+  void setAnchors(List<SyncAnchor> anchors) {}
+
+  /// Moves each anchor onto the nearest note heard starting, [within] seconds of it.
+  void snapAnchors(double within) {}
+
   /// Splits the lane of [instrument] into a lane a staff, or joins them.
   void setSplit(String instrument, bool on);
 
@@ -97,6 +123,17 @@ class LaneScriptProblem {
   @override
   String toString() => 'Line $line: $message';
 }
+
+/// What a script that waits ([LaneScript.waits]) was made ready with ([LaneScript.ready]): the
+/// recording as heard, and the anchors matched from it.
+class ScriptReady {
+  const ScriptReady._(this._heard, this._anchors);
+  final Object? _heard;
+  final List<SyncAnchor>? _anchors;
+}
+
+/// What a statement waits for before the script runs.
+enum _Wait { hear, match, align }
 
 class _Fail implements Exception {
   const _Fail(this.message);
@@ -124,12 +161,18 @@ typedef _Fade = ({bool given, double? seconds});
 
 /// A script read: its statements, or what is wrong with it as written.
 class LaneScript {
-  LaneScript._(this._statements, this.problems);
+  LaneScript._(this._statements, this.problems, [this._waits = const []]);
 
   /// The most a script holds.
   static const maxLength = 1 << 20;
 
   final List<(int, void Function(_Run))> _statements;
+
+  /// The statements that take time (the recording heard, the score matched to it), by line.
+  final List<(int, _Wait)> _waits;
+
+  /// Whether it has to be made [ready] before it runs: it hears the recording.
+  bool get waits => _waits.isNotEmpty;
 
   /// What doesn't read, by line: none, and it can be [run].
   final List<LaneScriptProblem> problems;
@@ -187,18 +230,20 @@ class LaneScript {
 
   /// Reads [source], a statement a line; `#` starts a comment.
   static LaneScript parse(String source) {
-    final statements = <(int, void Function(_Run))>[], problems = <LaneScriptProblem>[];
+    final statements = <(int, void Function(_Run))>[], problems = <LaneScriptProblem>[], waits = <(int, _Wait)>[];
     if (source.length > maxLength) return LaneScript._(const [], const [LaneScriptProblem(1, 'The script is too long.')]);
     for (final (i, line) in source.split(RegExp(r'\r\n|\r|\n')).indexed) {
       try {
         final tokens = _lex(line);
         if (tokens.isEmpty) continue;
-        statements.add((i + 1, _Parser(tokens).statement()));
+        final parser = _Parser(tokens);
+        statements.add((i + 1, parser.statement()));
+        if (parser.wait case final wait?) waits.add((i + 1, wait));
       } on _Fail catch (e) {
         problems.add(LaneScriptProblem(i + 1, e.message));
       }
     }
-    return LaneScript._(statements, List.unmodifiable(problems));
+    return LaneScript._(statements, List.unmodifiable(problems), waits);
   }
 
   // MARK: Running
@@ -206,7 +251,38 @@ class LaneScript {
   /// Does every statement over [host], in order. One that can't be done (a lane there isn't, a
   /// bar past the end) is left out and listed: whoever runs it puts the lanes back then. A
   /// script that doesn't read ([problems]) does nothing.
-  List<LaneScriptProblem> run(LaneScriptHost host) => _go(_Run(host, dry: false));
+  /// One that [waits] is run with what it was made [ready] with.
+  List<LaneScriptProblem> run(LaneScriptHost host, {ScriptReady? ready}) => _go(_Run(host, dry: false, ready: ready));
+
+  /// What a script that [waits] needs before it runs, got from [host]: the recording heard
+  /// (once, whichever statements go by it) and the anchors matched from it, which take a while
+  /// and change nothing. What can't be had is a problem at the line that asks for it, and the
+  /// script isn't to be run then.
+  Future<({ScriptReady ready, List<LaneScriptProblem> problems})> ready(LaneScriptHost host) async {
+    Object? heard;
+    List<SyncAnchor>? anchors;
+    final problems = <LaneScriptProblem>[];
+    for (final (line, wait) in _waits) {
+      try {
+        if (wait != _Wait.match && heard == null) {
+          heard = await host.hear();
+          if (heard == null) throw const _Fail('The recording can’t be heard.');
+        }
+        if (wait != _Wait.hear && anchors == null && heard != null) {
+          final matched = await host.match(heard);
+          if (matched.isEmpty) throw const _Fail('Couldn’t hear the score in this recording.');
+          anchors = matched;
+        }
+      } on _Fail catch (e) {
+        problems.add(LaneScriptProblem(line, e.message));
+        break;
+      } catch (e) {
+        problems.add(LaneScriptProblem(line, 'Couldn’t hear the recording. $e'));
+        break;
+      }
+    }
+    return (ready: ScriptReady._(heard, anchors), problems: problems);
+  }
 
   /// What is wrong with it were it run now, with nothing changed: what doesn't read, and what
   /// the lines that do would get wrong, by line.
@@ -333,9 +409,15 @@ class LaneScript {
 
 /// A script running over a host; [dry]: only finding what is wrong.
 class _Run {
-  _Run(this.host, {required this.dry}) : _lanes = dry ? [...host.lanes] : null;
+  _Run(this.host, {required this.dry, this.ready}) : _lanes = dry ? [...host.lanes] : null;
   final LaneScriptHost host;
   final bool dry;
+
+  /// What the script was made ready with, where it waits.
+  final ScriptReady? ready;
+
+  /// Whether a `hear` has gone before: a `match` goes by it.
+  bool heard = false;
   final groups = <String, _Lanes>{};
 
   /// The lanes as the statements so far would leave them, when nothing is changed.
@@ -465,6 +547,34 @@ class _Run {
     return Curation.painted(differs ? Curation.painted(regions, stretch, shown: false) : regions, stretch);
   }
 
+  // The recording's anchors.
+
+  void _recording() {
+    if (host.unheard case final why?) throw _Fail(why);
+  }
+
+  /// The recording heard: done before the run, so here only told.
+  void hear() {
+    _recording();
+    heard = true;
+    if (!dry && ready?._heard == null) throw const _Fail('The recording wasn’t heard.');
+  }
+
+  /// The anchors matched from what was heard, in place of those there.
+  void match() {
+    _recording();
+    if (!heard) throw const _Fail('Nothing is heard yet: “hear” goes before it.');
+    if (dry) return;
+    final anchors = ready?._anchors;
+    if (anchors == null) throw const _Fail('The recording wasn’t heard.');
+    host.setAnchors(anchors);
+  }
+
+  void snap(double within) {
+    _recording();
+    if (!dry) host.snapAnchors(within);
+  }
+
   /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off,
   /// what a refill shows again drawn on.
   void fit(List<ScriptLane> lanes, List<FitStep> steps, {int phrase = 4}) {
@@ -536,6 +646,9 @@ class _Parser {
   _Parser(this._tokens);
   final List<_Token> _tokens;
   int _at = 0;
+
+  /// What the statement read waits for before the script runs, if anything.
+  _Wait? wait;
 
   _Token? get _next => _at < _tokens.length ? _tokens[_at] : null;
   bool _is(String word, [int ahead = 0]) {
@@ -694,6 +807,9 @@ class _Parser {
 
   // MARK: Statements
 
+  /// How near a note heard starting an anchor is snapped to it, in seconds, unless given.
+  static const _snapWithin = 0.05;
+
   void Function(_Run) statement() {
     final first = _next!;
     if (first.kind != _Kind.word || !LaneScript.statements.any((s) => s.word == first.text)) {
@@ -784,6 +900,25 @@ class _Parser {
             return regions;
           });
         };
+      case 'hear' || 'match' || 'align':
+        // Align, whole (`align`: its anchors snapped as the project is set) or a step of it.
+        _end();
+        wait = _Wait.values.byName(first.text);
+        return switch (wait!) {
+          _Wait.hear => (run) => run.hear(),
+          _Wait.match => (run) => run.match(),
+          _Wait.align => (run) {
+              run
+                ..hear()
+                ..match();
+              if (run.host.snaps) run.snap(_snapWithin);
+            },
+        };
+      case 'snap':
+        _need('anchors');
+        final within = _take('within') ? _number('Seconds', max: 1) : _snapWithin;
+        _end();
+        return (run) => run.snap(within);
       case 'fit' || 'thin' || 'refill':
         // Fitting the frame, whole (`fit`) or a step of it.
         final steps = switch (first.text) { 'thin' => const [FitStep.thin], 'refill' => const [FitStep.refill], _ => FitStep.values };

@@ -514,12 +514,37 @@ class LaneEditing {
   ({List<LaneScriptProblem> problems, bool changed}) runScript(String source) {
     final script = LaneScript.parse(source), host = _ScriptHost(_editor);
     if (_curation == null) return (problems: const [], changed: false);
-    var problems = script.check(host);
+    final problems = script.check(host);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _ran(script, host);
+  }
+
+  /// [runScript] for a script that may wait ([LaneScript.waits]: it hears the recording, as
+  /// Align does): what it waits for is got first, with nothing changed and Align's progress
+  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Nothing where
+  /// an Align is under way, or the project was changed for another meanwhile.
+  Future<({List<LaneScriptProblem> problems, bool changed})> runScriptReady(String source) async {
+    final script = LaneScript.parse(source), host = _ScriptHost(_editor);
+    if (!script.waits) return runScript(source);
+    const nothing = (problems: <LaneScriptProblem>[], changed: false);
+    if (_curation == null) return nothing;
+    final problems = script.check(host);
     if (problems.isNotEmpty) return (problems: problems, changed: false);
+    final sync = _editor._sync, track = _editor.track;
+    final got = await _editor.anchors._whileAligning((report) {
+      host._report = report;
+      return script.ready(host);
+    });
+    if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return nothing;
+    return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
+  }
+
+  /// Runs [script], checked, as one Undo step.
+  ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready}) {
+    List<LaneScriptProblem> problems;
     final before = _editor._editState;
     _editor.beginEdit();
     try {
-      problems = script.run(host);
+      problems = script.run(host, ready: ready);
       // What only running finds (lanes that can't be auto-curated): as it was, as Undo puts it.
       if (problems.isNotEmpty) _editor._restore(before);
     } finally {
@@ -558,8 +583,18 @@ class LaneEditing {
     if (_curation == null || _editor._sync == null) return (problems: const [], changed: false);
     final lanes = selectedPartIds;
     final (:script, :problems) = _macroScript(macro, asked);
-    if (problems.isNotEmpty) return (problems: problems, changed: false);
-    final ran = runScript(script);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(runScript(script), lanes);
+  }
+
+  /// [runMacro] for a macro that may wait (a step hears the recording): see [runScriptReady].
+  Future<({List<MacroProblem> problems, bool changed})> runMacroReady(LaneMacro macro, {String? asked}) async {
+    if (_curation == null || _editor._sync == null) return (problems: const <MacroProblem>[], changed: false);
+    final lanes = selectedPartIds;
+    final (:script, :problems) = _macroScript(macro, asked);
+    return problems.isNotEmpty ? (problems: problems, changed: false) : _macroRan(await runScriptReady(script), lanes);
+  }
+
+  ({List<MacroProblem> problems, bool changed}) _macroRan(({List<LaneScriptProblem> problems, bool changed}) ran, Set<String> lanes) {
     if (ran.problems.isEmpty && lanes.isNotEmpty) _selectLanes([for (final row in _editor.laneRows) if (lanes.contains(row.id)) row.id]);
     return (problems: LaneMacro.problemsOf(ran.problems), changed: ran.changed);
   }
@@ -642,6 +677,37 @@ class _ScriptHost extends LaneScriptHost {
         lanes: asked, salience: _editor._score!.salience.condensed(_activity.pairs), cuts: _cuts, phrase: phrase);
     return {for (final id in lanes) id: changed[_editor.instrumentOfLane(id)] ?? const []};
   }
+
+  // Align in its steps (`hear`, `match`, `snap anchors`), from what [SyncEditing.align] is made of.
+
+  /// Told how far the hearing has got, while a script is made ready.
+  void Function(double done)? _report;
+
+  @override
+  String? get unheard => _editor.track == null
+      ? 'There is no recording.'
+      : _editor.usesMidiTempo
+          ? 'The anchors follow a MIDI file’s tempo.'
+          : !_editor.hasNotes
+              ? 'This score has no notes to hear.'
+              : !_editor.editsSync
+                  ? 'None of the recordings is the one synced.'
+                  : null;
+
+  @override
+  bool get snaps => _editor.anchors.snapToOnsets;
+
+  @override
+  Future<Object?> hear() => _editor.anchors._hear(_report ?? (_) {});
+
+  @override
+  Future<List<SyncAnchor>> match(Object heard) => _editor.anchors._match(heard as ({Float32List notes, List<ScorePass> passes}));
+
+  @override
+  void setAnchors(List<SyncAnchor> anchors) => _editor.anchors.setAll(anchors);
+
+  @override
+  void snapAnchors(double within) => _editor.anchors.snapAll(within);
 
   @override
   void setSplit(String instrument, bool on) => _editor.setSplit(instrument, on: on);

@@ -39,6 +39,10 @@ String macroActionLabel(MacroAction action) => switch (action) {
       MacroAction.join => 'Join Staves'.tr,
       MacroAction.moveTop => 'Move to Top'.tr,
       MacroAction.moveBottom => 'Move to Bottom'.tr,
+      MacroAction.align => 'Align'.tr,
+      MacroAction.hear => 'Hear the Recording'.tr,
+      MacroAction.match => 'Set Anchors As Heard'.tr,
+      MacroAction.snap => 'Snap Anchors to Notes'.tr,
     };
 
 String _lanesLabel(MacroLanes lanes) => switch (lanes) {
@@ -59,7 +63,7 @@ String _rangeLabel(MacroRange range) => switch (range) {
     };
 
 /// The examples' names ([LaneMacro.examples], in their order), translated.
-List<String> get _exampleNames => ['Auto-curate'.tr, 'Solo from Here'.tr, 'Hide from Here'.tr, 'Show Bars…'.tr, 'Tidy Up'.tr];
+List<String> get _exampleNames => ['Auto-curate'.tr, 'Auto-align'.tr, 'Solo from Here'.tr, 'Hide from Here'.tr, 'Show Bars…'.tr, 'Tidy Up'.tr];
 
 String _nameOf(LaneMacro macro) => macro.name.trim().isEmpty ? 'Untitled'.tr : macro.name;
 
@@ -72,7 +76,7 @@ const macroIcons = [
   AppIcon.clearLanes, AppIcon.transition, AppIcon.lanes, AppIcon.score, AppIcon.music, AppIcon.play, AppIcon.trimStart, AppIcon.trimEnd, //
   AppIcon.condense, AppIcon.expand, AppIcon.collapse, AppIcon.moveUp, AppIcon.moveDown, AppIcon.snap, AppIcon.pin, AppIcon.link, //
   AppIcon.check, AppIcon.add, AppIcon.delete, AppIcon.reset, AppIcon.copy, AppIcon.chapters, AppIcon.tonality, AppIcon.captions, //
-  AppIcon.image, AppIcon.frame, AppIcon.audio, AppIcon.speed, AppIcon.search, AppIcon.code, AppIcon.test, AppIcon.vision,
+  AppIcon.image, AppIcon.frame, AppIcon.audio, AppIcon.align, AppIcon.speed, AppIcon.search, AppIcon.code, AppIcon.test,
 ];
 
 /// [macro]'s icon ([LaneMacro.icon], one of the app's by its name); the first of [macroIcons]
@@ -115,18 +119,24 @@ Future<({String text, bool failed})?> _run(BuildContext context, EditorControlle
     asked = await showAppDialog<String>(context: context, builder: (_) => _AskBars(controller: controller, macro: macro));
     if (asked == null) return null;
   }
-  final (:problems, :changed) = controller.lanes.runMacro(macro, asked: asked);
+  final (:problems, :changed) = await controller.lanes.runMacroReady(macro, asked: asked);
   if (problems.isNotEmpty) return (text: macroProblemText(problems.first), failed: true);
   return changed ? null : (text: 'Nothing changed'.tr, failed: false);
 }
 
 /// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
-/// What running [macro] from a toolbar or a menu does now; null while it can't be run: it has
-/// no steps, or the lanes aren't showing (another tab, the script in their place).
-VoidCallback? macroAction(BuildContext context, EditorController controller, LaneMacro macro) =>
-    macro.steps.isEmpty || controller.curation == null || controller.tab != BottomTab.instruments || controller.lanes.scripting
-        ? null
-        : () => playMacro(context, controller, macro);
+/// What running [macro] from a toolbar, a menu or its key does now; null while it can't be
+/// run: it has no steps, or what its steps are done to isn't showing. Steps for lanes run in
+/// the Instruments tab (not while the script is in the lanes' place), steps for the
+/// recording's anchors in the Audio tab, a macro of both in either; none that hears the
+/// recording while an Align is under way.
+VoidCallback? macroAction(BuildContext context, EditorController controller, LaneMacro macro) {
+  final shown = (macro.onLanes && controller.tab == BottomTab.instruments && !controller.lanes.scripting) ||
+      (macro.onRecording && controller.tab == BottomTab.audio);
+  return !shown || controller.curation == null || (macro.onRecording && controller.anchors.aligning != null)
+      ? null
+      : () => playMacro(context, controller, macro);
+}
 
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -168,8 +178,8 @@ class MacrosMenu extends StatelessWidget {
           for (final (i, macro) in macros.indexed)
             menuItem(
               menu,
-              value: () => playMacro(context, controller, macro),
-              enabled: macro.steps.isNotEmpty,
+              value: macroAction(context, controller, macro) ?? () {},
+              enabled: macroAction(context, controller, macro) != null,
               child: Row(children: [
                 Icon(macroIcon(macro).of(menu), size: 16),
                 SizedBox(width: AppStyle.of(menu).isCarbon ? 8 : 6),
@@ -271,7 +281,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   }
 
   /// The toolbars a macro's button can be on.
-  static const _bars = [BarKind.editor, BarKind.instruments];
+  static const _bars = [BarKind.editor, BarKind.instruments, BarKind.audio];
 
   /// [macros] kept as the app's, the one at [at] chosen; [moved]: where each macro of the list
   /// went (null: gone), which its toolbar button follows ([ToolbarLayout.macrosMoved]).
@@ -310,7 +320,8 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   BarItem? get _button => _at < BarItem.macroButtons.length ? BarItem.macroButtons[_at] : null;
   bool get _onToolbar => _bars.any((kind) => widget.settings.toolbarOf(kind).bar.contains(_button) || widget.settings.toolbarOf(kind).menu.contains(_button));
 
-  /// Puts the chosen macro's button on the Instruments tab's bar, or takes it off every toolbar.
+  /// Puts the chosen macro's button on the bar of the tab it runs in (the Instruments tab's;
+  /// the Audio tab's for one that is all the recording's), or takes it off every toolbar.
   void _pin() => setState(() {
         final settings = widget.settings, button = _button!;
         if (_onToolbar) {
@@ -318,7 +329,8 @@ class _MacrosDialogState extends State<_MacrosDialog> {
             settings.setToolbar(settings.toolbarOf(kind).without(button));
           }
         } else {
-          settings.setToolbar(settings.toolbarOf(BarKind.instruments).added(button));
+          final kind = _macro!.onRecording && !_macro!.onLanes ? BarKind.audio : BarKind.instruments;
+          settings.setToolbar(settings.toolbarOf(kind).added(button));
         }
       });
 
@@ -621,8 +633,8 @@ class _StepCardState extends State<_StepCard> {
         Expanded(
           child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
             _choice(214, step.action, MacroAction.values, macroActionLabel, (action) => widget.onChanged(step.copyWith(action: action))),
-            _choice(150, step.lanes, MacroLanes.values, _lanesLabel, (lanes) => widget.onChanged(step.copyWith(lanes: lanes))),
-            if (step.lanes == MacroLanes.named)
+            if (step.action.onLanes) _choice(150, step.lanes, MacroLanes.values, _lanesLabel, (lanes) => widget.onChanged(step.copyWith(lanes: lanes))),
+            if (step.action.onLanes && step.lanes == MacroLanes.named)
               SizedBox(
                 width: 180,
                 child: AppTextField(controller: _names, label: '', hint: 'Flute*, Oboe*', onChanged: (names) => widget.onChanged(step.copyWith(names: _split(names)))),
@@ -636,7 +648,7 @@ class _StepCardState extends State<_StepCard> {
             if (unit != null)
               Row(mainAxisSize: MainAxisSize.min, children: [
                 // What the number is of, where the step's name doesn't say.
-                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit || MacroAction.thin => 'Phrases of'.tr, _ => null } case final String of) ...[
+                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit || MacroAction.thin => 'Phrases of'.tr, MacroAction.snap => 'Within'.tr, _ => null } case final String of) ...[
                   Text(of, style: TextStyle(fontSize: 13, color: colors.textMuted)),
                   const SizedBox(width: 6),
                 ],

@@ -1596,11 +1596,9 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// Edit ▸ Macros…: the app's macros, put together from choices and tried on this project.
   void _editMacros() => showMacrosDialog(context, settings, controller);
 
-  /// ⌃1–9: the macro at [index] of the list, in the Instruments tab's lanes.
+  /// ⌃1–9: the macro at [index] of the list, where it can be run ([macroAction]).
   void _runMacro(int index) {
-    if (index < settings.macros.length && controller.tab == BottomTab.instruments && !controller.lanes.scripting && controller.curation != null) {
-      unawaited(playMacro(context, controller, settings.macros[index]));
-    }
+    if (index < settings.macros.length) macroAction(context, controller, settings.macros[index])?.call();
   }
 
   void _projectSettings() =>

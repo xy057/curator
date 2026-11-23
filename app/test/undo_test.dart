@@ -198,6 +198,58 @@ void main() {
 
       await sameAsAutoCurate();
 
+      // Align as a macro (the second example: hear, match, snap anchors) leaves the anchors the button does, with the
+      // project snapping them and not, as one Undo step; `align` is the three in one. The recording: the demo as it
+      // would be heard played evenly, two quarters a second after a second of silence, a click 20 ms after every bar.
+      Future<void> sameAsAlign() async {
+        await open();
+        final align = LaneMacro.examples[1];
+        expect('${(await c.lanes.runMacroReady(align)).problems.first}', 'Step 1: There is no recording.');
+        final starts = c.score!.timeline.measureStarts;
+        const lead = 1.0, perQuarter = 0.5, rate = 2000.0, keys = BasicPitch.keys;
+        final length = lead + starts.last * perQuarter + 1, frames = (length * AudioNotes.frameRate).floor() + 1;
+        final heard = Float32List(frames * AudioNotes.values);
+        for (final n in soundingNotes(c.score!.musicXML, starts)) {
+          final key = n.midi - BasicPitch.lowestKey;
+          if (key < 0 || key >= keys) continue;
+          final from = ((lead + n.start * perQuarter) * AudioNotes.frameRate).round(), to = ((lead + n.end * perQuarter) * AudioNotes.frameRate).round();
+          for (var f = from; f <= to && f < frames; f++) {
+            heard[f * AudioNotes.values + key] = 1;
+            heard[f * AudioNotes.values + 2 * keys] = 0.01;
+          }
+          if (!n.tied && from < frames) heard[from * AudioNotes.values + keys + key] = 1;
+        }
+        final samples = Float32List((length * rate).ceil());
+        for (final q in starts) {
+          final at = ((lead + q * perQuarter + 0.02) * rate).round();
+          for (var i = at; i < at + 60 && i < samples.length; i++) {
+            samples[i] = 0.8 * (i.isEven ? 1 : -1);
+          }
+        }
+        await c.debugAddTake(AudioTrack.forTesting(name: 'Played.flac', length: length, waveform: await Waveform.analyze(samples, rate), notes: heard));
+        Future<List<SyncAnchor>> after(Future<Object?> Function() run) async {
+          c.anchors.clear();
+          await run();
+          expect(c.anchors.aligning, isNull);
+          return c.sync!.anchors;
+        }
+
+        final found = <bool, List<SyncAnchor>>{};
+        for (final snap in [true, false]) {
+          c.anchors.snapToOnsets = snap;
+          final button = found[snap] = await after(c.anchors.align);
+          expect(button.length, greaterThan(1), reason: 'the score is heard');
+          expect(await after(() => c.lanes.runMacroReady(align)), button, reason: 'snapping $snap');
+          c.undo();
+          expect(c.sync!.anchors, isEmpty, reason: 'one step');
+          expect(await after(() => c.lanes.runScriptReady('align')), button, reason: 'align, snapping $snap');
+        }
+        expect(found[true], isNot(found[false]), reason: 'there are notes to snap to');
+        expect(c.lanes.runScript('hear').problems, hasLength(1), reason: 'not without waiting');
+      }
+
+      await sameAsAlign();
+
       // The app keeps them; a macro's own toolbar button follows it as the list changes, and goes with it.
       final settings = AppSettings.memory()..macros = [solo, asks.copyWith(icon: 'tidy')];
       expect([settings.macros.last.icon, LaneMacro.read(LaneMacro.write(settings.macros))], ['tidy', settings.macros]);

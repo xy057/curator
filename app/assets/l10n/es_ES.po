@@ -306,7 +306,7 @@ msgstr "Avanzado"
 msgid "Advanced Engraving"
 msgstr "Edición avanzada de la notación"
 
-#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/macros.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "Sincronizar"
 
@@ -6029,4 +6029,24 @@ msgstr ""
 
 #: lib/macros.dart
 msgid "Remove Lone Bars"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Hear the Recording"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Set Anchors As Heard"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Snap Anchors to Notes"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Auto-align"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Within"
 msgstr ""

@@ -306,7 +306,7 @@ msgstr "高级"
 msgid "Advanced Engraving"
 msgstr "高级刻谱"
 
-#: lib/audio_panel.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
+#: lib/audio_panel.dart lib/macros.dart lib/panel_bar.dart assets/extensions/captions/src/settings.lua
 msgid "Align"
 msgstr "对齐"
 
@@ -6032,3 +6032,23 @@ msgstr "放得下处重新显示"
 #: lib/macros.dart
 msgid "Remove Lone Bars"
 msgstr "移除孤立小节"
+
+#: lib/macros.dart
+msgid "Hear the Recording"
+msgstr "聆听录音"
+
+#: lib/macros.dart
+msgid "Set Anchors As Heard"
+msgstr "按听到的设置锚点"
+
+#: lib/macros.dart
+msgid "Snap Anchors to Notes"
+msgstr "锚点吸附到音符"
+
+#: lib/macros.dart
+msgid "Auto-align"
+msgstr "自动对齐"
+
+#: lib/macros.dart
+msgid "Within"
+msgstr "范围"

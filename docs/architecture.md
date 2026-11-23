@@ -284,7 +284,7 @@ a bar (`12`, `12.2`: where it first sounds) or a time (`1:10.5`, `1:02:03`), rea
 shortcuts would stop (focus falls to the route's scope, above them).
 
 **Align sets the anchors by ear** (the Audio tab's Align, first of the sync's tools: a filled button
-with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there; at once when a recording is added to
+with its name while the sync has no anchors, then an icon among the others; `SyncEditing.align`, one Undo step replacing the anchors there, its three steps a script's and a macro's too: see *The lanes can be written*; at once when a recording is added to
 a score with no anchors yet, unless Settings ▸ General ▸ Align added recordings is off). The recording is heard by
 Spotify's Basic Pitch (the ICASSP 2022 model, Apache 2.0; `app/assets/basic_pitch`, its weights written
 from the release's ONNX export by Tools/make_basic_pitch_weights.py): about 86 times a second, how likely
@@ -974,7 +974,7 @@ swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is 
 in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
 
 A macro is the same without writing (Edit ▸ Macros…, `macros.dart`): a few steps, each put together
-from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: seventeen of
+from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: twenty-one of
 the script's statements), to which lanes (`MacroLanes`: all, those selected, the others, those
 named), over which bars (`MacroRange`: the piece, bars written, the selected regions', from or until
 the playhead, the playhead's bar, asked for as it runs), and a number of bars or seconds. It has no
@@ -989,15 +989,18 @@ what the script finds (its own words). The lanes a macro was run on stay selecte
 Macros are the app's, not a project's (`AppSettings.macros`, JSON, what isn't a step this
 version knows left out), since a workflow is worth keeping for the next
 score; so a step names lanes by pattern (`Flute*`), never by id. The first nine are run with ⌃1
-to ⌃9 (`KeyCommand.runMacro`, fixed, in the Instruments tab's lanes), and each of those can have a
-button of its own on the editor's toolbar or the Instruments tab's (`BarItem.macro1` to `macro9`,
+to ⌃9 (`KeyCommand.runMacro`, fixed), and each of those can have a
+button of its own on the editor's toolbar, the Instruments tab's or the Audio tab's (`BarItem.macro1` to `macro9`,
 `BarItem.macro`: a toolbar's items are an enum saved by name, so a button is its macro's place in
 the list, as its key is), under the macro's icon (`LaneMacro.icon`, one of the app's by its name:
 `macroIcon`, chosen from `macroIcons`) with its name and key as the tip; it is there only while
-there is such a macro, offered in Customize Toolbar… likewise, and greyed out while the lanes aren't
-showing (`macroAction`). A toolbar draws them wherever it is from `MacrosScope` (over the window,
+there is such a macro, offered in Customize Toolbar… likewise, and greyed out while what its steps
+are done to isn't showing (`macroAction`: steps for lanes run in the Instruments tab, steps for the
+recording's anchors in the Audio tab, a macro of both in either; its key and its row of the menu
+go by the same). A toolbar draws them wherever it is from `MacrosScope` (over the window,
 as `KeyMapScope` is: `BarItemIcon`, `barItemTitle`), so the controller keeps no list of them. The
-pin beside a macro's name puts its button on the Instruments bar (`ToolbarLayout.added`: before
+pin beside a macro's name puts its button on the Instruments bar, the Audio bar for one that is
+all the recording's (`ToolbarLayout.added`: before
 the bar's end, a rule setting the macros apart) or takes it off every toolbar (`without`), and as
 the list changes in the dialog the buttons follow their macros (`macrosMoved`: one moved up takes
 its button with it, one deleted takes it away). A menu of all of them is an item too
@@ -1027,6 +1030,26 @@ its own (`bridge rests` would fill a blank lane's gaps too); where Auto-Curate i
 test runs the macro, and `follow` with `fit`, against the button (every lane, one lane,
 condensed pairs, a smaller frame, a piano's staves in lanes of their own, one of them with the
 flute), and the engine's holds the three steps, each with something to do, to `curatedToFit`.
+
+The second is the Audio tab's Align, the same way: Hear the Recording (`hear`), Set Anchors As
+Heard (`match`) and Snap Anchors to Notes (`snap anchors within 0.05`), which are what
+`SyncEditing.align` is made of (`_hear`: the recording's notes and the repeats it is played
+through; `_match`: the anchors, on an isolate; `_snapped`), so they leave its anchors. Hearing
+takes a while, and a script runs at once or not at all, so a script that hears (`LaneScript.waits`)
+is made ready first (`LaneScript.ready`: the host's `hear` and `match`, once whatever asks, with
+nothing changed; what can't be had is a problem at its line) and then run with what that got
+(`ScriptReady`), `match` putting the anchors in place and `snap anchors` moving them as it does
+(`LaneScriptHost.setAnchors`, `snapAnchors`). The controller does both in one call
+(`LaneEditing.runScriptReady`, `runMacroReady`, which the Script view and every way of running a
+macro use; `runScript` itself never waits), under Align's own progress and guard
+(`SyncEditing._whileAligning`: one at a time, `aligning` for the Audio bar's button), and runs
+nothing where the recording or the project was changed for another meanwhile. `align` is the
+three in one, snapping where the Audio tab's Snap to Notes is on, as the button does; a macro's
+Snap step is written only then too (`MacroContext.snaps`: a comment in its line's place keeps the
+steps' numbers), which is how the example stays the button whichever way the project is set. A
+step for the recording names no lanes (`MacroAction.onLanes`). A test runs the macro and `align`
+against the button, snapping and not, on a recording made for it (`AudioTrack.forTesting`'s
+`notes`: what it is heard as).
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the
@@ -2379,8 +2402,8 @@ on Windows wherever the registry says that folder now is): it never replaces the
 - **A statement of the script**: a `ScriptStatement` in `LaneScriptApi.statements` (its syntax, what
   it does, an example that reads), its words in `keywords`, what it does in `_Parser.statement`
   (`lane_script.dart`) as one of the tab's own edits, never a new one; then `make script-docs`.
-- **A step of a macro**: a `MacroAction` (whether it takes bars, a number of what, and the number it
-  comes with), the line it
+- **A step of a macro**: a `MacroAction` (whether it takes bars, a number of what, the number it
+  comes with, and whether it is done to lanes), the line it
   writes in `LaneMacro._line` (a statement the script has: a macro does nothing a script can't), its
   name in `macroActionLabel` (`macros.dart`). What a step can be done to or over is a `MacroLanes`
   or a `MacroRange`, said to the script by `MacroContext`.
