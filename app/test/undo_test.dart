@@ -151,20 +151,28 @@ void main() {
       const asks = LaneMacro(name: 'Show', steps: [MacroStep(MacroAction.show, lanes: MacroLanes.all, range: MacroRange.ask)]);
       expect([for (final p in c.lanes.checkMacro(asks, asked: '99')) '$p'], ['Step 1: There is no bar 99.']);
       expect([asks.asks, c.lanes.checkMacro(asks, asked: '1-2')], [true, isEmpty]);
-      // Auto-curate as a macro (the first example: follow, then fit) leaves what the button does, cut to the frame alike:
-      // every lane, one lane, a condensed pair's, in a smaller frame; and a piano's staves, each in a lane of its own.
+      // Auto-curate as a macro (the first example: follow, then fitting's three steps, thin, refill, remove lone) leaves
+      // what the button does, cut to the frame alike: every lane, one lane, a condensed pair's, in a smaller frame; and a
+      // piano's staves, each in a lane of its own, one of them with the flute. `fit` is the three steps in one.
       Future<void> sameAsAutoCurate() async {
         const whole = MacroLanes.all, chosen = MacroLanes.selected;
         final auto = LaneMacro.examples.first;
+        expect([for (final s in auto.steps) s.action], [MacroAction.follow, MacroAction.thin, MacroAction.refill, MacroAction.lone]);
         Map<String, List<Region>> now() => {...c.curation!.lanes, for (final row in c.laneRows) row.id: c.curation!.lane(row.id)};
-        void same(String what, {String? lane}) {
+        void same(String what, {String? lane, List<String>? lanes}) {
+          lanes ??= lane == null ? null : [lane];
           c.lanes.runScript('show all');
-          c.lanes.autoCurate(lane == null ? null : [lane]);
+          c.lanes.autoCurate(lanes);
           final button = now();
           c.lanes.runScript('show all');
-          if (lane != null) c.lanes.selectLane(lane);
-          final ran = c.lanes.runMacro(auto.copyWith(steps: [for (final s in auto.steps) s.copyWith(lanes: lane == null ? whole : chosen)]));
+          for (final id in lanes ?? const <String>[]) {
+            c.lanes.selectLane(id, add: id != lanes!.first);
+          }
+          final ran = c.lanes.runMacro(auto.copyWith(steps: [for (final s in auto.steps) s.copyWith(lanes: lanes == null ? whole : chosen)]));
           expect([ran.problems, now()], [isEmpty, button], reason: what);
+          if (lanes != null) return;
+          c.lanes.runScript('show all');
+          expect([c.lanes.runScript('follow all bridge 1\nfit').problems, now()], [isEmpty, button], reason: '$what, fit whole');
         }
 
         expect(c.overflowing, isEmpty, reason: 'the demo is curated to fit');
@@ -185,6 +193,7 @@ void main() {
         c.videoLayout = const Size(300, 120);
         same('a split piano');
         same('a staff’s lane', lane: c.laneRows.last.id);
+        same('a staff’s lane and the flute', lanes: [c.laneRows.first.id, c.laneRows.last.id]);
       }
 
       await sameAsAutoCurate();

@@ -495,12 +495,19 @@ void main() {
       expect([lanes.lane('fl'), lanes.lane('fl2')], const [[Region(0, 16), Region(24, 32)], [Region(0, 4)]]);
       expect([run('follow "Flute 1"'), lanes.lane('fl')], [isEmpty, const [Region(0, 8), Region(12, 16), Region(24, 32)]]);
       expect([run('clear "Flute 1"\nfollow "Flute 1" 2-4'), lanes.lane('fl')], [isEmpty, const [Region(4, 8), Region(12, 16)]]);
-      host.hides = {'fl': const [Region(12, 16)]};
-      expect([run('fit "Flute*" phrase 2'), lanes.lane('fl'), host.fitted?.$1, host.fitted?.$2], [isEmpty, const [Region(4, 8)], ['fl', 'fl2'], 2]);
-      expect(LaneMacro.examples.first.script(const MacroContext()).script.split('\n'), ['follow all bridge 1', 'fit all phrase 4']);
+      // Fitting is three steps, each a statement (the host's to find: here a thin hides bar 4, a refill shows it again, a
+      // lone bar goes), and `fit` is the three, in their order.
+      host.fits = {FitStep.thin: {'fl': const [Region(12, 16)]}, FitStep.refill: {'fl': const [Region(12, 14)]}, FitStep.lone: {'fl': const [Region(4, 8)]}};
+      expect([run('thin "Flute*" phrase 2'), lanes.lane('fl'), host.fitted], [isEmpty, const [Region(4, 8)], ['thin fl,fl2 2']]);
+      expect([run('refill "Flute 1"'), lanes.lane('fl'), host.fitted.last], [isEmpty, const [Region(4, 8), Region(12, 14)], 'refill fl 4']);
+      expect([run('remove lone in "Flute 1"'), lanes.lane('fl'), host.fitted.last], [isEmpty, const [Region(12, 14)], 'lone fl 4']);
+      host.fitted.clear();
+      expect([run('follow "Flute 1" 2-4\nfit "Flute 1" phrase 3'), lanes.lane('fl'), host.fitted], [isEmpty, const [Region(12, 14)], ['thin fl 3', 'refill fl 3', 'lone fl 3']]);
+      expect(LaneMacro.examples.first.script(const MacroContext()).script.split('\n'),
+          ['follow all bridge 1', 'thin all phrase 4', 'refill all', 'remove lone in all']);
       host.follows = false;
-      expect([for (final p in LaneScript.parse('follow\nfit').check(host)) '$p'],
-          ['Line 1: This score’s lanes can’t be auto-curated.', 'Line 2: This score’s lanes can’t be auto-curated.']);
+      expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone').check(host)) '$p'],
+          [for (var line = 1; line <= 5; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);
       host.follows = true;
       // Kept as JSON; what isn't a step, or a macro, is left out.
       expect(LaneMacro.read(LaneMacro.write([macro.copyWith(icon: 'tidy'), ...LaneMacro.examples])), [macro.copyWith(icon: 'tidy'), ...LaneMacro.examples]);
@@ -620,13 +627,22 @@ void main() {
       expect(before, containsAll(now), reason: 'only hides (bar ${m + 1})');
       if (before.isNotEmpty) expect(now, isNotEmpty, reason: 'someone left (bar ${m + 1})');
     }
-    // In its two halves (what a script's follow and fit do, and a macro of them): the lanes as they play, then what to
-    // hide of them for the frame, leaves the same.
-    final hidden = scene.hiddenToFit(base, wide, partIds: ids, salience: score.salience);
-    expect(hidden.values.any((stretches) => stretches.isNotEmpty), isTrue);
-    final halves = Curation(ids)
-      ..setLanes({for (final id in ids) id: hidden[id]!.fold(playing[id]!, (regions, r) => Curation.painted(regions, r, shown: false))});
-    expect(halves.lanes, (Curation(ids)..setLanes(fitted)).lanes);
+    // A step at a time (what a script's follow, thin, refill and remove lone do, and a macro of them): the lanes as they
+    // play, then each step's stretches taken off or drawn on, what was hidden kept between them, leaves the same; and
+    // each of the three has something to do here.
+    final stepped = Curation(ids)..setLanes(playing);
+    final cuts = FrameCuts();
+    for (final step in FitStep.values) {
+      final changed = scene.fitStep(stepped, wide, step, lanes: stepped.lanes, salience: score.salience, cuts: cuts);
+      expect(changed.values.any((stretches) => stretches.isNotEmpty), isTrue, reason: '$step');
+      stepped.setLanes({
+        for (final id in ids) id: changed[id]!.fold(stepped.lane(id), (regions, r) => Curation.painted(regions, r, shown: step == FitStep.refill)),
+      });
+      expect(scene.overflowing(stepped, wide), isEmpty, reason: 'fits from the thinning on ($step)');
+    }
+    expect(stepped.lanes, (Curation(ids)..setLanes(fitted)).lanes);
+    // (A refill by itself, with nothing hidden before it, shows nothing.)
+    expect(scene.fitStep(stepped, wide, FitStep.refill, lanes: stepped.lanes, salience: score.salience, cuts: FrameCuts()).values.expand((s) => s), isEmpty);
     // Upright there is room for the opening's few: none goes.
     final tallFit = scene.curatedToFit(base, upright, partIds: ids, activeMeasures: score.metadata.activeMeasures, salience: score.salience);
     for (var m = 0; m < 5; m++) {
@@ -646,20 +662,20 @@ class _ScriptLanes extends LaneScriptHost {
   final split = <String>{}, autoCurated = <String>[];
   bool auto = true, follows = true;
 
-  /// The bars each instrument plays in (none: it plays nothing of its own), what a fit is to
-  /// hide, and what the last one was asked.
+  /// The bars each instrument plays in (none: it plays nothing of its own), what each step of
+  /// a fit is to change, and what was asked of them.
   Map<String, List<bool>> plays = {};
-  Map<String, List<Region>> hides = {};
-  (List<String>, int)? fitted;
+  Map<FitStep, Map<String, List<Region>>> fits = {};
+  final fitted = <String>[];
 
   @override
   bool get curates => follows;
   @override
   List<bool>? playing(String id) => plays[Curation.staffOfLane(id)?.$1 ?? id];
   @override
-  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) {
-    fitted = (ids, phrase);
-    return hides;
+  Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
+    fitted.add('${step.name} ${ids.join(',')} $phrase');
+    return fits[step] ?? const {};
   }
 
   @override

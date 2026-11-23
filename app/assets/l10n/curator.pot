@@ -5995,3 +5995,15 @@ msgstr ""
 #: lib/macros.dart
 msgid "Phrases of"
 msgstr ""
+
+#: lib/macros.dart
+msgid "Hide Least Important"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Show Again Where It Fits"
+msgstr ""
+
+#: lib/macros.dart
+msgid "Remove Lone Bars"
+msgstr ""

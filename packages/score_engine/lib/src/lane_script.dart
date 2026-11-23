@@ -64,16 +64,18 @@ abstract class LaneScriptHost {
   /// Auto-Curate on the lanes [ids]; false when this score's lanes can't be.
   bool autoCurate(List<String> ids);
 
-  /// Whether this score's lanes can be filled from its notes (`follow`, `fit`).
+  /// Whether this score's lanes can be filled from its notes (`follow`, `fit` and its steps).
   bool get curates => true;
 
   /// The bars the lane [id] plays in (its instrument's, either player's of a pair), a bar
   /// each; null for a lane that plays nothing of its own, which stays as it is.
   List<bool>? playing(String id) => null;
 
-  /// What to hide of the lanes [ids], as they are now, so the staves don't run off the frame:
-  /// each one's stretches, found in phrases of [phrase] bars. None where there is no frame.
-  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) => const {};
+  /// One [step] of fitting the lanes [ids], as they are now, to the frame: each one's
+  /// stretches to hide ([FitStep.thin], in phrases of [phrase] bars; [FitStep.lone]) or to
+  /// show again ([FitStep.refill]). What the steps before it hid is the host's to keep, for
+  /// as long as it is a run's. None where there is no frame.
+  Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) => const {};
 
   /// Splits the lane of [instrument] into a lane a staff, or joins them.
   void setSplit(String instrument, bool on);
@@ -463,6 +465,22 @@ class _Run {
     return Curation.painted(differs ? Curation.painted(regions, stretch, shown: false) : regions, stretch);
   }
 
+  /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off,
+  /// what a refill shows again drawn on.
+  void fit(List<ScriptLane> lanes, List<FitStep> steps, {int phrase = 4}) {
+    if (!host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+    if (dry) return;
+    for (final step in steps) {
+      final changed = host.fit([for (final lane in lanes) lane.id], step, phrase: phrase);
+      edit([for (final lane in lanes) if (changed[lane.id]?.isNotEmpty ?? false) lane], (lane, regions) {
+        for (final r in changed[lane.id]!) {
+          regions = Curation.painted(regions, r, shown: step == FitStep.refill);
+        }
+        return regions;
+      });
+    }
+  }
+
   void split(List<ScriptLane> lanes, {required bool on, required bool strict}) {
     final instruments = <String>[];
     for (final lane in lanes) {
@@ -766,23 +784,18 @@ class _Parser {
             return regions;
           });
         };
-      case 'fit':
+      case 'fit' || 'thin' || 'refill':
+        // Fitting the frame, whole (`fit`) or a step of it.
+        final steps = switch (first.text) { 'thin' => const [FitStep.thin], 'refill' => const [FitStep.refill], _ => FitStep.values };
         final lanes = _atTerm ? _lanes() : null;
-        final phrase = _take('phrase') ? _whole('A number of bars') : 4;
+        final phrase = steps.contains(FitStep.thin) && _take('phrase') ? _whole('A number of bars') : 4;
         if (phrase < 1) throw const _Fail('A phrase is a bar at least.');
         _end();
-        return (run) {
-          final found = lanes == null ? run.lanes : run.resolve(lanes);
-          if (!run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
-          if (run.dry) return;
-          final hide = run.host.fit([for (final lane in found) lane.id], phrase: phrase);
-          run.edit([for (final lane in found) if (hide[lane.id]?.isNotEmpty ?? false) lane], (lane, regions) {
-            for (final r in hide[lane.id]!) {
-              regions = Curation.painted(regions, r, shown: false);
-            }
-            return regions;
-          });
-        };
+        return (run) => run.fit(lanes == null ? run.lanes : run.resolve(lanes), steps, phrase: phrase);
+      case 'remove' when _take('lone'):
+        final lanes = _take('in') ? _lanes() : null;
+        _end();
+        return (run) => run.fit(lanes == null ? run.lanes : run.resolve(lanes), const [FitStep.lone]);
       case 'bridge' || 'remove':
         final bridge = first.text == 'bridge';
         _need(bridge ? 'rests' : 'short');

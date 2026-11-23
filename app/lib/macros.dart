@@ -29,6 +29,9 @@ String macroActionLabel(MacroAction action) => switch (action) {
       MacroAction.auto => 'Auto-curate'.tr,
       MacroAction.follow => 'Show Where Playing'.tr,
       MacroAction.fit => 'Fit to Frame'.tr,
+      MacroAction.thin => 'Hide Least Important'.tr,
+      MacroAction.refill => 'Show Again Where It Fits'.tr,
+      MacroAction.lone => 'Remove Lone Bars'.tr,
       MacroAction.bridge => 'Bridge Rests'.tr,
       MacroAction.removeShort => 'Remove Short Regions'.tr,
       MacroAction.transition => 'Set Transition'.tr,
@@ -617,7 +620,7 @@ class _StepCardState extends State<_StepCard> {
         ),
         Expanded(
           child: Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            _choice(170, step.action, MacroAction.values, macroActionLabel, (action) => widget.onChanged(step.copyWith(action: action))),
+            _choice(214, step.action, MacroAction.values, macroActionLabel, (action) => widget.onChanged(step.copyWith(action: action))),
             _choice(150, step.lanes, MacroLanes.values, _lanesLabel, (lanes) => widget.onChanged(step.copyWith(lanes: lanes))),
             if (step.lanes == MacroLanes.named)
               SizedBox(
@@ -633,7 +636,7 @@ class _StepCardState extends State<_StepCard> {
             if (unit != null)
               Row(mainAxisSize: MainAxisSize.min, children: [
                 // What the number is of, where the step's name doesn't say.
-                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit => 'Phrases of'.tr, _ => null } case final String of) ...[
+                if (switch (step.action) { MacroAction.follow => 'Bridge Rests'.tr, MacroAction.fit || MacroAction.thin => 'Phrases of'.tr, _ => null } case final String of) ...[
                   Text(of, style: TextStyle(fontSize: 13, color: colors.textMuted)),
                   const SizedBox(width: 6),
                 ],

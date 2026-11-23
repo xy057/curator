@@ -207,17 +207,47 @@ Map<String, List<Region>> _lanesOf(Map<String, List<bool>> shown, List<double> m
         ],
     };
 
+/// What fitting the frame is made of ([fittedBars]), in the order it is done.
+enum FitStep {
+  /// Where notation runs off the frame, the staff that matters least is hidden, a phrase at a
+  /// time, until it fits.
+  thin,
+
+  /// What was hidden is tried back, what matters most first, and kept where the frame holds it.
+  refill,
+
+  /// A staff left for a single bar between bars it was hidden for goes too.
+  lone,
+}
+
+/// What fitting has hidden ([fittedBars]): each part's bars, and each cut as it was made. One
+/// kept from a step to the next lets them be done apart (a script's `thin`, `refill`,
+/// `remove lone`) and come to what they do together.
+class FrameCuts {
+  final _bars = <String, List<bool>>{};
+  final _made = <({String id, List<int> bars, double weight})>[];
+
+  /// [id]'s bars hidden, a bar each of [shown]'s: one shown again since, by whatever did, is
+  /// no cut any more.
+  List<bool> _of(String id, List<bool> shown) =>
+      _bars[id] = [for (final (m, on) in shown.indexed) !on && (_bars[id]?.elementAtOrNull(m) ?? false)];
+
+  bool _cut(String id, int m) => _bars[id]?.elementAtOrNull(m) ?? false;
+}
+
 /// The bars each part of [shown] is still shown in (a bar each, as [shown] has them: where it
 /// is shown now) once notation no longer runs off the frame ([overflowing], asked of [others]'
-/// lanes kept as they are and these): in each [phrase] bars that overflow, the
-/// staff that matters least there ([salience]; a doubling, while what it doubles is shown,
-/// counts a quarter, and what plays every note of one hidden counts as much as it does) is
-/// hidden, and the frame asked again, until it fits, nothing more can go (one staff left), or
-/// [rounds] have been tried. Then, once it fits, each staff hidden is tried back (the one
-/// that matters most first, its phrase else bar by bar, [refills] tries at most), kept where
-/// the frame still holds it: cut
-/// while the segments around were fuller, there may be room for it now. A staff left for a
-/// single bar between bars it was hidden for goes too. Only ever hides: a bar not shown stays so.
+/// lanes kept as they are and these), in three [steps]. [FitStep.thin]: in each [phrase] bars
+/// that overflow, the staff that matters least there ([salience]; a doubling, while what it
+/// doubles is shown, counts a quarter, and what plays every note of one hidden counts as much
+/// as it does) is hidden, and the frame asked again, until it fits, nothing more can go (one
+/// staff left), or [rounds] have been tried. [FitStep.refill]: once it fits, each staff hidden
+/// is tried back (the one that matters most first, its phrase else bar by bar, [refills] tries
+/// at most), kept where the frame still holds it: cut while the segments around were fuller,
+/// there may be room for it now. [FitStep.lone]: a staff left for a single bar between bars
+/// it was hidden for goes too. All three only ever hide: a bar not shown stays so. One step
+/// by itself goes by what those before it hid ([cuts], kept between them), and a refill shows
+/// those bars again.
 Map<String, List<bool>> fittedBars({
   required Map<String, List<bool>> shown,
   required List<double> measureStarts,
@@ -228,11 +258,13 @@ Map<String, List<bool>> fittedBars({
   int phrase = 4,
   int rounds = 32,
   int refills = 96,
+  Set<FitStep> steps = const {FitStep.thin, FitStep.refill, FitStep.lone},
+  FrameCuts? cuts,
 }) {
   final bars = math.max(0, measureStarts.length - 1);
-  final ids = shown.keys.toList();
+  final ids = shown.keys.toList(), memory = cuts ?? FrameCuts();
   shown = {for (final id in ids) id: [for (var m = 0; m < bars; m++) shown[id]!.elementAtOrNull(m) ?? false]};
-  final cut = {for (final id in ids) id: List.filled(bars, false)};
+  final cut = {for (final id in ids) id: memory._of(id, shown[id]!)};
   // The lanes kept as they are, bar by bar (shown at the bar's middle).
   final kept = {
     for (final MapEntry(:key, :value) in others.entries)
@@ -247,8 +279,8 @@ Map<String, List<bool>> fittedBars({
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
-    for (final x in ids) {
-      if (cut[x]![m] && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
+    for (final x in memory._bars.keys) {
+      if (memory._cut(x, m) && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
         s = math.max(s, salience.scores[x]![m]);
       }
     }
@@ -259,9 +291,10 @@ Map<String, List<bool>> fittedBars({
   int barAt(double seconds) =>
       segmentAt(measureStarts.length, timeline.quarterAtSeconds(seconds), (i) => measureStarts[i]).clamp(0, math.max(0, bars - 1));
 
-  final cuts = <({String id, List<int> bars, double weight})>[];
-  var fits = bars == 0;
-  for (var round = 0; round < rounds && bars > 0; round++) {
+  final made = memory._made;
+  // (Known once the thinning has seen it fit; else asked before a refill.)
+  bool? fits = bars == 0 ? true : null;
+  for (var round = 0; round < rounds && bars > 0 && steps.contains(FitStep.thin); round++) {
     final off = overflowing({...others, ...lanes()});
     if (off.isEmpty) {
       fits = true;
@@ -300,16 +333,14 @@ Map<String, List<bool>> fittedBars({
         shown[least]![m] = false;
         cut[least]![m] = true;
       }
-      cuts.add((id: least!, bars: hidden, weight: lowest));
+      made.add((id: least!, bars: hidden, weight: lowest));
       changed = true;
     }
     if (!changed) break;
   }
-  if (!fits && cuts.isNotEmpty) fits = overflowing({...others, ...lanes()}).isEmpty;
-
   // Cut while the segments around were fuller: back, the heaviest first, where it still fits.
-  if (fits) {
-    cuts.sort((a, b) => b.weight.compareTo(a.weight));
+  if (steps.contains(FitStep.refill) && made.any((c) => cut.containsKey(c.id)) && (fits ??= overflowing({...others, ...lanes()}).isEmpty)) {
+    made.sort((a, b) => b.weight.compareTo(a.weight));
     var tries = 0;
     bool tryBack(String id, List<int> bars) {
       final back = [for (final m in bars) if (cut[id]![m]) m];
@@ -328,7 +359,8 @@ Map<String, List<bool>> fittedBars({
     }
 
     // The whole phrase, else bar by bar.
-    for (final c in cuts) {
+    for (final c in made) {
+      if (!cut.containsKey(c.id)) continue; // another call's lane
       if (!tryBack(c.id, c.bars) && c.bars.length > 1) {
         for (final m in c.bars) {
           tryBack(c.id, [m]);
@@ -338,7 +370,7 @@ Map<String, List<bool>> fittedBars({
   }
 
   // No staff left showing for one bar between bars it was cut from.
-  for (final id in ids) {
+  for (final id in steps.contains(FitStep.lone) ? ids : const <String>[]) {
     final mask = shown[id]!, gone = cut[id]!;
     for (var m = 0; m < bars; m++) {
       final alone = mask[m] && (m == 0 || !mask[m - 1]) && (m + 1 == bars || !mask[m + 1]);

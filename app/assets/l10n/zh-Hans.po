@@ -6020,3 +6020,15 @@ msgstr "适应画面"
 #: lib/macros.dart
 msgid "Phrases of"
 msgstr "乐句长度"
+
+#: lib/macros.dart
+msgid "Hide Least Important"
+msgstr "隐藏最次要的"
+
+#: lib/macros.dart
+msgid "Show Again Where It Fits"
+msgstr "放得下处重新显示"
+
+#: lib/macros.dart
+msgid "Remove Lone Bars"
+msgstr "移除孤立小节"

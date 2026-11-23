@@ -6020,3 +6020,15 @@ msgstr "符合畫面"
 #: lib/macros.dart
 msgid "Phrases of"
 msgstr "樂句長度"
+
+#: lib/macros.dart
+msgid "Hide Least Important"
+msgstr "隱藏最次要的"
+
+#: lib/macros.dart
+msgid "Show Again Where It Fits"
+msgstr "放得下處重新顯示"
+
+#: lib/macros.dart
+msgid "Remove Lone Bars"
+msgstr "移除孤立小節"

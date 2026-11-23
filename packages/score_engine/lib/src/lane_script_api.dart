@@ -18,7 +18,7 @@ abstract final class LaneScriptApi {
   static const keywords = {
     'show', 'hide', 'only', 'clear', 'auto', 'bridge', 'rests', 'remove', 'short', 'in', 'copy', 'to', 'split', 'join', 'move', 'top', 'bottom', //
     'before', 'after', 'restore', 'order', 'transition', 'out', 'default', 'without', 'staff', 'staves', 'let', 'all', 'except', 'bar', 'bars', //
-    'from', 'until', 'start', 'end', 'mark', 'follow', 'fit', 'phrase',
+    'from', 'until', 'start', 'end', 'mark', 'follow', 'fit', 'phrase', 'thin', 'refill', 'lone',
   };
 
   static const statements = <ScriptStatement>[
@@ -36,9 +36,19 @@ abstract final class LaneScriptApi {
             '(without one, throughout). `bridge 1` keeps it through a rest of up to that many bars between two runs. A lane that plays nothing stays as it is.',
         'follow "Violin*" bridge 1'),
     ScriptStatement('fit', 'fit [<lanes>] [phrase <bars>]',
-        'Auto-Curate’s second half: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, '
-            'until they fit; the other lanes stay as they are. `follow all bridge 1` and then `fit` is what `auto` does.',
+        'Auto-Curate’s second half: hides of the lanes (every lane without any) what the frame has no room for; the other lanes stay as they are. '
+            'It is `thin`, `refill` and `remove lone`, one after another. `follow all bridge 1` and then `fit` is what `auto` does.',
         'fit'),
+    ScriptStatement('thin', 'thin [<lanes>] [phrase <bars>]',
+        'The first step of `fit`: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, '
+            'until they fit. What it hides is remembered until the script ends, for `refill` and `remove lone`.',
+        'thin phrase 8'),
+    ScriptStatement('refill', 'refill [<lanes>]',
+        'The second step of `fit`: shows again what `thin` hid wherever the frame holds it now, what matters most first, a phrase and else a bar at a time. '
+            'Nothing where the staves still run off.',
+        'refill'),
+    ScriptStatement('remove', 'remove lone [in <lanes>]',
+        'The third step of `fit`: a lane left showing for a single bar, next to bars `thin` hid of it, is hidden there too.', 'remove lone'),
     ScriptStatement('bridge', 'bridge rests <bars> [in <lanes>]', 'Tidy’s Bridge Rests: joins regions with at most that many bars between them.', 'bridge rests 2'),
     ScriptStatement('remove', 'remove short <bars> [in <lanes>]', 'Tidy’s Remove Regions Shorter Than: takes out regions shorter than that many bars.', 'remove short 1 in "Timpani"'),
     ScriptStatement('copy', 'copy <lane> to <lanes>', 'Copy Lane To: the lanes get that lane’s regions in place of their own.', 'copy "Violin I" to "Violin II", "Viola"'),

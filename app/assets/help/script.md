@@ -56,8 +56,11 @@ under an icon you give it: the pin beside its name puts it on the Instruments ba
 Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
 a script's is.
 
-The first example is Auto-Curate itself, in two steps to change: Show Where Playing (`follow`:
-each lane where its part plays, short rests bridged), then Fit to Frame (`fit`: what runs off
-the video's frame hidden, the staff that matters least in each phrase first). As they come they
-do what the button does; show only the strings first, bridge longer rests, or fit in phrases of
-eight bars, and it is yours.
+The first example is Auto-Curate itself, a step for each thing it does: Show Where Playing
+(`follow`: each lane where its part plays, short rests bridged), Hide Least Important (`thin`:
+where the staves run off the video's frame, the one that matters least in each phrase hidden,
+until they fit), Show Again Where It Fits (`refill`: what was hidden tried back, what matters
+most first) and Remove Lone Bars (`remove lone`: a staff left for a single bar goes too). As
+they come they do what the button does; show only the strings first, bridge longer rests, thin
+in phrases of eight bars or leave a step out, and it is yours. Fit to Frame (`fit`) is the last
+three as one step.

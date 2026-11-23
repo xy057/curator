@@ -614,7 +614,8 @@ class _ScriptHost extends LaneScriptHost {
     return true;
   }
 
-  // Auto-Curate in its two halves (`follow`, `fit`), from what [LaneEditing.autoCurate] is made of.
+  // Auto-Curate in its halves (`follow`, `fit`) and the second's steps (`thin`, `refill`, `remove lone`), from what
+  // [LaneEditing.autoCurate] is made of.
 
   late final _activity = _editor.lanes._activity(_editor._score!);
 
@@ -625,13 +626,21 @@ class _ScriptHost extends LaneScriptHost {
   @override
   List<bool>? playing(String id) => _editor.isBlankLane(id) ? null : _activity.active[_editor.instrumentOfLane(id)] ?? const [];
 
+  /// What this run's fitting has hidden, from a step to the next.
+  final _cuts = FrameCuts();
+
+  /// (An instrument is fitted as its lanes asked for have it, a staff's lane as its instrument, as Auto-Curate does.)
   @override
-  Map<String, List<Region>> fit(List<String> ids, {required int phrase}) {
+  Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
     final scene = _editor._scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
     if (scene == null || lanes.isEmpty) return const {};
-    final hidden = scene.hiddenToFit(curation, _editor._videoLayout,
-        partIds: {for (final id in lanes) _editor.instrumentOfLane(id)}, salience: _editor._score!.salience.condensed(_activity.pairs), phrase: phrase);
-    return {for (final id in lanes) id: hidden[_editor.instrumentOfLane(id)] ?? const []};
+    final asked = <String, List<Region>>{};
+    for (final id in lanes) {
+      asked.update(_editor.instrumentOfLane(id), (regions) => curation.lane(id).fold(regions, Curation.painted), ifAbsent: () => curation.lane(id));
+    }
+    final changed = scene.fitStep(curation, _editor._videoLayout, step,
+        lanes: asked, salience: _editor._score!.salience.condensed(_activity.pairs), cuts: _cuts, phrase: phrase);
+    return {for (final id in lanes) id: changed[_editor.instrumentOfLane(id)] ?? const []};
   }
 
   @override

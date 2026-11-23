@@ -6020,3 +6020,15 @@ msgstr "フレームに収める"
 #: lib/macros.dart
 msgid "Phrases of"
 msgstr "フレーズの長さ"
+
+#: lib/macros.dart
+msgid "Hide Least Important"
+msgstr "重要度の低いものを隠す"
+
+#: lib/macros.dart
+msgid "Show Again Where It Fits"
+msgstr "収まる所は再表示"
+
+#: lib/macros.dart
+msgid "Remove Lone Bars"
+msgstr "孤立した小節を削除"

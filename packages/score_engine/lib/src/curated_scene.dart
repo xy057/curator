@@ -1179,19 +1179,21 @@ class CuratedScene {
     );
   }
 
-  /// What to hide of [partIds]' lanes, as [curation] has them now, so notation doesn't run off
-  /// a frame of [size]: for each, stretches of whole bars ([fittedBars], from the bars each is
-  /// shown in at its middle, in phrases of [phrase] bars); the other lanes stay as they are.
-  /// Auto-curation's second half by itself: on lanes just filled from where their parts play
-  /// it leaves what [curatedToFit] gives.
-  Map<String, List<Region>> hiddenToFit(Curation curation, ui.Size size,
-      {required Iterable<String> partIds, required BarSalience salience, int phrase = 4}) {
-    final ids = partIds.toSet(), starts = timeline.measureStarts, bars = math.max(0, starts.length - 1);
+  /// One [step] of fitting [lanes] (a part's each, as they are now) to a frame of [size]
+  /// ([fittedBars], from the bars each is shown in at its middle; thinning in phrases of
+  /// [phrase] bars): the stretches of whole bars it changes of each, hidden by
+  /// [FitStep.thin] and [FitStep.lone], shown again by [FitStep.refill]. [cuts] is what the
+  /// steps have hidden, kept from one to the next; the other lanes of [curation] stay as they
+  /// are. Auto-curation's second half, a step at a time: on lanes just filled from where their
+  /// parts play the three leave what [curatedToFit] gives.
+  Map<String, List<Region>> fitStep(Curation curation, ui.Size size, FitStep step,
+      {required Map<String, List<Region>> lanes, required BarSalience salience, required FrameCuts cuts, int phrase = 4}) {
+    final ids = lanes.keys.toSet(), starts = timeline.measureStarts, bars = math.max(0, starts.length - 1);
     final shown = {
       for (final id in ids)
         id: [
           for (var m = 0; m < bars; m++)
-            curation.lane(id).any((r) => r.start <= (starts[m] + starts[m + 1]) / 2 && r.end > (starts[m] + starts[m + 1]) / 2),
+            lanes[id]!.any((r) => r.start <= (starts[m] + starts[m + 1]) / 2 && r.end > (starts[m] + starts[m + 1]) / 2),
         ],
     };
     final trial = _trialOf(curation);
@@ -1202,12 +1204,14 @@ class CuratedScene {
       timeline: timeline,
       others: _othersOf(curation, ids),
       phrase: phrase,
+      steps: {step},
+      cuts: cuts,
       overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
     );
     return {
       for (final id in ids)
         id: [
-          for (final (first, end) in autoCurateMeasures([for (var m = 0; m < bars; m++) shown[id]![m] && !left[id]![m]], bridge: 0))
+          for (final (first, end) in autoCurateMeasures([for (var m = 0; m < bars; m++) shown[id]![m] != left[id]![m]], bridge: 0))
             Region(starts[first], starts[end]),
         ],
     };

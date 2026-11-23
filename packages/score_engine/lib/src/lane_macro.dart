@@ -36,8 +36,11 @@ enum MacroAction {
   follow(ranged: true, unit: MacroUnit.bars),
 
   /// Auto-Curate's second half: hidden where the staves run off the frame, in phrases of its
-  /// number of bars.
+  /// number of bars. The three after it are its steps, each by itself.
   fit(unit: MacroUnit.bars, ownStandard: 4),
+  thin(unit: MacroUnit.bars, ownStandard: 4),
+  refill,
+  lone,
   bridge(unit: MacroUnit.bars),
   removeShort(unit: MacroUnit.bars),
   transition(ranged: true, unit: MacroUnit.seconds),
@@ -232,10 +235,12 @@ class LaneMacro {
 
   /// A few to begin with, by their names in English.
   static const examples = [
-    // Auto-Curate, whole, as two steps: what `auto` does.
+    // Auto-Curate, whole, a step for each thing it does: what `auto` does.
     LaneMacro(name: 'Auto-curate', icon: 'autoCurate', steps: [
       MacroStep(MacroAction.follow, lanes: MacroLanes.all, number: 1),
-      MacroStep(MacroAction.fit, lanes: MacroLanes.all, number: 4),
+      MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4),
+      MacroStep(MacroAction.refill, lanes: MacroLanes.all),
+      MacroStep(MacroAction.lone, lanes: MacroLanes.all),
     ]),
     LaneMacro(name: 'Solo from Here', steps: [MacroStep(MacroAction.only, range: MacroRange.fromPlayhead)]),
     LaneMacro(name: 'Hide from Here', steps: [MacroStep(MacroAction.hide, range: MacroRange.fromPlayhead)]),
@@ -309,6 +314,9 @@ class LaneMacro {
         MacroAction.auto => ['auto', lanes],
         MacroAction.follow => ['follow', lanes, range, 'bridge', '$whole'],
         MacroAction.fit => ['fit', lanes, 'phrase', '${whole < 1 ? 1 : whole}'],
+        MacroAction.thin => ['thin', lanes, 'phrase', '${whole < 1 ? 1 : whole}'],
+        MacroAction.refill => ['refill', lanes],
+        MacroAction.lone => ['remove lone in', lanes],
         MacroAction.bridge => ['bridge rests', n, 'in', lanes],
         MacroAction.removeShort => ['remove short', n, 'in', lanes],
         MacroAction.transition => ['transition', lanes, range, 'in', n, 'out', n],

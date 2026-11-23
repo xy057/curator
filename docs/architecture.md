@@ -881,7 +881,12 @@ Condensed pairs are their first player's lane, louder of the two. Lanes not aske
 Its two halves are a script's statements too, so it can be put together as a macro and changed
 there (see *The lanes can be written*): `follow` is where each part plays, `fit` the cutting back
 (`fittedBars`, the cutting itself, from whatever is shown: `fittedCuratedLanes` gives it what
-plays, `CuratedScene.hiddenToFit` what the lanes show now, and says what to hide).
+plays). The cutting is three steps (`FitStep`: `thin`, hiding what matters least until it fits;
+`refill`, trying each cut back; `lone`, the single bars left), done together by Auto-Curate and
+one at a time by a script (`CuratedScene.fitStep`: from what the lanes show now, saying what
+the step hides or shows again), what was hidden kept between them (`FrameCuts`: each part's bars
+cut and the cuts as they were made, the heaviest tried back first; a bar shown again since by
+anything else is no cut any more).
 
 **A region carries its properties.** Besides its bounds a region has properties of its own:
 its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at
@@ -964,7 +969,7 @@ swipes are kept from the timeline's (`ViewportGestures.apart`). Help's guide is 
 in its file, so its paragraphs run on (`MarkdownText`'s `flow`; a release's notes keep their breaks).
 
 A macro is the same without writing (Edit ▸ Macros…, `macros.dart`): a few steps, each put together
-from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: fourteen of
+from choices, as Shortcuts' actions and Scratch's blocks are: what to do (`MacroAction`: seventeen of
 the script's statements), to which lanes (`MacroLanes`: all, those selected, the others, those
 named), over which bars (`MacroRange`: the piece, bars written, the selected regions', from or until
 the playhead, the playhead's bar, asked for as it runs), and a number of bars or seconds. It has no
@@ -997,20 +1002,26 @@ run with (`LaneEditing.checkMacro`). The dialog keeps what is changed as it is c
 tries the macro on the project under it. Its examples are `LaneMacro.examples`, named in the
 user's language when one is added.
 
-The first of them is Auto-Curate itself, as two steps: Show Where Playing (`follow all bridge 1`),
-then Fit to Frame (`fit all phrase 4`). They are what the button does, in its halves, and leave
-the same lanes: `follow` makes a lane where its part plays (`LaneScriptHost.playing`: the bars its
-instrument sounds in, a condensed pair's both players'; null for a lane that follows no part, a
-PDF score's blank one, which is left as it is), rests of so many bars bridged
-(`autoCurateMeasures`), the whole lane or only the bars given; `fit` hides what runs off the
-frame from the lanes as they are (`LaneScriptHost.fit`: the controller's asks
-`CuratedScene.hiddenToFit` for the video's frame with the score's salience, and gives each lane
-its instrument's stretches), in phrases of so many bars. Bridging is `follow`'s and not a step
-of its own (`bridge rests` would fill a blank lane's gaps too); where Auto-Curate isn't offered
-(`canAutoCurate`: a PDF score, unless the setting allows) `follow` says so (`curates`). `auto`
-stays the one statement for both. A test runs the two against the button (every lane, one lane,
-condensed pairs, a smaller frame, a piano's staves in lanes of their own) and the engine's holds
-`hiddenToFit` to `curatedToFit`.
+The first of them is Auto-Curate itself, a step for each thing it does: Show Where Playing
+(`follow all bridge 1`), then fitting the frame in its three steps, Hide Least Important
+(`thin all phrase 4`), Show Again Where It Fits (`refill all`) and Remove Lone Bars
+(`remove lone in all`). They are what the button does, taken apart, and leave the same lanes:
+`follow` makes a lane where its part plays (`LaneScriptHost.playing`: the bars its instrument
+sounds in, a condensed pair's both players'; null for a lane that follows no part, a PDF score's
+blank one, which is left as it is), rests of so many bars bridged (`autoCurateMeasures`), the
+whole lane or only the bars given; each of the three asks the host for one step of the fitting
+(`LaneScriptHost.fit` with a `FitStep`: the controller's asks `CuratedScene.fitStep` for the
+video's frame with the score's salience, an instrument as its lanes asked for show it, and
+gives each lane its instrument's stretches), which the script takes off the lanes or, a
+refill's, draws on. What the thinning hid is the host's to remember (`_ScriptHost._cuts`, a
+`FrameCuts`), and a host is a run's: `refill` and `remove lone` go by what was thinned earlier
+in the same script, and do nothing without. `fit` is the three in one statement (Fit to Frame,
+one step of a macro), as `auto` is `follow` and `fit`. Bridging is `follow`'s and not a step of
+its own (`bridge rests` would fill a blank lane's gaps too); where Auto-Curate isn't offered
+(`canAutoCurate`: a PDF score, unless the setting allows) each of them says so (`curates`). A
+test runs the macro, and `follow` with `fit`, against the button (every lane, one lane,
+condensed pairs, a smaller frame, a piano's staves in lanes of their own, one of them with the
+flute), and the engine's holds the three steps, each with something to do, to `curatedToFit`.
 
 **Editing the score's texts is deprecated and unreachable.** No menu, toolbar button,
 dialog or double-click changes a text any more; add nothing to it. The engine and the

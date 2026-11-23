@@ -57,11 +57,14 @@ under an icon you give it: the pin beside its name puts it on the Instruments ba
 Customize Toolbar… puts it anywhere, with a menu of all the macros. A run is one Undo step, as
 a script's is.
 
-The first example is Auto-Curate itself, in two steps to change: Show Where Playing (`follow`:
-each lane where its part plays, short rests bridged), then Fit to Frame (`fit`: what runs off
-the video's frame hidden, the staff that matters least in each phrase first). As they come they
-do what the button does; show only the strings first, bridge longer rests, or fit in phrases of
-eight bars, and it is yours.
+The first example is Auto-Curate itself, a step for each thing it does: Show Where Playing
+(`follow`: each lane where its part plays, short rests bridged), Hide Least Important (`thin`:
+where the staves run off the video's frame, the one that matters least in each phrase hidden,
+until they fit), Show Again Where It Fits (`refill`: what was hidden tried back, what matters
+most first) and Remove Lone Bars (`remove lone`: a staff left for a single bar goes too). As
+they come they do what the button does; show only the strings first, bridge longer rests, thin
+in phrases of eight bars or leave a step out, and it is yours. Fit to Frame (`fit`) is the last
+three as one step.
 
 ## Statements
 
@@ -101,10 +104,28 @@ auto "Violin*"
 follow "Violin*" bridge 1
 ```
 
-- `fit [<lanes>] [phrase <bars>]`: Auto-Curate’s second half: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, until they fit; the other lanes stay as they are. `follow all bridge 1` and then `fit` is what `auto` does.
+- `fit [<lanes>] [phrase <bars>]`: Auto-Curate’s second half: hides of the lanes (every lane without any) what the frame has no room for; the other lanes stay as they are. It is `thin`, `refill` and `remove lone`, one after another. `follow all bridge 1` and then `fit` is what `auto` does.
 
 ```
 fit
+```
+
+- `thin [<lanes>] [phrase <bars>]`: The first step of `fit`: where the staves would run off the frame, hides the lane that matters least there, a phrase (4 bars, or as given) at a time, until they fit. What it hides is remembered until the script ends, for `refill` and `remove lone`.
+
+```
+thin phrase 8
+```
+
+- `refill [<lanes>]`: The second step of `fit`: shows again what `thin` hid wherever the frame holds it now, what matters most first, a phrase and else a bar at a time. Nothing where the staves still run off.
+
+```
+refill
+```
+
+- `remove lone [in <lanes>]`: The third step of `fit`: a lane left showing for a single bar, next to bars `thin` hid of it, is hidden there too.
+
+```
+remove lone
 ```
 
 - `bridge rests <bars> [in <lanes>]`: Tidy’s Bridge Rests: joins regions with at most that many bars between them.
