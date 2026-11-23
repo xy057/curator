@@ -517,6 +517,12 @@ void main() {
       expect([run('follow "Flute 1" 2-4\nfit "Flute 1" phrase 3'), lanes.lane('fl'), host.fitted], [isEmpty, const [Region(12, 14)], ['thin fl 3', 'refill fl 3', 'lone fl 3']]);
       expect(LaneMacro.examples.first.script(const MacroContext()).script.split('\n'),
           ['follow all bridge 1', 'thin all phrase 4', 'refill all', 'remove lone in all']);
+      // What a refill shows again is what was there: the staff left out still out, from where it began with its own
+      // transition, and a lane that had nothing there (a split instrument's other staff) gets nothing.
+      lanes.setLanes({'fl': const [Region(2, 24, transitionIn: 1, hiddenStaves: [2])], 'fl2': const []});
+      host.fits = {for (final (step, end) in const [(FitStep.thin, 16.0), (FitStep.refill, 8.0)]) step: {'fl': [Region(0, end)], 'fl2': [Region(0, end)]}};
+      expect([run('fit "Flute*"'), lanes.lane('fl'), lanes.lane('fl2')],
+          [isEmpty, const [Region(2, 8, transitionIn: 1, hiddenStaves: [2]), Region(16, 24, transitionIn: 1, hiddenStaves: [2])], isEmpty]);
       host.follows = false;
       expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone').check(host)) '$p'],
           [for (var line = 1; line <= 5; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);

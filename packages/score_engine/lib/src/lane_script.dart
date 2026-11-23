@@ -111,6 +111,10 @@ abstract class LaneScriptHost {
 
   /// Puts the lanes back in the score's order.
   void restoreOrder();
+
+  /// What fitting took of each lane (by its id) over this host's runs, as it was there: what a
+  /// refill puts back.
+  final _taken = <String, List<Region>>{};
 }
 
 /// Something wrong with a script, on its [line] (1 the first).
@@ -596,17 +600,33 @@ class _Run {
     if (!dry) host.snapAnchors(within);
   }
 
-  /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off,
-  /// what a refill shows again drawn on.
+  /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off and
+  /// kept as it was ([LaneScriptHost._taken]), and a refill puts back what was kept where it
+  /// shows again: a region with the staves it left out, its own transitions and where it began,
+  /// and nothing of a lane that had nothing there (a split instrument's other staff).
   void fit(List<ScriptLane> lanes, List<FitStep> steps, {int phrase = 4}) {
     if (!host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
     if (dry) return;
     for (final step in steps) {
       final changed = host.fit([for (final lane in lanes) lane.id], step, phrase: phrase);
       edit([for (final lane in lanes) if (changed[lane.id]?.isNotEmpty ?? false) lane], (lane, regions) {
+        var taken = host._taken[lane.id] ?? const <Region>[];
         for (final r in changed[lane.id]!) {
-          regions = Curation.painted(regions, r, shown: step == FitStep.refill);
+          List<Region> inside(List<Region> of) => [
+                for (final had in of)
+                  if (had.end > r.start + 1e-9 && had.start < r.end - 1e-9) had.withBounds(math.max(had.start, r.start), math.min(had.end, r.end)),
+              ];
+          if (step == FitStep.refill) {
+            for (final piece in inside(taken)) {
+              regions = shown(regions, piece);
+            }
+            taken = Curation.painted(taken, r, shown: false);
+          } else {
+            taken = [...Curation.painted(taken, r, shown: false), ...inside(regions)];
+            regions = Curation.painted(regions, r, shown: false);
+          }
         }
+        host._taken[lane.id] = taken;
         return regions;
       });
     }
