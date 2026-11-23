@@ -641,6 +641,23 @@ void main() {
       expect(scene.overflowing(stepped, wide), isEmpty, reason: 'fits from the thinning on ($step)');
     }
     expect(stepped.lanes, (Curation(ids)..setLanes(fitted)).lanes);
+    // Apart, the steps ask the frame as often as they do together: the piece is planned for every ask, which is what the
+    // cutting costs, so a macro of the steps takes what Auto-Curate does.
+    var asks = 0;
+    List<({double start, double end})> off(Map<String, List<Region>> lanes) {
+      asks++;
+      return scene.overflowing(Curation(ids)..setLanes(lanes), wide);
+    }
+
+    var bars = {for (final id in ids) id: [for (var m = 0; m < starts.length - 1; m++) shownIn(playing[id]!, m)]};
+    final together = fittedBars(shown: bars, measureStarts: starts, salience: score.salience, timeline: score.timeline, overflowing: off);
+    final asked = asks;
+    asks = 0;
+    final kept = FrameCuts();
+    for (final step in FitStep.values) {
+      bars = fittedBars(shown: bars, measureStarts: starts, salience: score.salience, timeline: score.timeline, overflowing: off, steps: {step}, cuts: kept);
+    }
+    expect([bars, asks, asked > 20], [together, asked, isTrue]);
     // (A refill by itself, with nothing hidden before it, shows nothing.)
     expect(scene.fitStep(stepped, wide, FitStep.refill, lanes: stepped.lanes, salience: score.salience, cuts: FrameCuts()).values.expand((s) => s), isEmpty);
     // Upright there is room for the opening's few: none goes.

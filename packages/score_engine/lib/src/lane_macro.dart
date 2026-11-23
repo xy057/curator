@@ -182,7 +182,9 @@ class MacroContext {
   /// the [span] of the regions selected (from the first's start to the last's end, in
   /// quarters), and the bars [asked] for.
   factory MacroContext.of(LaneScriptHost host, {Iterable<String> selected = const [], double? playhead, (double, double)? span, String? asked}) {
-    final lanes = host.lanes, beats = host.beats, called = LaneScript.references(lanes), chosen = selected.toSet();
+    // (The lanes are named only where some are selected: a macro on every lane is run as often.)
+    final chosen = selected.toSet(), lanes = chosen.isEmpty ? const <ScriptLane>[] : host.lanes;
+    final beats = host.beats, called = LaneScript.references(lanes);
     String? bar;
     if (playhead != null && beats.measureStarts.length > 1) {
       final starts = beats.measureStarts;

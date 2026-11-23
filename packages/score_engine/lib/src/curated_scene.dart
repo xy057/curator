@@ -1119,8 +1119,11 @@ class CuratedScene {
       );
 
   /// What a plan for this curation and frame size is made from: a new key, a new plan.
-  Object _planKeyFor(Curation curation, ui.Size size) =>
-      (curation, curation.revision, curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _bandReserve, _displayVersion, _motion.glide);
+  Object _planKeyFor(Curation curation, ui.Size size) => (curation, curation.revision, _planStateFor(curation, size));
+
+  /// What a plan is made from besides the lanes themselves.
+  Object _planStateFor(Curation curation, ui.Size size) =>
+      (curation.transition, size, verticalMargin, _motion.minGap, _motion.maxGap, _timelineVersion, _condensedVersion, _orderVersion, _spacingVersion, _captionReserve, _bandReserve, _displayVersion, _motion.glide);
 
   SpacingPlan _buildPlan(Curation curation, ui.Size size, {Iterable<RegionEdge>? edges}) {
     final pointerX = renderer.pointerX(size.width);
@@ -1189,14 +1192,18 @@ class CuratedScene {
   Map<String, List<Region>> fitStep(Curation curation, ui.Size size, FitStep step,
       {required Map<String, List<Region>> lanes, required BarSalience salience, required FrameCuts cuts, int phrase = 4}) {
     final ids = lanes.keys.toSet(), starts = timeline.measureStarts, bars = math.max(0, starts.length - 1);
-    final shown = {
-      for (final id in ids)
-        id: [
-          for (var m = 0; m < bars; m++)
-            lanes[id]!.any((r) => r.start <= (starts[m] + starts[m + 1]) / 2 && r.end > (starts[m] + starts[m + 1]) / 2),
-        ],
-    };
-    final trial = _trialOf(curation);
+    // The bars each is shown in, at their middles: a region's, from the bar it starts in.
+    final middles = [for (var m = 0; m < bars; m++) (starts[m] + starts[m + 1]) / 2];
+    final shown = <String, List<bool>>{};
+    for (final id in ids) {
+      final mask = shown[id] = List.filled(bars, false);
+      for (final r in lanes[id]!) {
+        for (var m = segmentAt(starts.length, r.start, (i) => starts[i]); m < bars && middles[m] < r.end; m++) {
+          if (middles[m] >= r.start) mask[m] = true;
+        }
+      }
+    }
+    late final trial = _trialOf(curation); // (a step may ask nothing)
     final left = fittedBars(
       shown: shown,
       measureStarts: starts,
@@ -1206,6 +1213,7 @@ class CuratedScene {
       phrase: phrase,
       steps: {step},
       cuts: cuts,
+      state: (_planStateFor(curation, size), curation.joined),
       overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
     );
     return {

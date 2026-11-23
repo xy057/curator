@@ -886,7 +886,12 @@ plays). The cutting is three steps (`FitStep`: `thin`, hiding what matters least
 one at a time by a script (`CuratedScene.fitStep`: from what the lanes show now, saying what
 the step hides or shows again), what was hidden kept between them (`FrameCuts`: each part's bars
 cut and the cuts as they were made, the heaviest tried back first; a bar shown again since by
-anything else is no cut any more).
+anything else is no cut any more). The steps apart cost what they do together: nearly all of it
+is planning the piece for each ask of the frame (about a hundred for the demo), and the frame is
+never asked twice running about the same lanes (`FrameCuts` keeps its last answer, with what
+else it goes by, `CuratedScene._planStateFor`), so the refill doesn't plan again what the
+thinning ended on; a test counts the asks. What a script adds is its own reading and three
+writes of the lanes, a part in a hundred.
 
 **A region carries its properties.** Besides its bounds a region has properties of its own:
 its transitions (how long its staff glides in at its start, `Region.transitionIn`, and out at

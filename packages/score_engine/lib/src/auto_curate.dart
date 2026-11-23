@@ -233,6 +233,23 @@ class FrameCuts {
       _bars[id] = [for (final (m, on) in shown.indexed) !on && (_bars[id]?.elementAtOrNull(m) ?? false)];
 
   bool _cut(String id, int m) => _bars[id]?.elementAtOrNull(m) ?? false;
+
+  /// The lanes the frame was last asked about (and what else its answer goes by), with its
+  /// answer: asked the same again, as a step is after another where nothing changed between,
+  /// the piece isn't planned a second time.
+  ({Object? state, Map<String, List<Region>> lanes, List<({double start, double end})> off})? _asked;
+
+  static bool _same(Map<String, List<Region>> a, Map<String, List<Region>> b) {
+    if (a.length != b.length) return false;
+    for (final MapEntry(:key, :value) in a.entries) {
+      final other = b[key];
+      if (other == null || other.length != value.length) return false;
+      for (var i = 0; i < value.length; i++) {
+        if (value[i] != other[i]) return false;
+      }
+    }
+    return true;
+  }
 }
 
 /// The bars each part of [shown] is still shown in (a bar each, as [shown] has them: where it
@@ -247,7 +264,9 @@ class FrameCuts {
 /// there may be room for it now. [FitStep.lone]: a staff left for a single bar between bars
 /// it was hidden for goes too. All three only ever hide: a bar not shown stays so. One step
 /// by itself goes by what those before it hid ([cuts], kept between them), and a refill shows
-/// those bars again.
+/// those bars again. The frame is never asked twice running about the same lanes ([state]:
+/// what else its answer goes by, where that may change between steps), so the steps apart ask
+/// it as often as they do together.
 Map<String, List<bool>> fittedBars({
   required Map<String, List<bool>> shown,
   required List<double> measureStarts,
@@ -260,6 +279,7 @@ Map<String, List<bool>> fittedBars({
   int refills = 96,
   Set<FitStep> steps = const {FitStep.thin, FitStep.refill, FitStep.lone},
   FrameCuts? cuts,
+  Object? state,
 }) {
   final bars = math.max(0, measureStarts.length - 1);
   final ids = shown.keys.toList(), memory = cuts ?? FrameCuts();
@@ -276,6 +296,15 @@ Map<String, List<bool>> fittedBars({
   bool isShown(String id, int m) => (shown[id] ?? kept[id])?.elementAtOrNull(m) ?? false;
 
   Map<String, List<Region>> lanes() => _lanesOf(shown, measureStarts);
+
+  /// When the lanes as they are now run off the frame.
+  List<({double start, double end})> off() {
+    final now = {...others, ...lanes()};
+    if (memory._asked case final last? when last.state == state && FrameCuts._same(last.lanes, now)) return last.off;
+    final answer = overflowing(now);
+    memory._asked = (state: state, lanes: now, off: answer);
+    return answer;
+  }
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
@@ -295,13 +324,13 @@ Map<String, List<bool>> fittedBars({
   // (Known once the thinning has seen it fit; else asked before a refill.)
   bool? fits = bars == 0 ? true : null;
   for (var round = 0; round < rounds && bars > 0 && steps.contains(FitStep.thin); round++) {
-    final off = overflowing({...others, ...lanes()});
-    if (off.isEmpty) {
+    final over = off();
+    if (over.isEmpty) {
       fits = true;
       break;
     }
     final hit = <int>{};
-    for (final s in off) {
+    for (final s in over) {
       for (var t = s.start; t < s.end; t += 0.1) {
         hit.add(barAt(t));
       }
@@ -339,7 +368,7 @@ Map<String, List<bool>> fittedBars({
     if (!changed) break;
   }
   // Cut while the segments around were fuller: back, the heaviest first, where it still fits.
-  if (steps.contains(FitStep.refill) && made.any((c) => cut.containsKey(c.id)) && (fits ??= overflowing({...others, ...lanes()}).isEmpty)) {
+  if (steps.contains(FitStep.refill) && made.any((c) => cut.containsKey(c.id)) && (fits ??= off().isEmpty)) {
     made.sort((a, b) => b.weight.compareTo(a.weight));
     var tries = 0;
     bool tryBack(String id, List<int> bars) {
@@ -353,7 +382,7 @@ Map<String, List<bool>> fittedBars({
       }
 
       mark(true);
-      if (overflowing({...others, ...lanes()}).isEmpty) return true;
+      if (off().isEmpty) return true;
       mark(false);
       return false;
     }
