@@ -163,10 +163,11 @@ class _CustomBarState extends State<CustomBar> {
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(border: Border.all(color: colors.line), borderRadius: AppStyle.of(context).radius(4)),
           )
-        // What isn't there now (no images, nothing selected) still has its place.
+        // What isn't there now (no images, nothing selected) still has its place, a toolbar
+        // button's (compact: 8 px under the control).
         : widget.items.item(context, item) ??
             SizedBox.square(
-              dimension: AppStyle.of(context).control,
+              dimension: AppStyle.of(context).control - 8,
               child: Center(child: Opacity(opacity: 0.45, child: BarItemIcon(item, size: 16))),
             );
     return Draggable<BarDrag>(
