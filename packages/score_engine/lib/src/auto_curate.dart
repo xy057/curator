@@ -326,7 +326,8 @@ Map<String, List<bool>> fittedBars({
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
-    for (final x in memory._bars.keys) {
+    // (What this call's parts had hidden: another's, kept from an earlier step, may be shown again since.)
+    for (final x in ids) {
       if (memory._cut(x, m) && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
         s = math.max(s, salience.scores[x]![m]);
       }
