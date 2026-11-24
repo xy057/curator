@@ -114,10 +114,10 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
       },
     });
 
-/// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks; what it came
-/// to that is worth saying (what is wrong, or that nothing changed), null when it did its work
-/// or was given up.
-Future<({String text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
+/// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks: null when it
+/// was given up there (it did nothing); else what it came to that is worth saying (what is
+/// wrong, or that nothing changed), with no text when it did its work.
+Future<({String? text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
   String? asked;
   if (macro.asks) {
     asked = await showAppDialog<String>(context: context, builder: (_) => _AskBars(controller: controller, macro: macro));
@@ -125,7 +125,7 @@ Future<({String text, bool failed})?> _run(BuildContext context, EditorControlle
   }
   final (:problems, :changed) = await controller.lanes.runMacroReady(macro, asked: asked);
   if (problems.isNotEmpty) return (text: macroProblemText(problems.first), failed: true);
-  return changed ? null : (text: 'Nothing changed'.tr, failed: false);
+  return (text: changed ? null : 'Nothing changed'.tr, failed: false);
 }
 
 /// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
@@ -144,11 +144,11 @@ VoidCallback? macroAction(BuildContext context, EditorController controller, Lan
 
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
-  final said = await _run(context, controller, macro);
-  if (said == null) return;
+  final text = (await _run(context, controller, macro))?.text;
+  if (text == null) return;
   messenger
     ?..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: ${said.text}')));
+    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: $text')));
 }
 
 /// Edit ▸ Macros…: the app's macros ([AppSettings.macros]), tried on [controller]'s project.
@@ -350,8 +350,9 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     if (_trying) return;
     setState(() => _trying = true);
     try {
+      // (Given up as it asked for bars: nothing to say.)
       final said = await _run(context, widget.controller, _macro!);
-      if (mounted) setState(() => _said = said ?? (text: 'Done'.tr, failed: false));
+      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.tr, failed: said.failed));
     } finally {
       if (mounted) setState(() => _trying = false);
     }

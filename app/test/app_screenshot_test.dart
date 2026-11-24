@@ -200,6 +200,16 @@ void main() {
     await tester.tap(find.text(macroActionLabel(MacroAction.clear)).last);
     await settle();
     expect([for (final m in settings.macros) m.steps.length], [1]);
+    // A run given up as it asks for its bars says nothing: the dialog's Done is its own button only.
+    await tester.tap(find.byTooltip('Add').hitTestable());
+    await settle();
+    await tester.tap(find.text('Show Bars…').last);
+    await settle();
+    await tester.tap(find.text('Run'));
+    await settle();
+    await tester.tap(find.text('Cancel').last);
+    await settle();
+    expect(find.text('Done'), findsOneWidget);
     await tester.tap(find.text('Done'));
     await settle();
     // A macro's own button on the editor's toolbar goes by the tab showing: one for the lanes is off in the Audio tab.
