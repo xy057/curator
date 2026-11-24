@@ -32,7 +32,12 @@ class CodeView extends StatelessWidget {
     this.kindOf,
     this.folds,
     this.readOnly = false,
+    this.pairs = true,
   });
+
+  /// Whether a quote or a bracket typed is closed with its pair at once. Off where what is
+  /// offered closes it itself (a script's lane names, quotes and all).
+  final bool pairs;
 
   /// Whether the code is only read (one of Curator's own extensions).
   final bool readOnly;
@@ -57,6 +62,7 @@ class CodeView extends StatelessWidget {
         findController: findController,
         focusNode: focusNode,
         readOnly: readOnly,
+        autocompleteSymbols: pairs,
         chunkAnalyzer: folds,
         wordWrap: false,
         padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),

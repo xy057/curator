@@ -26,6 +26,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:re_editor/re_editor.dart' show CodeEditor;
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
@@ -235,6 +236,8 @@ void main() {
       await tester.tapAt(tester.getCenter(find.byType(LaneScriptView)));
       await settle();
       expect(textFieldFocused, isTrue, reason: 'typing in the script');
+      expect(tester.widget<CodeEditor>(find.descendant(of: find.byType(LaneScriptView), matching: find.byType(CodeEditor))).autocompleteSymbols, isFalse,
+          reason: 'a quote typed is one: a lane’s name offered closes it');
       await tester.tapAt(tester.getTopLeft(find.byType(LaneScriptView)) + const Offset(360, 18));
       await settle();
       expect([textFieldFocused, await tester.sendKeyEvent(LogicalKeyboardKey.escape)], [false, true], reason: 'the window’s keys');

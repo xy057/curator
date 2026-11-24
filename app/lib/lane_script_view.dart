@@ -190,6 +190,8 @@ class _LaneScriptViewState extends State<LaneScriptView> {
                       controller: _code,
                       findController: _find,
                       focusNode: _focus,
+                      // (A lane's name offered comes with its closing quote: one put in as the opening was typed would be left over.)
+                      pairs: false,
                       prompts: LaneScriptPrompts(() => _c.lanes.scriptNames),
                       kindOf: (prompt) => prompt is LaneScriptPrompt && prompt.lane ? 'Lane'.tr : null,
                     ),
