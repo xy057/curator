@@ -1118,6 +1118,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     controller.takeSettings(settings);
     controller.showsMidiView = settings.midiView;
     controller.showsPlayerMap = settings.playerMap;
+    // The script is in the lanes' place only while the Instruments bar has its button (on the
+    // bar or in its menu), the one way back to the lanes: taken off (Restore Defaults has
+    // none), it takes the lanes back with it.
+    if (!settings.toolbarOf(BarKind.instruments).holds(BarItem.script)) controller.lanes.scripting = false;
     _shown.value = _shownSettings;
   }
 

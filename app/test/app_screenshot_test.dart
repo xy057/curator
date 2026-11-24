@@ -380,9 +380,16 @@ void main() {
     await settle();
     expect(find.byKey(const ValueKey('add autoCurate')), findsNothing);
     expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Auto-curate')), findsOneWidget, reason: 'the bar’s switch');
+    // The script is in the lanes' place only while its button is on the bar or in its menu:
+    // Restore Defaults, which has none, takes the lanes back.
+    settings.setToolbar(bar(BarKind.instruments).added(BarItem.script));
+    editing.lanes.scripting = true;
+    await settle();
+    expect(editing.lanes.scripting, isTrue);
     await tester.tap(find.text('Restore Defaults'));
     await settle();
     expect(bar(BarKind.instruments).isStandard, isTrue);
+    expect(editing.lanes.scripting, isFalse, reason: 'no button left to take the script away');
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
     await settle();
     expect(customizer, findsNothing);
