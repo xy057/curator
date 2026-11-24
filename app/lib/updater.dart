@@ -9,14 +9,14 @@ import 'latest.dart';
 import 'l10n/l10n.dart';
 
 /// This build's major.minor: `version` in pubspec.yaml starts with it (`make versions` checks).
-const _majorMinor = '0.10';
+const _majorMinor = '0.11';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
-const appBuild = 686;
+const appBuild = 687;
 
 /// The patch of the release this build is (or comes after): kept apart from the build, and
 /// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
-const appReleasePatch = '0-hotfix1';
+const appReleasePatch = '0-beta1';
 
 /// This build's version: major.minor.build, as pubspec.yaml says (`0.9.480+480`) and macOS and
 /// Windows show it.
