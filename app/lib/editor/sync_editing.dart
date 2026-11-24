@@ -233,8 +233,19 @@ class SyncEditing {
   }
 
   /// [anchors], each on the nearest note [track] is heard starting, [within] seconds of it.
-  static List<SyncAnchor> _snapped(List<SyncAnchor> anchors, AudioTrack track, double within) =>
-      [for (final a in anchors) a.at(track.waveform.nearestOnset(a.seconds, within) ?? a.seconds)];
+  /// [anchors] each moved onto the nearest note heard starting, [within] seconds of it, where
+  /// that keeps it between its neighbours: two never meet on one note (a second there would be
+  /// dropped as no anchor of its own).
+  static List<SyncAnchor> _snapped(List<SyncAnchor> anchors, AudioTrack track, double within) {
+    final sorted = [...anchors]..sort((a, b) => a.seconds.compareTo(b.seconds));
+    final out = <SyncAnchor>[];
+    for (final (i, a) in sorted.indexed) {
+      final onset = track.waveform.nearestOnset(a.seconds, within);
+      final after = out.lastOrNull?.seconds ?? double.negativeInfinity, before = sorted.elementAtOrNull(i + 1)?.seconds ?? double.infinity;
+      out.add(onset != null && onset > after + 1e-6 && onset < before - 1e-6 ? a.at(onset) : a);
+    }
+    return out;
+  }
 
   /// Puts [anchors] in place of those there (none: those there stay), with nothing selected.
   void setAll(List<SyncAnchor> anchors) {
