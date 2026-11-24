@@ -4590,8 +4590,32 @@ msgstr "スクリプトを実行"
 msgid "In the script."
 msgstr "スクリプト内。"
 
-msgid "Run a Macro"
-msgstr "マクロを実行"
+msgid "Run Macro 1"
+msgstr "マクロ 1 を実行"
+
+msgid "Run Macro 2"
+msgstr "マクロ 2 を実行"
+
+msgid "Run Macro 3"
+msgstr "マクロ 3 を実行"
+
+msgid "Run Macro 4"
+msgstr "マクロ 4 を実行"
+
+msgid "Run Macro 5"
+msgstr "マクロ 5 を実行"
+
+msgid "Run Macro 6"
+msgstr "マクロ 6 を実行"
+
+msgid "Run Macro 7"
+msgstr "マクロ 7 を実行"
+
+msgid "Run Macro 8"
+msgstr "マクロ 8 を実行"
+
+msgid "Run Macro 9"
+msgstr "マクロ 9 を実行"
 
 msgid "Script"
 msgstr "スクリプト"

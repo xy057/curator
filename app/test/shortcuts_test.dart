@@ -44,7 +44,7 @@ void main() {
     expect(KeyMap.read('{"nothing": "6d+", "undo": "6b+c", "warp": 12, "metronome": "6d+"}'), KeyMap.standard.withKey(KeyCommand.metronome, _m));
     expect(KeyMap.read('[1, 2]'), KeyMap.standard);
     // A key saved before the app's own commands came to have it (⌃1, a macro's since) is theirs: the command has none.
-    final macroKey = KeyCommand.runMacro.also.first;
+    final macroKey = KeyCommand.runMacro1.defaults.single;
     expect(KeyMap.read('{"drawTool": "${macroKey.write()}", "metronome": "${_m.write()}"}'), KeyMap.standard.withKey(KeyCommand.drawTool, null).withKey(KeyCommand.metronome, _m));
 
     // No command the user can change comes with a key another has where it works.

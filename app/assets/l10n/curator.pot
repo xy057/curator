@@ -4567,7 +4567,31 @@ msgstr ""
 msgid "In the script."
 msgstr ""
 
-msgid "Run a Macro"
+msgid "Run Macro 1"
+msgstr ""
+
+msgid "Run Macro 2"
+msgstr ""
+
+msgid "Run Macro 3"
+msgstr ""
+
+msgid "Run Macro 4"
+msgstr ""
+
+msgid "Run Macro 5"
+msgstr ""
+
+msgid "Run Macro 6"
+msgstr ""
+
+msgid "Run Macro 7"
+msgstr ""
+
+msgid "Run Macro 8"
+msgstr ""
+
+msgid "Run Macro 9"
 msgstr ""
 
 msgid "Script"

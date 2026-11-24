@@ -9,6 +9,7 @@ import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
 import 'package:curated_score/lane_script_view.dart';
+import 'package:curated_score/key_bindings.dart';
 import 'package:curated_score/macros.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/panel_bar.dart';
@@ -229,6 +230,34 @@ void main() {
       editor.tab = BottomTab.instruments;
       await settle();
       expect(runs(), isTrue);
+      // Its key is the user's to change (macOS may give ⌃1 to a desktop): the tip names the one given, which runs it,
+      // and ⌃1 runs nothing then. (Tidy run first: the second has nothing to bridge.)
+      String tip() => tester.widget<ToolbarButton>(own).tooltip!;
+      expect(tip(), 'Tidy (${KeyCommand.runMacro1.defaults.single.label})');
+      const given = KeyChord(LogicalKeyboardKey.digit1, control: true, alt: true);
+      settings.keys = settings.keys.withKey(KeyCommand.runMacro1, given);
+      await settle();
+      expect(tip(), 'Tidy (${given.label})');
+      await tester.tap(own);
+      await settle();
+      ScaffoldMessenger.of(tester.element(own)).clearSnackBars();
+      await settle();
+      Future<void> press(List<LogicalKeyboardKey> held) async {
+        for (final key in held) {
+          await tester.sendKeyDownEvent(key);
+        }
+        await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+        for (final key in held.reversed) {
+          await tester.sendKeyUpEvent(key);
+        }
+        await settle();
+      }
+
+      await press([LogicalKeyboardKey.controlLeft]);
+      expect(find.textContaining('Tidy:'), findsNothing, reason: '⌃1 isn’t its key now');
+      await press([LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft]);
+      expect(find.text('Tidy: Nothing changed'), findsOneWidget);
+      settings.keys = settings.keys.reset(KeyCommand.runMacro1);
       settings.setToolbar(settings.toolbarOf(BarKind.editor).without(BarItem.macro1));
       // The script's editor lets the keyboard go on a click outside it, and the window's keys still work then.
       editor.lanes.scripting = true;

@@ -989,8 +989,9 @@ selected: `MacroFault`, said by the app in the user's language) before any scrip
 what the script finds (its own words). The lanes a macro was run on stay selected, for the next.
 Macros are the app's, not a project's (`AppSettings.macros`, JSON, what isn't a step this
 version knows left out), since a workflow is worth keeping for the next
-score; so a step names lanes by pattern (`Flute*`), never by id. The first nine are run with ⌃1
-to ⌃9 (`KeyCommand.runMacro`, fixed), and each of those can have a
+score; so a step names lanes by pattern (`Flute*`), never by id. The first nine are run with a
+key each, ⌃1 to ⌃9 as the app comes (`KeyCommand.macros`, `runMacro1` to `runMacro9`: the user's
+to change, as macOS may give ⌃1–9 to Mission Control's desktops), and each of those can have a
 button of its own on the editor's toolbar, the Instruments tab's or the Audio tab's (`BarItem.macro1` to `macro9`,
 `BarItem.macro`: a toolbar's items are an enum saved by name, so a button is its macro's place in
 the list, as its key is), under the macro's icon (`LaneMacro.icon`, one of the app's by its name:

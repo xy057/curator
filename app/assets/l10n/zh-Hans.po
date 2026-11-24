@@ -4590,8 +4590,32 @@ msgstr "运行脚本"
 msgid "In the script."
 msgstr "在脚本中。"
 
-msgid "Run a Macro"
-msgstr "运行宏"
+msgid "Run Macro 1"
+msgstr "运行宏 1"
+
+msgid "Run Macro 2"
+msgstr "运行宏 2"
+
+msgid "Run Macro 3"
+msgstr "运行宏 3"
+
+msgid "Run Macro 4"
+msgstr "运行宏 4"
+
+msgid "Run Macro 5"
+msgstr "运行宏 5"
+
+msgid "Run Macro 6"
+msgstr "运行宏 6"
+
+msgid "Run Macro 7"
+msgstr "运行宏 7"
+
+msgid "Run Macro 8"
+msgstr "运行宏 8"
+
+msgid "Run Macro 9"
+msgstr "运行宏 9"
 
 msgid "Script"
 msgstr "脚本"

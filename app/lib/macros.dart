@@ -71,6 +71,10 @@ List<String> get _exampleNames => ['Auto-curate'.tr, 'Auto-align'.tr, 'Solo from
 
 String _nameOf(LaneMacro macro) => macro.name.trim().isEmpty ? 'Untitled'.tr : macro.name;
 
+/// The key that runs the macro at [index] of the list, as [keys] have it: none past the ninth,
+/// or where the user took its key away.
+KeyChord? _keyOf(KeyMap keys, int index) => index < KeyCommand.macros.length ? keys[KeyCommand.macros[index]] : null;
+
 /// A macro's name as shown: its own, or Untitled.
 String macroName(LaneMacro macro) => _nameOf(macro);
 
@@ -174,7 +178,7 @@ class MacrosMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final macros = MacrosScope.of(context), keys = KeyCommand.runMacro.also;
+    final macros = MacrosScope.of(context), keys = KeyMap.of(context);
     return OverlaySemantics(
       child: AppPopupMenuButton<VoidCallback>(
         tooltip: 'Macros'.tr,
@@ -195,7 +199,7 @@ class MacrosMenu extends StatelessWidget {
                 Icon(macroIcon(macro).of(menu), size: 16),
                 SizedBox(width: AppStyle.of(menu).isCarbon ? 8 : 6),
                 Expanded(child: Text(_nameOf(macro), overflow: TextOverflow.ellipsis)),
-                if (i < keys.length) ...[const SizedBox(width: 24), Text(keys[i].label, style: TextStyle(fontSize: 12, color: menu.colors.textMuted))],
+                if (_keyOf(keys, i) case final key?) ...[const SizedBox(width: 24), Text(key.label, style: TextStyle(fontSize: 12, color: menu.colors.textMuted))],
               ]),
             ),
           if (macros.isNotEmpty) menuDivider(menu),
@@ -396,7 +400,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   }
 
   Widget _list(BuildContext context) {
-    final colors = context.colors, macros = _macros, keys = KeyCommand.runMacro.also;
+    final colors = context.colors, macros = _macros, keys = KeyMap.of(context);
     final names = _exampleNames;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Expanded(
@@ -411,7 +415,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
                 _name.text = macro.name;
                 _said = null;
               }),
-              trailing: i < keys.length ? Text(keys[i].label, style: TextStyle(fontSize: 12, color: colors.textMuted)) : null,
+              trailing: switch (_keyOf(keys, i)) { final key? => Text(key.label, style: TextStyle(fontSize: 12, color: colors.textMuted)), null => null },
             ),
         ]),
       ),
