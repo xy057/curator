@@ -564,6 +564,12 @@ void main() {
       expect(await aligned('show all\nalign'), [true, ['Line 2: The recording can’t be heard.'], ['hear']]);
       host.recording = 'There is no recording.';
       expect([for (final p in LaneScript.parse('hear\nsnap anchors').check(host)) '$p'], ['Line 1: There is no recording.', 'Line 2: There is no recording.']);
+      // A score with no notes to hear (a PDF's) has its anchors snapped all the same.
+      host
+        ..recording = null
+        ..noNotes = true;
+      expect([for (final p in LaneScript.parse('hear\nsnap anchors').check(host)) '$p'], ['Line 1: This score has no notes to hear.']);
+      host.noNotes = false;
       host
         ..recording = null
         ..tape = 'tape'
@@ -787,7 +793,10 @@ class _ScriptLanes extends LaneScriptHost {
   final said = <String>[];
 
   @override
-  String? get unheard => recording;
+  String? get unheard => recording ?? (noNotes ? 'This score has no notes to hear.' : null);
+  @override
+  String? get unsnapped => recording;
+  bool noNotes = false;
   @override
   bool get snaps => snapping;
   @override

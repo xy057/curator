@@ -84,6 +84,11 @@ abstract class LaneScriptHost {
   /// a MIDI file); null when it can.
   String? get unheard => 'There is no recording.';
 
+  /// Why the anchors can't be snapped to the notes heard starting in the recording, which goes
+  /// by the recording alone (not the score's notes); null when they can. As [unheard] unless
+  /// a host says otherwise.
+  String? get unsnapped => unheard;
+
   /// Whether the anchors are snapped to the notes heard starting, as the project is set
   /// (`align` snaps them then, as Align does).
   bool get snaps => true;
@@ -650,7 +655,7 @@ class _Run {
   }
 
   void snap(double within) {
-    _recording();
+    if (host.unsnapped case final why?) throw _Fail(why);
     if (!dry) host.snapAnchors(within);
   }
 

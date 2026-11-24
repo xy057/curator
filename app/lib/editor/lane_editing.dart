@@ -731,15 +731,17 @@ class _ScriptHost extends LaneScriptHost {
   void Function(double done)? _report;
 
   @override
-  String? get unheard => _editor.track == null
+  String? get unheard => unsnapped ?? (!_editor.hasNotes ? 'This score has no notes to hear.' : null);
+
+  /// (Snapping goes by the recording alone: a PDF score's anchors, tapped by hand, are snapped too.)
+  @override
+  String? get unsnapped => _editor.track == null
       ? 'There is no recording.'
       : _editor.usesMidiTempo
           ? 'The anchors follow a MIDI file’s tempo.'
-          : !_editor.hasNotes
-              ? 'This score has no notes to hear.'
-              : !_editor.editsSync
-                  ? 'None of the recordings is the one synced.'
-                  : null;
+          : !_editor.editsSync
+              ? 'None of the recordings is the one synced.'
+              : null;
 
   @override
   bool get snaps => _editor.anchors.snapToOnsets;
