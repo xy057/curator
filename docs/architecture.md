@@ -1556,9 +1556,11 @@ on the nearest staff, over or under it by the side of its middle), and let go, i
 markings selected go as far (`moveMarkings`); ⌥←→ steps them on and back the same way
 (`stepMarkings`), ⌥↑↓ a place up or down, from under a staff to over it to under the one above
 (`liftMarkings`, when no note is selected: those it transposes), ⇧⌥←→ makes a hairpin end later
-or sooner (`stepEnds`). A dynamic's MusicXML `relative-x` (on its `<dynamics>`, or the `<words>`
-before them) moves it on or back from where it is engraved: the patched importer reads it as
-MEI's `@ho`, it alone of the offsets (`default-x` is the other program's layout's). A dynamic that is all symbols (`p`,
+or sooner (`stepEnds`), and ⌘⌥←→ nudges a dynamic a quarter of a staff space on or back from
+where it is engraved (⇧ a tenth; `nudgeMarkings`), staying at its note. That is MusicXML's
+`relative-x` (on its `<dynamics>`, and the `<words>` beside them, as Verovio reads the first),
+which the patched importer reads as MEI's `@ho`, it alone of the offsets (`default-x` is the
+other program's layout's). A dynamic that is all symbols (`p`,
 `mf`, `sfz`), bracketed or not ("(p)", written in words too), is centred on the note it is under,
 as Gould sets it, a direction's (at a time) as one on a note: the patched `DrawDynam` centres it
 on the head of the staff's note at that time (`CuratedHeadRadiusAt`, a whole note's wider than a
@@ -1577,7 +1579,7 @@ Dorico's: ⇧N or Enter note input, 1–9 note values (6 a quarter), `.` dot, `-
 sharp, natural, A–G a note at the nearest octave (⇧⌥ adds to the chord; Q chord mode), `,` rest,
 Space on, T tie, S slur, V the next voice, R repeat, `/` and ⇧/ grace notes (crossed through or
 not), ⌥↑↓ a step, ⌘⌥↑↓ an octave, ⌥= ⌥- the same
-sound spelled as the note above or below, ⌥←→ ⌥↑↓ a marking moved (⇧⌥←→ a hairpin's end), `[` `]` `{` `}`
+sound spelled as the note above or below, ⌥←→ ⌥↑↓ a marking moved (⇧⌥←→ a hairpin's end, ⌘⌥←→ a dynamic nudged), `[` `]` `{` `}`
 `'` articulations, and the popovers: ⇧D dynamics and hairpins, ⇧T tempo, ⇧M time, ⇧K key,
 ⇧C clef, ⇧X text, ⇧B bars (`+2`, `-1`; `=32` the score's length, also the toolbar's Bars: n) and barlines, ⇧R repeats (`1.`, `1, 2` an ending over the
 bars selected; `segno`, `coda`, `D.C.`, `D.S.`, either `al Fine` or `al Coda`, `Fine`, `To Coda`),

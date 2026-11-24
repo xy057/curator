@@ -272,6 +272,8 @@ enum KeyCommand {
       help: 'As the note above / below.'),
   moveMarkings('Move markings', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.arrowLeft, alt: true), _K(_L.arrowRight, alt: true)],
       help: '⇧ hairpins’ ends'),
+  nudgeMarkings('Nudge dynamics', 'Score Editor', KeyPlace.scoreEditor,
+      [_K(_L.arrowLeft, command: true, alt: true), _K(_L.arrowRight, command: true, alt: true)], help: 'A quarter space · ⇧ a tenth'),
   repeatSelection('Repeat the selection', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.keyR)]),
   scoreDelete('Delete', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.backspace), _K(_L.delete)]),
   scoreDeselect('Deselect', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.escape)], help: 'Stops note input first.'),

@@ -4593,6 +4593,7 @@ msgstr "スクリプト内。"
 msgid "Run a Macro"
 msgstr "マクロを実行"
 
+#: lib/lane_script_view.dart
 msgid "Script"
 msgstr "スクリプト"
 
@@ -4628,6 +4629,9 @@ msgstr "異名同音で書き換え"
 
 msgid "Move markings"
 msgstr "記号を移動"
+
+msgid "Nudge dynamics"
+msgstr "強弱記号を微調整"
 
 msgid "Repeat the selection"
 msgstr "選択範囲を繰り返す"
@@ -4739,6 +4743,9 @@ msgstr "上 / 下の音として。"
 
 msgid "⇧ hairpins’ ends"
 msgstr "⇧ ヘアピンの終端"
+
+msgid "A quarter space · ⇧ a tenth"
+msgstr "1/4 スペース · ⇧ 1/10"
 
 msgid "Stops note input first."
 msgstr "まず音符入力を止めます。"

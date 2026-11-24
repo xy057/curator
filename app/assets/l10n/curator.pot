@@ -4570,6 +4570,7 @@ msgstr ""
 msgid "Run a Macro"
 msgstr ""
 
+#: lib/lane_script_view.dart
 msgid "Script"
 msgstr ""
 
@@ -4604,6 +4605,9 @@ msgid "Respell"
 msgstr ""
 
 msgid "Move markings"
+msgstr ""
+
+msgid "Nudge dynamics"
 msgstr ""
 
 msgid "Repeat the selection"
@@ -4715,6 +4719,9 @@ msgid "As the note above / below."
 msgstr ""
 
 msgid "⇧ hairpins’ ends"
+msgstr ""
+
+msgid "A quarter space · ⇧ a tenth"
 msgstr ""
 
 msgid "Stops note input first."

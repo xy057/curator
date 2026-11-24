@@ -862,6 +862,13 @@ class _ScoreEditorState extends State<ScoreEditor> {
     if (_selectedMarkings.firstOrNull case final marking?) _reveal(_caretRect(marking.at));
   }
 
+  /// ⌘⌥←/→: the dynamics selected a quarter of a staff space on or back from where they are
+  /// engraved (with ⇧, a tenth), staying at the note they are at.
+  void _nudgeMarkings(int delta, {bool fine = false}) {
+    if (_selectedMarkings.isEmpty) return;
+    _edit(() => score.nudgeMarkings(_selected, delta * (fine ? 1 : 2.5)));
+  }
+
   /// Where a click at [local] would put a note in note input, and which: the staff it is on or
   /// nearest (within its ledger lines' reach), the pitch of the line or space there by the clef
   /// (the key's accidental, or the one chosen), at the step of the note value's grid nearest in
@@ -1288,6 +1295,8 @@ class _ScoreEditorState extends State<ScoreEditor> {
         LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => () => _zoomTo(_defaultZoom),
         LogicalKeyboardKey.arrowUp when alt => () => _edit(() => score.transpose([..._selectedNotes, ..._selectedGraces], octaves: 1)),
         LogicalKeyboardKey.arrowDown when alt => () => _edit(() => score.transpose([..._selectedNotes, ..._selectedGraces], octaves: -1)),
+        LogicalKeyboardKey.arrowLeft when alt => () => _nudgeMarkings(-1, fine: shift),
+        LogicalKeyboardKey.arrowRight when alt => () => _nudgeMarkings(1, fine: shift),
         LogicalKeyboardKey.arrowLeft => () => input ? _caretToBar(-1) : _step(-1, bar: true, extend: shift),
         LogicalKeyboardKey.arrowRight => () => input ? _caretToBar(1) : _step(1, bar: true, extend: shift),
         LogicalKeyboardKey.enter => _done,
