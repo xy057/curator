@@ -637,7 +637,8 @@ class _GraphState extends State<_Graph> {
     return LayoutBuilder(builder: (context, box) {
       _view = box.biggest;
       final pan = _held(_pan, places), origin = _inset + pan;
-      void move(Offset by) => setState(() => _pan = _held(pan + by, places));
+      // (From the pan as it is: several moves may come between two frames.)
+      void move(Offset by) => setState(() => _pan = _held(_held(_pan, places) + by, places));
       final target = switch (_wiring) { (final from, final end) => _target(from, end, places), null => null };
       return DecoratedBox(
         decoration: BoxDecoration(color: colors.well, border: Border.all(color: colors.line), borderRadius: style.radius(8)),
