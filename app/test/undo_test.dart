@@ -263,6 +263,21 @@ void main() {
           expect(await after(() => c.lanes.runScriptReady('align')), button, reason: 'align, snapping $snap');
         }
         expect(found[true], isNot(found[false]), reason: 'there are notes to snap to');
+        // What waits for the hearing is done between gestures: one under way when it ends is let finish first.
+        {
+          c.anchors.clear();
+          c.beginEdit();
+          var done = false;
+          final waiting = c.lanes.runScriptReady('align').then((_) => done = true);
+          while (c.anchors.aligning != null) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          expect([done, c.sync!.anchors], [false, isEmpty], reason: 'not inside the gesture');
+          c.endEdit();
+          await waiting;
+          expect(c.sync!.anchors, found[c.anchors.snapToOnsets]);
+        }
         // Anchors snapped from afar never meet on one note: the nearer goes onto it, the other stays.
         c.sync!.load(const [SyncAnchor(0, 1), SyncAnchor(1, 1.5)], leadIn: c.sync!.leadIn);
         expect([c.lanes.runScript('snap anchors within 1').problems, [for (final a in c.sync!.anchors) a.seconds]], [isEmpty, [closeTo(1.02, 0.03), 1.5]]);

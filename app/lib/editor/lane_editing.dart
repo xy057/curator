@@ -537,6 +537,7 @@ class LaneEditing {
       host._report = report;
       return script.ready(host);
     });
+    await _editor._betweenGestures();
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return nothing;
     return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
   }
@@ -630,6 +631,7 @@ class LaneEditing {
       host._report = report;
       return script.ready(host);
     });
+    await _editor._betweenGestures();
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return (problems: const <MacroProblem>[], changed: changed);
     if (got.problems.isNotEmpty) return (problems: LaneMacro.problemsOf(got.problems, order), changed: changed);
     final ran = _macroRan(_ran(script, host, ready: got.ready, only: lines(later)), order, lanes);
