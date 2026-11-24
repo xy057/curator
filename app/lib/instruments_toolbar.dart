@@ -81,14 +81,10 @@ class TidyMenu extends StatelessWidget {
     return OverlaySemantics(
       child: AppPopupMenuButton<void Function()>(
         tooltip: switch (lanes) { 0 => 'Tidy all lanes'.tr, 1 => 'Tidy 1 selected lane'.tr, _ => 'Tidy {n} selected lanes'.fill({'n': lanes}) },
-        iconSize: 18,
+        iconSize: 16,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 280),
-        style: IconButton.styleFrom(
-          fixedSize: const Size(32, 32),
-          minimumSize: const Size(32, 32),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: ToolbarButton.styleOf(context),
         icon: Icon(AppIcon.tidy.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (context) => [

@@ -220,7 +220,7 @@ void main() {
       settings.macros = const [LaneMacro(name: 'Tidy', steps: [MacroStep(MacroAction.bridge, lanes: MacroLanes.all)])];
       settings.setToolbar(settings.toolbarOf(BarKind.editor).added(BarItem.macro1));
       await settle();
-      final own = find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Tidy')));
+      final own = find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith('Tidy')));
       bool runs() => tester.widget<ToolbarButton>(own).onPressed != null;
       expect(runs(), isTrue);
       editor.tab = BottomTab.audio;
@@ -253,7 +253,7 @@ void main() {
     // Restore Defaults putting all back. A window too narrow for the bar keeps the items it has
     // no room for in that menu.
     final toolbar = find.byType(EditorToolbar);
-    Finder tool(String tip) => find.descendant(of: toolbar, matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith(tip)));
+    Finder tool(String tip) => find.descendant(of: toolbar, matching: find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith(tip)));
     ToolbarLayout bar([BarKind kind = BarKind.editor]) => settings.toolbarOf(kind);
     expect(bar().isStandard, isTrue);
     // (The button at the bar's end is always built, and shown, so hit, only with something in its menu.)
@@ -339,7 +339,7 @@ void main() {
     await settle();
     final panel = find.byType(PanelBar);
     Finder panelTool(String tip, [Finder? of]) =>
-        find.descendant(of: of ?? panel, matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith(tip)));
+        find.descendant(of: of ?? panel, matching: find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith(tip)));
     expect(bar(BarKind.instruments).isStandard, isTrue);
     await tester.tapAt(tester.getCenter(panelTool('Auto-curate')), buttons: kSecondaryButton);
     await settle();
@@ -421,7 +421,7 @@ void main() {
     // smartly, swelling at bar 37 as loud as it is played once the notes are read; in its editor a
     // section dragged sideways, nudged and copied (each a step of its own Undo), Done making it
     // the project's in one Undo step; Score switches back.
-    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Player map'))));
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith('Player map'))));
     await tester.pump(const Duration(milliseconds: 50));
     expect(settings.playerMap, isTrue);
     expect(find.text('No player map'), findsOneWidget);
@@ -476,7 +476,7 @@ void main() {
     expect(controller.playerMap.map, seated);
     controller.undo();
     expect(controller.playerMap.map, isNull);
-    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Score'))));
+    await tester.tap(find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith('Score'))));
     await tester.pump(const Duration(milliseconds: 50));
     expect(settings.playerMap, isFalse);
 

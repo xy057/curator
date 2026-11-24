@@ -723,11 +723,7 @@ class SyncMenu extends StatelessWidget {
         tooltip: 'Sync'.tr,
         iconSize: 16,
         padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          fixedSize: Size.square(AppStyle.of(context).control),
-          minimumSize: Size.square(AppStyle.of(context).control),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
-        ),
+        style: ToolbarButton.styleOf(context),
         icon: Icon(AppIcon.more.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (context) => [
@@ -879,21 +875,21 @@ class TapButton extends StatelessWidget {
           color: colors.recordingWash.withValues(alpha: c.anchors.tapArmed ? 1 : 0),
           borderRadius: radius,
         ),
-        child: InkWell(
-          borderRadius: radius,
-          onTap: () => c.anchors.tapArmed = !c.anchors.tapArmed,
-          child: SizedBox(
-            height: size,
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (c.anchors.tapArmed) ...[
-                PulsingDot(color: colors.recording, size: 9),
-                const SizedBox(width: 4),
-                Text('Space'.tr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
-              ] else
-                SizedBox.square(dimension: size, child: Icon(AppIcon.tap.of(context), size: 16, color: colors.text)),
-            ]),
-          ),
-        ),
+        // At rest, a toolbar button like the others (its tip is the one around it).
+        child: !c.anchors.tapArmed
+            ? ToolbarButton(icon: AppIcon.tap.of(context), tooltip: null, onPressed: () => c.anchors.tapArmed = true)
+            : InkWell(
+                borderRadius: radius,
+                onTap: () => c.anchors.tapArmed = false,
+                child: SizedBox(
+                  height: size,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    PulsingDot(color: colors.recording, size: 9),
+                    const SizedBox(width: 4),
+                    Text('Space'.tr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.recording)),
+                  ]),
+                ),
+              ),
       ),
     );
   }
@@ -1067,7 +1063,7 @@ class _StartFieldState extends State<StartField> {
     return Tip(
       message: 'Silence before bar 1 (s)'.tr,
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(AppIcon.leadIn.of(context), size: 17, color: context.colors.textMuted),
+        Icon(AppIcon.leadIn.of(context), size: 16, color: context.colors.textMuted),
         const SizedBox(width: 4),
         // Shaped as the time readout's field.
         SizedBox(
