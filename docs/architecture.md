@@ -1549,15 +1549,21 @@ follows the pointer and a click puts it in (`_placeAt`: the staff's middle line 
 notes either side as the engraving spaces them, `EditGalley.timeNearX`); over a note a click
 selects it, as outside note input, where a second click in the same place starts note input.
 A marking (a dynamic, a text, a tempo, a hairpin: a `<direction>`, `EditableScore.markingsOf`) is
-moved in music, not in points (Verovio places a direction by its time, staff and side, and reads
-no offset): dragged, it follows the pointer faint and a line shows where it would go
+moved in music (Verovio places a direction by its time, staff and side): dragged, it follows the pointer faint and a line shows where it would go
 (`_dropAt`: as far on or back as it was dragged, at the nearest note or rest of the staff or
 step of the note value's grid, `placeNear`; up or down by more than a staff space and a half,
 on the nearest staff, over or under it by the side of its middle), and let go, it and the other
 markings selected go as far (`moveMarkings`); ⌥←→ steps them on and back the same way
 (`stepMarkings`), ⌥↑↓ a place up or down, from under a staff to over it to under the one above
 (`liftMarkings`, when no note is selected: those it transposes), ⇧⌥←→ makes a hairpin end later
-or sooner (`stepEnds`). A hairpin's end (any line a direction starts: the first end of its kind
+or sooner (`stepEnds`). A dynamic's MusicXML `relative-x` (on its `<dynamics>`, or the `<words>`
+before them) moves it on or back from where it is engraved: the patched importer reads it as
+MEI's `@ho`, it alone of the offsets (`default-x` is the other program's layout's). A dynamic that is all symbols (`p`,
+`mf`, `sfz`), bracketed or not ("(p)", written in words too), is centred on the note it is under,
+as Gould sets it, a direction's (at a time) as one on a note: the patched `DrawDynam` centres it
+on the head of the staff's note at that time (`CuratedHeadRadiusAt`, a whole note's wider than a
+black one), and lays brackets and the symbol out as one before centring them (Verovio centred
+each on its own). Upstream left-aligns a time's dynamic, so "mf" began at the note's head. A hairpin's end (any line a direction starts: the first end of its kind
 and number after it) goes as far as its start; one that would end past the last bar stays. The
 direction is the same element in its new bar, so it keeps its id and stays selected.
 The caret may be past the last bar (the last is full): that place answers as an empty bar the

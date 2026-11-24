@@ -685,6 +685,25 @@ void main() {
     expect([for (final y in apart.take(2)) y.abs() > 1], [true, true], reason: '$apart');
     expect([for (final y in between.take(2)) y.abs() < 0.5], [true, true], reason: '$between');
     expect(between.last, greaterThan(4), reason: 'under the left hand');
+    // Centred on the note it is under ("mf" as "p", bracketed too), not begun at it; relative-x
+    // moves it on (ten to a staff space). In staff spaces from the whole note's middle.
+    Future<double> offCentre(String said) async {
+      final e = (await LoadedScore.load(flutePianoScore.replaceFirst('<note><pitch><step>E</step>',
+              '<direction placement="below"><direction-type>$said</direction-type><staff>1</staff></direction><note><pitch><step>E</step>')))
+          .engraving;
+      final classes = [for (var i = 0; i < e.commandCount; i++) e.classNames[e.commandInts[i * Cmd.words + Cmd.classIndex]]];
+      double field(int i, int at) => e.commandFloats[i * Cmd.words + at];
+      double middle(int i) => field(i, Cmd.bounds) + field(i, Cmd.bounds + 2) / 2;
+      final note = classes.indexOf('note'), dynam = classes.indexOf('dynam');
+      // One with words is text, drawn from where it is centred (the first text after the note).
+      return ((dynam >= 0 ? middle(dynam) : field(classes.indexOf('text', note), Cmd.x)) - middle(note)) / e.staffSpace;
+    }
+    final centred = [
+      for (final said in ['<dynamics><p/></dynamics>', '<dynamics><mf/></dynamics>', '<words>(</words><dynamics><p/></dynamics><words>)</words>', '<dynamics relative-x="10"><mf/></dynamics>'])
+        await offCentre(said),
+    ];
+    expect([for (final x in centred) x.abs() < 0.15], [true, true, true, false], reason: '$centred');
+    expect(centred.last, closeTo(1, 0.05));
     // A dynamic written back under a note of a beam that crosses the staves (Dorico's way: a
     // backup, the dynamic, a forward) leaves the beam whole: no note of it flagged on its own.
     {
