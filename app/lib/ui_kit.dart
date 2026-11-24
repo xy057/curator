@@ -261,7 +261,9 @@ class ToolbarButton extends StatelessWidget {
   final Color? color;
 
   /// The look of a toolbar's icon button, for one made elsewhere (a menu's): [AppStyle.control]
-  /// square, and its icon as [ToolbarButton]'s, with [selected] and [color] as there.
+  /// square made compact (8 px less each way, as toolbar buttons have always been; a fixed size
+  /// would keep the whole square), and its icon as [ToolbarButton]'s, with [selected] and
+  /// [color] as there.
   static ButtonStyle styleOf(BuildContext context, {bool selected = false, Color? color}) {
     final colors = context.colors;
     final style = AppStyle.of(context);
@@ -269,8 +271,9 @@ class ToolbarButton extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final fill = carbon?.backgroundSelected ?? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
     return (carbon == null ? IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: style.radius(5))) : const ButtonStyle()).copyWith(
-      fixedSize: WidgetStatePropertyAll(Size.square(style.control)),
       minimumSize: WidgetStatePropertyAll(Size.square(style.control)),
+      maximumSize: WidgetStatePropertyAll(Size.square(style.control)),
+      visualDensity: VisualDensity.compact,
       padding: const WidgetStatePropertyAll(EdgeInsets.zero),
       foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
           ? null
