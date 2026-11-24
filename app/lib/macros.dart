@@ -349,7 +349,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     try {
       // (Given up as it asked for bars: nothing to say.)
       final said = await _run(context, widget.controller, _macro!);
-      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.tr, failed: said.failed));
+      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.trIn('status'), failed: said.failed));
     } finally {
       if (mounted) setState(() => _trying = false);
     }

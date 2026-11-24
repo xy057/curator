@@ -896,7 +896,7 @@ msgstr "選択解除（Esc）"
 msgid "Save your changes to “{name}” first?"
 msgstr "先に「{name}」への変更を保存しますか？"
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr "完了"
 
@@ -4593,7 +4593,6 @@ msgstr "スクリプト内。"
 msgid "Run a Macro"
 msgstr "マクロを実行"
 
-#: lib/lane_script_view.dart
 msgid "Script"
 msgstr "スクリプト"
 
@@ -6067,3 +6066,12 @@ msgstr "「録音を聴く」をこの前につなぐ"
 #: lib/macros.dart
 msgid "Disconnect"
 msgstr "切断"
+
+#: lib/lane_script_view.dart
+msgid "Script: {problem}"
+msgstr "スクリプト：{problem}"
+
+#: lib/lane_script_view.dart lib/macros.dart
+msgctxt "status"
+msgid "Done"
+msgstr "完了しました"

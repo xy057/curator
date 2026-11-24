@@ -140,14 +140,14 @@ class _LaneScriptViewState extends State<LaneScriptView> {
         if (problems.firstOrNull case final problem?) {
           messenger
             ?..clearSnackBars()
-            ..showSnackBar(SnackBar(content: Text('${'Script'.tr}: ${problem.message}')));
+            ..showSnackBar(SnackBar(content: Text('Script: {problem}'.fill({'problem': problem.message}))));
         }
         return;
       }
       setState(() {
         _found = problems.isEmpty ? null : problems;
         _problems = _c.lanes.checkScript(_code.text);
-        _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
+        _said = problems.isNotEmpty ? null : (changed ? 'Done'.trIn('status') : 'Nothing changed'.tr);
       });
     } finally {
       if (mounted) setState(() => _running = false);
