@@ -426,8 +426,10 @@ void main() {
       expect(run('copy "Violin" to "Flute 1"'), ['Line 1: One lane is copied, and that names 2.']);
       expect(run('copy "Flute 1" to "Violin"[2]\nbridge rests 1 in "Flute 2"\nremove short 6 in "Flute 2"\nauto "Flute*"'), isEmpty);
       expect([lanes.lane('v2'), lanes.lane('fl2'), host.autoCurated], [const [Region(0, 20)], isEmpty, ['fl', 'fl2']]);
-      expect(run('move "Violin"[2] to top\nmove "Flute 1" after "Piano"'), isEmpty);
+      // A lane of a name is counted as the lanes were when the script began: moved, it is still the one named.
+      expect(run('move "Violin"[2] to top\nmove "Flute 1" after "Piano"\nshow "Violin"[2] 12'), isEmpty);
       expect([for (final lane in host.lanes) lane.id], ['v2', 'fl2', 'pf', 'fl', 'v1']);
+      expect([lanes.lane('v2'), lanes.lane('v1')], const [[Region(0, 20), Region(44, 48)], [Region(0, 8), Region(16, 48)]]);
       expect([run('restore order'), host.lanes.first.id], [isEmpty, 'fl']);
       host.auto = false;
       expect(run('auto'), ['Line 1: This score’s lanes can’t be auto-curated.']);

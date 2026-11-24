@@ -25,7 +25,8 @@ from, and a way to take one project's lanes to another. The script is kept with 
   spaces don't matter, and `*` stands for anything: `"Violin*"`.
 - Several are separated by commas; `all` is every lane; `except` leaves some out:
   `all except "Piano", "Harp"`.
-- Where lanes share a name, `"Violin"[2]` is the second from the top.
+- Where lanes share a name, `"Violin"[2]` is the second from the top, as the lanes are when the
+  script starts: one moved by it is still the lane it names.
 - `"Piano"/1` is the lane of a staff, once the instrument is split (`split "Piano"`).
 - `let strings = "Violin*", "Viola"` names lanes; the name is written without quotes after it.
 

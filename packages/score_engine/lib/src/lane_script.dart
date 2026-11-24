@@ -115,6 +115,9 @@ abstract class LaneScriptHost {
   /// What fitting took of each lane (by its id) over this host's runs, as it was there: what a
   /// refill puts back.
   final _taken = <String, List<Region>>{};
+
+  /// The script last run or checked here, with the places its lanes were counted by.
+  (LaneScript, Map<String, int>)? _numbered;
 }
 
 /// Something wrong with a script, on its [line] (1 the first).
@@ -308,6 +311,13 @@ class LaneScript {
 
   List<LaneScriptProblem> _go(_Run run, [Set<int>? only]) {
     if (problems.isNotEmpty && !run.dry) return problems;
+    // Lanes of a name are counted as they stood when the script began: by a part of it run
+    // ([only]), as they stood for the check or the part before it.
+    final host = run.host, numbered = host._numbered;
+    run.numbering = only != null && numbered != null && identical(numbered.$1, this)
+        ? numbered.$2
+        : {for (final (i, id) in {for (final lane in run.lanes) lane.instrument}.indexed) id: i};
+    host._numbered = (this, run.numbering);
     final found = [...problems];
     for (final (line, statement) in _statements) {
       if (only != null && !only.contains(line)) continue;
@@ -441,6 +451,10 @@ class _Run {
 
   /// Whether a `hear` has gone before: a `match` goes by it.
   bool heard = false;
+
+  /// Each instrument's place among the lanes when the script began: what `"Violin"[2]` counts
+  /// by, so a lane moved is still the one it names.
+  Map<String, int> numbering = const {};
   Map<String, _Group> groups = const {};
 
   /// How many groups deep a group may go.
@@ -472,6 +486,8 @@ class _Run {
       for (final lane in found) {
         if (!instruments.contains(lane.instrument)) instruments.add(lane.instrument);
       }
+      int at(String id) => numbering[id] ?? numbering.length + instruments.indexOf(id);
+      instruments.sort((a, b) => at(a).compareTo(at(b)));
       if (nth < 1 || nth > instruments.length) {
         throw _Fail(instruments.length == 1 ? 'There is one lane named “$name”.' : 'There are ${instruments.length} lanes named “$name”.');
       }
