@@ -165,7 +165,7 @@ index 5790776..1a70c0d 100644
      // Functors //
      //----------//
 diff --git a/include/vrv/view.h b/include/vrv/view.h
-index 7557569..3bfedd8 100644
+index 7557569..050522d 100644
 --- a/include/vrv/view.h
 +++ b/include/vrv/view.h
 @@ -383,7 +383,8 @@ protected:
@@ -178,6 +178,16 @@ index 7557569..3bfedd8 100644
  
      /**
       * @name Method for drawing Beam and FTrem.
+@@ -438,6 +439,9 @@ protected:
+     void DrawDynam(DeviceContext *dc, Dynam *dynam, Measure *measure, System *system);
+     void DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, const std::u32string &dynamSymbol,
+         data_HORIZONTALALIGNMENT alignment, TextDrawingParams &params);
++    /** [curated-score patch] The radius of the head of the note (or chord) [staff] has at [time], whose x it
++     * puts in [x]; a black head's with none. */
++    int CuratedHeadRadiusAt(const LayerElement *time, const Staff *staff, int &x) const;
+     void DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, System *system);
+     void DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *system);
+     void DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *system);
 diff --git a/include/vrv/vrv.h b/include/vrv/vrv.h
 index d8070ce..a35e805 100644
 --- a/include/vrv/vrv.h
@@ -511,7 +521,7 @@ index 5772420..a9ad7d2 100644
              return 2 * unit;
          }
 diff --git a/src/iomusxml.cpp b/src/iomusxml.cpp
-index b0c792f..be610e8 100644
+index b0c792f..0fd6ba9 100644
 --- a/src/iomusxml.cpp
 +++ b/src/iomusxml.cpp
 @@ -711,6 +711,21 @@ std::string MusicXmlInput::GetWordsOrDynamicsText(const pugi::xml_node node) con
@@ -749,7 +759,22 @@ index b0c792f..be610e8 100644
          dynam->SetPlace(dynam->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          dynam->SetTstamp(timeStamp);
          if (staffNode) {
-@@ -2765,6 +2868,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2522,6 +2625,14 @@ void MusicXmlInput::ReadMusicXmlDirection(
+         // parse the default_y attribute and transform to vgrp value, to vertically align dynamics and directives
+         defaultY = (defaultY < 0) ? std::abs(defaultY) : defaultY + 2000;
+         dynam->SetVgrp(defaultY);
++        // [curated-score patch] relative-x moves it on or back from where it is engraved (in tenths:
++        // ten to a staff space, which is two vu)
++        const double relativeX = dynamics.first().node().attribute("relative-x").as_double();
++        if (relativeX != 0.0) {
++            data_MEASUREMENTSIGNED ho;
++            ho.SetVu(relativeX / 5.0);
++            dynam->SetHo(ho);
++        }
+         m_controlElements.push_back({ m_measureCounts.at(measure), dynam });
+         m_dynamStack.push_back(dynam);
+ 
+@@ -2765,6 +2876,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      pugi::xml_node rehearsal = typeNode.child("rehearsal");
      if (rehearsal) {
          Reh *reh = new Reh();
@@ -757,7 +782,7 @@ index b0c792f..be610e8 100644
          reh->SetPlace(reh->AttPlacementRelStaff::StrToStaffrel(placeStr.c_str()));
          const std::string halign = rehearsal.attribute("halign").as_string();
          const std::string lang = rehearsal.attribute("xml:lang") ? rehearsal.attribute("xml:lang").as_string() : "it";
-@@ -2776,6 +2880,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2776,6 +2888,8 @@ void MusicXmlInput::ReadMusicXmlDirection(
          reh->SetLang(lang);
          Rend *rend = new Rend();
          rend->SetFontweight(rend->AttTypography::StrToFontweight(rehearsal.attribute("font-weight").as_string()));
@@ -766,7 +791,7 @@ index b0c792f..be610e8 100644
          rend->SetHalign(rend->AttHorizontalAlign::StrToHorizontalalignment(halign));
          const std::string enclosure = rehearsal.attribute("enclosure").as_string();
          rend->SetRend(enclosure.empty() ? TEXTRENDITION_box : ConvertEnclosure(enclosure));
-@@ -2789,6 +2895,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
+@@ -2789,6 +2903,7 @@ void MusicXmlInput::ReadMusicXmlDirection(
      // Tempo
      if (containsTempo) {
          Tempo *tempo = new Tempo();
@@ -774,7 +799,7 @@ index b0c792f..be610e8 100644
          if (!words.empty()) {
              const std::string lang = words.first().node().attribute("xml:lang")
                  ? words.first().node().attribute("xml:lang").as_string()
-@@ -3530,6 +3637,7 @@ void MusicXmlInput::ReadMusicXmlNote(
+@@ -3530,6 +3645,7 @@ void MusicXmlInput::ReadMusicXmlNote(
                      if (!textStyle.empty()) syl->SetFontstyle(syl->AttTypography::StrToFontstyle(textStyle.c_str()));
                      if (!textWeight.empty())
                          syl->SetFontweight(syl->AttTypography::StrToFontweight(textWeight.c_str()));
@@ -966,7 +991,7 @@ index 10803e9..26d3be2 100644
  
      // There are unbeamed notes of two different beams
 diff --git a/src/view_control.cpp b/src/view_control.cpp
-index 5a5a079..4357d2a 100644
+index 5a5a079..2787302 100644
 --- a/src/view_control.cpp
 +++ b/src/view_control.cpp
 @@ -863,21 +863,22 @@ void View::DrawOctave(
@@ -1099,7 +1124,60 @@ index 5a5a079..4357d2a 100644
          }
      }
  
-@@ -1915,36 +1940,37 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+@@ -1852,7 +1877,13 @@ void View::DrawDynam(DeviceContext *dc, Dynam *dynam, Measure *measure, System *
+     // dynam are left aligned by default;
+     if (alignment == 0) {
+         // centre the dynam only with @startid
+-        alignment = (dynam->GetStart()->Is(TIMESTAMP_ATTR)) ? HORIZONTALALIGNMENT_left : HORIZONTALALIGNMENT_center;
++        // [curated-score patch] or when it is all symbols (p, mf, sfz), bracketed or not: centred on
++        // the note it is under, as one at a time (a MusicXML direction) is too; words begin at it
++        std::u32string unbracketed = dynam->GetText();
++        std::erase_if(unbracketed, [](char32_t c) { return std::u32string_view(U"()[] \u00A0").find(c) != std::u32string_view::npos; });
++        const bool symbols = isSymbolOnly || Dynam::IsSymbolOnly(unbracketed);
++        alignment = (dynam->GetStart()->Is(TIMESTAMP_ATTR) && !symbols) ? HORIZONTALALIGNMENT_left
++                                                                         : HORIZONTALALIGNMENT_center;
+     }
+ 
+     std::vector<Staff *> staffList = dynam->GetTstampStaves(measure, dynam);
+@@ -1862,6 +1893,11 @@ void View::DrawDynam(DeviceContext *dc, Dynam *dynam, Measure *measure, System *
+         }
+         const int staffSize = staff->m_drawingStaffSize;
+         int x = dynam->GetStart()->GetDrawingX() + dynam->GetStart()->GetDrawingRadius(m_doc);
++        // [curated-score patch] a time is where the head of the staff's note then begins: centred,
++        // on that head's middle (a black one's, with no note there)
++        if (dynam->GetStart()->Is(TIMESTAMP_ATTR) && alignment == HORIZONTALALIGNMENT_center) {
++            x += this->CuratedHeadRadiusAt(dynam->GetStart(), staff, x);
++        }
+         int y = dynam->GetDrawingY();
+ 
+         this->SetOffsetStaffSize(dynam, staffSize);
+@@ -1908,6 +1944,25 @@ void View::DrawDynam(DeviceContext *dc, Dynam *dynam, Measure *measure, System *
+     dc->EndGraphic(dynam, this);
+ }
+ 
++int View::CuratedHeadRadiusAt(const LayerElement *time, const Staff *staff, int &x) const
++{
++    const Alignment *alignment = time->GetAlignment();
++    if (alignment) {
++        for (const Object *child : alignment->GetChildren()) {
++            const AlignmentReference *reference = dynamic_cast<const AlignmentReference *>(child);
++            if (!reference || reference->GetN() != staff->GetN()) continue;
++            for (const Object *object : reference->GetChildren()) {
++                const LayerElement *element = dynamic_cast<const LayerElement *>(object);
++                if (!element || !element->IsAnyOf(std::array{ CHORD, NOTE })) continue;
++                if (element->Is(NOTE) && vrv_cast<const Note *>(element)->IsChordTone()) continue;
++                x = element->GetDrawingX();
++                return element->GetDrawingRadius(m_doc);
++            }
++        }
++    }
++    return m_doc->GetGlyphWidth(SMUFL_E0A4_noteheadBlack, staff->m_drawingStaffSize, false) / 2;
++}
++
+ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, const std::u32string &dynamSymbol,
+     data_HORIZONTALALIGNMENT alignment, TextDrawingParams &params)
+ {
+@@ -1915,44 +1970,61 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
      assert(staff);
      assert(dynam);
  
@@ -1126,35 +1204,52 @@ index 5a5a079..4357d2a 100644
          }
      }
  
++    // [curated-score patch] the brackets and the symbol laid out as one, from its start, and moved
++    // back by half of what is inked (all of it, right-aligned): each aligned on its own, centred
++    // put the brackets over the symbol.
++    const int unit = m_doc->GetDrawingUnit(symbolSize);
++    const int gap = unit / 6;
++    const int symbolX = enclosingFront ? m_doc->GetGlyphWidth(enclosingFront, symbolSize, false) - left + gap : 0;
++    const int inkLeft = enclosingFront ? m_doc->GetGlyphLeft(enclosingFront, symbolSize, false) : symbolX + left;
++    const int inkRight = enclosingBack
++        ? symbolX + width + gap + m_doc->GetGlyphRight(enclosingBack, symbolSize, false)
++        : symbolX + width;
++    if (alignment == HORIZONTALALIGNMENT_center) {
++        params.m_x -= (inkLeft + inkRight) / 2;
++    }
++    else if (alignment == HORIZONTALALIGNMENT_right) {
++        params.m_x -= inkRight;
++    }
++
      // draw opening symbol
 -    const int unit = m_doc->GetDrawingUnit(staff->m_drawingStaffSize);
-+    const int unit = m_doc->GetDrawingUnit(symbolSize);
      if (enclosingFront) {
          std::u32string open;
          open.push_back(enclosingFront);
  
 -        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, open, alignment, staff->m_drawingStaffSize);
 -        params.m_x += m_doc->GetGlyphWidth(enclosingFront, staff->m_drawingStaffSize, false) - left + unit / 6;
-+        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, open, alignment, symbolSize);
-+        params.m_x += m_doc->GetGlyphWidth(enclosingFront, symbolSize, false) - left + unit / 6;
++        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, open, HORIZONTALALIGNMENT_left, symbolSize);
      }
++    params.m_x += symbolX;
  
      // draw dynamics itself
 -    this->DrawSmuflString(dc, params.m_x, params.m_y, dynamSymbol, alignment, staff->m_drawingStaffSize);
-+    this->DrawSmuflString(dc, params.m_x, params.m_y, dynamSymbol, alignment, symbolSize);
++    this->DrawSmuflString(dc, params.m_x, params.m_y, dynamSymbol, HORIZONTALALIGNMENT_left, symbolSize);
  
      // draw closing symbol
      if (enclosingBack) {
-@@ -1952,7 +1978,7 @@ void View::DrawDynamSymbolOnly(DeviceContext *dc, Staff *staff, Dynam *dynam, co
+         std::u32string close;
          close.push_back(enclosingBack);
  
-         params.m_x += width + unit / 6;
+-        params.m_x += width + unit / 6;
 -        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, close, alignment, staff->m_drawingStaffSize);
-+        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, close, alignment, symbolSize);
++        params.m_x += width + gap;
++        this->DrawSmuflString(dc, params.m_x, params.m_y + unit, close, HORIZONTALALIGNMENT_left, symbolSize);
      }
  
      dc->ResetFont();
-@@ -2027,7 +2053,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+@@ -2027,7 +2099,7 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), fermata, fermata->GetStart(), staff)) {
              continue;
          }
@@ -1163,7 +1258,7 @@ index 5a5a079..4357d2a 100644
          int x = drawingX;
          int y = fermata->GetDrawingY();
  
-@@ -2090,6 +2116,17 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
+@@ -2090,6 +2162,17 @@ void View::DrawFermata(DeviceContext *dc, Fermata *fermata, Measure *measure, Sy
      dc->EndGraphic(fermata, this);
  }
  
@@ -1181,7 +1276,7 @@ index 5a5a079..4357d2a 100644
  void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *system)
  {
      assert(dc);
-@@ -2126,9 +2163,12 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
+@@ -2126,9 +2209,12 @@ void View::DrawFing(DeviceContext *dc, Fing *fing, Measure *measure, System *sys
          params.m_x = x;
          params.m_y = y;
          params.m_staffSize = staffSize;
@@ -1195,7 +1290,7 @@ index 5a5a079..4357d2a 100644
  
          dc->SetFont(&fingTxt);
  
-@@ -2254,7 +2294,8 @@ void View::DrawGliss(DeviceContext *dc, Gliss *gliss, int x1, int x2, Staff *sta
+@@ -2254,7 +2340,8 @@ void View::DrawGliss(DeviceContext *dc, Gliss *gliss, int x1, int x2, Staff *sta
              const char32_t glissGlyph = SMUFL_EAAF_wiggleGlissando;
              const int height = m_doc->GetGlyphHeight(glissGlyph, staff->m_drawingStaffSize, false);
              const Point orig(x1, y1 - height / 2);
@@ -1205,7 +1300,7 @@ index 5a5a079..4357d2a 100644
              break;
          }
          case LINEFORM_dashed:
-@@ -2332,9 +2373,12 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
+@@ -2332,9 +2419,12 @@ void View::DrawHarm(DeviceContext *dc, Harm *harm, Measure *measure, System *sys
              this->DrawFb(dc, staff, dynamic_cast<Fb *>(harm->GetFirst()), params);
          }
          else {
@@ -1219,7 +1314,7 @@ index 5a5a079..4357d2a 100644
  
              dc->SetFont(&harmTxt);
  
-@@ -2385,7 +2429,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
+@@ -2385,7 +2475,7 @@ void View::DrawMordent(DeviceContext *dc, Mordent *mordent, Measure *measure, Sy
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), mordent, mordent->GetStart(), staff)) {
              continue;
          }
@@ -1228,7 +1323,7 @@ index 5a5a079..4357d2a 100644
          int x = drawingX;
          int y = mordent->GetDrawingY();
  
-@@ -2554,8 +2598,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2554,8 +2644,8 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
          if (bounceStar && (pedal->GetDir() == pedalLog_DIR_bounce)) {
              str.push_back(code);
              // Get the staff size of the first staff
@@ -1239,7 +1334,7 @@ index 5a5a079..4357d2a 100644
              drawingX -= m_doc->GetGlyphWidth(SMUFL_E655_keyboardPedalUp, staffSize, false);
          }
          if (pedal->GetDir() != pedalLog_DIR_up) {
-@@ -2567,7 +2611,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
+@@ -2567,7 +2657,7 @@ void View::DrawPedal(DeviceContext *dc, Pedal *pedal, Measure *measure, System *
              if (!system->SetCurrentFloatingPositioner(staff->GetN(), pedal, pedal->GetStart(), staff)) {
                  continue;
              }
@@ -1248,7 +1343,7 @@ index 5a5a079..4357d2a 100644
              int x = drawingX;
              int y = pedal->GetDrawingY();
  
-@@ -2655,6 +2699,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
+@@ -2655,6 +2745,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
          params.m_y = y;
          params.m_staffSize = staffSize;
          params.m_pointSize = m_doc->GetDrawingLyricFont(staffSize)->GetPointSize();
@@ -1256,7 +1351,7 @@ index 5a5a079..4357d2a 100644
  
          rehTxt.SetPointSize(params.m_pointSize);
  
-@@ -2666,7 +2711,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
+@@ -2666,7 +2757,7 @@ void View::DrawReh(DeviceContext *dc, Reh *reh, Measure *measure, System *system
  
          dc->ResetFont();
  
@@ -1265,7 +1360,7 @@ index 5a5a079..4357d2a 100644
      }
  
      dc->EndGraphic(reh, this);
-@@ -2713,7 +2758,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
+@@ -2713,7 +2804,7 @@ void View::DrawRepeatMark(DeviceContext *dc, RepeatMark *repeatMark, Measure *me
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), repeatMark, repeatMark->GetStart(), staff)) {
              continue;
          }
@@ -1274,7 +1369,7 @@ index 5a5a079..4357d2a 100644
          int x = drawingX;
          int y = repeatMark->GetDrawingY();
  
-@@ -2843,7 +2888,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
+@@ -2843,7 +2934,7 @@ void View::DrawTrill(DeviceContext *dc, Trill *trill, Measure *measure, System *
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), trill, trill->GetStart(), staff)) {
              continue;
          }
@@ -1283,7 +1378,7 @@ index 5a5a079..4357d2a 100644
          int x = drawingX;
          int y = trill->GetDrawingY();
  
-@@ -2951,7 +2996,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
+@@ -2951,7 +3042,7 @@ void View::DrawTurn(DeviceContext *dc, Turn *turn, Measure *measure, System *sys
          if (!system->SetCurrentFloatingPositioner(staff->GetN(), turn, turn->GetStart(), staff)) {
              continue;
          }
@@ -1292,7 +1387,7 @@ index 5a5a079..4357d2a 100644
          int x = drawingX;
          int y = turn->GetDrawingY();
  
-@@ -3270,10 +3315,11 @@ void View::DrawEnding(DeviceContext *dc, Ending *ending, System *system)
+@@ -3270,10 +3361,11 @@ void View::DrawEnding(DeviceContext *dc, Ending *ending, System *system)
      }
  }
  
@@ -1306,7 +1401,7 @@ index 5a5a079..4357d2a 100644
      const int margin = m_doc->GetDrawingUnit(staffSize);
  
      dc->SetPushBack();
-@@ -3283,6 +3329,19 @@ void View::DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params,
+@@ -3283,6 +3375,19 @@ void View::DrawTextEnclosure(DeviceContext *dc, const TextDrawingParams &params,
          int x2 = rend->GetContentRight() + margin;
          int y1 = rend->GetContentBottom() - margin / 2;
          int y2 = rend->GetContentTop() + margin;

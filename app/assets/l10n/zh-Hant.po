@@ -4593,6 +4593,7 @@ msgstr "在腳本中。"
 msgid "Run a Macro"
 msgstr "執行巨集"
 
+#: lib/lane_script_view.dart
 msgid "Script"
 msgstr "腳本"
 
@@ -4628,6 +4629,9 @@ msgstr "等音改寫"
 
 msgid "Move markings"
 msgstr "移動記號"
+
+msgid "Nudge dynamics"
+msgstr "微移力度記號"
 
 msgid "Repeat the selection"
 msgstr "重複所選內容"
@@ -4739,6 +4743,9 @@ msgstr "改寫為上方 / 下方的音。"
 
 msgid "⇧ hairpins’ ends"
 msgstr "⇧ 漸強漸弱記號的末端"
+
+msgid "A quarter space · ⇧ a tenth"
+msgstr "四分之一間 · ⇧ 十分之一"
 
 msgid "Stops note input first."
 msgstr "先停止音符輸入。"

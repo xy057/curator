@@ -161,7 +161,17 @@ void main() {
       final at = ScorePosition(0, voice, 2, Frac.zero);
       score.input(at, [InputItem(const Rhythm(NoteType.quarter), [const Pitch(0, 5)])]);
       states.add(written());
+      final had = {...score.ids};
       score.addDynamic(at, 'mf');
+      states.add(written());
+      // Nudged on a quarter space (⌘⌥→), then back as far: relative-x in tenths, then none.
+      final mf = score.markingsOf(score.ids.where((id) => !had.contains(id))).single.id;
+      score.nudgeMarkings([mf], 2.5);
+      int nudged(String xml) => '<dynamics relative-x="2.5">'.allMatches(xml).length;
+      expect(nudged(written()), nudged(states.last) + 1);
+      states.add(written());
+      score.nudgeMarkings([mf], -2.5);
+      expect(written(), states[states.length - 2]);
       states.add(written());
       // What is in force in a bar, and where a note is, follow the bars before it.
       final key = score.keyAt(0, 6, Frac.zero).fifths;

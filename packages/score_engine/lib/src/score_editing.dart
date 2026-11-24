@@ -3000,6 +3000,24 @@ class EditableScore {
         return (part: p.part, staff: p.staff, measure: p.measure - 1, time: _stops(p.part, p.staff, p.measure - 1, grid).last, below: p.below);
       });
 
+  /// The dynamics among the markings [ids] each moved on ([tenths] more than nothing) or back
+  /// from where they are engraved by [tenths] of a staff space (MusicXML's `relative-x`: ten to
+  /// a space). Back where it is engraved, a dynamic says nothing of it.
+  void nudgeMarkings(Iterable<String> ids, num tenths) => edit(() {
+        for (final marking in markingsOf(ids)) {
+          final where = _where[marking.id]!;
+          final content = _mutable(where.part, where.measure);
+          final direction = content.others.where((o) => o.element.getAttribute('id') == marking.id).firstOrNull?.element;
+          if (direction == null || !_saidBy(direction).any((e) => e.name.local == 'dynamics')) continue;
+          // Verovio reads it from the first of them, which may be words ("(", "subito").
+          for (final e in _saidBy(direction).where((e) => e.name.local == 'dynamics' || e.name.local == 'words')) {
+            final x = (((double.tryParse(e.getAttribute('relative-x') ?? '') ?? 0) + tenths) * 100).round() / 100;
+            e.setAttribute('relative-x', x == 0 ? null : plainNumber(x));
+          }
+          _commit(where.part, where.measure, content);
+        }
+      });
+
   /// The markings [ids] each moved a place up ([delta] -1) or down (1): from under its staff to
   /// over it, from over it to under the staff above (of the instrument above, from the top one).
   void liftMarkings(Iterable<String> ids, int delta) {

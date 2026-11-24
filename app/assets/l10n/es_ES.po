@@ -4593,6 +4593,7 @@ msgstr ""
 msgid "Run a Macro"
 msgstr ""
 
+#: lib/lane_script_view.dart
 msgid "Script"
 msgstr ""
 
@@ -4628,6 +4629,9 @@ msgstr "Cambiar la grafía enarmónica"
 
 msgid "Move markings"
 msgstr "Mover indicaciones"
+
+msgid "Nudge dynamics"
+msgstr ""
 
 msgid "Repeat the selection"
 msgstr "Repetir la selección"
@@ -4739,6 +4743,9 @@ msgstr "Como la nota superior / inferior."
 
 msgid "⇧ hairpins’ ends"
 msgstr "⇧ mueve los extremos de los reguladores"
+
+msgid "A quarter space · ⇧ a tenth"
+msgstr ""
 
 msgid "Stops note input first."
 msgstr "Primero sale del modo de introducción de notas."
