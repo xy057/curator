@@ -248,8 +248,8 @@ Attacca on Windows is the same plug-in, built from the same sources, and Curator
 all it does on macOS. What differs:
 
 - **VST3 only.** Windows has no Audio Units: `Attacca.vst3` and `Attacca Capturer.vst3`, each a
-  folder holding its program (`Contents\x86_64-win\<name>.vst3`), the SDKs' licences and
-  Attacca's version (`Contents\Resources`). The DAWs Attacca supports all load VST3.
+  folder holding its program (`Contents\x86_64-win\<name>.vst3`), the licences and Attacca's
+  version (`Contents\Resources`). The DAWs Attacca supports all load VST3.
 - **x86_64 only.** A DAW built for ARM (Windows on ARM, run natively) doesn't load it. One
   built for x86_64 does, on either processor.
 - **Your own VST3 folder.** `%LOCALAPPDATA%\Programs\Common\VST3` is the VST3 standard's
@@ -376,8 +376,12 @@ every Curator from before compares as older without either side knowing of the c
    - then registers the Audio Unit in its own process only, makes its window and checks its
      playback the same way.
 
-The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`. That file is shown under Settings
-▸ About ▸ Licenses and copied into each bundle.
+The SDKs' licences are in `app/assets/daw_link/LICENSES.txt`, with the notices of what the
+Windows build links in with them (`-static`): the LLVM Project's C++ library and runtime and the
+MinGW-w64 runtime, as llvm-mingw comes with them (`LICENSE.TXT`; the runtime's
+`x86_64-w64-mingw32/share/mingw32/COPYING.MinGW-w64-runtime.txt`, which asks for it): read them
+again when llvm-mingw is updated. That file is shown under Settings ▸ About ▸ Licenses and
+copied into each bundle.
 
 **For Windows**, `make daw-link-windows` builds the same sources on a Mac, for x86_64:
 
