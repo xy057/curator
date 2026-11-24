@@ -168,14 +168,11 @@ class MacrosMenu extends StatelessWidget {
     return OverlaySemantics(
       child: AppPopupMenuButton<VoidCallback>(
         tooltip: 'Macros'.tr,
-        iconSize: 18,
+        // A toolbar's icon button, as Tidy's and Sync's menus are.
+        iconSize: 16,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 220),
-        style: IconButton.styleFrom(
-          fixedSize: const Size(32, 32),
-          minimumSize: const Size(32, 32),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: ToolbarButton.styleOf(context),
         icon: Icon(AppIcon.repeat.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (menu) => [

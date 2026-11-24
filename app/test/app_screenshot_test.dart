@@ -382,10 +382,12 @@ void main() {
     expect(find.descendant(of: find.byKey(const ValueKey('overflow menu')), matching: find.text('Auto-curate')), findsOneWidget, reason: 'the bar’s switch');
     // The script is in the lanes' place only while its button is on the bar or in its menu:
     // Restore Defaults, which has none, takes the lanes back.
-    settings.setToolbar(bar(BarKind.instruments).added(BarItem.script));
+    settings.setToolbar(bar(BarKind.instruments).added(BarItem.script).added(BarItem.macros));
     editing.lanes.scripting = true;
     await settle();
     expect(editing.lanes.scripting, isTrue);
+    // The Macros menu is a toolbar's icon button, as big as the buttons beside it.
+    expect(tester.getSize(find.descendant(of: shown, matching: find.byType(MacrosMenu))), tester.getSize(panelTool('Clear all lanes', shown)));
     await tester.tap(find.text('Restore Defaults'));
     await settle();
     expect(bar(BarKind.instruments).isStandard, isTrue);
