@@ -40,7 +40,13 @@ class _LaneScriptViewState extends State<LaneScriptView> {
   late final _find = CodeFindController(_code);
   final _focus = FocusNode(debugLabel: 'Script');
 
+  /// What the check finds wrong with the script as it is typed: Run waits for none.
   List<LaneScriptProblem> _problems = const [];
+
+  /// What the last Run found wrong, listed in the check's place until the script is typed in
+  /// again: what only running finds (an Align under way, a recording the score isn't heard in)
+  /// is no reason not to run it again.
+  List<LaneScriptProblem>? _found;
 
   /// What the last Run came to, until the script is typed in again.
   String? _said;
@@ -55,6 +61,18 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     _problems = _c.lanes.checkScript(_code.text);
     _code.addListener(_typed);
     _c.addListener(_projectChanged);
+    _focus.addListener(_keyboardMoved);
+  }
+
+  /// The code's editor lets the keyboard go on a click outside it, which leaves it with the
+  /// route, above the window's shortcuts: Space, the arrows and ⌃1–9 would stop until the
+  /// script was clicked again. Where nothing else took it, it goes to what is around this (the
+  /// window's own node, as a text field's does: its keys are heard from there).
+  void _keyboardMoved() {
+    if (!mounted || _focus.hasFocus || FocusManager.instance.primaryFocus is! FocusScopeNode) return;
+    for (var node = Focus.maybeOf(context, createDependency: false); node != null && node is! FocusScopeNode; node = node.parent) {
+      if (node.canRequestFocus) return node.requestFocus();
+    }
   }
 
   @override
@@ -62,6 +80,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     _checking?.cancel();
     _c.removeListener(_projectChanged);
     _code.removeListener(_typed);
+    _focus.removeListener(_keyboardMoved);
     _find.dispose();
     _code.dispose();
     _focus.dispose();
@@ -73,36 +92,66 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     final text = _code.text;
     if (text == _mine) return; // the caret moved
     _c.lanes.script = _mine = text;
-    if (_said != null) setState(() => _said = null);
+    if (_said != null || _found != null) setState(() => _said = _found = null);
+    _checkSoon();
+  }
+
+  void _checkSoon() {
     _checking?.cancel();
     _checking = Timer(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _problems = _c.lanes.checkScript(_code.text));
+      if (!mounted) return;
+      final problems = _c.lanes.checkScript(_code.text);
+      if (problems.join('\n') != _problems.join('\n')) setState(() => _problems = problems);
     });
   }
 
   /// Another project's script (a score replaced, a project opened here): checked as it comes.
+  /// The same script with the project changed otherwise (a lane split, renamed, a recording
+  /// added): checked again a moment later, as typing is.
   void _projectChanged() {
-    if (identical(_c.lanes.script, _mine)) return;
+    if (identical(_c.lanes.script, _mine)) {
+      if (!_running) _checkSoon();
+      return;
+    }
     _code.text = _mine = _c.lanes.script;
     _checking?.cancel();
     setState(() {
-      _said = null;
+      _said = _found = null;
       _problems = _c.lanes.checkScript(_code.text);
     });
   }
 
-  /// (A script that hears the recording waits for it, with Align's progress in the Audio tab.)
+  /// (A script that hears the recording waits for it, with Align's progress in the Audio tab:
+  /// where this is left for that by the time it ends, what went wrong is said in the window.)
   Future<void> _run() async {
     if (_running) return;
     _checking?.cancel();
+    // (Checked as it is now, ⌘R as Run: what was listed may be out of date by a moment.)
+    final now = _c.lanes.checkScript(_code.text);
+    if (now.isNotEmpty || _code.text.trim().isEmpty) {
+      setState(() => _problems = now);
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
     setState(() => _running = true);
-    final (:problems, :changed) = await _c.lanes.runScriptReady(_code.text);
-    if (!mounted) return;
-    setState(() {
-      _running = false;
-      _problems = problems;
-      _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
-    });
+    try {
+      final (:problems, :changed) = await _c.lanes.runScriptReady(_code.text);
+      if (!mounted) {
+        if (problems.firstOrNull case final problem?) {
+          messenger
+            ?..clearSnackBars()
+            ..showSnackBar(SnackBar(content: Text('${'Script'.tr}: ${problem.message}')));
+        }
+        return;
+      }
+      setState(() {
+        _found = problems.isEmpty ? null : problems;
+        _problems = _c.lanes.checkScript(_code.text);
+        _said = problems.isNotEmpty ? null : (changed ? 'Done'.tr : 'Nothing changed'.tr);
+      });
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
   }
 
   /// The lanes as they are in the script's place, as one step of the code's own Undo.
@@ -141,15 +190,17 @@ class _LaneScriptViewState extends State<LaneScriptView> {
                       controller: _code,
                       findController: _find,
                       focusNode: _focus,
+                      // (A lane's name offered comes with its closing quote: one put in as the opening was typed would be left over.)
+                      pairs: false,
                       prompts: LaneScriptPrompts(() => _c.lanes.scriptNames),
                       kindOf: (prompt) => prompt is LaneScriptPrompt && prompt.lane ? 'Lane'.tr : null,
                     ),
                   ),
                 ),
-                if (_problems.isNotEmpty) ...[
+                if (_found ?? _problems case final listed when listed.isNotEmpty) ...[
                   Divider(height: 1, color: colors.line),
                   CodeProblemList(problems: [
-                    for (final p in _problems) (text: '${p.line}: ${p.message}', error: true, onTap: () => _goTo(p.line)),
+                    for (final p in listed) (text: '${p.line}: ${p.message}', error: true, onTap: () => _goTo(p.line)),
                   ]),
                 ],
               ]),

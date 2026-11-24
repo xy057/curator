@@ -266,7 +266,9 @@ class FrameCuts {
 /// by itself goes by what those before it hid ([cuts], kept between them), and a refill shows
 /// those bars again. The frame is never asked twice running about the same lanes ([state]:
 /// what else its answer goes by, where that may change between steps), so the steps apart ask
-/// it as often as they do together.
+/// it as often as they do together. With [regions] (each part's lane as it is), the frame is
+/// asked about those, the bars hidden taken off them and the bars shown again put on as whole
+/// bars, so what they leave out and where they start in a bar count; without, about whole bars.
 Map<String, List<bool>> fittedBars({
   required Map<String, List<bool>> shown,
   required List<double> measureStarts,
@@ -280,10 +282,12 @@ Map<String, List<bool>> fittedBars({
   Set<FitStep> steps = const {FitStep.thin, FitStep.refill, FitStep.lone},
   FrameCuts? cuts,
   Object? state,
+  Map<String, List<Region>>? regions,
 }) {
   final bars = math.max(0, measureStarts.length - 1);
   final ids = shown.keys.toList(), memory = cuts ?? FrameCuts();
   shown = {for (final id in ids) id: [for (var m = 0; m < bars; m++) shown[id]!.elementAtOrNull(m) ?? false]};
+  final before = {for (final id in ids) id: [...shown[id]!]};
   final cut = {for (final id in ids) id: memory._of(id, shown[id]!)};
   // The lanes kept as they are, bar by bar (shown at the bar's middle).
   final kept = {
@@ -295,7 +299,21 @@ Map<String, List<bool>> fittedBars({
   };
   bool isShown(String id, int m) => (shown[id] ?? kept[id])?.elementAtOrNull(m) ?? false;
 
-  Map<String, List<Region>> lanes() => _lanesOf(shown, measureStarts);
+  Map<String, List<Region>> lanes() {
+    if (regions == null) return _lanesOf(shown, measureStarts);
+    return {
+      for (final id in ids)
+        id: () {
+          final now = shown[id]!, was = before[id]!;
+          var lane = regions[id] ?? const <Region>[];
+          for (final (first, end) in autoCurateMeasures([for (var m = 0; m < bars; m++) was[m] && !now[m]], bridge: 0)) {
+            lane = Curation.painted(lane, Region(measureStarts[first], measureStarts[end]), shown: false);
+          }
+          final back = [for (final (first, end) in autoCurateMeasures([for (var m = 0; m < bars; m++) !was[m] && now[m]], bridge: 0)) Region(measureStarts[first], measureStarts[end])];
+          return back.isEmpty ? lane : Curation.normalized([...lane, ...back]);
+        }(),
+    };
+  }
 
   /// When the lanes as they are now run off the frame.
   List<({double start, double end})> off() {
@@ -308,7 +326,8 @@ Map<String, List<bool>> fittedBars({
 
   double weight(String id, int m) {
     var s = salience.scores[id]?.elementAtOrNull(m) ?? 0;
-    for (final x in memory._bars.keys) {
+    // (What this call's parts had hidden: another's, kept from an earlier step, may be shown again since.)
+    for (final x in ids) {
       if (memory._cut(x, m) && (salience.doubles[x]?.elementAtOrNull(m)?.contains(id) ?? false)) {
         s = math.max(s, salience.scores[x]![m]);
       }

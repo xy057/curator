@@ -1185,7 +1185,8 @@ class CuratedScene {
   /// One [step] of fitting [lanes] (a part's each, as they are now) to a frame of [size]
   /// ([fittedBars], from the bars each is shown in at its middle; thinning in phrases of
   /// [phrase] bars): the stretches of whole bars it changes of each, hidden by
-  /// [FitStep.thin] and [FitStep.lone], shown again by [FitStep.refill]. [cuts] is what the
+  /// [FitStep.thin] and [FitStep.lone], shown again by [FitStep.refill]. The frame is asked
+  /// about [lanes] as they are (the staves they leave out, where they start in a bar). [cuts] is what the
   /// steps have hidden, kept from one to the next; the other lanes of [curation] stay as they
   /// are. Auto-curation's second half, a step at a time: on lanes just filled from where their
   /// parts play the three leave what [curatedToFit] gives.
@@ -1213,7 +1214,9 @@ class CuratedScene {
       phrase: phrase,
       steps: {step},
       cuts: cuts,
-      state: (_planStateFor(curation, size), curation.joined),
+      // (The scene itself and its staff size besides: a step after a wait may be another's, or the score larger.)
+      state: (this, _style.staffSpace, _planStateFor(curation, size), curation.joined),
+      regions: lanes,
       overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
     );
     return {

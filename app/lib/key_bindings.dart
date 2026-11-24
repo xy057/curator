@@ -473,7 +473,9 @@ class KeyMap {
   String write() => jsonEncode({for (final MapEntry(:key, :value) in _chosen.entries) key.name: value?.write() ?? ''});
 
   /// What [write] wrote; what can't be read (a command no longer there, or no longer the user's
-  /// to change) left out; the standard map from nothing.
+  /// to change) left out; the standard map from nothing. A key saved for a command that one of
+  /// the app's own commands has since come to have where it works (⌃1–9 a macro's) is the
+  /// app's now: that command is left with none, as a key given twice would run both.
   static KeyMap read(String? json) {
     if (json == null) return standard;
     try {
@@ -489,7 +491,13 @@ class KeyMap {
           chosen[command] = chord;
         }
       }
-      return KeyMap(Map.unmodifiable(chosen));
+      final read = KeyMap(Map.unmodifiable(chosen));
+      final taken = [
+        for (final MapEntry(:key, :value) in chosen.entries)
+          if (value == null ? null : read.takenBy(key, value) case final other? when !chosen.containsKey(other)) key,
+      ];
+      if (taken.isEmpty) return read;
+      return KeyMap(Map.unmodifiable({...chosen, for (final command in taken) command: null}));
     } catch (_) {
       return standard; // not a map: damaged, or a newer version's
     }

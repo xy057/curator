@@ -124,6 +124,19 @@ void main() {
       expect(['${wrong.problems.single}', wrong.changed, c.curation!.lanes, c.canRedo], ['Line 2: There is no lane named “No Such Lane”.', false, before, true]);
       expect([for (final p in c.lanes.checkScript('show all 99')) '$p'], ['Line 1: There is no bar 99.']);
 
+      // While the script is in the lanes' place, the window's keys leave the lanes behind it as they are.
+      c.tab = BottomTab.instruments;
+      c.lanes.selectAll();
+      expect([c.commands.canDelete, c.commands.canCopy], [true, true]);
+      c.lanes.scripting = true;
+      c.commands
+        ..delete()
+        ..trim(start: false)
+        ..selectAll();
+      expect([c.commands.canDelete, c.commands.canCopy, c.commands.pastesRegions, c.curation!.lanes], [false, false, false, before]);
+      c.lanes.scripting = false;
+      c.clearSelection();
+
       final written = c.lanes.asScript;
       c.lanes.clear();
       expect(c.lanes.runScript(written).problems, isEmpty);
@@ -135,6 +148,11 @@ void main() {
       expect([c.editRevision.value > revision, c.canRedo], [true, true], reason: 'saved, and no edit');
       final saved = ProjectModules.toJson(c.projectState);
       expect(ProjectModules.script.read(JsonReader(saved['script'], 'script'), const ProjectState(), (_, {required limit}) => null).script, written);
+      // One too long to be a script isn't saved, and a project saved with one opens, without it.
+      c.lanes.script = '#' * (LaneScript.maxLength + 1);
+      expect((ProjectModules.toJson(c.projectState)['script'] as Map?)?['text'], isNull);
+      expect(ProjectModules.script.read(JsonReader({'text': c.lanes.script}, 'script'), const ProjectState(), (_, {required limit}) => null).script, isEmpty);
+      c.lanes.script = written;
 
       // A macro runs as the script it is for now (the lanes selected, from the playhead): one Undo step, its lanes still
       // selected; a step that needs what isn't there changes nothing; the bars it asks for are checked; the app keeps macros.
@@ -245,6 +263,25 @@ void main() {
           expect(await after(() => c.lanes.runScriptReady('align')), button, reason: 'align, snapping $snap');
         }
         expect(found[true], isNot(found[false]), reason: 'there are notes to snap to');
+        // What waits for the hearing is done between gestures: one under way when it ends is let finish first.
+        {
+          c.anchors.clear();
+          c.beginEdit();
+          var done = false;
+          final waiting = c.lanes.runScriptReady('align').then((_) => done = true);
+          while (c.anchors.aligning != null) {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          expect([done, c.sync!.anchors], [false, isEmpty], reason: 'not inside the gesture');
+          c.endEdit();
+          await waiting;
+          expect(c.sync!.anchors, found[c.anchors.snapToOnsets]);
+        }
+        // Anchors snapped from afar never meet on one note: the nearer goes onto it, the other stays.
+        c.sync!.load(const [SyncAnchor(0, 1), SyncAnchor(1, 1.5)], leadIn: c.sync!.leadIn);
+        expect([c.lanes.runScript('snap anchors within 1').problems, [for (final a in c.sync!.anchors) a.seconds]], [isEmpty, [closeTo(1.02, 0.03), 1.5]]);
+        c.undo();
         expect(c.lanes.runScript('hear').problems, hasLength(1), reason: 'not without waiting');
 
         // A macro is a graph, and its branches don't wait for each other: Auto-curate and Auto-align in one, with no wire
@@ -266,6 +303,14 @@ void main() {
         c.lanes.runScript('show all');
         final running = c.lanes.runMacroReady(both);
         expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, isEmpty, isNotNull], reason: 'curated while it listens');
+        // Another that hears is told an Align is under way, at what waits and before it does anything.
+        final clears = LaneMacro(
+          name: 'Clears',
+          steps: [const MacroStep(MacroAction.clear, lanes: MacroLanes.all), ...align.steps],
+          wired: [for (final w in align.wires) (from: w.from + 1, to: w.to + 1)],
+        );
+        expect(['${(await c.lanes.runMacroReady(clears)).problems.single}', '${(await c.lanes.runScriptReady('clear\nalign')).problems.single}', lanes()],
+            ['Step 2: An Align is under way.', 'Line 2: An Align is under way.', curated]);
         final ran = await running;
         expect([ran.problems, ran.changed], [isEmpty, isTrue]);
         expect([lanes(), c.sync!.anchors, c.anchors.aligning], [curated, found[true], isNull]);
@@ -275,6 +320,31 @@ void main() {
         expect(lanes(), isNot(curated), reason: 'the lanes another');
         final loose = both.withoutWire(shift, shift + 1);
         expect(['${(await c.lanes.runMacroReady(loose)).problems.single}', lanes()], ['Step 6: heard', isNot(curated)]);
+        // A fit after the anchors are set in the same run goes by them, as one run after another does.
+        c.anchors.clear();
+        await c.lanes.runScriptReady('align');
+        c.scene;
+        c.lanes.runScript('show all\nfollow all bridge 1\nfit');
+        final apart = lanes();
+        c.anchors.clear();
+        c.scene;
+        expect([(await c.lanes.runScriptReady('show all\nalign\nfollow all bridge 1\nfit')).problems, lanes(), apart == curated], [isEmpty, apart, isFalse],
+            reason: 'fitted to the anchors just set, which change what fits');
+        // The steps after the hearing go by the project as it is when it has been heard: a score made larger meanwhile is
+        // thinned for its size.
+        {
+          final thins = LaneMacro(name: 'Thins', steps: const [
+            MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4), MacroStep(MacroAction.hear), //
+            MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4),
+          ], wired: const [(from: 1, to: 2)]);
+          c.lanes.runScript('show all\nfollow all bridge 1');
+          final size = c.staffSpace, running = c.lanes.runMacroReady(thins);
+          expect(c.overflowing, isEmpty);
+          c.setStaffSpace(size * 1.25);
+          expect([c.overflowing, (await running).problems], [isNotEmpty, isEmpty]);
+          expect(c.overflowing, isEmpty, reason: 'thinned for the size it is now');
+          c.setStaffSpace(size);
+        }
       }
 
       await sameAsAlign();
@@ -290,6 +360,9 @@ void main() {
       expect(pinned.macrosMoved((at) => at == 1 ? 0 : 1).bar.contains(BarItem.macro1), isTrue);
       expect(pinned.macrosMoved((at) => at == 1 ? null : at), bar);
       expect(ToolbarLayout.read(BarKind.instruments, pinned.write()), pinned);
+      // On the editor's bar a macro's button goes last, and takes its rule with it when it goes.
+      final editors = ToolbarLayout.standard(BarKind.editor), last = editors.added(BarItem.macro1);
+      expect([last.bar.sublist(editors.bar.length), last.without(BarItem.macro1), last.macrosMoved((_) => null)], [const [BarItem.divider, BarItem.macro1], editors, editors]);
     }
 
     // Anchors convert to a tempo map and back, one Undo step each; arrows move and retune the change selected.

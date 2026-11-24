@@ -84,6 +84,11 @@ abstract class LaneScriptHost {
   /// a MIDI file); null when it can.
   String? get unheard => 'There is no recording.';
 
+  /// Why the anchors can't be snapped to the notes heard starting in the recording, which goes
+  /// by the recording alone (not the score's notes); null when they can. As [unheard] unless
+  /// a host says otherwise.
+  String? get unsnapped => unheard;
+
   /// Whether the anchors are snapped to the notes heard starting, as the project is set
   /// (`align` snaps them then, as Align does).
   bool get snaps => true;
@@ -111,6 +116,13 @@ abstract class LaneScriptHost {
 
   /// Puts the lanes back in the score's order.
   void restoreOrder();
+
+  /// What fitting took of each lane (by its id) over this host's runs, as it was there: what a
+  /// refill puts back.
+  final _taken = <String, List<Region>>{};
+
+  /// The script last run or checked here, with the places its lanes were counted by.
+  (LaneScript, Map<String, int>)? _numbered;
 }
 
 /// Something wrong with a script, on its [line] (1 the first).
@@ -156,6 +168,16 @@ typedef _Range = ({_Place? from, _Place? through, _Place? until, bool whole});
 typedef _Term = ({String? name, String? group, bool all, int? nth, int? staff});
 typedef _Lanes = ({List<_Term> include, List<_Term> exclude});
 
+/// Lanes a `let` named, with the groups there were when it did: a name among them means those
+/// (so a group written by its own name is the one before it), and [depth] is how many groups
+/// deep it goes.
+class _Group {
+  const _Group(this.lanes, this.groups, this.depth);
+  final _Lanes lanes;
+  final Map<String, _Group> groups;
+  final int depth;
+}
+
 /// A transition as written: not [given], the project's ([seconds] null), or its own.
 typedef _Fade = ({bool given, double? seconds});
 
@@ -173,6 +195,9 @@ class LaneScript {
 
   /// Whether it has to be made [ready] before it runs: it hears the recording.
   bool get waits => _waits.isNotEmpty;
+
+  /// The line of the first statement that waits; null where none does.
+  int? get waitsAt => _waits.firstOrNull?.$1;
 
   /// What doesn't read, by line: none, and it can be [run].
   final List<LaneScriptProblem> problems;
@@ -291,6 +316,13 @@ class LaneScript {
 
   List<LaneScriptProblem> _go(_Run run, [Set<int>? only]) {
     if (problems.isNotEmpty && !run.dry) return problems;
+    // Lanes of a name are counted as they stood when the script began: by a part of it run
+    // ([only]), as they stood for the check or the part before it.
+    final host = run.host, numbered = host._numbered;
+    run.numbering = only != null && numbered != null && identical(numbered.$1, this)
+        ? numbered.$2
+        : {for (final (i, id) in {for (final lane in run.lanes) lane.instrument}.indexed) id: i};
+    host._numbered = (this, run.numbering);
     final found = [...problems];
     for (final (line, statement) in _statements) {
       if (only != null && !only.contains(line)) continue;
@@ -305,8 +337,9 @@ class LaneScript {
 
   // MARK: Writing
 
-  /// [name] as a script writes it, in quotes.
-  static String quoted(String name) => '"${name.replaceAllMapped(RegExp(r'[\\"*]'), (m) => '\\${m[0]}')}"';
+  /// [name] as a script writes it, in quotes: on one line, a line break in it a space as any
+  /// run of spaces is (names are compared so, and a statement is a line).
+  static String quoted(String name) => '"${name.replaceAll(_spaces, ' ').trim().replaceAllMapped(RegExp(r'[\\"*]'), (m) => '\\${m[0]}')}"';
 
   /// The lanes of [host] as they are, as a script that makes them again from any others: which
   /// instruments are split, the project's transition, then every lane's regions with their own
@@ -322,9 +355,12 @@ class LaneScript {
     // (An instrument's own name: its lane's, without the staff.)
     String instrument(ScriptLane lane) => lane.staff == null ? named(lane) : named(lane).substring(0, named(lane).lastIndexOf('/'));
 
-    if (lanes.any((l) => l.staves > 1)) out.writeln('join all');
-    for (final id in instruments) {
-      final lane = lanes.firstWhere((l) => l.instrument == id);
+    // What is joined is joined and what is split split, each left alone where it is so already:
+    // joining what is split to split it again would lose what its staves have of their own.
+    final first = [for (final id in instruments) lanes.firstWhere((l) => l.instrument == id)];
+    final joined = [for (final lane in first) if (lane.staves > 1 && lane.staff == null) named(lane)];
+    if (joined.isNotEmpty) out.writeln('join ${first.any((l) => l.staff != null) ? joined.join(', ') : 'all'}');
+    for (final lane in first) {
       if (lane.staff != null) out.writeln('split ${instrument(lane)}');
     }
     out.writeln('clear');
@@ -346,8 +382,18 @@ class LaneScript {
     return out.toString();
   }
 
-  /// A number as short as it reads back the same: "0.3", "2".
-  static String number(double n) => n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
+  /// A number as short as it reads back the same: "0.3", "2", "0.0000001" (never with an
+  /// exponent, which a script doesn't read).
+  static String number(double n) {
+    if (n == n.roundToDouble()) return n.toStringAsFixed(0);
+    final text = n.toString();
+    if (!text.contains('e')) return text;
+    for (var digits = 1; digits < 20; digits++) {
+      final fixed = n.toStringAsFixed(digits);
+      if (double.parse(fixed) == n) return fixed;
+    }
+    return n.toStringAsFixed(20).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
 
   /// What a script calls each of [lanes], by its id: its name in quotes, the nth of that name
   /// where several instruments have it, a staff's lane by its staff (`"Violin"[2]`, `"Piano"/1`).
@@ -420,7 +466,14 @@ class _Run {
 
   /// Whether a `hear` has gone before: a `match` goes by it.
   bool heard = false;
-  final groups = <String, _Lanes>{};
+
+  /// Each instrument's place among the lanes when the script began: what `"Violin"[2]` counts
+  /// by, so a lane moved is still the one it names.
+  Map<String, int> numbering = const {};
+  Map<String, _Group> groups = const {};
+
+  /// How many groups deep a group may go.
+  static const deepest = 16;
 
   /// The lanes as the statements so far would leave them, when nothing is changed.
   final List<ScriptLane>? _lanes;
@@ -432,13 +485,13 @@ class _Run {
 
   // MARK: Lanes
 
-  List<ScriptLane> _of(_Term term) {
+  List<ScriptLane> _of(_Term term, Map<String, _Group> groups) {
     final all = lanes;
     if (term.all) return all;
-    if (term.group case final group?) {
-      final lanes = groups[group];
-      if (lanes == null) throw _Fail('There is no group “$group”. A lane’s name goes in quotes: "$group".');
-      return resolve(lanes);
+    if (term.group case final name?) {
+      final group = groups[name];
+      if (group == null) throw _Fail('There is no group “$name”. A lane’s name goes in quotes: "$name".');
+      return resolve(group.lanes, group.groups);
     }
     final name = term.name!, matches = LaneScript._matcher(name);
     var found = [for (final lane in all) if (matches.hasMatch(LaneScript._plain(lane.name))) lane];
@@ -448,6 +501,8 @@ class _Run {
       for (final lane in found) {
         if (!instruments.contains(lane.instrument)) instruments.add(lane.instrument);
       }
+      int at(String id) => numbering[id] ?? numbering.length + instruments.indexOf(id);
+      instruments.sort((a, b) => at(a).compareTo(at(b)));
       if (nth < 1 || nth > instruments.length) {
         throw _Fail(instruments.length == 1 ? 'There is one lane named “$name”.' : 'There are ${instruments.length} lanes named “$name”.');
       }
@@ -463,10 +518,12 @@ class _Run {
     return found;
   }
 
-  /// The lanes [written] names, top to bottom, each once.
-  List<ScriptLane> resolve(_Lanes written) {
-    final wanted = {for (final term in written.include) for (final lane in _of(term)) lane.id};
-    final left = wanted.difference({for (final term in written.exclude) for (final lane in _of(term)) lane.id});
+  /// The lanes [written] names, top to bottom, each once; a group's, among the groups [within]
+  /// which it was named.
+  List<ScriptLane> resolve(_Lanes written, [Map<String, _Group>? within]) {
+    final groups = within ?? this.groups;
+    final wanted = {for (final term in written.include) for (final lane in _of(term, groups)) lane.id};
+    final left = wanted.difference({for (final term in written.exclude) for (final lane in _of(term, groups)) lane.id});
     if (left.isEmpty) throw const _Fail('That leaves no lane.');
     return [for (final lane in lanes) if (left.contains(lane.id)) lane];
   }
@@ -543,10 +600,35 @@ class _Run {
   }
 
   /// [regions] with [stretch] shown: drawn on, or in place of what is there where that leaves
-  /// out other staves.
+  /// out other staves. Joined with what it meets, each end of what they make takes its
+  /// transition from where that end is: the stretch's own where it is the stretch's (else the
+  /// region's that ends there too), a region's where it reaches further. So a stretch with
+  /// its own transitions inside what is shown already changes no edge but its own.
   static List<Region> shown(List<Region> regions, Region stretch) {
     final differs = regions.any((r) => r.overlaps(stretch) && !listEquals(r.hiddenStaves, stretch.hiddenStaves));
-    return Curation.painted(differs ? Curation.painted(regions, stretch, shown: false) : regions, stretch);
+    var rest = differs ? Curation.painted(regions, stretch, shown: false) : regions;
+    var (start, end, fadeIn, fadeOut) = (stretch.start, stretch.end, stretch.transitionIn, stretch.transitionOut);
+    while (true) {
+      final meets = [
+        for (final r in rest)
+          if (listEquals(r.hiddenStaves, stretch.hiddenStaves) && r.start <= end + 1e-6 && r.end >= start - 1e-6) r,
+      ];
+      if (meets.isEmpty) break;
+      for (final r in meets) {
+        if (r.start < start - 1e-9) {
+          (start, fadeIn) = (r.start, r.transitionIn);
+        } else if (r.start <= start + 1e-9) {
+          fadeIn ??= r.transitionIn;
+        }
+        if (r.end > end + 1e-9) {
+          (end, fadeOut) = (r.end, r.transitionOut);
+        } else if (r.end >= end - 1e-9) {
+          fadeOut ??= r.transitionOut;
+        }
+      }
+      rest = [for (final r in rest) if (!meets.contains(r)) r];
+    }
+    return [...rest, Region(start, end, transitionIn: fadeIn, transitionOut: fadeOut, hiddenStaves: stretch.hiddenStaves)];
   }
 
   // The recording's anchors.
@@ -573,21 +655,37 @@ class _Run {
   }
 
   void snap(double within) {
-    _recording();
+    if (host.unsnapped case final why?) throw _Fail(why);
     if (!dry) host.snapAnchors(within);
   }
 
-  /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off,
-  /// what a refill shows again drawn on.
+  /// Fits [lanes] to the frame, a step after another: what one hides of them is taken off and
+  /// kept as it was ([LaneScriptHost._taken]), and a refill puts back what was kept where it
+  /// shows again: a region with the staves it left out, its own transitions and where it began,
+  /// and nothing of a lane that had nothing there (a split instrument's other staff).
   void fit(List<ScriptLane> lanes, List<FitStep> steps, {int phrase = 4}) {
     if (!host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
     if (dry) return;
     for (final step in steps) {
       final changed = host.fit([for (final lane in lanes) lane.id], step, phrase: phrase);
       edit([for (final lane in lanes) if (changed[lane.id]?.isNotEmpty ?? false) lane], (lane, regions) {
+        var taken = host._taken[lane.id] ?? const <Region>[];
         for (final r in changed[lane.id]!) {
-          regions = Curation.painted(regions, r, shown: step == FitStep.refill);
+          List<Region> inside(List<Region> of) => [
+                for (final had in of)
+                  if (had.end > r.start + 1e-9 && had.start < r.end - 1e-9) had.withBounds(math.max(had.start, r.start), math.min(had.end, r.end)),
+              ];
+          if (step == FitStep.refill) {
+            for (final piece in inside(taken)) {
+              regions = shown(regions, piece);
+            }
+            taken = Curation.painted(taken, r, shown: false);
+          } else {
+            taken = [...Curation.painted(taken, r, shown: false), ...inside(regions)];
+            regions = Curation.painted(regions, r, shown: false);
+          }
         }
+        host._taken[lane.id] = taken;
         return regions;
       });
     }
@@ -870,6 +968,8 @@ class _Parser {
         final auto = first.text == 'auto';
         return (run) {
           final found = lanes == null ? run.lanes : run.resolve(lanes);
+          // (Said by the check too, as `follow` and `fit` are.)
+          if (auto && !run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
           if (!auto) {
             run.edit(found, (_, _) => const []);
           } else if (!run.dry && !run.host.autoCurate([for (final lane in found) lane.id])) {
@@ -1014,7 +1114,10 @@ class _Parser {
         _end();
         return (run) {
           run.resolve(lanes);
-          run.groups[name.text] = lanes;
+          // (Each use of a group reads it through, so groups of groups stop somewhere.)
+          final depth = 1 + [for (final term in [...lanes.include, ...lanes.exclude]) run.groups[term.group]?.depth ?? 0].fold<int>(0, math.max);
+          if (depth > _Run.deepest) throw const _Fail('That is a group of groups too many.');
+          run.groups = {...run.groups, name.text: _Group(lanes, run.groups, depth)};
         };
     }
   }

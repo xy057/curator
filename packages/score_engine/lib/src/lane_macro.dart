@@ -308,9 +308,14 @@ class LaneMacro {
     return found;
   }
 
-  /// The order the steps are done in, were they done one at a time: each after every step
-  /// wired into it, the lower number first where either may go.
-  List<int> get order {
+  /// The order the steps are done in, and so the lines of the script they are written as: each
+  /// after every step wired into it, the lower number first where either may go, and those that
+  /// wait for the recording after all that don't, as a run does them ([stages]). Checked in this
+  /// order, a macro is checked as it runs.
+  List<int> get order => [...stages.now, ...stages.later];
+
+  /// The steps each after every step wired into it, the lower number first where either may go.
+  List<int> get _wired {
     final wires = this.wires, left = {for (var i = 0; i < steps.length; i++) i}, order = <int>[];
     while (left.isNotEmpty) {
       // (A ring has no first step: what is left of one goes as numbered. None is ever kept.)
@@ -322,10 +327,10 @@ class LaneMacro {
   }
 
   /// The steps done at once (those that neither take time nor come after one that does) and
-  /// those done once what takes time has been got, each lot in [order].
+  /// those done once what takes time has been got, each lot as wired.
   ({List<int> now, List<int> later}) get stages {
     final now = <int>[], later = <int>[];
-    for (final i in order) {
+    for (final i in _wired) {
       (steps[i].action.waits || before(i).any((b) => steps[b].action.waits) ? later : now).add(i);
     }
     return (now: now, later: later);

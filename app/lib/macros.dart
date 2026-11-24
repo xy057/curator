@@ -114,10 +114,10 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
       },
     });
 
-/// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks; what it came
-/// to that is worth saying (what is wrong, or that nothing changed), null when it did its work
-/// or was given up.
-Future<({String text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
+/// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks: null when it
+/// was given up there (it did nothing); else what it came to that is worth saying (what is
+/// wrong, or that nothing changed), with no text when it did its work.
+Future<({String? text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
   String? asked;
   if (macro.asks) {
     asked = await showAppDialog<String>(context: context, builder: (_) => _AskBars(controller: controller, macro: macro));
@@ -125,30 +125,30 @@ Future<({String text, bool failed})?> _run(BuildContext context, EditorControlle
   }
   final (:problems, :changed) = await controller.lanes.runMacroReady(macro, asked: asked);
   if (problems.isNotEmpty) return (text: macroProblemText(problems.first), failed: true);
-  return changed ? null : (text: 'Nothing changed'.tr, failed: false);
+  return (text: changed ? null : 'Nothing changed'.tr, failed: false);
 }
 
 /// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
 /// What running [macro] from a toolbar, a menu or its key does now; null while it can't be
 /// run: it has no steps, or what its steps are done to isn't showing. Steps for lanes run in
 /// the Instruments tab (not while the script is in the lanes' place), steps for the
-/// recording's anchors in the Audio tab, a macro of both in either; none that hears the
-/// recording while an Align is under way.
+/// recording's anchors in the Audio tab, a macro of both in either; none for the recording
+/// while an Align is under way or a recording loads.
 VoidCallback? macroAction(BuildContext context, EditorController controller, LaneMacro macro) {
   final shown = (macro.onLanes && controller.tab == BottomTab.instruments && !controller.lanes.scripting) ||
       (macro.onRecording && controller.tab == BottomTab.audio);
-  return !shown || controller.curation == null || (macro.onRecording && controller.anchors.aligning != null)
+  return !shown || controller.curation == null || (macro.onRecording && (controller.anchors.aligning != null || controller.isLoadingAudio))
       ? null
       : () => playMacro(context, controller, macro);
 }
 
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
-  final said = await _run(context, controller, macro);
-  if (said == null) return;
+  final text = (await _run(context, controller, macro))?.text;
+  if (text == null) return;
   messenger
     ?..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: ${said.text}')));
+    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: $text')));
 }
 
 /// Edit ▸ Macros…: the app's macros ([AppSettings.macros]), tried on [controller]'s project.
@@ -314,8 +314,13 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     _keep(macros..insert(to, macro), at: to, moved: (at) => at == from ? to : (at == to ? from : at));
   }
 
+  /// How many macros were deleted here: the one that takes a deleted one's place in the list
+  /// is another, with a graph of its own.
+  int _removed = 0;
+
   void _remove() {
     final gone = _at;
+    _removed++;
     _keep([for (final (i, m) in _macros.indexed) if (i != gone) m], at: gone, moved: (at) => at == gone ? null : (at > gone ? at - 1 : at));
   }
 
@@ -338,9 +343,19 @@ class _MacrosDialogState extends State<_MacrosDialog> {
         }
       });
 
+  /// Whether a run from here is still going (one that hears the recording takes a while).
+  bool _trying = false;
+
   Future<void> _try() async {
-    final said = await _run(context, widget.controller, _macro!);
-    if (mounted) setState(() => _said = said ?? (text: 'Done'.tr, failed: false));
+    if (_trying) return;
+    setState(() => _trying = true);
+    try {
+      // (Given up as it asked for bars: nothing to say.)
+      final said = await _run(context, widget.controller, _macro!);
+      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.tr, failed: said.failed));
+    } finally {
+      if (mounted) setState(() => _trying = false);
+    }
   }
 
   @override
@@ -364,7 +379,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
           ),
         ]),
       ),
-      leading: [TextButton(onPressed: macro == null || macro.steps.isEmpty ? null : _try, child: Text('Run'.tr))],
+      leading: [TextButton(onPressed: macro == null || macro.steps.isEmpty || _trying ? null : _try, child: Text('Run'.tr))],
       status: said == null
           ? null
           : Text(said.text,
@@ -456,7 +471,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
       ]),
       const SizedBox(height: 14),
       // (A macro's graph is its own: another's starts where it is, with nothing chosen.)
-      Expanded(child: _Graph(key: ValueKey(_at), macro: macro, onChanged: _change)),
+      Expanded(child: _Graph(key: ValueKey((_at, _removed)), macro: macro, onChanged: _change)),
     ]);
   }
 }
@@ -602,7 +617,8 @@ class _GraphState extends State<_Graph> {
   }
 
   void _add(MacroAction action) {
-    final macro = _macro, places = _places, after = _selected ?? (macro.steps.isEmpty ? null : macro.steps.length - 1);
+    final macro = _macro, places = _places;
+    final after = switch (_selected) { final chosen? when chosen < macro.steps.length => chosen, _ => macro.steps.isEmpty ? null : macro.steps.length - 1 };
     var at = after == null ? Offset.zero : places[after] + const Offset(_gridX, 0);
     while (places.any((p) => (p - at).distance < 60)) {
       at += const Offset(0, 150);
@@ -622,7 +638,8 @@ class _GraphState extends State<_Graph> {
     return LayoutBuilder(builder: (context, box) {
       _view = box.biggest;
       final pan = _held(_pan, places), origin = _inset + pan;
-      void move(Offset by) => setState(() => _pan = _held(pan + by, places));
+      // (From the pan as it is: several moves may come between two frames.)
+      void move(Offset by) => setState(() => _pan = _held(_held(_pan, places) + by, places));
       final target = switch (_wiring) { (final from, final end) => _target(from, end, places), null => null };
       return DecoratedBox(
         decoration: BoxDecoration(color: colors.well, border: Border.all(color: colors.line), borderRadius: style.radius(8)),
@@ -633,8 +650,10 @@ class _GraphState extends State<_Graph> {
               if (signal is PointerScrollEvent) move(-signal.scrollDelta);
             },
             onPointerPanZoomUpdate: (swipe) => move(swipe.panDelta),
+            // (A drag is a pointer's: a trackpad's swipe is the Listener's, which pans, and moves nothing it passes over.)
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
+              supportedDevices: kDragDevices,
               onTap: () => setState(() => _selected = null),
               onPanUpdate: (drag) => move(drag.delta),
               child: Stack(children: [
@@ -691,13 +710,20 @@ class _GraphState extends State<_Graph> {
                     child: IgnorePointer(child: _Port(lit: i == target)),
                   ),
                   Positioned(
-                    left: _out(place).dx + origin.dx - 12,
+                    left: _out(place).dx + origin.dx - 6,
+                    top: _out(place).dy + origin.dy - 6,
+                    child: IgnorePointer(child: _Port(lit: _wiring?.$1 == i)),
+                  ),
+                  // (Taken from the node's edge outward: inside it is the head's ×.)
+                  Positioned(
+                    left: _out(place).dx + origin.dx - 2,
                     top: _out(place).dy + origin.dy - 12,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.precise,
                       child: GestureDetector(
                         key: ValueKey('macro out ${i + 1}'),
                         behavior: HitTestBehavior.opaque,
+                        supportedDevices: kDragDevices,
                         onPanStart: (_) => setState(() => _wiring = (i, _out(place))),
                         onPanUpdate: (drag) => setState(() => _wiring = (i, (_wiring?.$2 ?? _out(place)) + drag.delta)),
                         onPanCancel: () => setState(() => _wiring = null),
@@ -705,7 +731,7 @@ class _GraphState extends State<_Graph> {
                           setState(() => _wiring = null);
                           if (target != null) widget.onChanged(macro.withWire(i, target));
                         },
-                        child: SizedBox(width: 24, height: 24, child: Center(child: _Port(lit: _wiring?.$1 == i))),
+                        child: const SizedBox(width: 16, height: 24),
                       ),
                     ),
                   ),
@@ -944,6 +970,7 @@ class _NodeState extends State<_Node> {
         GestureDetector(
           key: ValueKey('macro node ${widget.number}'),
           behavior: HitTestBehavior.opaque,
+          supportedDevices: kDragDevices,
           onTap: widget.onSelect,
           onPanStart: (_) {
             _dragged = Offset.zero;

@@ -1038,18 +1038,21 @@ final class _LilyPond extends ProjectModule {
 }
 
 /// The script the Instruments tab's Script holds, as it was left (see *The lanes can be written*).
-/// Optional: nothing shown hangs on it, and a Curator that knows nothing of it keeps it.
+/// Optional: nothing shown hangs on it, and a Curator that knows nothing of it keeps it. One too
+/// long to be a script ([LaneScript.maxLength]: the view says so and runs none of it) is neither
+/// saved nor read, and never keeps a project from opening.
 final class _Script extends ProjectModule {
   const _Script() : super('script', optional: true);
 
+  static bool _kept(String text) => text.isNotEmpty && text.length <= LaneScript.maxLength;
+
   @override
-  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {if (state.script.isNotEmpty) 'text': state.script};
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) => {if (_kept(state.script)) 'text': state.script};
 
   @override
   ProjectState read(JsonReader r, ProjectState state, ModuleFileReader files) {
     final text = r.string('text') ?? '';
-    if (text.length > LaneScript.maxLength) throw _damaged('${r.where}.text is too long.');
-    return state.copyWith(script: text);
+    return state.copyWith(script: _kept(text) ? text : '');
   }
 }
 

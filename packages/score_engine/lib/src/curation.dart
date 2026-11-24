@@ -412,6 +412,10 @@ class Curation extends ChangeNotifier {
 
   /// [regions] sorted, and those that overlap or meet made one; but of two that leave out
   /// different staves, the later one only goes on past the earlier one's end, meeting it.
+  /// [regions] as a lane holds them: sorted, and those that overlap or touch with the same
+  /// staves left out joined.
+  static List<Region> normalized(List<Region> regions) => _normalize(regions);
+
   static List<Region> _normalize(List<Region> regions) {
     final sorted = regions.where((r) => r.length > 1e-6).toList()..sort((a, b) => a.start.compareTo(b.start));
     final merged = <Region>[];

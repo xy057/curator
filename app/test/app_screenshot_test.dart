@@ -8,6 +8,7 @@ import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/audio_track.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/editor_toolbar.dart';
+import 'package:curated_score/lane_script_view.dart';
 import 'package:curated_score/macros.dart';
 import 'package:curated_score/main.dart';
 import 'package:curated_score/panel_bar.dart';
@@ -25,6 +26,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:re_editor/re_editor.dart' show CodeEditor;
 import 'package:score_engine/score_engine.dart';
 
 import 'demo_project.dart';
@@ -154,6 +156,18 @@ void main() {
       await settle();
     }
 
+    // A trackpad's two-finger swipe scrolls the graph: it moves no node it starts over, and draws no wire.
+    for (final from in [tester.getTopLeft(node(2)) + const Offset(14, 18), tester.getCenter(find.byKey(const ValueKey('macro out 2')))]) {
+      final swipe = TestPointer(71, PointerDeviceKind.trackpad);
+      await tester.sendEventToBinding(swipe.panZoomStart(from));
+      for (final by in const [Offset(30, 40), Offset(60, 90), Offset(90, 140)]) {
+        await tester.sendEventToBinding(swipe.panZoomUpdate(from, pan: by));
+        await tester.pump();
+      }
+      await tester.sendEventToBinding(swipe.panZoomEnd());
+      await settle();
+    }
+    expect([graph().steps[1].at, graph().wires], [isNull, const [(from: 0, to: 2), (from: 1, to: 3)]]);
     final four = tester.getTopLeft(node(4));
     await pull(four + const Offset(14, 18), four + const Offset(14 + 6 + 30, 18 + 120));
     expect(graph().steps[3].at, isNotNull);
@@ -167,11 +181,70 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('macro wire 2 3')));
     await settle();
     expect(graph().wires, const [(from: 0, to: 2), (from: 1, to: 3)]);
-    await tester.tap(find.descendant(of: node(1), matching: find.byTooltip('Remove')));
+    // (At the ×'s right edge, beside the node's port.)
+    await tester.tapAt(tester.getRect(find.descendant(of: node(1), matching: find.byTooltip('Remove'))).centerRight - const Offset(3, 0));
     await settle();
     expect([graph().steps.length, graph().wires, graph().steps.first.action], [3, const [(from: 0, to: 2)], MacroAction.follow]);
+    // A macro deleted leaves the next its own graph, with nothing chosen: a step added to it isn't put after the other's.
+    await tester.tap(find.byTooltip('Add').hitTestable());
+    await settle();
+    await tester.tap(find.text('New Macro').last);
+    await settle();
+    await tester.tap(find.text('Both'));
+    await settle();
+    await tester.tapAt(tester.getTopLeft(node(3)) + const Offset(14, 18));
+    await settle();
+    await tester.tap(find.byTooltip('Delete').hitTestable());
+    await settle();
+    await tester.tap(find.text('Add Step'));
+    await settle();
+    await tester.tap(find.text(macroActionLabel(MacroAction.clear)).last);
+    await settle();
+    expect([for (final m in settings.macros) m.steps.length], [1]);
+    // A run given up as it asks for its bars says nothing: the dialog's Done is its own button only.
+    await tester.tap(find.byTooltip('Add').hitTestable());
+    await settle();
+    await tester.tap(find.text('Show Bars…').last);
+    await settle();
+    await tester.tap(find.text('Run'));
+    await settle();
+    await tester.tap(find.text('Cancel').last);
+    await settle();
+    expect(find.text('Done'), findsOneWidget);
     await tester.tap(find.text('Done'));
     await settle();
+    // A macro's own button on the editor's toolbar goes by the tab showing: one for the lanes is off in the Audio tab.
+    {
+      final editor = state.controller as EditorController, was = editor.tab;
+      editor.tab = BottomTab.instruments;
+      settings.macros = const [LaneMacro(name: 'Tidy', steps: [MacroStep(MacroAction.bridge, lanes: MacroLanes.all)])];
+      settings.setToolbar(settings.toolbarOf(BarKind.editor).added(BarItem.macro1));
+      await settle();
+      final own = find.descendant(of: find.byType(EditorToolbar), matching: find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Tidy')));
+      bool runs() => tester.widget<ToolbarButton>(own).onPressed != null;
+      expect(runs(), isTrue);
+      editor.tab = BottomTab.audio;
+      await settle();
+      expect(runs(), isFalse, reason: 'the lanes aren’t showing');
+      editor.tab = BottomTab.instruments;
+      await settle();
+      expect(runs(), isTrue);
+      settings.setToolbar(settings.toolbarOf(BarKind.editor).without(BarItem.macro1));
+      // The script's editor lets the keyboard go on a click outside it, and the window's keys still work then.
+      editor.lanes.scripting = true;
+      await settle();
+      await tester.tapAt(tester.getCenter(find.byType(LaneScriptView)));
+      await settle();
+      expect(textFieldFocused, isTrue, reason: 'typing in the script');
+      expect(tester.widget<CodeEditor>(find.descendant(of: find.byType(LaneScriptView), matching: find.byType(CodeEditor))).autocompleteSymbols, isFalse,
+          reason: 'a quote typed is one: a lane’s name offered closes it');
+      await tester.tapAt(tester.getTopLeft(find.byType(LaneScriptView)) + const Offset(360, 18));
+      await settle();
+      expect([textFieldFocused, await tester.sendKeyEvent(LogicalKeyboardKey.escape)], [false, true], reason: 'the window’s keys');
+      editor.lanes.scripting = false;
+      editor.tab = was;
+      await settle();
+    }
     settings.macros = const [];
 
     // The toolbar is the user's. An item's own menu (a right click) moves it into the menu at the

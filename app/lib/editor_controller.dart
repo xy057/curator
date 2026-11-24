@@ -805,6 +805,7 @@ class EditorController extends ChangeNotifier {
     _history.clear();
     _committed = null;
     _gestures = 0;
+    _gesturesOver();
     _syncedTake = null;
     _performance = null;
     _takeSelected = null;
@@ -2615,6 +2616,23 @@ class EditorController extends ChangeNotifier {
     _curation?.normalize();
     _holdBarRow();
     if (_record()) notifyListeners();
+    if (_gestures == 0) _gesturesOver();
+  }
+
+  /// Done once no gesture lasts (at once where none does): what waited for something (a script
+  /// that heard the recording) is done between the user's gestures, never inside one, where
+  /// it would be undone by the gesture's next move and folded into its Undo step.
+  Future<void> _betweenGestures() async {
+    while (_gestures > 0 && !_disposed) {
+      await (_noGesture ??= Completer<void>()).future;
+    }
+  }
+
+  Completer<void>? _noGesture;
+
+  void _gesturesOver() {
+    _noGesture?.complete();
+    _noGesture = null;
   }
 
   /// The bar numbers' row keeps its rises while a gesture lasts ([CuratedScene.holdBarRow]),

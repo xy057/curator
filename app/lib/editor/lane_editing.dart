@@ -439,7 +439,8 @@ class LaneEditing {
 
   /// What [autoCurate] fills [partIds] with (null without a score).
   Map<String, List<Region>>? _curated(Iterable<String> partIds) {
-    final score = _editor._score, curation = _curation, scene = _editor._scene;
+    // (The scene as the anchors now are: only asking for it makes it follow a sync changed since.)
+    final score = _editor._score, curation = _curation, scene = _editor.scene;
     if (score == null || curation == null) return null;
     final (:active, :pairs) = _activity(score);
     if (scene == null) return Curation.autoCuratedLanes(partIds, active, score.timeline.measureStarts);
@@ -520,8 +521,9 @@ class LaneEditing {
 
   /// [runScript] for a script that may wait ([LaneScript.waits]: it hears the recording, as
   /// Align does): what it waits for is got first, with nothing changed and Align's progress
-  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Nothing where
-  /// an Align is under way, or the project was changed for another meanwhile.
+  /// showing ([SyncEditing.aligning]), and then it runs at once, one Undo step. Where an Align
+  /// is under way it says so at the line that waits, and nothing where the project was changed
+  /// for another meanwhile.
   Future<({List<LaneScriptProblem> problems, bool changed})> runScriptReady(String source) async {
     final script = LaneScript.parse(source), host = _ScriptHost(_editor);
     if (!script.waits) return runScript(source);
@@ -529,14 +531,22 @@ class LaneEditing {
     if (_curation == null) return nothing;
     final problems = script.check(host);
     if (problems.isNotEmpty) return (problems: problems, changed: false);
+    if (_busy(script) case final busy?) return (problems: [busy], changed: false);
     final sync = _editor._sync, track = _editor.track;
     final got = await _editor.anchors._whileAligning((report) {
       host._report = report;
       return script.ready(host);
     });
+    await _editor._betweenGestures();
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return nothing;
     return got.problems.isNotEmpty ? (problems: got.problems, changed: false) : _ran(script, host, ready: got.ready);
   }
+
+  /// What keeps [script], which waits, from being made ready now: an Align under way (the
+  /// button's, or another script's or macro's hearing), one at a time as it is. Said at its
+  /// first line that waits, before anything is done.
+  LaneScriptProblem? _busy(LaneScript script) =>
+      _editor.anchors.aligning == null ? null : LaneScriptProblem(script.waitsAt ?? 1, 'An Align is under way.');
 
   /// Runs [script], checked, as one Undo step ([only]: those of its lines).
   ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready, Set<int>? only}) {
@@ -593,8 +603,9 @@ class LaneEditing {
   /// meanwhile, with nothing changed and Align's progress showing ([SyncEditing.aligning]), and
   /// then they are done, a step of their own (as Align's anchors are). The whole of it is
   /// checked before anything is done; what only the hearing finds (a recording that can't be
-  /// read, no score heard in it) leaves what was done at once done. Nothing more where an
-  /// Align is under way, or the recording or the project is another by then.
+  /// read, no score heard in it) leaves what was done at once done. Where an Align is under
+  /// way it says so at the step that waits, with nothing done; nothing more where the recording
+  /// or the project is another by then.
   Future<({List<MacroProblem> problems, bool changed})> runMacroReady(LaneMacro macro, {String? asked}) async {
     const nothing = (problems: <MacroProblem>[], changed: false);
     if (_curation == null || _editor._sync == null) return nothing;
@@ -605,6 +616,7 @@ class LaneEditing {
     if (!script.waits) return _macroRan(runScript(source), order, lanes);
     final wrong = script.check(host);
     if (wrong.isNotEmpty) return (problems: LaneMacro.problemsOf(wrong, order), changed: false);
+    if (_busy(script) case final busy?) return (problems: LaneMacro.problemsOf([busy], order), changed: false);
     // A line is its step's place in the order they are done in.
     final (:now, :later) = macro.stages;
     Set<int> lines(List<int> steps) => {for (final i in steps) order.indexOf(i) + 1};
@@ -619,6 +631,8 @@ class LaneEditing {
       host._report = report;
       return script.ready(host);
     });
+    await _editor._betweenGestures();
+    host._heard();
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return (problems: const <MacroProblem>[], changed: changed);
     if (got.problems.isNotEmpty) return (problems: LaneMacro.problemsOf(got.problems, order), changed: changed);
     final ran = _macroRan(_ran(script, host, ready: got.ready, only: lines(later)), order, lanes);
@@ -683,7 +697,12 @@ class _ScriptHost extends LaneScriptHost {
   // Auto-Curate in its halves (`follow`, `fit`) and the second's steps (`thin`, `refill`, `remove lone`), from what
   // [LaneEditing.autoCurate] is made of.
 
-  late final _activity = _editor.lanes._activity(_editor._score!);
+  ({Map<String, List<bool>> active, List<List<String>> pairs}) get _activity => _activityNow ??= _editor.lanes._activity(_editor._score!);
+  ({Map<String, List<bool>> active, List<List<String>> pairs})? _activityNow;
+
+  /// The recording heard: what the steps after it go by is read afresh, as the project is now
+  /// (pairs condensed or not meanwhile).
+  void _heard() => _activityNow = null;
 
   @override
   bool get curates => _editor.canAutoCurate;
@@ -698,11 +717,16 @@ class _ScriptHost extends LaneScriptHost {
   /// (An instrument is fitted as its lanes asked for have it, a staff's lane as its instrument, as Auto-Curate does.)
   @override
   Map<String, List<Region>> fit(List<String> ids, FitStep step, {int phrase = 4}) {
-    final scene = _editor._scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
+    // (The scene as the anchors now are: a `match` or a `snap anchors` earlier in the run changed what a bar takes.)
+    final scene = _editor.scene, lanes = [for (final id in ids) if (!_editor.isBlankLane(id)) id];
     if (scene == null || lanes.isEmpty) return const {};
     final asked = <String, List<Region>>{};
     for (final id in lanes) {
       asked.update(_editor.instrumentOfLane(id), (regions) => curation.lane(id).fold(regions, Curation.painted), ifAbsent: () => curation.lane(id));
+    }
+    // An instrument asked for whole is asked about as its lane is: its staves' each in its own place.
+    for (final instrument in [...asked.keys]) {
+      if (_editor.laneRows.every((row) => _editor.instrumentOfLane(row.id) != instrument || lanes.contains(row.id))) asked[instrument] = curation.lane(instrument);
     }
     final changed = scene.fitStep(curation, _editor._videoLayout, step,
         lanes: asked, salience: _editor._score!.salience.condensed(_activity.pairs), cuts: _cuts, phrase: phrase);
@@ -715,15 +739,18 @@ class _ScriptHost extends LaneScriptHost {
   void Function(double done)? _report;
 
   @override
-  String? get unheard => _editor.track == null
-      ? 'There is no recording.'
-      : _editor.usesMidiTempo
-          ? 'The anchors follow a MIDI file’s tempo.'
-          : !_editor.hasNotes
-              ? 'This score has no notes to hear.'
-              : !_editor.editsSync
-                  ? 'None of the recordings is the one synced.'
-                  : null;
+  String? get unheard => unsnapped ?? (!_editor.hasNotes ? 'This score has no notes to hear.' : null);
+
+  /// (Snapping goes by the recording alone: a PDF score's anchors, tapped by hand, are snapped too.)
+  @override
+  String? get unsnapped {
+    if (_editor.track == null) return 'There is no recording.';
+    // (As the Align button is off: what would be heard is the one being let go.)
+    if (_editor.isLoadingAudio) return 'The recording is still loading.';
+    if (_editor.usesMidiTempo) return 'The anchors follow a MIDI file’s tempo.';
+    if (!_editor.editsSync) return 'None of the recordings is the one synced.';
+    return null;
+  }
 
   @override
   bool get snaps => _editor.anchors.snapToOnsets;
