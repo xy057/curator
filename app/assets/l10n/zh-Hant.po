@@ -6391,3 +6391,7 @@ msgstr "錨點跟隨的是 MIDI 檔案的速度。"
 #: lib/editor/lane_editing.dart
 msgid "None of the recordings is the one synced."
 msgstr "還沒有選中要同步的錄音。"
+
+#: lib/macros.dart
+msgid "{macro}: {said}"
+msgstr "{macro}：{said}"

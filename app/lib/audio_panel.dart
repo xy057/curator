@@ -933,12 +933,7 @@ Future<void> align(BuildContext context, EditorController c) async {
   final String? message;
   try {
     final count = await c.anchors.align();
-    message = switch (count) {
-      null => null,
-      0 => 'Couldn’t hear the score in this recording.'.tr,
-      1 => '1 anchor from the recording'.tr,
-      _ => '{n} anchors from the recording'.fill({'n': count}),
-    };
+    message = count == null ? null : anchorsHeard(count);
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn’t align. {error}'.fill({'error': describeError(e)}))));
@@ -947,6 +942,14 @@ Future<void> align(BuildContext context, EditorController c) async {
   }
   if (message != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }
+
+/// What Align says it did: [count] anchors set from the recording (none: the score wasn't heard
+/// in it). A macro that sets them says so too.
+String anchorsHeard(int count) => switch (count) {
+      0 => 'Couldn’t hear the score in this recording.'.tr,
+      1 => '1 anchor from the recording'.tr,
+      _ => '{n} anchors from the recording'.fill({'n': count}),
+    };
 
 /// Says where the MIDI tempo map just read took its warps from ([EditorController.loadMidiTempo]),
 /// when it took any, with Remove (one Undo step) for a file that plays straight through.

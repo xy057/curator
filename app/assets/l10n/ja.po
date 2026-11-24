@@ -6391,3 +6391,7 @@ msgstr "アンカーは MIDI ファイルのテンポに従っています。"
 #: lib/editor/lane_editing.dart
 msgid "None of the recordings is the one synced."
 msgstr "同期する録音が選ばれていません。"
+
+#: lib/macros.dart
+msgid "{macro}: {said}"
+msgstr "{macro}：{said}"

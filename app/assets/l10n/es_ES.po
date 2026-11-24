@@ -6389,3 +6389,7 @@ msgstr ""
 #: lib/editor/lane_editing.dart
 msgid "None of the recordings is the one synced."
 msgstr ""
+
+#: lib/macros.dart
+msgid "{macro}: {said}"
+msgstr ""

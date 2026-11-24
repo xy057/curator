@@ -10,6 +10,7 @@ import 'package:score_engine/score_engine.dart'
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_settings.dart';
+import 'audio_panel.dart' show anchorsHeard;
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'key_bindings.dart';
@@ -115,20 +116,27 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
     });
 
 /// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks: null when it
-/// was given up there (it did nothing); else what it came to that is worth saying (what is
-/// wrong, or that nothing changed), with no text when it did its work.
+/// was given up there (it did nothing); else what it came to that is worth saying
+/// ([macroRanText]).
 Future<({String? text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
   String? asked;
   if (macro.asks) {
     asked = await showAppDialog<String>(context: context, builder: (_) => _AskBars(controller: controller, macro: macro));
     if (asked == null) return null;
   }
-  final (:problems, :changed) = await controller.lanes.runMacroReady(macro, asked: asked);
-  if (problems.isNotEmpty) return (text: macroProblemText(problems.first), failed: true);
-  return (text: changed ? null : 'Nothing changed'.tr, failed: false);
+  return macroRanText(controller, macro, await controller.lanes.runMacroReady(macro, asked: asked));
 }
 
-/// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
+/// What a run of [macro] on [controller] that came to [ran] is worth saying: what is wrong; how
+/// many anchors one that sets them from the recording left, as Align says it ([anchorsHeard]);
+/// that nothing changed; no text when it did its work.
+({String? text, bool failed}) macroRanText(EditorController controller, LaneMacro macro, ({List<MacroProblem> problems, bool changed}) ran) {
+  if (ran.problems.isNotEmpty) return (text: macroProblemText(ran.problems.first), failed: true);
+  if (!ran.changed) return (text: 'Nothing changed'.tr, failed: false);
+  final aligns = macro.steps.any((s) => s.action == MacroAction.align || s.action == MacroAction.match);
+  return (text: aligns ? anchorsHeard(controller.sync?.anchors.length ?? 0) : null, failed: false);
+}
+
 /// What running [macro] from a toolbar, a menu or its key does now; null while it can't be
 /// run: it has no steps, or what its steps are done to isn't showing. Steps for lanes run in
 /// the Instruments tab (not while the script is in the lanes' place), steps for the
@@ -142,13 +150,15 @@ VoidCallback? macroAction(BuildContext context, EditorController controller, Lan
       : () => playMacro(context, controller, macro);
 }
 
+/// Runs [macro] (a toolbar's button or menu, its key): one Undo step, or nothing and why,
+/// said under its name.
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   final text = (await _run(context, controller, macro))?.text;
   if (text == null) return;
   messenger
     ?..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: $text')));
+    ..showSnackBar(SnackBar(content: Text('{macro}: {said}'.fill({'macro': _nameOf(macro), 'said': text}))));
 }
 
 /// Edit ▸ Macros…: the app's macros ([AppSettings.macros]), tried on [controller]'s project.
