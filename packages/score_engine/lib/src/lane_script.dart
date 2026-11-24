@@ -377,8 +377,18 @@ class LaneScript {
     return out.toString();
   }
 
-  /// A number as short as it reads back the same: "0.3", "2".
-  static String number(double n) => n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
+  /// A number as short as it reads back the same: "0.3", "2", "0.0000001" (never with an
+  /// exponent, which a script doesn't read).
+  static String number(double n) {
+    if (n == n.roundToDouble()) return n.toStringAsFixed(0);
+    final text = n.toString();
+    if (!text.contains('e')) return text;
+    for (var digits = 1; digits < 20; digits++) {
+      final fixed = n.toStringAsFixed(digits);
+      if (double.parse(fixed) == n) return fixed;
+    }
+    return n.toStringAsFixed(20).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
 
   /// What a script calls each of [lanes], by its id: its name in quotes, the nth of that name
   /// where several instruments have it, a staff's lane by its staff (`"Violin"[2]`, `"Piano"/1`).

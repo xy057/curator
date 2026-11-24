@@ -472,6 +472,8 @@ void main() {
       host.parts = [...host.parts, ('hn', 'Horn in F\n 1 "a"*', 1)];
       expect(LaneScript.references(host.lanes)['hn'], r'"Horn in F 1 \"a\"\*"');
       expect([LaneScript.parse('show ${LaneScript.references(host.lanes)['hn']} 1\nshow "horn in f 1 \\"A\\"\\*"').check(host), host.parts.removeLast().$1], [isEmpty, 'hn']);
+      // A number is written as a script reads it, however small.
+      expect([LaneScript.number(1e-7), LaneScript.number(0.3), LaneScript.number(2), LaneScript.parse('transition ${LaneScript.number(1e-7)}').problems], ['0.0000001', '0.3', '2', isEmpty]);
       // Each run coloured, the language's words whatever their case.
       expect(LaneScript.tokens('Show "A"[2]/1 1-8.2 # all'), [('keyword', 'Show'), (null, ' '), ('string', '"A"'), (null, '['), ('number', '2'), (null, ']'), (null, '/'),
         ('number', '1'), (null, ' '), ('number', '1'), (null, '-'), ('number', '8.2'), (null, ' '), ('comment', '# all')]);
