@@ -330,6 +330,21 @@ void main() {
         c.scene;
         expect([(await c.lanes.runScriptReady('show all\nalign\nfollow all bridge 1\nfit')).problems, lanes(), apart == curated], [isEmpty, apart, isFalse],
             reason: 'fitted to the anchors just set, which change what fits');
+        // The steps after the hearing go by the project as it is when it has been heard: a score made larger meanwhile is
+        // thinned for its size.
+        {
+          final thins = LaneMacro(name: 'Thins', steps: const [
+            MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4), MacroStep(MacroAction.hear), //
+            MacroStep(MacroAction.thin, lanes: MacroLanes.all, number: 4),
+          ], wired: const [(from: 1, to: 2)]);
+          c.lanes.runScript('show all\nfollow all bridge 1');
+          final size = c.staffSpace, running = c.lanes.runMacroReady(thins);
+          expect(c.overflowing, isEmpty);
+          c.setStaffSpace(size * 1.25);
+          expect([c.overflowing, (await running).problems], [isNotEmpty, isEmpty]);
+          expect(c.overflowing, isEmpty, reason: 'thinned for the size it is now');
+          c.setStaffSpace(size);
+        }
       }
 
       await sameAsAlign();

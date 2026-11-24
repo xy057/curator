@@ -1214,7 +1214,8 @@ class CuratedScene {
       phrase: phrase,
       steps: {step},
       cuts: cuts,
-      state: (_planStateFor(curation, size), curation.joined),
+      // (The scene itself and its staff size besides: a step after a wait may be another's, or the score larger.)
+      state: (this, _style.staffSpace, _planStateFor(curation, size), curation.joined),
       regions: lanes,
       overflowing: (lanes) => overflowing(trial..setLanes(lanes), size),
     );

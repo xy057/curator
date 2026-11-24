@@ -632,6 +632,7 @@ class LaneEditing {
       return script.ready(host);
     });
     await _editor._betweenGestures();
+    host._heard();
     if (got == null || _editor._disposed || _curation == null || _editor._sync != sync || _editor.track != track) return (problems: const <MacroProblem>[], changed: changed);
     if (got.problems.isNotEmpty) return (problems: LaneMacro.problemsOf(got.problems, order), changed: changed);
     final ran = _macroRan(_ran(script, host, ready: got.ready, only: lines(later)), order, lanes);
@@ -696,7 +697,12 @@ class _ScriptHost extends LaneScriptHost {
   // Auto-Curate in its halves (`follow`, `fit`) and the second's steps (`thin`, `refill`, `remove lone`), from what
   // [LaneEditing.autoCurate] is made of.
 
-  late final _activity = _editor.lanes._activity(_editor._score!);
+  ({Map<String, List<bool>> active, List<List<String>> pairs}) get _activity => _activityNow ??= _editor.lanes._activity(_editor._score!);
+  ({Map<String, List<bool>> active, List<List<String>> pairs})? _activityNow;
+
+  /// The recording heard: what the steps after it go by is read afresh, as the project is now
+  /// (pairs condensed or not meanwhile).
+  void _heard() => _activityNow = null;
 
   @override
   bool get curates => _editor.canAutoCurate;
