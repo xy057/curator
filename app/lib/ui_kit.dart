@@ -251,47 +251,55 @@ class ToolbarButton extends StatelessWidget {
 
   /// Drawn instead of an [icon] (none fits), in the [IconTheme]'s colour and size.
   final Widget? glyph;
-  final String tooltip;
+
+  /// Its tip; null: none (one around it says what it is).
+  final String? tooltip;
   final VoidCallback? onPressed;
   final bool selected;
 
   /// The icon's colour when not selected (default: the text colour).
   final Color? color;
 
-  @override
-  Widget build(BuildContext context) {
+  /// The look of a toolbar's icon button, for one made elsewhere (a menu's): [AppStyle.control]
+  /// square, and its icon as [ToolbarButton]'s, with [selected] and [color] as there.
+  static ButtonStyle styleOf(BuildContext context, {bool selected = false, Color? color}) {
     final colors = context.colors;
     final style = AppStyle.of(context);
     final carbon = CarbonColors.maybeOf(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final size = style.control;
     final fill = carbon?.backgroundSelected ?? (dark ? Colors.white : Colors.black).withValues(alpha: dark ? 0.1 : 0.05);
+    return (carbon == null ? IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: style.radius(5))) : const ButtonStyle()).copyWith(
+      fixedSize: WidgetStatePropertyAll(Size.square(style.control)),
+      minimumSize: WidgetStatePropertyAll(Size.square(style.control)),
+      padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+      foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
+          ? null
+          : selected
+              ? (carbon != null ? colors.text : dark ? colors.accent : colors.accentStrong)
+              : color ??
+                  // Refined: an icon at rest a little softer than text (a glyph is heavier than
+                  // the words beside it), full strength under the pointer.
+                  (carbon != null || s.contains(WidgetState.hovered) || s.contains(WidgetState.pressed)
+                      ? colors.text
+                      : Color.lerp(colors.text, colors.textMuted, 0.35))),
+      backgroundColor: selected ? WidgetStatePropertyAll(fill) : null,
+      animationDuration: motion(context, 150),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = AppStyle.of(context).control;
     return OverlaySemantics(
       child: IconButton(
-        tooltip: tooltip.tr,
+        tooltip: tooltip?.tr,
         onPressed: onPressed,
         isSelected: selected,
         iconSize: 16,
         visualDensity: VisualDensity.compact,
         constraints: BoxConstraints.tightFor(width: size, height: size),
         padding: EdgeInsets.zero,
-        style: (carbon == null
-                ? IconButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: style.radius(5)))
-                : const ButtonStyle())
-            .copyWith(
-          foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled)
-              ? null
-              : selected
-                  ? (carbon != null ? colors.text : dark ? colors.accent : colors.accentStrong)
-                  : color ??
-                      // Refined: an icon at rest a little softer than text (a glyph is heavier than
-                      // the words beside it), full strength under the pointer.
-                      (carbon != null || s.contains(WidgetState.hovered) || s.contains(WidgetState.pressed)
-                          ? colors.text
-                          : Color.lerp(colors.text, colors.textMuted, 0.35))),
-          backgroundColor: selected ? WidgetStatePropertyAll(fill) : null,
-          animationDuration: motion(context, 150),
-        ),
+        style: styleOf(context, selected: selected, color: color),
         icon: glyph ?? Icon(icon),
       ),
     );

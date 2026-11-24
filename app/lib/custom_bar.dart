@@ -350,11 +350,7 @@ class _MoreMenu extends StatelessWidget {
           iconSize: 16,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 220),
-          style: IconButton.styleFrom(
-            fixedSize: Size.square(AppStyle.of(context).control),
-            minimumSize: Size.square(AppStyle.of(context).control),
-            shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(5)),
-          ),
+          style: ToolbarButton.styleOf(context),
           icon: Icon(AppIcon.overflow.of(context)),
           onSelected: (action) => action(),
           itemBuilder: entries,

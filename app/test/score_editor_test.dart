@@ -83,7 +83,7 @@ void main() {
     await tester.pump();
     await screenshot(tester, 'score-editor', inside: find.byType(ScoreEditor));
     expect(score.canUndo, isTrue);
-    expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && w.tooltip.startsWith('Undo'))).onPressed, isNotNull);
+    expect(tester.widget<ToolbarButton>(find.byWidgetPredicate((w) => w is ToolbarButton && (w.tooltip ?? '').startsWith('Undo'))).onPressed, isNotNull);
 
     // In note input a click puts a note in where the pointer is: bar 2's third beat, on the middle
     // line (B4 in the treble clef) and a step above it; over a note already there it selects.
