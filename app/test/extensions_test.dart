@@ -11,8 +11,10 @@ import 'package:curated_score/app_menus.dart';
 import 'package:curated_score/app_icons.dart';
 import 'package:curated_score/app_settings.dart';
 import 'package:curated_score/editor_controller.dart';
+import 'package:curated_score/error_text.dart';
 import 'package:curated_score/extensions/extension.dart';
 import 'package:curated_score/key_bindings.dart';
+import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/lua_language.dart';
 import 'package:curated_score/plugins/plugin_docs.dart';
 import 'package:curated_score/plugins/plugins.dart';
@@ -523,6 +525,21 @@ void main() {
       kept.remove(id);
       expect((cgp.existsSync(), kept.package(id)), (false, null));
       expect(() => kept.add(PluginPackage.blank(id: 'navigator', name: 'Mine')), throwsFormatException, reason: 'a one-word id is Curator’s');
+      // Said in the interface's language, as what is wrong with a file of one is.
+      String told(void Function() add) {
+        try {
+          add();
+        } catch (e) {
+          return describeError(e);
+        }
+        return '';
+      }
+
+      Strings.use(AppLanguage.of('zh-Hans'));
+      addTearDown(() => Strings.use(AppLanguage.english));
+      expect([told(() => kept.add(PluginPackage.blank(id: 'navigator', name: 'Mine'))), told(() => PluginPackage.read(Uint8List(3)))],
+          ['这个插件没有 Curator 能用的 ID。', '这不是 Curator 插件。']);
+      Strings.use(AppLanguage.english);
 
       // One changing the app's own: a command hidden, one renamed, one given another key, and
       // its own placed beside one of the app's, keyed, and offered on Home and over the score.

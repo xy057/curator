@@ -2563,7 +2563,11 @@ on Windows wherever the registry says that folder now is): it never replaces the
   Language: System, English, Simplified or Traditional Chinese, switched live; `AppLanguage`):
   `'Open Sample'.tr`, `'Couldn’t align. {error}'.fill({'error': …})` with values (the translation
   places them), and
-  `trIn` where one English word means two things (a `msgctxt`). A name the score or the user gave
+  `trIn` where one English word means two things (a `msgctxt`). What the engine says to people (a
+  script's problems, what is wrong with a package's file) is words, `Words('There is no bar
+  {bar}.', {'bar': …})`: the English with its values, words within words said as their own, shown
+  with `.tr` as the app's texts are (a file's is a `WordsFormatException`, which `describeError`
+  says); `make l10n` finds them in the engine as in the app. A name the score or the user gave
   (an instrument, a recording, a group of the user's) is shown as written, never translated: one
   that reads as a word of the interface ("Alto", "Bass": clefs; "Score") is not that word. A widget
   that translates its label takes `named: true` for one (`AppCheckRow`, `ExportSelect`, Settings'

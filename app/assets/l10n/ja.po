@@ -717,7 +717,7 @@ msgstr "揃えられませんでした。{error}"
 msgid "Couldn’t autosave. {error}"
 msgstr "自動保存できませんでした。{error}"
 
-#: lib/audio_panel.dart
+#: ../packages/score_engine/lib/src/lane_script.dart lib/audio_panel.dart
 msgid "Couldn’t hear the score in this recording."
 msgstr "この録音からは楽譜を聞き取れませんでした。"
 
@@ -6075,3 +6075,319 @@ msgstr "スクリプト：{problem}"
 msgctxt "status"
 msgid "Done"
 msgstr "完了しました"
+
+#: ../packages/score_engine/lib/src/extension/package.dart lib/editor/extension_editing.dart
+msgid "The extension has no id Curator can use."
+msgstr "この拡張機能には Curator で使える ID がありません。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json isn’t a connector."
+msgstr "connect.json はコネクタではありません。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node that isn’t one."
+msgstr "connect.json に正しくないノードがあります。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node without a name or a type."
+msgstr "connect.json に名前か種類のないノードがあります。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has two nodes named {id}."
+msgstr "connect.json に {id} という名前のノードが 2 つあります。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json wires {wire} twice."
+msgstr "connect.json で {wire} が 2 回つながれています。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a wire that isn’t one."
+msgstr "connect.json に正しくない接続があります。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart lib/editor/lane_editing.dart
+msgid "There is no recording."
+msgstr "録音がありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name’s closing quote is missing."
+msgstr "名前の閉じ引用符がありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}” isn’t part of a script."
+msgstr "「{text}」はスクリプトでは使えません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The script is too long."
+msgstr "スクリプトが長すぎます。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording can’t be heard."
+msgstr "録音を聴き取れません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Couldn’t hear the recording. {error}"
+msgstr "録音を聴き取れませんでした。{error}"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no group “{name}”. A lane’s name goes in quotes: \"{name}\"."
+msgstr "「{name}」というグループはありません。レーンの名前は引用符で囲みます：\"{name}\"。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no lane named “{name}”."
+msgstr "「{name}」という名前のレーンはありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is one lane named “{name}”."
+msgstr "「{name}」という名前のレーンは 1 本だけです。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There are {n} lanes named “{name}”."
+msgstr "「{name}」という名前のレーンは {n} 本あります。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” isn’t split: write split {code} first."
+msgstr "「{lane}」は分割されていません。先に split {code} と書いてください。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves no lane."
+msgstr "それではレーンが 1 本も残りません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on one staff."
+msgstr "「{lane}」の譜表は 1 段だけです。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on {n} staves."
+msgstr "「{lane}」の譜表は {n} 段です。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane goes here, and that names {n}."
+msgstr "ここにはレーンを 1 本だけ書きますが、{n} 本を指しています。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no bar {bar}."
+msgstr "{bar} 小節目はありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no beat {beat}."
+msgstr "拍 {beat} はありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The piece is {n} quarters long."
+msgstr "曲の長さは 4 分音符 {n} 個分です。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no rehearsal mark “{mark}”."
+msgstr "リハーサルマーク「{mark}」はありません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The range ends before it starts."
+msgstr "範囲の終わりが始まりより前です。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording wasn’t heard."
+msgstr "録音が聴き取られていません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Nothing is heard yet: “hear” goes before it."
+msgstr "まだ何も聴き取っていません。「hear」をこの前に書いてください。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "This score’s lanes can’t be auto-curated."
+msgstr "この楽譜のレーンは自動キュレートできません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is one of the lanes moved."
+msgstr "「{lane}」は移動するレーンの 1 つです。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}”"
+msgstr "「{text}」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "the line’s end"
+msgstr "行末"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} goes here, not {found}."
+msgstr "ここには{found}ではなく{what}が入ります。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{found} isn’t expected here."
+msgstr "ここに{found}は入りません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} is {max} at most."
+msgstr "{what}は {max} までです。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A lane’s name in quotes"
+msgstr "引用符で囲んだレーン名"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number"
+msgstr "数値"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A staff’s number"
+msgstr "譜表の番号"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A bar"
+msgstr "小節"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A rehearsal mark"
+msgstr "リハーサルマーク"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds"
+msgstr "秒数"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds, “in” or “out”"
+msgstr "秒数、「in」または「out」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“in” or “out”"
+msgstr "「in」または「out」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A line starts with what it does (show, hide, auto…), not {found}."
+msgstr "行は{found}ではなく、すること（show、hide、auto…）で始めます。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is split: show the staves’ lanes instead ({code})."
+msgstr "「{lane}」は分割されています。代わりに各譜表のレーンを表示してください（{code}）。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves “{lane}” no staff."
+msgstr "それでは「{lane}」の譜表が 1 段も残りません。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number of bars"
+msgstr "小節数"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A phrase is a bar at least."
+msgstr "フレーズは 1 小節以上です。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane is copied, and that names {n}."
+msgstr "コピーするレーンは 1 本ですが、{n} 本を指しています。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“to top”, “to bottom”, “before” or “after”"
+msgstr "「to top」、「to bottom」、「before」または「after」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name for the lanes"
+msgstr "レーンにつける名前"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{word}” is a word of the language: call them something else."
+msgstr "「{word}」はスクリプトのキーワードです。別の名前にしてください。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That is a group of groups too many."
+msgstr "グループの入れ子が深すぎます。"
+
+#: ../packages/score_engine/lib/src/plugin/package.dart ../packages/score_engine/lib/src/web_plugin/package.dart lib/plugins/plugin_actions.dart lib/plugins/plugins.dart lib/web_plugins.dart
+msgid "The plugin has no id Curator can use."
+msgstr "このプラグインには Curator で使える ID がありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator extension."
+msgstr "これは Curator の拡張機能ではありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator plugin."
+msgstr "これは Curator のプラグインではありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator web plugin."
+msgstr "これは Curator の Web プラグインではありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension holds too many files."
+msgstr "この拡張機能はファイルが多すぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin holds too many files."
+msgstr "このプラグインはファイルが多すぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin holds too many files."
+msgstr "この Web プラグインはファイルが多すぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension is too big."
+msgstr "この拡張機能は大きすぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin is too big."
+msgstr "このプラグインは大きすぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin is too big."
+msgstr "この Web プラグインは大きすぎます。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path an extension may have."
+msgstr "{path} は拡張機能に使えないパスです。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a plugin may have."
+msgstr "{path} はプラグインに使えないパスです。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a web plugin may have."
+msgstr "{path} は Web プラグインに使えないパスです。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t text."
+msgstr "{path} はテキストではありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t JSON."
+msgstr "{path} は JSON ではありません。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a table of texts."
+msgstr "{path} はテキストの対訳表ではありません。"
+
+#: ../packages/score_engine/lib/src/web_plugin/package.dart
+msgid "The plugin has no main.js: build it first."
+msgstr "このプラグインには main.js がありません。先にビルドしてください。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} isn’t a file."
+msgstr "{file} はファイルではありません。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} uses compression Curator can’t read."
+msgstr "{file} は Curator が読めない圧縮形式を使っています。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} is too big."
+msgstr "{file} は大きすぎます。"
+
+#: lib/editor/lane_editing.dart
+msgid "An Align is under way."
+msgstr "「揃える」を実行中です。"
+
+#: lib/editor/lane_editing.dart
+msgid "This score has no notes to hear."
+msgstr "この楽譜には聴き取る音符がありません。"
+
+#: lib/editor/lane_editing.dart
+msgid "The recording is still loading."
+msgstr "録音をまだ読み込み中です。"
+
+#: lib/editor/lane_editing.dart
+msgid "The anchors follow a MIDI file’s tempo."
+msgstr "アンカーは MIDI ファイルのテンポに従っています。"
+
+#: lib/editor/lane_editing.dart
+msgid "None of the recordings is the one synced."
+msgstr "同期する録音が選ばれていません。"

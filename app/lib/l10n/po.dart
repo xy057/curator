@@ -135,13 +135,22 @@ class PoFile {
   }
 }
 
+/// Where the Dart that says things to people is, from app/: the app's, and the engine's (its
+/// words, which the app says): what [translatedLiterals] is asked of.
+const translatedFolders = ['lib', '../packages/score_engine/lib'];
+
 /// The texts a Dart [source] translates as literals — `'…'.tr`, `'…'.fill(…)` and
-/// `'…'.trIn('context')` — each by its key ([PoEntry.key]).
+/// `'…'.trIn('context')` — and those words are made of (`Words('…')`, the engine's way), each by
+/// its key ([PoEntry.key]).
 Iterable<String> translatedLiterals(String source) sync* {
   for (final m in _literal.allMatches(source)) {
     final id = _dartText((m[1] ?? m[2])!);
     final context = m[3] ?? m[4];
     yield context == null ? id : '${_dartText(context)}\u0004$id';
+  }
+  for (final m in _words.allMatches(source)) {
+    final id = _dartText((m[1] ?? m[2])!);
+    if (id.isNotEmpty) yield id;
   }
 }
 
@@ -191,6 +200,7 @@ final _jsonLabelled = RegExp(r'"(?:title|name|summary|label)"\s*:\s*("(?:[^"\\]|
 /// A quoted Dart string (no interpolation), its text captured: single, then double quotes.
 const _quoted = r"""'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)""" '"';
 final _literal = RegExp('(?:$_quoted)' r'\s*\.(?:tr\b|fill\(|trIn\(\s*' '(?:$_quoted)' r'\s*\))');
+final _words = RegExp(r'\bWords\(\s*(?:' '$_quoted' r')');
 
 String _dartText(String s) => s.replaceAllMapped(RegExp(r'\\(u\{?[0-9a-fA-F]+\}?|.)'), (m) {
       final c = m[1]!;

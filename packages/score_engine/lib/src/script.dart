@@ -12,6 +12,7 @@ import 'lua.dart';
 import 'score_caption.dart';
 import 'score_text.dart';
 import 'scroll_map.dart';
+import 'words.dart';
 import 'zip_entries.dart';
 
 /// Lua code as it travels, in a package: an extension (a `.cpe`, which a project carries) or a
@@ -76,6 +77,40 @@ mixin PackageManifest implements ScriptPackage {
   }
 }
 
+/// What a package is, for what is said of one that is wrong ([PackageFiles.unzip],
+/// [PackageFiles.sorted]): a sentence of its own for each, as a language may say them otherwise.
+enum PackageKind {
+  extension,
+  plugin,
+  webPlugin;
+
+  /// Said of a file that isn't one.
+  Words get notOne => switch (this) {
+        PackageKind.extension => const Words('This isn’t a Curator extension.'),
+        PackageKind.plugin => const Words('This isn’t a Curator plugin.'),
+        PackageKind.webPlugin => const Words('This isn’t a Curator web plugin.'),
+      };
+
+  Words get tooMany => switch (this) {
+        PackageKind.extension => const Words('The extension holds too many files.'),
+        PackageKind.plugin => const Words('The plugin holds too many files.'),
+        PackageKind.webPlugin => const Words('The web plugin holds too many files.'),
+      };
+
+  Words get tooBig => switch (this) {
+        PackageKind.extension => const Words('The extension is too big.'),
+        PackageKind.plugin => const Words('The plugin is too big.'),
+        PackageKind.webPlugin => const Words('The web plugin is too big.'),
+      };
+
+  /// Said of a file at [path], which none may have.
+  Words badPath(String path) => switch (this) {
+        PackageKind.extension => Words('{path} isn’t a path an extension may have.', {'path': path}),
+        PackageKind.plugin => Words('{path} isn’t a path a plugin may have.', {'path': path}),
+        PackageKind.webPlugin => Words('{path} isn’t a path a web plugin may have.', {'path': path}),
+      };
+}
+
 /// A package's files, zipped and read: what an extension's and a plugin's file have in common.
 abstract final class PackageFiles {
   /// The most a package unpacks to, a file of it, and how many it holds.
@@ -114,16 +149,16 @@ abstract final class PackageFiles {
     return sha256.convert(all.takeBytes()).toString();
   }
 
-  /// The files of the archive [bytes] are, by path, its mimetype aside. [what] names what it
-  /// should be ("extension"), for the [FormatException] that says what is wrong with it.
-  static Map<String, Uint8List> unzip(Uint8List bytes, {required String what}) {
+  /// The files of the archive [bytes] are, by path, its mimetype aside. [what] is what it
+  /// should be, for the [FormatException] that says what is wrong with it.
+  static Map<String, Uint8List> unzip(Uint8List bytes, {required PackageKind what}) {
     final Archive archive;
     try {
       archive = ZipDecoder().decodeBytes(bytes);
     } catch (_) {
-      throw FormatException('This isn’t a Curator $what.');
+      throw WordsFormatException(what.notOne);
     }
-    if (archive.files.length > maxFiles) throw FormatException('The $what holds too many files.');
+    if (archive.files.length > maxFiles) throw WordsFormatException(what.tooMany);
     final files = <String, Uint8List>{};
     var total = 0;
     for (final file in archive.files) {
@@ -131,7 +166,7 @@ abstract final class PackageFiles {
       final text = !file.name.startsWith('assets/');
       final content = ZipEntries.read(file, limit: text ? maxTextBytes : maxBytes - total);
       total += content.length;
-      if (total > maxBytes) throw FormatException('The $what is too big.');
+      if (total > maxBytes) throw WordsFormatException(what.tooBig);
       files[file.name] = content;
     }
     return files;
@@ -151,7 +186,7 @@ abstract final class PackageFiles {
     try {
       return utf8.decode(files[path]!);
     } on FormatException {
-      throw FormatException('$path isn’t text.');
+      throw WordsFormatException(Words('{path} isn’t text.', {'path': path}));
     }
   }
 
@@ -160,22 +195,22 @@ abstract final class PackageFiles {
     try {
       return jsonDecode(text(files, path));
     } on FormatException {
-      throw FormatException('$path isn’t JSON.');
+      throw WordsFormatException(Words('{path} isn’t JSON.', {'path': path}));
     }
   }
 
   /// What [files] hold beyond what says what the package is: its Lua by path under `src/`, its
-  /// texts by locale, its assets by path. [what] names the package, for a path it may not have.
+  /// texts by locale, its assets by path. [what] is the package's kind, for a path it may not have.
   static ({Map<String, String> sources, Map<String, Map<String, String>> locales, Map<String, Uint8List> assets}) sorted(Map<String, Uint8List> files,
-      {required String what}) {
+      {required PackageKind what}) {
     final sources = <String, String>{}, locales = <String, Map<String, String>>{}, assets = <String, Uint8List>{};
     for (final path in files.keys) {
-      if (path.contains('..') || path.startsWith('/')) throw FormatException('$path isn’t a path a${what.startsWith('e') ? 'n' : ''} $what may have.');
+      if (path.contains('..') || path.startsWith('/')) throw WordsFormatException(what.badPath(path));
       if (path.startsWith('src/') && path.endsWith('.lua')) {
         sources[path.substring(4)] = text(files, path);
       } else if (path.startsWith('locales/') && path.endsWith('.json')) {
         final table = json(files, path);
-        if (table is! Map<String, Object?>) throw FormatException('$path isn’t a table of texts.');
+        if (table is! Map<String, Object?>) throw WordsFormatException(Words('{path} isn’t a table of texts.', {'path': path}));
         locales[path.substring(8, path.length - 5)] = {
           for (final MapEntry(:key, :value) in table.entries)
             if (value is String) key: value,

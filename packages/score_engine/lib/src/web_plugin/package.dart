@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../extension/package.dart';
 import '../script.dart';
+import '../words.dart';
 
 /// A setting of a web plugin's the exporter sets (plugin.json's `settings`): a text, a switch
 /// or a choice among [options], [value] until it is set.
@@ -144,14 +145,14 @@ class WebPluginPackage with PackageManifest implements ScriptPackage {
   /// A package from its files by path, as [files] lists them. What is wrong with it is a
   /// [FormatException] that says so.
   factory WebPluginPackage.fromFiles(Map<String, Uint8List> files) {
-    const notOne = FormatException('This isn’t a Curator web plugin.');
+    final notOne = WordsFormatException(PackageKind.webPlugin.notOne);
     if (!files.containsKey('plugin.json')) throw notOne;
     final manifest = PackageFiles.json(files, 'plugin.json');
     if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw notOne;
     final id = manifest['id'];
-    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const FormatException('The plugin has no id Curator can use.');
-    if (!files.containsKey(entry)) throw const FormatException('The plugin has no main.js: build it first.');
-    final (sources: _, :locales, :assets) = PackageFiles.sorted(files, what: 'plugin');
+    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const WordsFormatException(Words('The plugin has no id Curator can use.'));
+    if (!files.containsKey(entry)) throw const WordsFormatException(Words('The plugin has no main.js: build it first.'));
+    final (sources: _, :locales, :assets) = PackageFiles.sorted(files, what: PackageKind.webPlugin);
     return WebPluginPackage(
       manifest: manifest,
       main: PackageFiles.text(files, entry),
@@ -166,7 +167,7 @@ class WebPluginPackage with PackageManifest implements ScriptPackage {
   }
 
   /// The package a `.cwp` file's [bytes] hold. A [FormatException] says what is wrong with one.
-  factory WebPluginPackage.read(Uint8List bytes) => WebPluginPackage.fromFiles(PackageFiles.unzip(bytes, what: 'web plugin'));
+  factory WebPluginPackage.read(Uint8List bytes) => WebPluginPackage.fromFiles(PackageFiles.unzip(bytes, what: PackageKind.webPlugin));
 
   /// It as a `.cwp` file: the same bytes for the same package, whenever it is written.
   Uint8List write() => _written;

@@ -562,7 +562,7 @@ void main() {
       expect(await aligned('hear\nmatch'), [true, ['Line 2: Couldn’t hear the score in this recording.'], ['hear', 'match tape']]);
       host.tape = null;
       expect(await aligned('show all\nalign'), [true, ['Line 2: The recording can’t be heard.'], ['hear']]);
-      host.recording = 'There is no recording.';
+      host.recording = const Words('There is no recording.');
       expect([for (final p in LaneScript.parse('hear\nsnap anchors').check(host)) '$p'], ['Line 1: There is no recording.', 'Line 2: There is no recording.']);
       // A score with no notes to hear (a PDF's) has its anchors snapped all the same.
       host
@@ -593,7 +593,7 @@ void main() {
       expect([cut.steps.length, cut.wires, cut.withoutWire(0, 3).wires.length, both.withStep(s(MacroAction.refill), after: 3).wires.last],
           [5, const [(from: 1, to: 2), (from: 4, to: 1), (from: 0, to: 3)], 2, const (from: 3, to: 6)]);
       final loose = both.withoutWire(0, 2).script(MacroContext.of(host));
-      expect(['${loose.problems.single}', '${LaneMacro.problemsOf(const [LaneScriptProblem(2, 'x')], both.order).single}'], ['Step 3: heard', 'Step 2: x']);
+      expect(['${loose.problems.single}', '${LaneMacro.problemsOf(const [LaneScriptProblem(2, Words('x'))], both.order).single}'], ['Step 3: heard', 'Step 2: x']);
       expect(LaneMacro.read(LaneMacro.write([both])), [both]);
       expect(LaneMacro.read('[{"name": "r", "steps": [{"do": "hear"}, {"do": "fly"}, {"do": "match"}], "wires": [[0, 2], [2, 0], [0, 1], [5, 0], "x"]}]').single.wired,
           const [(from: 0, to: 1)], reason: 'by the places left, no ring, nothing unknown');
@@ -805,16 +805,16 @@ class _ScriptLanes extends LaneScriptHost {
 
   /// The recording: why it can't be heard, whether the project snaps, what is heard and matched
   /// from it, and what was asked about it.
-  String? recording;
+  Words? recording;
   bool snapping = true;
   Object? tape = 'tape';
   List<SyncAnchor> matched = const [SyncAnchor(0, 1), SyncAnchor(8, 5)];
   final said = <String>[];
 
   @override
-  String? get unheard => recording ?? (noNotes ? 'This score has no notes to hear.' : null);
+  Words? get unheard => recording ?? (noNotes ? const Words('This score has no notes to hear.') : null);
   @override
-  String? get unsnapped => recording;
+  Words? get unsnapped => recording;
   bool noNotes = false;
   @override
   bool get snaps => snapping;

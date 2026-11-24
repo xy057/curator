@@ -1,6 +1,7 @@
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter/foundation.dart' show compute, debugPrint, kDebugMode;
+import 'package:score_engine/score_engine.dart' show Words;
 
 import 'po.dart';
 
@@ -286,6 +287,11 @@ extension Translated on String {
 }
 
 final _placeholder = RegExp(r'\{(\w+)\}');
+
+extension TranslatedWords on Words {
+  /// These words in the interface's language, filled in (a value that is words too in it).
+  String get tr => said(Strings.of);
+}
 
 /// Ideographs and their punctuation: text that has been translated, or has no letters to.
 final _translated = RegExp(r'[\u3000-\u9fff\uff00-\uffef]|^[^A-Za-z]*$');

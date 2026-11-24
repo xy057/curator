@@ -27,7 +27,7 @@ abstract final class PluginActions {
       plugins.add(package);
       return true;
     } on FormatException catch (e) {
-      if (context.mounted) await showNotice(context, title.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, title.tr, describeError(e));
     } on FileSystemException catch (e) {
       if (context.mounted) await showNotice(context, title.tr, describeError(e));
     }
@@ -74,10 +74,10 @@ abstract final class PluginActions {
       final package = PluginPackage.read(await File(path).readAsBytes());
       if (!context.mounted) return false;
       // One of Curator's own comes with the app: a file can't stand in for it.
-      if (!PluginPackage.isThirdPartyId(package.id)) throw const FormatException('The plugin has no id Curator can use.');
+      if (!PluginPackage.isThirdPartyId(package.id)) throw const WordsFormatException(Words('The plugin has no id Curator can use.'));
       return await _keep(context, plugins, package, title: 'Couldn’t Add the Plugin');
     } on FormatException catch (e) {
-      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
     } on FileSystemException catch (e) {
       if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
     }

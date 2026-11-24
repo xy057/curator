@@ -32,7 +32,7 @@ void main() {
 
     // Every text the code translates is in the template, which tool/l10n.dart has synced.
     final missing = <String>[];
-    for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+    for (final file in [for (final folder in translatedFolders) ...Directory(folder).listSync(recursive: true).whereType<File>()]) {
       if (!file.path.endsWith('.dart') || file.path.contains('l10n')) continue;
       for (final key in translatedLiterals(file.readAsStringSync())) {
         if (!keys.contains(key)) missing.add('${file.path}: $key');

@@ -717,7 +717,7 @@ msgstr "無法對齊。{error}"
 msgid "Couldn’t autosave. {error}"
 msgstr "無法自動儲存。{error}"
 
-#: lib/audio_panel.dart
+#: ../packages/score_engine/lib/src/lane_script.dart lib/audio_panel.dart
 msgid "Couldn’t hear the score in this recording."
 msgstr "在這段錄音裡沒有聽出這份樂譜。"
 
@@ -6075,3 +6075,319 @@ msgstr "腳本：{problem}"
 msgctxt "status"
 msgid "Done"
 msgstr "已完成"
+
+#: ../packages/score_engine/lib/src/extension/package.dart lib/editor/extension_editing.dart
+msgid "The extension has no id Curator can use."
+msgstr "這個延伸功能沒有 Curator 能用的 ID。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json isn’t a connector."
+msgstr "connect.json 不是連接器。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node that isn’t one."
+msgstr "connect.json 中有一個無效的節點。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node without a name or a type."
+msgstr "connect.json 中有一個節點沒有名稱或類型。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has two nodes named {id}."
+msgstr "connect.json 中有兩個名為 {id} 的節點。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json wires {wire} twice."
+msgstr "connect.json 把 {wire} 連了兩次。"
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a wire that isn’t one."
+msgstr "connect.json 中有一條無效的連線。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart lib/editor/lane_editing.dart
+msgid "There is no recording."
+msgstr "沒有錄音。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name’s closing quote is missing."
+msgstr "名稱缺少右引號。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}” isn’t part of a script."
+msgstr "腳本中不能使用「{text}」。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The script is too long."
+msgstr "腳本太長了。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording can’t be heard."
+msgstr "無法聽取這段錄音。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Couldn’t hear the recording. {error}"
+msgstr "沒能聽取錄音。{error}"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no group “{name}”. A lane’s name goes in quotes: \"{name}\"."
+msgstr "沒有名為「{name}」的分組。軌道名稱要加引號：\"{name}\"。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no lane named “{name}”."
+msgstr "沒有名為「{name}」的軌道。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is one lane named “{name}”."
+msgstr "名為「{name}」的軌道只有一條。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There are {n} lanes named “{name}”."
+msgstr "名為「{name}」的軌道有 {n} 條。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” isn’t split: write split {code} first."
+msgstr "「{lane}」沒有拆分：請先寫 split {code}。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves no lane."
+msgstr "這樣就一條軌道都不剩了。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on one staff."
+msgstr "「{lane}」只有一行譜表。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on {n} staves."
+msgstr "「{lane}」有 {n} 行譜表。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane goes here, and that names {n}."
+msgstr "這裡只能寫一條軌道，而這裡寫的是 {n} 條。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no bar {bar}."
+msgstr "沒有第 {bar} 小節。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no beat {beat}."
+msgstr "沒有 {beat} 這一拍。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The piece is {n} quarters long."
+msgstr "全曲只有 {n} 個四分音符長。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no rehearsal mark “{mark}”."
+msgstr "沒有排練記號「{mark}」。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The range ends before it starts."
+msgstr "這個範圍的結束早於開始。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording wasn’t heard."
+msgstr "還沒有聽取錄音。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Nothing is heard yet: “hear” goes before it."
+msgstr "還沒有聽取任何內容：「hear」要寫在它前面。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "This score’s lanes can’t be auto-curated."
+msgstr "這份樂譜的軌道無法自動編排。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is one of the lanes moved."
+msgstr "「{lane}」本身就是要移動的軌道之一。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}”"
+msgstr "「{text}」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "the line’s end"
+msgstr "行尾"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} goes here, not {found}."
+msgstr "這裡應是{what}，而不是{found}。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{found} isn’t expected here."
+msgstr "這裡不該出現{found}。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} is {max} at most."
+msgstr "{what}最多為 {max}。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A lane’s name in quotes"
+msgstr "加引號的軌道名稱"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number"
+msgstr "數字"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A staff’s number"
+msgstr "譜表編號"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A bar"
+msgstr "小節"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A rehearsal mark"
+msgstr "排練記號"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds"
+msgstr "秒數"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds, “in” or “out”"
+msgstr "秒數、「in」或「out」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“in” or “out”"
+msgstr "「in」或「out」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A line starts with what it does (show, hide, auto…), not {found}."
+msgstr "每行應以它要做的事開頭（show、hide、auto…），而不是{found}。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is split: show the staves’ lanes instead ({code})."
+msgstr "「{lane}」已拆分：請改為顯示各譜表的軌道（{code}）。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves “{lane}” no staff."
+msgstr "這樣「{lane}」就一行譜表都不剩了。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number of bars"
+msgstr "小節數"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A phrase is a bar at least."
+msgstr "樂句至少為一個小節。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane is copied, and that names {n}."
+msgstr "只能複製一條軌道，而這裡寫的是 {n} 條。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“to top”, “to bottom”, “before” or “after”"
+msgstr "「to top」、「to bottom」、「before」或「after」"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name for the lanes"
+msgstr "這些軌道的名稱"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{word}” is a word of the language: call them something else."
+msgstr "「{word}」是腳本語言的關鍵字：請換一個名字。"
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That is a group of groups too many."
+msgstr "分組巢狀得太深了。"
+
+#: ../packages/score_engine/lib/src/plugin/package.dart ../packages/score_engine/lib/src/web_plugin/package.dart lib/plugins/plugin_actions.dart lib/plugins/plugins.dart lib/web_plugins.dart
+msgid "The plugin has no id Curator can use."
+msgstr "這個外掛模組沒有 Curator 能用的 ID。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator extension."
+msgstr "這不是 Curator 延伸功能。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator plugin."
+msgstr "這不是 Curator 外掛模組。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator web plugin."
+msgstr "這不是 Curator 網頁外掛模組。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension holds too many files."
+msgstr "這個延伸功能包含的檔案太多。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin holds too many files."
+msgstr "這個外掛模組包含的檔案太多。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin holds too many files."
+msgstr "這個網頁外掛模組包含的檔案太多。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension is too big."
+msgstr "這個延伸功能太大了。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin is too big."
+msgstr "這個外掛模組太大了。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin is too big."
+msgstr "這個網頁外掛模組太大了。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path an extension may have."
+msgstr "延伸功能裡不能有 {path} 這樣的路徑。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a plugin may have."
+msgstr "外掛模組裡不能有 {path} 這樣的路徑。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a web plugin may have."
+msgstr "網頁外掛模組裡不能有 {path} 這樣的路徑。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t text."
+msgstr "{path} 不是文字。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t JSON."
+msgstr "{path} 不是 JSON。"
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a table of texts."
+msgstr "{path} 不是文字對照表。"
+
+#: ../packages/score_engine/lib/src/web_plugin/package.dart
+msgid "The plugin has no main.js: build it first."
+msgstr "這個外掛模組沒有 main.js：請先建置它。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} isn’t a file."
+msgstr "{file} 不是檔案。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} uses compression Curator can’t read."
+msgstr "{file} 使用了 Curator 無法讀取的壓縮方式。"
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} is too big."
+msgstr "{file} 太大了。"
+
+#: lib/editor/lane_editing.dart
+msgid "An Align is under way."
+msgstr "正在進行對齊。"
+
+#: lib/editor/lane_editing.dart
+msgid "This score has no notes to hear."
+msgstr "這份樂譜沒有可聽取的音符。"
+
+#: lib/editor/lane_editing.dart
+msgid "The recording is still loading."
+msgstr "錄音仍在載入。"
+
+#: lib/editor/lane_editing.dart
+msgid "The anchors follow a MIDI file’s tempo."
+msgstr "錨點跟隨的是 MIDI 檔案的速度。"
+
+#: lib/editor/lane_editing.dart
+msgid "None of the recordings is the one synced."
+msgstr "還沒有選中要同步的錄音。"

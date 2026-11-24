@@ -140,7 +140,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
         if (problems.firstOrNull case final problem?) {
           messenger
             ?..clearSnackBars()
-            ..showSnackBar(SnackBar(content: Text('Script: {problem}'.fill({'problem': problem.message}))));
+            ..showSnackBar(SnackBar(content: Text('Script: {problem}'.fill({'problem': problem.message.tr}))));
         }
         return;
       }
@@ -200,7 +200,7 @@ class _LaneScriptViewState extends State<LaneScriptView> {
                 if (_found ?? _problems case final listed when listed.isNotEmpty) ...[
                   Divider(height: 1, color: colors.line),
                   CodeProblemList(problems: [
-                    for (final p in listed) (text: '${p.line}: ${p.message}', error: true, onTap: () => _goTo(p.line)),
+                    for (final p in listed) (text: '${p.line}: ${p.message.tr}', error: true, onTap: () => _goTo(p.line)),
                   ]),
                 ],
               ]),

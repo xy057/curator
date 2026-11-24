@@ -100,8 +100,8 @@ class MacrosScope extends InheritedWidget {
   bool updateShouldNotify(MacrosScope oldWidget) => !listEquals(macros, oldWidget.macros);
 }
 
-/// What is wrong with a macro, as it is said: "Step 2: Select lanes first". A script's own
-/// words (in English) for what only it finds.
+/// What is wrong with a macro, as it is said: "Step 2: Select lanes first", in a script's own
+/// words for what only it finds.
 String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
       'n': problem.step,
       'problem': switch (problem.fault) {
@@ -110,7 +110,7 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
         MacroFault.names => 'Name the lanes'.tr,
         MacroFault.bars => 'No bars given'.tr,
         MacroFault.heard => 'Wire Hear the Recording into it'.tr,
-        MacroFault.script => problem.message,
+        MacroFault.script => problem.message.tr,
       },
     });
 

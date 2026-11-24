@@ -78,7 +78,7 @@ class ExtensionEditing {
   /// Adds [package] to the project (in place of the one it carries with that id), off until
   /// its switch is turned. Not an Undo step, but saved with the project.
   void add(ExtensionPackage package) {
-    if (!ExtensionPackage.isThirdPartyId(package.id)) throw const FormatException('The extension has no id Curator can use.');
+    if (!ExtensionPackage.isThirdPartyId(package.id)) throw const WordsFormatException(Words('The extension has no id Curator can use.'));
     if (_carried[package.id] == package) return;
     _carried = Map.unmodifiable({..._carried, package.id: package});
     _sceneAfter(() {

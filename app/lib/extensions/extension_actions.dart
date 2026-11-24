@@ -69,7 +69,7 @@ abstract final class ExtensionActions {
     try {
       controller.extensions.add(ExtensionPackage.read(await file.readAsBytes()));
     } on FormatException catch (e) {
-      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, describeError(e));
     } on FileSystemException catch (e) {
       if (context.mounted) await showNotice(context, 'Couldn’t Add the Extension'.tr, describeError(e));
     }

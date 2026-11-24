@@ -27,6 +27,7 @@ import 'beat_grid.dart';
 import 'curation.dart';
 import 'lane_script_api.dart';
 import 'sync_map.dart';
+import 'words.dart';
 
 /// A lane as a script names it: by its [name], as the lane shows it.
 @immutable
@@ -82,12 +83,12 @@ abstract class LaneScriptHost {
 
   /// Why the recording can't be heard and the anchors set from it (there is none, they follow
   /// a MIDI file); null when it can.
-  String? get unheard => 'There is no recording.';
+  Words? get unheard => const Words('There is no recording.');
 
   /// Why the anchors can't be snapped to the notes heard starting in the recording, which goes
   /// by the recording alone (not the score's notes); null when they can. As [unheard] unless
   /// a host says otherwise.
-  String? get unsnapped => unheard;
+  Words? get unsnapped => unheard;
 
   /// Whether the anchors are snapped to the notes heard starting, as the project is set
   /// (`align` snaps them then, as Align does).
@@ -125,12 +126,13 @@ abstract class LaneScriptHost {
   (LaneScript, Map<String, int>)? _numbered;
 }
 
-/// Something wrong with a script, on its [line] (1 the first).
+/// Something wrong with a script, on its [line] (1 the first): [message] says what, in words
+/// the app says in its own language.
 @immutable
 class LaneScriptProblem {
   const LaneScriptProblem(this.line, this.message);
   final int line;
-  final String message;
+  final Words message;
 
   @override
   String toString() => 'Line $line: $message';
@@ -149,7 +151,7 @@ enum _Wait { hear, match, align }
 
 class _Fail implements Exception {
   const _Fail(this.message);
-  final String message;
+  final Words message;
 }
 
 enum _Kind { word, text, number, quarter, symbol }
@@ -234,7 +236,7 @@ class LaneScript {
       if (m[1] != null || m[8] != null) continue;
       _Token token(_Kind kind, String text) => (kind: kind, text: text, at: m.start, end: m.end);
       if (m[2] != null) {
-        if (m[3]!.isEmpty) throw const _Fail('A name’s closing quote is missing.');
+        if (m[3]!.isEmpty) throw const _Fail(Words('A name’s closing quote is missing.'));
         out.add(token(_Kind.text, m[2]!));
       } else if (m[4] != null) {
         out.add(token(_Kind.quarter, m[4]!));
@@ -247,7 +249,7 @@ class LaneScript {
       } else if (m[7] != null) {
         out.add(token(_Kind.symbol, m[7] == '–' ? '-' : m[7]!));
       } else {
-        throw _Fail('“${m[0]}” isn’t part of a script.');
+        throw _Fail(Words('“{text}” isn’t part of a script.', {'text': m[0]}));
       }
     }
     return out;
@@ -256,7 +258,7 @@ class LaneScript {
   /// Reads [source], a statement a line; `#` starts a comment.
   static LaneScript parse(String source) {
     final statements = <(int, void Function(_Run))>[], problems = <LaneScriptProblem>[], waits = <(int, _Wait)>[];
-    if (source.length > maxLength) return LaneScript._(const [], const [LaneScriptProblem(1, 'The script is too long.')]);
+    if (source.length > maxLength) return LaneScript._(const [], const [LaneScriptProblem(1, Words('The script is too long.'))]);
     for (final (i, line) in source.split(RegExp(r'\r\n|\r|\n')).indexed) {
       try {
         final tokens = _lex(line);
@@ -292,18 +294,18 @@ class LaneScript {
       try {
         if (wait != _Wait.match && heard == null) {
           heard = await host.hear();
-          if (heard == null) throw const _Fail('The recording can’t be heard.');
+          if (heard == null) throw const _Fail(Words('The recording can’t be heard.'));
         }
         if (wait != _Wait.hear && anchors == null && heard != null) {
           final matched = await host.match(heard);
-          if (matched.isEmpty) throw const _Fail('Couldn’t hear the score in this recording.');
+          if (matched.isEmpty) throw const _Fail(Words('Couldn’t hear the score in this recording.'));
           anchors = matched;
         }
       } on _Fail catch (e) {
         problems.add(LaneScriptProblem(line, e.message));
         break;
       } catch (e) {
-        problems.add(LaneScriptProblem(line, 'Couldn’t hear the recording. $e'));
+        problems.add(LaneScriptProblem(line, Words('Couldn’t hear the recording. {error}', {'error': '$e'})));
         break;
       }
     }
@@ -490,12 +492,12 @@ class _Run {
     if (term.all) return all;
     if (term.group case final name?) {
       final group = groups[name];
-      if (group == null) throw _Fail('There is no group “$name”. A lane’s name goes in quotes: "$name".');
+      if (group == null) throw _Fail(Words('There is no group “{name}”. A lane’s name goes in quotes: "{name}".', {'name': name}));
       return resolve(group.lanes, group.groups);
     }
     final name = term.name!, matches = LaneScript._matcher(name);
     var found = [for (final lane in all) if (matches.hasMatch(LaneScript._plain(lane.name))) lane];
-    if (found.isEmpty) throw _Fail('There is no lane named “$name”.');
+    if (found.isEmpty) throw _Fail(Words('There is no lane named “{name}”.', {'name': name}));
     if (term.nth case final nth?) {
       final instruments = <String>[];
       for (final lane in found) {
@@ -504,14 +506,16 @@ class _Run {
       int at(String id) => numbering[id] ?? numbering.length + instruments.indexOf(id);
       instruments.sort((a, b) => at(a).compareTo(at(b)));
       if (nth < 1 || nth > instruments.length) {
-        throw _Fail(instruments.length == 1 ? 'There is one lane named “$name”.' : 'There are ${instruments.length} lanes named “$name”.');
+        throw _Fail(instruments.length == 1
+            ? Words('There is one lane named “{name}”.', {'name': name})
+            : Words('There are {n} lanes named “{name}”.', {'n': instruments.length, 'name': name}));
       }
       found = [for (final lane in found) if (lane.instrument == instruments[nth - 1]) lane];
     }
     if (term.staff case final staff?) {
       for (final lane in found) {
-        if (staff < 1 || staff > lane.staves) throw _Fail(lane.staves == 1 ? '“${lane.name}” is on one staff.' : '“${lane.name}” is on ${lane.staves} staves.');
-        if (lane.staff == null) throw _Fail('“${lane.name}” isn’t split: write split ${LaneScript.quoted(lane.name)} first.');
+        if (staff < 1 || staff > lane.staves) throw _Fail(_staves(lane));
+        if (lane.staff == null) throw _Fail(Words('“{lane}” isn’t split: write split {code} first.', {'lane': lane.name, 'code': LaneScript.quoted(lane.name)}));
       }
       found = [for (final lane in found) if (lane.staff == staff) lane];
     }
@@ -524,14 +528,19 @@ class _Run {
     final groups = within ?? this.groups;
     final wanted = {for (final term in written.include) for (final lane in _of(term, groups)) lane.id};
     final left = wanted.difference({for (final term in written.exclude) for (final lane in _of(term, groups)) lane.id});
-    if (left.isEmpty) throw const _Fail('That leaves no lane.');
+    if (left.isEmpty) throw const _Fail(Words('That leaves no lane.'));
     return [for (final lane in lanes) if (left.contains(lane.id)) lane];
   }
+
+  /// That [lane] is on as many staves as it is, said of a staff it isn't on.
+  static Words _staves(ScriptLane lane) => lane.staves == 1
+      ? Words('“{lane}” is on one staff.', {'lane': lane.name})
+      : Words('“{lane}” is on {n} staves.', {'lane': lane.name, 'n': lane.staves});
 
   /// The one lane [written] names.
   ScriptLane one(_Lanes written) {
     final found = resolve(written);
-    if ({for (final lane in found) lane.instrument}.length > 1) throw _Fail('One lane goes here, and that names ${found.length}.');
+    if ({for (final lane in found) lane.instrument}.length > 1) throw _Fail(Words('One lane goes here, and that names {n}.', {'n': found.length}));
     return found.first;
   }
 
@@ -540,7 +549,7 @@ class _Run {
   /// The bar [text] ("12") names, from 0.
   int _bar(String text) {
     final bar = int.tryParse(text), m = bar == null ? -1 : bar - beats.firstBar;
-    if (m < 0 || m >= beats.measureStarts.length - 1) throw _Fail('There is no bar $text.');
+    if (m < 0 || m >= beats.measureStarts.length - 1) throw _Fail(Words('There is no bar {bar}.', {'bar': text}));
     return m;
   }
 
@@ -552,7 +561,7 @@ class _Run {
     }
     _bar(text.split('.').first);
     final q = beats.parse(text);
-    if (q == null) throw _Fail('There is no beat $text.');
+    if (q == null) throw _Fail(Words('There is no beat {beat}.', {'beat': text}));
     return (q, text.split('.').length > 2 ? q : beats.beatAt(q).end);
   }
 
@@ -560,7 +569,7 @@ class _Run {
     if (place.start) return 0;
     if (place.end) return total;
     if (place.quarter case final q?) {
-      if (q > total + 1e-9) throw _Fail('The piece is ${LaneScript.number(total)} quarters long.');
+      if (q > total + 1e-9) throw _Fail(Words('The piece is {n} quarters long.', {'n': LaneScript.number(total)}));
       return q;
     }
     if (place.mark case final mark?) {
@@ -568,7 +577,7 @@ class _Run {
       for (final (text, at) in host.marks) {
         if (LaneScript._plain(text) == wanted) return at;
       }
-      throw _Fail('There is no rehearsal mark “$mark”.');
+      throw _Fail(Words('There is no rehearsal mark “{mark}”.', {'mark': mark}));
     }
     final text = place.bar!;
     // The bar after the last is the end.
@@ -585,7 +594,7 @@ class _Run {
           final (double from, double to) = range.whole
               ? (_span(range.from!.bar!).$1, _span((range.through ?? range.from!).bar!).$2)
               : (range.from == null ? 0.0 : _at(range.from!), range.until == null ? total : _at(range.until!));
-          if (to - from <= 1e-9) throw const _Fail('The range ends before it starts.');
+          if (to - from <= 1e-9) throw const _Fail(Words('The range ends before it starts.'));
           return Region(from, to);
         }(),
     ];
@@ -641,16 +650,16 @@ class _Run {
   void hear() {
     _recording();
     heard = true;
-    if (!dry && ready?._heard == null) throw const _Fail('The recording wasn’t heard.');
+    if (!dry && ready?._heard == null) throw const _Fail(Words('The recording wasn’t heard.'));
   }
 
   /// The anchors matched from what was heard, in place of those there.
   void match() {
     _recording();
-    if (!heard) throw const _Fail('Nothing is heard yet: “hear” goes before it.');
+    if (!heard) throw const _Fail(Words('Nothing is heard yet: “hear” goes before it.'));
     if (dry) return;
     final anchors = ready?._anchors;
-    if (anchors == null) throw const _Fail('The recording wasn’t heard.');
+    if (anchors == null) throw const _Fail(Words('The recording wasn’t heard.'));
     host.setAnchors(anchors);
   }
 
@@ -664,7 +673,7 @@ class _Run {
   /// shows again: a region with the staves it left out, its own transitions and where it began,
   /// and nothing of a lane that had nothing there (a split instrument's other staff).
   void fit(List<ScriptLane> lanes, List<FitStep> steps, {int phrase = 4}) {
-    if (!host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+    if (!host.curates) throw const _Fail(Words('This score’s lanes can’t be auto-curated.'));
     if (dry) return;
     for (final step in steps) {
       final changed = host.fit([for (final lane in lanes) lane.id], step, phrase: phrase);
@@ -696,7 +705,7 @@ class _Run {
     for (final lane in lanes) {
       if (instruments.contains(lane.instrument)) continue;
       if (lane.staves < 2) {
-        if (on && strict) throw _Fail('“${lane.name}” is on one staff.');
+        if (on && strict) throw _Fail(_staves(lane));
         continue;
       }
       if ((lane.staff != null) != on) instruments.add(lane.instrument);
@@ -720,7 +729,7 @@ class _Run {
   void move(List<ScriptLane> moving, {ScriptLane? before, ScriptLane? after, bool top = false}) {
     final instruments = {for (final lane in moving) lane.instrument};
     final target = before ?? after;
-    if (target != null && instruments.contains(target.instrument)) throw _Fail('“${target.name}” is one of the lanes moved.');
+    if (target != null && instruments.contains(target.instrument)) throw _Fail(Words('“{lane}” is one of the lanes moved.', {'lane': target.name}));
     final others = [for (final lane in lanes) if (!instruments.contains(lane.instrument)) lane];
     String? above;
     if (top) {
@@ -762,27 +771,30 @@ class _Parser {
     return true;
   }
 
-  String _said(_Token? token) => token == null ? 'the line’s end' : '“${token.kind == _Kind.text ? '"${token.text}"' : token.text}”';
+  /// What was written (a word, a name in its quotes) in quotes, as a problem says it.
+  static Words _quoted(String text) => Words('“{text}”', {'text': text});
 
-  Never _wanted(String what) => throw _Fail('$what goes here, not ${_said(_next)}.');
+  Words _said(_Token? token) => token == null ? const Words('the line’s end') : _quoted(token.kind == _Kind.text ? '"${token.text}"' : token.text);
+
+  Never _wanted(Words what) => throw _Fail(Words('{what} goes here, not {found}.', {'what': what, 'found': _said(_next)}));
 
   void _need(String word) {
-    if (!_take(word)) _wanted('“$word”');
+    if (!_take(word)) _wanted(_quoted(word));
   }
 
   void _end() {
-    if (_next != null) throw _Fail('${_said(_next)} isn’t expected here.');
+    if (_next != null) throw _Fail(Words('{found} isn’t expected here.', {'found': _said(_next)}));
   }
 
-  double _number(String what, {double max = double.infinity}) {
+  double _number(Words what, {double max = double.infinity}) {
     final t = _next, n = t != null && t.kind == _Kind.number ? double.tryParse(t.text) : null;
     if (n == null) _wanted(what);
-    if (n > max) throw _Fail('$what is ${LaneScript.number(max)} at most.');
+    if (n > max) throw _Fail(Words('{what} is {max} at most.', {'what': what, 'max': LaneScript.number(max)}));
     _at++;
     return n;
   }
 
-  int _whole(String what) {
+  int _whole(Words what) {
     final t = _next, n = t != null && t.kind == _Kind.number ? int.tryParse(t.text) : null;
     if (n == null) _wanted(what);
     _at++;
@@ -800,15 +812,15 @@ class _Parser {
 
   _Term _term() {
     final t = _next;
-    if (t == null || !_atTerm) _wanted('A lane’s name in quotes');
+    if (t == null || !_atTerm) _wanted(const Words('A lane’s name in quotes'));
     _at++;
     if (t.kind == _Kind.word) return (name: null, group: t.text == 'all' ? null : t.text, all: t.text == 'all', nth: null, staff: null);
     int? nth, staff;
     if (_take('[')) {
-      nth = _whole('A number');
+      nth = _whole(const Words('A number'));
       _need(']');
     }
-    if (_take('/')) staff = _whole('A staff’s number');
+    if (_take('/')) staff = _whole(const Words('A staff’s number'));
     return (name: t.text, group: null, all: false, nth: nth, staff: staff);
   }
 
@@ -837,7 +849,7 @@ class _Parser {
   _Place _place() {
     final t = _next;
     _Place place({String? bar, double? quarter, bool start = false, bool end = false, String? mark}) => (bar: bar, quarter: quarter, start: start, end: end, mark: mark);
-    if (t == null) _wanted('A bar');
+    if (t == null) _wanted(const Words('A bar'));
     _at++;
     switch (t.kind) {
       case _Kind.number:
@@ -850,12 +862,12 @@ class _Parser {
         return place(end: true);
       case _Kind.word when t.text == 'mark':
         final name = _next;
-        if (name == null || name.kind == _Kind.symbol) _wanted('A rehearsal mark');
+        if (name == null || name.kind == _Kind.symbol) _wanted(const Words('A rehearsal mark'));
         _at++;
         return place(mark: name.text);
       default:
         _at--;
-        _wanted('A bar');
+        _wanted(const Words('A bar'));
     }
   }
 
@@ -866,10 +878,10 @@ class _Parser {
     }
     if (_take('until')) return (from: null, through: null, until: _place(), whole: false);
     final t = _next;
-    if (t == null || t.kind != _Kind.number) _wanted('A bar');
+    if (t == null || t.kind != _Kind.number) _wanted(const Words('A bar'));
     final from = _place();
     if (!_take('-')) return (from: from, through: null, until: null, whole: true);
-    if (_next?.kind != _Kind.number) _wanted('A bar');
+    if (_next?.kind != _Kind.number) _wanted(const Words('A bar'));
     return (from: from, through: _place(), until: null, whole: true);
   }
 
@@ -889,7 +901,7 @@ class _Parser {
   static const _maxSeconds = 30.0;
 
   /// Seconds, or `default`: the project's.
-  double? _seconds() => _take('default') ? null : _number('Seconds', max: _maxSeconds);
+  double? _seconds() => _take('default') ? null : _number(const Words('Seconds'), max: _maxSeconds);
 
   /// `in <seconds>` and `out <seconds>`, either or both; with [both], seconds alone for the two.
   (_Fade, _Fade) _fades({required bool both}) {
@@ -901,7 +913,7 @@ class _Parser {
     _Fade fadeIn = none, fadeOut = none;
     if (_take('in')) fadeIn = (given: true, seconds: _seconds());
     if (_take('out')) fadeOut = (given: true, seconds: _seconds());
-    if (!fadeIn.given && !fadeOut.given) _wanted(both ? 'Seconds, “in” or “out”' : '“in” or “out”');
+    if (!fadeIn.given && !fadeOut.given) _wanted(both ? const Words('Seconds, “in” or “out”') : const Words('“in” or “out”'));
     return (fadeIn, fadeOut);
   }
 
@@ -913,7 +925,7 @@ class _Parser {
   void Function(_Run) statement() {
     final first = _next!;
     if (first.kind != _Kind.word || !LaneScript.statements.any((s) => s.word == first.text)) {
-      throw _Fail('A line starts with what it does (show, hide, auto…), not ${_said(first)}.');
+      throw _Fail(Words('A line starts with what it does (show, hide, auto…), not {found}.', {'found': _said(first)}));
     }
     _at++;
     switch (first.text) {
@@ -926,9 +938,9 @@ class _Parser {
             (fadeIn, fadeOut) = _fades(both: true);
           } else if (_take('without')) {
             if (!_take('staff')) _need('staves');
-            hidden = [_whole('A staff’s number')];
+            hidden = [_whole(const Words('A staff’s number'))];
             while (_take(',')) {
-              hidden.add(_whole('A staff’s number'));
+              hidden.add(_whole(const Words('A staff’s number')));
             }
           } else {
             _end();
@@ -938,9 +950,9 @@ class _Parser {
           final found = run.resolve(lanes), stretches = run.stretches(ranges);
           for (final lane in found) {
             if (hidden.isEmpty) continue;
-            if (lane.staff != null) throw _Fail('“${lane.name}” is split: show the staves’ lanes instead (${LaneScript.quoted(lane.name)}/1).');
-            if (hidden.any((n) => n < 1 || n > lane.staves)) throw _Fail(lane.staves == 1 ? '“${lane.name}” is on one staff.' : '“${lane.name}” is on ${lane.staves} staves.');
-            if ({...hidden}.length >= lane.staves) throw _Fail('That leaves “${lane.name}” no staff.');
+            if (lane.staff != null) throw _Fail(Words('“{lane}” is split: show the staves’ lanes instead ({code}).', {'lane': lane.name, 'code': '${LaneScript.quoted(lane.name)}/1'}));
+            if (hidden.any((n) => n < 1 || n > lane.staves)) throw _Fail(_Run._staves(lane));
+            if ({...hidden}.length >= lane.staves) throw _Fail(Words('That leaves “{lane}” no staff.', {'lane': lane.name}));
           }
           run.edit(found, (lane, regions) {
             for (final s in stretches) {
@@ -969,20 +981,20 @@ class _Parser {
         return (run) {
           final found = lanes == null ? run.lanes : run.resolve(lanes);
           // (Said by the check too, as `follow` and `fit` are.)
-          if (auto && !run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+          if (auto && !run.host.curates) throw const _Fail(Words('This score’s lanes can’t be auto-curated.'));
           if (!auto) {
             run.edit(found, (_, _) => const []);
           } else if (!run.dry && !run.host.autoCurate([for (final lane in found) lane.id])) {
-            throw const _Fail('This score’s lanes can’t be auto-curated.');
+            throw const _Fail(Words('This score’s lanes can’t be auto-curated.'));
           }
         };
       case 'follow':
         final lanes = _atTerm ? _lanes() : null, ranges = _ranges();
-        final bridge = _take('bridge') ? _whole('A number of bars') : 0;
+        final bridge = _take('bridge') ? _whole(const Words('A number of bars')) : 0;
         _end();
         return (run) {
           final found = lanes == null ? run.lanes : run.resolve(lanes), stretches = run.stretches(ranges);
-          if (!run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
+          if (!run.host.curates) throw const _Fail(Words('This score’s lanes can’t be auto-curated.'));
           if (run.dry) return;
           final starts = run.beats.measureStarts, bars = starts.length - 1;
           final playing = {for (final lane in found) lane.id: run.host.playing(lane.id)};
@@ -1018,15 +1030,15 @@ class _Parser {
         };
       case 'snap':
         _need('anchors');
-        final within = _take('within') ? _number('Seconds', max: 1) : _snapWithin;
+        final within = _take('within') ? _number(const Words('Seconds'), max: 1) : _snapWithin;
         _end();
         return (run) => run.snap(within);
       case 'fit' || 'thin' || 'refill':
         // Fitting the frame, whole (`fit`) or a step of it.
         final steps = switch (first.text) { 'thin' => const [FitStep.thin], 'refill' => const [FitStep.refill], _ => FitStep.values };
         final lanes = _atTerm ? _lanes() : null;
-        final phrase = steps.contains(FitStep.thin) && _take('phrase') ? _whole('A number of bars') : 4;
-        if (phrase < 1) throw const _Fail('A phrase is a bar at least.');
+        final phrase = steps.contains(FitStep.thin) && _take('phrase') ? _whole(const Words('A number of bars')) : 4;
+        if (phrase < 1) throw const _Fail(Words('A phrase is a bar at least.'));
         _end();
         return (run) => run.fit(lanes == null ? run.lanes : run.resolve(lanes), steps, phrase: phrase);
       case 'remove' when _take('lone'):
@@ -1036,7 +1048,7 @@ class _Parser {
       case 'bridge' || 'remove':
         final bridge = first.text == 'bridge';
         _need(bridge ? 'rests' : 'short');
-        final bars = _number('A number of bars', max: 1000);
+        final bars = _number(const Words('A number of bars'), max: 1000);
         final lanes = _take('in') ? _lanes() : null;
         _end();
         return (run) {
@@ -1052,7 +1064,7 @@ class _Parser {
         _end();
         return (run) {
           final sources = run.resolve(from);
-          if (sources.length > 1) throw _Fail('One lane is copied, and that names ${sources.length}.');
+          if (sources.length > 1) throw _Fail(Words('One lane is copied, and that names {n}.', {'n': sources.length}));
           final targets = [for (final lane in run.resolve(to)) if (lane.id != sources.single.id) lane.id];
           if (!run.dry) run.curation.copyLane(sources.single.id, targets);
         };
@@ -1073,7 +1085,7 @@ class _Parser {
         } else if (_take('after')) {
           after = _lanes();
         } else {
-          _wanted('“to top”, “to bottom”, “before” or “after”');
+          _wanted(const Words('“to top”, “to bottom”, “before” or “after”'));
         }
         _end();
         return (run) => run.move(run.resolve(lanes), before: before == null ? null : run.one(before), after: after == null ? null : run.one(after), top: top);
@@ -1085,7 +1097,7 @@ class _Parser {
         };
       case 'transition':
         if (_next?.kind == _Kind.number) {
-          final seconds = _number('Seconds', max: _maxSeconds);
+          final seconds = _number(const Words('Seconds'), max: _maxSeconds);
           _end();
           return (run) {
             if (!run.dry) run.curation.transition = seconds;
@@ -1106,8 +1118,8 @@ class _Parser {
         };
       default: // let
         final name = _next;
-        if (name == null || name.kind != _Kind.word) _wanted('A name for the lanes');
-        if (LaneScript.keywords.contains(name.text)) throw _Fail('“${name.text}” is a word of the language: call them something else.');
+        if (name == null || name.kind != _Kind.word) _wanted(const Words('A name for the lanes'));
+        if (LaneScript.keywords.contains(name.text)) throw _Fail(Words('“{word}” is a word of the language: call them something else.', {'word': name.text}));
         _at++;
         _need('=');
         final lanes = _lanes();
@@ -1116,7 +1128,7 @@ class _Parser {
           run.resolve(lanes);
           // (Each use of a group reads it through, so groups of groups stop somewhere.)
           final depth = 1 + [for (final term in [...lanes.include, ...lanes.exclude]) run.groups[term.group]?.depth ?? 0].fold<int>(0, math.max);
-          if (depth > _Run.deepest) throw const _Fail('That is a group of groups too many.');
+          if (depth > _Run.deepest) throw const _Fail(Words('That is a group of groups too many.'));
           run.groups = {...run.groups, name.text: _Group(lanes, run.groups, depth)};
         };
     }

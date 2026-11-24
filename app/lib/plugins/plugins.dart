@@ -131,7 +131,7 @@ class Plugins extends ChangeNotifier {
   /// off until its switch is turned; one that is on starts again as it now is. A
   /// [FileSystemException] when it can't be kept.
   void add(PluginPackage package) {
-    if (!PluginPackage.isThirdPartyId(package.id)) throw const FormatException('The plugin has no id Curator can use.');
+    if (!PluginPackage.isThirdPartyId(package.id)) throw const WordsFormatException(Words('The plugin has no id Curator can use.'));
     if (_installed[package.id] == package) return;
     if (folder case final folder?) {
       final path = _files[package.id] ?? '${folder.path}${Platform.pathSeparator}${package.id}.${PluginPackage.fileExtension}';

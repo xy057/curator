@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart' hide ZLibDecoder;
 
+import 'words.dart';
+
 /// Reading entries of a zip someone else made (a project, an .mxl). A zip says how big an
 /// entry is, but inflating it can make far more (a few kilobytes can unpack to gigabytes), and
 /// `package:archive` unpacks without a limit; so here the bytes are counted as they come, and
@@ -23,7 +25,7 @@ abstract final class ZipEntries {
   /// would be more than [limit] (the pieces before it have been handed over).
   static void write(ArchiveFile file, void Function(Uint8List bytes) add, {required int limit}) {
     final zip = file.rawContent;
-    if (!file.isFile || zip is! ZipFile) throw FormatException('${file.name} isn’t a file.');
+    if (!file.isFile || zip is! ZipFile) throw WordsFormatException(Words('{file} isn’t a file.', {'file': file.name}));
     if (file.size > limit) throw _tooBig(file);
     var total = 0;
     void counted(List<int> bytes) {
@@ -47,14 +49,14 @@ abstract final class ZipEntries {
           }
           inflate.close();
         case CompressionType.bzip2 || CompressionType.zstd || CompressionType.lzma || CompressionType.xz:
-          throw FormatException('${file.name} uses compression Curator can’t read.');
+          throw WordsFormatException(Words('{file} uses compression Curator can’t read.', {'file': file.name}));
       }
     } finally {
       raw.setPosition(start);
     }
   }
 
-  static FormatException _tooBig(ArchiveFile file) => FormatException('${file.name} is too big.');
+  static FormatException _tooBig(ArchiveFile file) => WordsFormatException(Words('{file} is too big.', {'file': file.name}));
 }
 
 class _Sink implements Sink<List<int>> {
