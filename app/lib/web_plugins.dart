@@ -90,7 +90,7 @@ class WebPlugins extends ChangeNotifier {
   /// Adds [package] (in place of the one with its id), kept as a file in the Web Plugins
   /// folder, and on: it was added to be used. A [FileSystemException] when it can't be kept.
   void add(WebPluginPackage package) {
-    if (!WebPluginPackage.isThirdPartyId(package.id)) throw const FormatException('The plugin has no id Curator can use.');
+    if (!WebPluginPackage.isThirdPartyId(package.id)) throw const WordsFormatException(Words('The plugin has no id Curator can use.'));
     if (folder case final folder?) {
       final path = _files[package.id] ?? '${folder.path}${Platform.pathSeparator}${package.id}.${WebPluginPackage.fileExtension}';
       File(path).writeAsBytesSync(package.write(), flush: true);

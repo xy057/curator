@@ -293,8 +293,11 @@ class BarItems {
 
   /// A command's name with its key, as a button's tip has them: "Save (⌘S)".
   static String tipOf(BuildContext context, BarItem item) {
-    // A macro's button: its macro's name, with the key that counts it.
-    if (item.macro case final at?) return '${barItemTitle(context, item)} (${KeyCommand.runMacro.also[at].label})';
+    // A macro's button: its macro's name, with the key that runs it.
+    if (item.macro case final at?) {
+      final key = KeyMap.of(context)[KeyCommand.macros[at]];
+      return key == null ? barItemTitle(context, item) : '${barItemTitle(context, item)} (${key.label})';
+    }
     final name = item.title.replaceFirst(RegExp(r'(…|\.\.\.)$'), '');
     final key = switch (KeyCommand.values.asNameMap()[item.command]) { final command? => KeyMap.of(context)[command], null => null };
     return key == null ? name : '$name (${key.label})';

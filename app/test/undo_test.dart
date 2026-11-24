@@ -12,6 +12,8 @@ import 'package:curated_score/daw_follow_dialog.dart' show attaccaMissing;
 import 'package:curated_score/daw_link.dart';
 import 'package:curated_score/editor_controller.dart';
 import 'package:curated_score/file_names.dart';
+import 'package:curated_score/l10n/l10n.dart';
+import 'package:curated_score/macros.dart' show macroRanText;
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/project_state.dart';
@@ -123,6 +125,11 @@ void main() {
       final wrong = c.lanes.runScript('clear\nshow "No Such Lane" 1');
       expect(['${wrong.problems.single}', wrong.changed, c.curation!.lanes, c.canRedo], ['Line 2: There is no lane named “No Such Lane”.', false, before, true]);
       expect([for (final p in c.lanes.checkScript('show all 99')) '$p'], ['Line 1: There is no bar 99.']);
+      // What is wrong is said in the interface's language, words within words too.
+      Strings.use(AppLanguage.of('zh-Hans'));
+      addTearDown(() => Strings.use(AppLanguage.english));
+      expect([for (final p in c.lanes.checkScript('show all 99\nshow all from')) p.message.tr], ['没有第 99 小节。', '这里应是小节，而不是行尾。']);
+      Strings.use(AppLanguage.english);
 
       // While the script is in the lanes' place, the window's keys leave the lanes behind it as they are.
       c.tab = BottomTab.instruments;
@@ -257,7 +264,9 @@ void main() {
           c.anchors.snapToOnsets = snap;
           final button = found[snap] = await after(c.anchors.align);
           expect(button.length, greaterThan(1), reason: 'the score is heard');
-          expect(await after(() => c.lanes.runMacroReady(align)), button, reason: 'snapping $snap');
+          late ({List<MacroProblem> problems, bool changed}) ran;
+          expect(await after(() async => ran = await c.lanes.runMacroReady(align)), button, reason: 'snapping $snap');
+          expect(macroRanText(c, align, ran), (text: '${button.length} anchors from the recording', failed: false), reason: 'said as Align says it');
           c.undo();
           expect(c.sync!.anchors, isEmpty, reason: 'one step');
           expect(await after(() => c.lanes.runScriptReady('align')), button, reason: 'align, snapping $snap');

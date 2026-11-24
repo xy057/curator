@@ -1,5 +1,6 @@
 // Keeps the interface's translations in step with the code: every `'…'.tr`, `'…'.fill(…)` and
-// `'…'.trIn('…')` text in lib/, and every text of Curator's own extensions and plugins
+// `'…'.trIn('…')` text in lib/, every `Words('…')` there and in the engine (what it says to
+// people, packages/score_engine/lib), and every text of Curator's own extensions and plugins
 // (assets/extensions, assets/plugins: `tr("…")` in their Lua, their connectors' and commands'
 // titles, their names), goes into the template, assets/l10n/curator.pot (the English
 // Crowdin translates from), with the files using it; then every language's .po gets the
@@ -13,8 +14,9 @@ import 'package:curated_score/l10n/po.dart';
 
 void main() {
   final used = <String, Set<String>>{}; // key → the files using it
-  final files = Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart')).toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final files = [
+    for (final folder in translatedFolders) ...Directory(folder).listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart')),
+  ]..sort((a, b) => a.path.compareTo(b.path));
   for (final file in files) {
     if (file.path.contains('${Platform.pathSeparator}l10n${Platform.pathSeparator}')) continue;
     for (final key in translatedLiterals(file.readAsStringSync())) {

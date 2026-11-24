@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../script.dart';
+import '../words.dart';
 
 /// An extension as it travels: a `.cpe` file (Curator Project Extension), a zip archive holding
 ///
@@ -132,12 +133,12 @@ class ExtensionPackage with PackageManifest implements ScriptPackage {
     String text(String path) => PackageFiles.text(files, path);
     Object? json(String path) => PackageFiles.json(files, path);
 
-    if (!files.containsKey('extension.json')) throw const FormatException('This isn’t a Curator extension.');
+    if (!files.containsKey('extension.json')) throw WordsFormatException(PackageKind.extension.notOne);
     final manifest = json('extension.json');
-    if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw const FormatException('This isn’t a Curator extension.');
+    if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw WordsFormatException(PackageKind.extension.notOne);
     final id = manifest['id'];
-    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const FormatException('The extension has no id Curator can use.');
-    final (:sources, :locales, :assets) = PackageFiles.sorted(files, what: 'extension');
+    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const WordsFormatException(Words('The extension has no id Curator can use.'));
+    final (:sources, :locales, :assets) = PackageFiles.sorted(files, what: PackageKind.extension);
     return ExtensionPackage(
       manifest: manifest,
       graph: files.containsKey('connect.json') ? ConnectorGraph.fromJson(json('connect.json')) : ConnectorGraph(),
@@ -149,7 +150,7 @@ class ExtensionPackage with PackageManifest implements ScriptPackage {
   }
 
   /// The package a `.cpe` file's [bytes] hold. A [FormatException] says what is wrong with one.
-  factory ExtensionPackage.read(Uint8List bytes) => ExtensionPackage.fromFiles(PackageFiles.unzip(bytes, what: 'extension'));
+  factory ExtensionPackage.read(Uint8List bytes) => ExtensionPackage.fromFiles(PackageFiles.unzip(bytes, what: PackageKind.extension));
 
   /// It as a `.cpe` file: the same bytes for the same package, whenever it is written.
   Uint8List write() => _written;
@@ -240,14 +241,14 @@ class ConnectorGraph {
   }
 
   factory ConnectorGraph.fromJson(Object? json) {
-    if (json is! Map<String, Object?>) throw const FormatException('connect.json isn’t a connector.');
+    if (json is! Map<String, Object?>) throw const WordsFormatException(Words('connect.json isn’t a connector.'));
     (double, double) at(Object? v) => switch (v) { [final num x, final num y] => (x.toDouble(), y.toDouble()), _ => (0, 0) };
     final nodes = <GraphNode>[], ids = <String>{};
     for (final n in switch (json['nodes']) { final List<Object?> l => l, _ => const <Object?>[] }) {
-      if (n is! Map<String, Object?>) throw const FormatException('connect.json has a node that isn’t one.');
+      if (n is! Map<String, Object?>) throw const WordsFormatException(Words('connect.json has a node that isn’t one.'));
       final id = n['id'], type = n['type'];
-      if (id is! String || type is! String || !RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(id)) throw const FormatException('connect.json has a node without a name or a type.');
-      if (!ids.add(id)) throw FormatException('connect.json has two nodes named $id.');
+      if (id is! String || type is! String || !RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(id)) throw const WordsFormatException(Words('connect.json has a node without a name or a type.'));
+      if (!ids.add(id)) throw WordsFormatException(Words('connect.json has two nodes named {id}.', {'id': id}));
       final (x, y) = at(n['at']);
       nodes.add(GraphNode(id: id, type: type, x: x, y: y, props: {
         for (final MapEntry(:key, :value) in n.entries)
@@ -257,10 +258,10 @@ class ConnectorGraph {
     final wires = <GraphWire>[], wired = <String>{};
     for (final w in switch (json['wires']) { final List<Object?> l => l, _ => const <Object?>[] }) {
       if (w case [final String from, final String to] when from.contains('.')) {
-        if (!wired.add(from)) throw FormatException('connect.json wires $from twice.');
+        if (!wired.add(from)) throw WordsFormatException(Words('connect.json wires {wire} twice.', {'wire': from}));
         wires.add(GraphWire(from, to));
       } else {
-        throw const FormatException('connect.json has a wire that isn’t one.');
+        throw const WordsFormatException(Words('connect.json has a wire that isn’t one.'));
       }
     }
     return ConnectorGraph(

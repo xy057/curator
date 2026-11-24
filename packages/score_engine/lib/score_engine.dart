@@ -76,4 +76,5 @@ export 'src/take_splice.dart';
 export 'src/text_dynamics.dart';
 export 'src/web_plugin/api.dart';
 export 'src/web_plugin/package.dart';
+export 'src/words.dart';
 export 'src/zip_entries.dart';

@@ -1118,6 +1118,10 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     controller.takeSettings(settings);
     controller.showsMidiView = settings.midiView;
     controller.showsPlayerMap = settings.playerMap;
+    // The script is in the lanes' place only while the Instruments bar has its button (on the
+    // bar or in its menu), the one way back to the lanes: taken off (Restore Defaults has
+    // none), it takes the lanes back with it.
+    if (!settings.toolbarOf(BarKind.instruments).holds(BarItem.script)) controller.lanes.scripting = false;
     _shown.value = _shownSettings;
   }
 
@@ -1596,7 +1600,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
   /// Edit ▸ Macros…: the app's macros, put together from choices and tried on this project.
   void _editMacros() => showMacrosDialog(context, settings, controller);
 
-  /// ⌃1–9: the macro at [index] of the list, where it can be run ([macroAction]).
+  /// A macro's key (⌃1–9 as the app comes): the macro at [index] of the list, where it can be
+  /// run ([macroAction]).
   void _runMacro(int index) {
     if (index < settings.macros.length) macroAction(context, controller, settings.macros[index])?.call();
   }
@@ -1943,7 +1948,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
         KeyCommand.trimEnd,
       ])
         if (keys[command] case final key?) key.activator: does[command.name]!,
-      for (final (i, key) in KeyCommand.runMacro.also.indexed) key.activator: () => _runMacro(i),
+      for (final (i, command) in KeyCommand.macros.indexed)
+        if (keys[command] case final key?) key.activator: () => _runMacro(i),
     };
   }
 

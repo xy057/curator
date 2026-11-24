@@ -240,6 +240,9 @@ class ToolbarLayout {
 
   List<BarItem> of(BarArea area) => area == BarArea.bar ? bar : menu;
 
+  /// Whether [item] is on the bar or in the menu at its end.
+  bool holds(BarItem item) => bar.contains(item) || menu.contains(item);
+
   /// What can be added: every item of this toolbar's in neither, and those there can be
   /// several of.
   List<BarItem> get palette => [

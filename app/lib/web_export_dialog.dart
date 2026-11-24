@@ -366,7 +366,7 @@ class _PluginsMenu extends StatelessWidget {
     try {
       plugins.add(WebPluginPackage.read(await File(file.path).readAsBytes()));
     } on FormatException catch (e) {
-      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, e.message.tr);
+      if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
     } on FileSystemException catch (e) {
       if (context.mounted) await showNotice(context, 'Couldn’t Add the Plugin'.tr, describeError(e));
     }

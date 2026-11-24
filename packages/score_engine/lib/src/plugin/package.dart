@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../extension/package.dart';
 import '../script.dart';
+import '../words.dart';
 
 /// A plugin as it travels: a `.cgp` file (Curator Global Plugin), a zip archive holding
 ///
@@ -103,12 +104,12 @@ class PluginPackage with PackageManifest implements ScriptPackage {
   /// A package from its files by path, as [files] lists them. What is wrong with it is a
   /// [FormatException] that says so.
   factory PluginPackage.fromFiles(Map<String, Uint8List> files) {
-    if (!files.containsKey('plugin.json')) throw const FormatException('This isn’t a Curator plugin.');
+    if (!files.containsKey('plugin.json')) throw WordsFormatException(PackageKind.plugin.notOne);
     final manifest = PackageFiles.json(files, 'plugin.json');
-    if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw const FormatException('This isn’t a Curator plugin.');
+    if (manifest is! Map<String, Object?> || (manifest['format'] ?? mimeType) != mimeType) throw WordsFormatException(PackageKind.plugin.notOne);
     final id = manifest['id'];
-    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const FormatException('The plugin has no id Curator can use.');
-    final (:sources, :locales, :assets) = PackageFiles.sorted(files, what: 'plugin');
+    if (id is! String || !(isThirdPartyId(id) || isBuiltInId(id))) throw const WordsFormatException(Words('The plugin has no id Curator can use.'));
+    final (:sources, :locales, :assets) = PackageFiles.sorted(files, what: PackageKind.plugin);
     return PluginPackage(
       manifest: manifest,
       sources: sources,
@@ -119,7 +120,7 @@ class PluginPackage with PackageManifest implements ScriptPackage {
   }
 
   /// The package a `.cgp` file's [bytes] hold. A [FormatException] says what is wrong with one.
-  factory PluginPackage.read(Uint8List bytes) => PluginPackage.fromFiles(PackageFiles.unzip(bytes, what: 'plugin'));
+  factory PluginPackage.read(Uint8List bytes) => PluginPackage.fromFiles(PackageFiles.unzip(bytes, what: PackageKind.plugin));
 
   /// It as a `.cgp` file: the same bytes for the same package, whenever it is written.
   Uint8List write() => _written;

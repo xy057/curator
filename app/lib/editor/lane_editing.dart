@@ -546,7 +546,7 @@ class LaneEditing {
   /// button's, or another script's or macro's hearing), one at a time as it is. Said at its
   /// first line that waits, before anything is done.
   LaneScriptProblem? _busy(LaneScript script) =>
-      _editor.anchors.aligning == null ? null : LaneScriptProblem(script.waitsAt ?? 1, 'An Align is under way.');
+      _editor.anchors.aligning == null ? null : LaneScriptProblem(script.waitsAt ?? 1, const Words('An Align is under way.'));
 
   /// Runs [script], checked, as one Undo step ([only]: those of its lines).
   ({List<LaneScriptProblem> problems, bool changed}) _ran(LaneScript script, _ScriptHost host, {ScriptReady? ready, Set<int>? only}) {
@@ -739,16 +739,16 @@ class _ScriptHost extends LaneScriptHost {
   void Function(double done)? _report;
 
   @override
-  String? get unheard => unsnapped ?? (!_editor.hasNotes ? 'This score has no notes to hear.' : null);
+  Words? get unheard => unsnapped ?? (!_editor.hasNotes ? const Words('This score has no notes to hear.') : null);
 
   /// (Snapping goes by the recording alone: a PDF score's anchors, tapped by hand, are snapped too.)
   @override
-  String? get unsnapped {
-    if (_editor.track == null) return 'There is no recording.';
+  Words? get unsnapped {
+    if (_editor.track == null) return const Words('There is no recording.');
     // (As the Align button is off: what would be heard is the one being let go.)
-    if (_editor.isLoadingAudio) return 'The recording is still loading.';
-    if (_editor.usesMidiTempo) return 'The anchors follow a MIDI file’s tempo.';
-    if (!_editor.editsSync) return 'None of the recordings is the one synced.';
+    if (_editor.isLoadingAudio) return const Words('The recording is still loading.');
+    if (_editor.usesMidiTempo) return const Words('The anchors follow a MIDI file’s tempo.');
+    if (!_editor.editsSync) return const Words('None of the recordings is the one synced.');
     return null;
   }
 

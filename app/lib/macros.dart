@@ -10,6 +10,7 @@ import 'package:score_engine/score_engine.dart'
 import 'app_colors.dart';
 import 'app_icons.dart';
 import 'app_settings.dart';
+import 'audio_panel.dart' show anchorsHeard;
 import 'dialog_kit.dart';
 import 'editor_controller.dart';
 import 'key_bindings.dart';
@@ -70,6 +71,10 @@ List<String> get _exampleNames => ['Auto-curate'.tr, 'Auto-align'.tr, 'Solo from
 
 String _nameOf(LaneMacro macro) => macro.name.trim().isEmpty ? 'Untitled'.tr : macro.name;
 
+/// The key that runs the macro at [index] of the list, as [keys] have it: none past the ninth,
+/// or where the user took its key away.
+KeyChord? _keyOf(KeyMap keys, int index) => index < KeyCommand.macros.length ? keys[KeyCommand.macros[index]] : null;
+
 /// A macro's name as shown: its own, or Untitled.
 String macroName(LaneMacro macro) => _nameOf(macro);
 
@@ -100,8 +105,8 @@ class MacrosScope extends InheritedWidget {
   bool updateShouldNotify(MacrosScope oldWidget) => !listEquals(macros, oldWidget.macros);
 }
 
-/// What is wrong with a macro, as it is said: "Step 2: Select lanes first". A script's own
-/// words (in English) for what only it finds.
+/// What is wrong with a macro, as it is said: "Step 2: Select lanes first", in a script's own
+/// words for what only it finds.
 String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
       'n': problem.step,
       'problem': switch (problem.fault) {
@@ -110,25 +115,32 @@ String macroProblemText(MacroProblem problem) => 'Step {n}: {problem}'.fill({
         MacroFault.names => 'Name the lanes'.tr,
         MacroFault.bars => 'No bars given'.tr,
         MacroFault.heard => 'Wire Hear the Recording into it'.tr,
-        MacroFault.script => problem.message,
+        MacroFault.script => problem.message.tr,
       },
     });
 
 /// Runs [macro] on [controller]'s lanes, asking for its bars first when it asks: null when it
-/// was given up there (it did nothing); else what it came to that is worth saying (what is
-/// wrong, or that nothing changed), with no text when it did its work.
+/// was given up there (it did nothing); else what it came to that is worth saying
+/// ([macroRanText]).
 Future<({String? text, bool failed})?> _run(BuildContext context, EditorController controller, LaneMacro macro) async {
   String? asked;
   if (macro.asks) {
     asked = await showAppDialog<String>(context: context, builder: (_) => _AskBars(controller: controller, macro: macro));
     if (asked == null) return null;
   }
-  final (:problems, :changed) = await controller.lanes.runMacroReady(macro, asked: asked);
-  if (problems.isNotEmpty) return (text: macroProblemText(problems.first), failed: true);
-  return (text: changed ? null : 'Nothing changed'.tr, failed: false);
+  return macroRanText(controller, macro, await controller.lanes.runMacroReady(macro, asked: asked));
 }
 
-/// Runs [macro] (the Instruments bar's menu, ⌃1–9): one Undo step, or nothing and why.
+/// What a run of [macro] on [controller] that came to [ran] is worth saying: what is wrong; how
+/// many anchors one that sets them from the recording left, as Align says it ([anchorsHeard]);
+/// that nothing changed; no text when it did its work.
+({String? text, bool failed}) macroRanText(EditorController controller, LaneMacro macro, ({List<MacroProblem> problems, bool changed}) ran) {
+  if (ran.problems.isNotEmpty) return (text: macroProblemText(ran.problems.first), failed: true);
+  if (!ran.changed) return (text: 'Nothing changed'.tr, failed: false);
+  final aligns = macro.steps.any((s) => s.action == MacroAction.align || s.action == MacroAction.match);
+  return (text: aligns ? anchorsHeard(controller.sync?.anchors.length ?? 0) : null, failed: false);
+}
+
 /// What running [macro] from a toolbar, a menu or its key does now; null while it can't be
 /// run: it has no steps, or what its steps are done to isn't showing. Steps for lanes run in
 /// the Instruments tab (not while the script is in the lanes' place), steps for the
@@ -142,13 +154,15 @@ VoidCallback? macroAction(BuildContext context, EditorController controller, Lan
       : () => playMacro(context, controller, macro);
 }
 
+/// Runs [macro] (a toolbar's button or menu, its key): one Undo step, or nothing and why,
+/// said under its name.
 Future<void> playMacro(BuildContext context, EditorController controller, LaneMacro macro) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   final text = (await _run(context, controller, macro))?.text;
   if (text == null) return;
   messenger
     ?..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text('${_nameOf(macro)}: $text')));
+    ..showSnackBar(SnackBar(content: Text('{macro}: {said}'.fill({'macro': _nameOf(macro), 'said': text}))));
 }
 
 /// Edit ▸ Macros…: the app's macros ([AppSettings.macros]), tried on [controller]'s project.
@@ -164,18 +178,15 @@ class MacrosMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final macros = MacrosScope.of(context), keys = KeyCommand.runMacro.also;
+    final macros = MacrosScope.of(context), keys = KeyMap.of(context);
     return OverlaySemantics(
       child: AppPopupMenuButton<VoidCallback>(
         tooltip: 'Macros'.tr,
-        iconSize: 18,
+        // A toolbar's icon button, as Tidy's and Sync's menus are.
+        iconSize: 16,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 220),
-        style: IconButton.styleFrom(
-          fixedSize: const Size(32, 32),
-          minimumSize: const Size(32, 32),
-          shape: RoundedRectangleBorder(borderRadius: AppStyle.of(context).radius(8)),
-        ),
+        style: ToolbarButton.styleOf(context),
         icon: Icon(AppIcon.repeat.of(context)),
         onSelected: (action) => action(),
         itemBuilder: (menu) => [
@@ -188,7 +199,7 @@ class MacrosMenu extends StatelessWidget {
                 Icon(macroIcon(macro).of(menu), size: 16),
                 SizedBox(width: AppStyle.of(menu).isCarbon ? 8 : 6),
                 Expanded(child: Text(_nameOf(macro), overflow: TextOverflow.ellipsis)),
-                if (i < keys.length) ...[const SizedBox(width: 24), Text(keys[i].label, style: TextStyle(fontSize: 12, color: menu.colors.textMuted))],
+                if (_keyOf(keys, i) case final key?) ...[const SizedBox(width: 24), Text(key.label, style: TextStyle(fontSize: 12, color: menu.colors.textMuted))],
               ]),
             ),
           if (macros.isNotEmpty) menuDivider(menu),
@@ -352,7 +363,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
     try {
       // (Given up as it asked for bars: nothing to say.)
       final said = await _run(context, widget.controller, _macro!);
-      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.tr, failed: said.failed));
+      if (mounted) setState(() => _said = said == null ? null : (text: said.text ?? 'Done'.trIn('status'), failed: said.failed));
     } finally {
       if (mounted) setState(() => _trying = false);
     }
@@ -389,7 +400,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
   }
 
   Widget _list(BuildContext context) {
-    final colors = context.colors, macros = _macros, keys = KeyCommand.runMacro.also;
+    final colors = context.colors, macros = _macros, keys = KeyMap.of(context);
     final names = _exampleNames;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Expanded(
@@ -404,7 +415,7 @@ class _MacrosDialogState extends State<_MacrosDialog> {
                 _name.text = macro.name;
                 _said = null;
               }),
-              trailing: i < keys.length ? Text(keys[i].label, style: TextStyle(fontSize: 12, color: colors.textMuted)) : null,
+              trailing: switch (_keyOf(keys, i)) { final key? => Text(key.label, style: TextStyle(fontSize: 12, color: colors.textMuted)), null => null },
             ),
         ]),
       ),

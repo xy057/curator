@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'lane_script.dart';
+import 'words.dart';
 
 /// What a step's number counts, with what a new step has and the most it takes.
 enum MacroUnit {
@@ -195,12 +196,12 @@ enum MacroFault {
 /// Something wrong with a macro as it is run: at its [step] (1 the first).
 @immutable
 class MacroProblem {
-  const MacroProblem(this.step, this.fault, [this.message = '']);
+  const MacroProblem(this.step, this.fault, [this.message = const Words('')]);
   final int step;
   final MacroFault fault;
 
-  /// A script's own words for it, in English, for [MacroFault.script].
-  final String message;
+  /// A script's own words for it, for [MacroFault.script].
+  final Words message;
 
   @override
   String toString() => 'Step $step: ${fault == MacroFault.script ? message : fault.name}';

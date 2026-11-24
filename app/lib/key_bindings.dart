@@ -244,11 +244,17 @@ enum KeyCommand {
       help: 'A bar · ⇧ a beat'),
   nextLane('Select in the lane above / below', 'Instruments', KeyPlace.editor, [_K(_L.arrowUp), _K(_L.arrowDown)]),
   runScript('Run Script', 'Instruments', KeyPlace.editor, [_K(_L.keyR, command: true)], help: 'In the script.'),
-  // The first nine macros, as Edit ▸ Macros… lists them.
-  runMacro('Run a Macro', 'Instruments', KeyPlace.editor, [], ranges: ['⌃1–9'], also: [
-    _K(_L.digit1, control: true), _K(_L.digit2, control: true), _K(_L.digit3, control: true), _K(_L.digit4, control: true), _K(_L.digit5, control: true), //
-    _K(_L.digit6, control: true), _K(_L.digit7, control: true), _K(_L.digit8, control: true), _K(_L.digit9, control: true),
-  ]),
+  // The first nine macros, as Edit ▸ Macros… lists them ([macros]): ⌃1–9 as the app comes, a
+  // key each the user's to change (macOS gives ⌃1–9 to Mission Control's desktops, where set).
+  runMacro1('Run Macro 1', 'Macros', KeyPlace.editor, [_K(_L.digit1, control: true)], editable: true),
+  runMacro2('Run Macro 2', 'Macros', KeyPlace.editor, [_K(_L.digit2, control: true)], editable: true),
+  runMacro3('Run Macro 3', 'Macros', KeyPlace.editor, [_K(_L.digit3, control: true)], editable: true),
+  runMacro4('Run Macro 4', 'Macros', KeyPlace.editor, [_K(_L.digit4, control: true)], editable: true),
+  runMacro5('Run Macro 5', 'Macros', KeyPlace.editor, [_K(_L.digit5, control: true)], editable: true),
+  runMacro6('Run Macro 6', 'Macros', KeyPlace.editor, [_K(_L.digit6, control: true)], editable: true),
+  runMacro7('Run Macro 7', 'Macros', KeyPlace.editor, [_K(_L.digit7, control: true)], editable: true),
+  runMacro8('Run Macro 8', 'Macros', KeyPlace.editor, [_K(_L.digit8, control: true)], editable: true),
+  runMacro9('Run Macro 9', 'Macros', KeyPlace.editor, [_K(_L.digit9, control: true)], editable: true),
 
   // The score editor (Project Info ▸ Score ▸ Edit…).
   noteInput('Note Input', 'Score Editor', KeyPlace.scoreEditor, [_K(_L.enter), _K(_L.keyN, shift: true)]),
@@ -369,6 +375,9 @@ enum KeyCommand {
 
   /// Whether only macOS has it (the system's menu items).
   final bool macOnly;
+
+  /// The macros' keys: the first's, the second's… as Edit ▸ Macros… lists them.
+  static const macros = [runMacro1, runMacro2, runMacro3, runMacro4, runMacro5, runMacro6, runMacro7, runMacro8, runMacro9];
 
   /// Whether this system has it.
   bool get shown => !macOnly || _mac;
