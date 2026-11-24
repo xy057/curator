@@ -716,6 +716,10 @@ class _ScriptHost extends LaneScriptHost {
     for (final id in lanes) {
       asked.update(_editor.instrumentOfLane(id), (regions) => curation.lane(id).fold(regions, Curation.painted), ifAbsent: () => curation.lane(id));
     }
+    // An instrument asked for whole is asked about as its lane is: its staves' each in its own place.
+    for (final instrument in [...asked.keys]) {
+      if (_editor.laneRows.every((row) => _editor.instrumentOfLane(row.id) != instrument || lanes.contains(row.id))) asked[instrument] = curation.lane(instrument);
+    }
     final changed = scene.fitStep(curation, _editor._videoLayout, step,
         lanes: asked, salience: _editor._score!.salience.condensed(_activity.pairs), cuts: _cuts, phrase: phrase);
     return {for (final id in lanes) id: changed[_editor.instrumentOfLane(id)] ?? const []};

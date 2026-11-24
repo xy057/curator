@@ -733,6 +733,17 @@ void main() {
       bars = fittedBars(shown: bars, measureStarts: starts, salience: score.salience, timeline: score.timeline, overflowing: off, steps: {step}, cuts: kept);
     }
     expect([bars, asks, asked > 20], [together, asked, isTrue]);
+    // A step asks the frame about the lanes as they are: a staff they leave out still out, where a bar was hidden of them.
+    final told = <Map<String, List<Region>>>[];
+    final first = ids.first, own = {first: [Region(starts[0], starts[4], hiddenStaves: const [2])]};
+    final thinned = FrameCuts();
+    fittedBars(shown: {first: [for (var m = 0; m < starts.length - 1; m++) m < 4], ids.last: [for (var m = 0; m < starts.length - 1; m++) m < 4]},
+        measureStarts: starts, salience: score.salience, timeline: score.timeline, regions: {...own, ids.last: [Region(starts[0], starts[4])]}, steps: {FitStep.thin}, cuts: thinned,
+        overflowing: (lanes) {
+          told.add(lanes);
+          return told.length == 1 ? [(start: 0.0, end: score.timeline.secondsAtQuarter(starts[1]) - 0.01)] : const [];
+        });
+    expect([for (final lanes in told.skip(1)) for (final r in lanes[first]!) r.hiddenStaves], everyElement(const [2]));
     // (A refill by itself, with nothing hidden before it, shows nothing.)
     expect(scene.fitStep(stepped, wide, FitStep.refill, lanes: stepped.lanes, salience: score.salience, cuts: FrameCuts()).values.expand((s) => s), isEmpty);
     // Upright there is room for the opening's few: none goes.
