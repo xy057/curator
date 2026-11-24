@@ -585,10 +585,35 @@ class _Run {
   }
 
   /// [regions] with [stretch] shown: drawn on, or in place of what is there where that leaves
-  /// out other staves.
+  /// out other staves. Joined with what it meets, each end of what they make takes its
+  /// transition from where that end is: the stretch's own where it is the stretch's (else the
+  /// region's that ends there too), a region's where it reaches further. So a stretch with
+  /// its own transitions inside what is shown already changes no edge but its own.
   static List<Region> shown(List<Region> regions, Region stretch) {
     final differs = regions.any((r) => r.overlaps(stretch) && !listEquals(r.hiddenStaves, stretch.hiddenStaves));
-    return Curation.painted(differs ? Curation.painted(regions, stretch, shown: false) : regions, stretch);
+    var rest = differs ? Curation.painted(regions, stretch, shown: false) : regions;
+    var (start, end, fadeIn, fadeOut) = (stretch.start, stretch.end, stretch.transitionIn, stretch.transitionOut);
+    while (true) {
+      final meets = [
+        for (final r in rest)
+          if (listEquals(r.hiddenStaves, stretch.hiddenStaves) && r.start <= end + 1e-6 && r.end >= start - 1e-6) r,
+      ];
+      if (meets.isEmpty) break;
+      for (final r in meets) {
+        if (r.start < start - 1e-9) {
+          (start, fadeIn) = (r.start, r.transitionIn);
+        } else if (r.start <= start + 1e-9) {
+          fadeIn ??= r.transitionIn;
+        }
+        if (r.end > end + 1e-9) {
+          (end, fadeOut) = (r.end, r.transitionOut);
+        } else if (r.end >= end - 1e-9) {
+          fadeOut ??= r.transitionOut;
+        }
+      }
+      rest = [for (final r in rest) if (!meets.contains(r)) r];
+    }
+    return [...rest, Region(start, end, transitionIn: fadeIn, transitionOut: fadeOut, hiddenStaves: stretch.hiddenStaves)];
   }
 
   // The recording's anchors.

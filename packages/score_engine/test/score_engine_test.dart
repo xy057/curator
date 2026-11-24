@@ -413,6 +413,11 @@ void main() {
       expect(run('show "Piano" 1-4 transition in 0.5 out 1 without staff 2\nshow "Piano" 3-6'), isEmpty);
       expect(lanes.lane('pf'), const [Region(0, 8, transitionIn: 0.5, transitionOut: 1, hiddenStaves: [2]), Region(8, 24)]);
       expect(run('show "Piano" 1 without staves 1, 2'), ['Line 1: That leaves “Piano” no staff.']);
+      // A stretch with its own transitions inside what is shown changes no edge but its own.
+      lanes.setLane('fl2', const [Region(0, 20, transitionIn: 1), Region(28, 40)]);
+      expect([run('show "Flute 2" 2 transition 3\nshow "Flute 2" 7-10 transition out 0.5'), lanes.lane('fl2')],
+          [isEmpty, const [Region(0, 20, transitionIn: 1), Region(24, 40, transitionOut: 0.5)]]);
+      lanes.setLane('fl2', const [Region(0, 6), Region(8, 20)]);
       // A staff's lane, once its instrument is split.
       expect(run('show "Piano"/2 1-2'), ['Line 1: “Piano” isn’t split: write split "Piano" first.']);
       expect(run('split "Piano"\nshow "Piano"/2 1-2\nshow "Piano"/3'), ['Line 3: “Piano” is on 2 staves.']);
