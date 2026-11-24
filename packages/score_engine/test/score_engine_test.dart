@@ -533,8 +533,8 @@ void main() {
       expect([run('fit "Flute*"'), lanes.lane('fl'), lanes.lane('fl2')],
           [isEmpty, const [Region(2, 8, transitionIn: 1, hiddenStaves: [2]), Region(16, 24, transitionIn: 1, hiddenStaves: [2])], isEmpty]);
       host.follows = false;
-      expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone').check(host)) '$p'],
-          [for (var line = 1; line <= 5; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);
+      expect([for (final p in LaneScript.parse('follow\nfit\nthin\nrefill\nremove lone\nauto').check(host)) '$p'],
+          [for (var line = 1; line <= 6; line++) 'Line $line: This score’s lanes can’t be auto-curated.']);
       host.follows = true;
       // Align in its steps: the recording is heard and the anchors matched from it before the script runs (what waits is
       // made ready, with nothing changed), then they are set and snapped as it runs. A match goes by a hear; `align` is the

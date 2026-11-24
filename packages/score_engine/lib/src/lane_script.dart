@@ -963,6 +963,8 @@ class _Parser {
         final auto = first.text == 'auto';
         return (run) {
           final found = lanes == null ? run.lanes : run.resolve(lanes);
+          // (Said by the check too, as `follow` and `fit` are.)
+          if (auto && !run.host.curates) throw const _Fail('This score’s lanes can’t be auto-curated.');
           if (!auto) {
             run.edit(found, (_, _) => const []);
           } else if (!run.dry && !run.host.autoCurate([for (final lane in found) lane.id])) {
