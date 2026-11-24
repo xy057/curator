@@ -93,15 +93,26 @@ class _LaneScriptViewState extends State<LaneScriptView> {
     if (text == _mine) return; // the caret moved
     _c.lanes.script = _mine = text;
     if (_said != null || _found != null) setState(() => _said = _found = null);
+    _checkSoon();
+  }
+
+  void _checkSoon() {
     _checking?.cancel();
     _checking = Timer(const Duration(milliseconds: 350), () {
-      if (mounted) setState(() => _problems = _c.lanes.checkScript(_code.text));
+      if (!mounted) return;
+      final problems = _c.lanes.checkScript(_code.text);
+      if (problems.join('\n') != _problems.join('\n')) setState(() => _problems = problems);
     });
   }
 
   /// Another project's script (a score replaced, a project opened here): checked as it comes.
+  /// The same script with the project changed otherwise (a lane split, renamed, a recording
+  /// added): checked again a moment later, as typing is.
   void _projectChanged() {
-    if (identical(_c.lanes.script, _mine)) return;
+    if (identical(_c.lanes.script, _mine)) {
+      if (!_running) _checkSoon();
+      return;
+    }
     _code.text = _mine = _c.lanes.script;
     _checking?.cancel();
     setState(() {
@@ -115,6 +126,12 @@ class _LaneScriptViewState extends State<LaneScriptView> {
   Future<void> _run() async {
     if (_running) return;
     _checking?.cancel();
+    // (Checked as it is now, ⌘R as Run: what was listed may be out of date by a moment.)
+    final now = _c.lanes.checkScript(_code.text);
+    if (now.isNotEmpty || _code.text.trim().isEmpty) {
+      setState(() => _problems = now);
+      return;
+    }
     final messenger = ScaffoldMessenger.maybeOf(context);
     setState(() => _running = true);
     try {
