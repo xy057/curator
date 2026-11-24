@@ -737,13 +737,14 @@ class _ScriptHost extends LaneScriptHost {
 
   /// (Snapping goes by the recording alone: a PDF score's anchors, tapped by hand, are snapped too.)
   @override
-  String? get unsnapped => _editor.track == null
-      ? 'There is no recording.'
-      : _editor.usesMidiTempo
-          ? 'The anchors follow a MIDI file’s tempo.'
-          : !_editor.editsSync
-              ? 'None of the recordings is the one synced.'
-              : null;
+  String? get unsnapped {
+    if (_editor.track == null) return 'There is no recording.';
+    // (As the Align button is off: what would be heard is the one being let go.)
+    if (_editor.isLoadingAudio) return 'The recording is still loading.';
+    if (_editor.usesMidiTempo) return 'The anchors follow a MIDI file’s tempo.';
+    if (!_editor.editsSync) return 'None of the recordings is the one synced.';
+    return null;
+  }
 
   @override
   bool get snaps => _editor.anchors.snapToOnsets;

@@ -132,12 +132,12 @@ Future<({String text, bool failed})?> _run(BuildContext context, EditorControlle
 /// What running [macro] from a toolbar, a menu or its key does now; null while it can't be
 /// run: it has no steps, or what its steps are done to isn't showing. Steps for lanes run in
 /// the Instruments tab (not while the script is in the lanes' place), steps for the
-/// recording's anchors in the Audio tab, a macro of both in either; none that hears the
-/// recording while an Align is under way.
+/// recording's anchors in the Audio tab, a macro of both in either; none for the recording
+/// while an Align is under way or a recording loads.
 VoidCallback? macroAction(BuildContext context, EditorController controller, LaneMacro macro) {
   final shown = (macro.onLanes && controller.tab == BottomTab.instruments && !controller.lanes.scripting) ||
       (macro.onRecording && controller.tab == BottomTab.audio);
-  return !shown || controller.curation == null || (macro.onRecording && controller.anchors.aligning != null)
+  return !shown || controller.curation == null || (macro.onRecording && (controller.anchors.aligning != null || controller.isLoadingAudio))
       ? null
       : () => playMacro(context, controller, macro);
 }

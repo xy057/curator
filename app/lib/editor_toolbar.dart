@@ -104,7 +104,7 @@ class EditorToolbar extends StatelessWidget {
           staffSpace: c.staffSpace,
           midiView: (c.hasMidiView, c.showsMidiView),
           // What a macro's own button goes by ([macroAction]): where its steps would be done.
-          macros: (c.tab, c.lanes.scripting, c.anchors.aligning != null, c.curation != null),
+          macros: (c.tab, c.lanes.scripting, c.anchors.aligning != null, c.isLoadingAudio, c.curation != null),
         ),
         builder: (context, _) => _bar(context),
       ),
