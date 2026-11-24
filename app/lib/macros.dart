@@ -708,7 +708,13 @@ class _GraphState extends State<_Graph> {
                     child: IgnorePointer(child: _Port(lit: i == target)),
                   ),
                   Positioned(
-                    left: _out(place).dx + origin.dx - 12,
+                    left: _out(place).dx + origin.dx - 6,
+                    top: _out(place).dy + origin.dy - 6,
+                    child: IgnorePointer(child: _Port(lit: _wiring?.$1 == i)),
+                  ),
+                  // (Taken from the node's edge outward: inside it is the head's ×.)
+                  Positioned(
+                    left: _out(place).dx + origin.dx - 2,
                     top: _out(place).dy + origin.dy - 12,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.precise,
@@ -723,7 +729,7 @@ class _GraphState extends State<_Graph> {
                           setState(() => _wiring = null);
                           if (target != null) widget.onChanged(macro.withWire(i, target));
                         },
-                        child: SizedBox(width: 24, height: 24, child: Center(child: _Port(lit: _wiring?.$1 == i))),
+                        child: const SizedBox(width: 16, height: 24),
                       ),
                     ),
                   ),

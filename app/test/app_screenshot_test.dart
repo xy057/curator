@@ -180,7 +180,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('macro wire 2 3')));
     await settle();
     expect(graph().wires, const [(from: 0, to: 2), (from: 1, to: 3)]);
-    await tester.tap(find.descendant(of: node(1), matching: find.byTooltip('Remove')));
+    // (At the ×'s right edge, beside the node's port.)
+    await tester.tapAt(tester.getRect(find.descendant(of: node(1), matching: find.byTooltip('Remove'))).centerRight - const Offset(3, 0));
     await settle();
     expect([graph().steps.length, graph().wires, graph().steps.first.action], [3, const [(from: 0, to: 2)], MacroAction.follow]);
     // A macro deleted leaves the next its own graph, with nothing chosen: a step added to it isn't put after the other's.
