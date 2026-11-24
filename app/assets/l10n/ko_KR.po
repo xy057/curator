@@ -15,7 +15,7 @@ msgstr ""
 "X-Crowdin-File-ID: 21\n"
 "Language-Team: Korean\n"
 "Language: ko_KR\n"
-"PO-Revision-Date: 2026-11-23 22:11\n"
+"PO-Revision-Date: 2026-11-24 23:55\n"
 
 #: lib/condensing_editor.dart lib/instrument_lanes/lane_header.dart
 msgid " and "
@@ -714,7 +714,7 @@ msgstr ""
 msgid "Couldn’t autosave. {error}"
 msgstr ""
 
-#: lib/audio_panel.dart
+#: ../packages/score_engine/lib/src/lane_script.dart lib/audio_panel.dart
 msgid "Couldn’t hear the score in this recording."
 msgstr ""
 
@@ -893,7 +893,7 @@ msgstr ""
 msgid "Save your changes to “{name}” first?"
 msgstr ""
 
-#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/lane_script_view.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
+#: lib/assets_dialog.dart lib/color_dialog.dart lib/export_dialog.dart lib/extensions/extension_settings.dart lib/extensions/extension_sheet.dart lib/extensions/extensions_dialog.dart lib/licenses_dialog.dart lib/lilypond_editor.dart lib/macros.dart lib/motion_settings.dart lib/player_map_view.dart lib/score_editor.dart lib/script_editor.dart lib/stems_dialog.dart lib/toolbar_customize.dart lib/web_export_dialog.dart lib/web_guide.dart
 msgid "Done"
 msgstr ""
 
@@ -4569,7 +4569,31 @@ msgstr ""
 msgid "In the script."
 msgstr ""
 
-msgid "Run a Macro"
+msgid "Run Macro 1"
+msgstr ""
+
+msgid "Run Macro 2"
+msgstr ""
+
+msgid "Run Macro 3"
+msgstr ""
+
+msgid "Run Macro 4"
+msgstr ""
+
+msgid "Run Macro 5"
+msgstr ""
+
+msgid "Run Macro 6"
+msgstr ""
+
+msgid "Run Macro 7"
+msgstr ""
+
+msgid "Run Macro 8"
+msgstr ""
+
+msgid "Run Macro 9"
 msgstr ""
 
 msgid "Script"
@@ -4606,6 +4630,9 @@ msgid "Respell"
 msgstr ""
 
 msgid "Move markings"
+msgstr ""
+
+msgid "Nudge dynamics"
 msgstr ""
 
 msgid "Repeat the selection"
@@ -4717,6 +4744,9 @@ msgid "As the note above / below."
 msgstr ""
 
 msgid "⇧ hairpins’ ends"
+msgstr ""
+
+msgid "A quarter space · ⇧ a tenth"
 msgstr ""
 
 msgid "Stops note input first."
@@ -6035,5 +6065,334 @@ msgstr ""
 
 #: lib/macros.dart
 msgid "Disconnect"
+msgstr ""
+
+#: lib/lane_script_view.dart
+msgid "Script: {problem}"
+msgstr ""
+
+#: lib/lane_script_view.dart lib/macros.dart
+msgctxt "status"
+msgid "Done"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart lib/editor/extension_editing.dart
+msgid "The extension has no id Curator can use."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json isn’t a connector."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node that isn’t one."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a node without a name or a type."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has two nodes named {id}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json wires {wire} twice."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/extension/package.dart
+msgid "connect.json has a wire that isn’t one."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart lib/editor/lane_editing.dart
+msgid "There is no recording."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name’s closing quote is missing."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}” isn’t part of a script."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The script is too long."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording can’t be heard."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Couldn’t hear the recording. {error}"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no group “{name}”. A lane’s name goes in quotes: \"{name}\"."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no lane named “{name}”."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is one lane named “{name}”."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There are {n} lanes named “{name}”."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” isn’t split: write split {code} first."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves no lane."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on one staff."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is on {n} staves."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane goes here, and that names {n}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no bar {bar}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no beat {beat}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The piece is {n} quarters long."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "There is no rehearsal mark “{mark}”."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The range ends before it starts."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "The recording wasn’t heard."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Nothing is heard yet: “hear” goes before it."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "This score’s lanes can’t be auto-curated."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is one of the lanes moved."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{text}”"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "the line’s end"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} goes here, not {found}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{found} isn’t expected here."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "{what} is {max} at most."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A lane’s name in quotes"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A staff’s number"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A bar"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A rehearsal mark"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "Seconds, “in” or “out”"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“in” or “out”"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A line starts with what it does (show, hide, auto…), not {found}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{lane}” is split: show the staves’ lanes instead ({code})."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That leaves “{lane}” no staff."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A number of bars"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A phrase is a bar at least."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "One lane is copied, and that names {n}."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“to top”, “to bottom”, “before” or “after”"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "A name for the lanes"
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "“{word}” is a word of the language: call them something else."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/lane_script.dart
+msgid "That is a group of groups too many."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/plugin/package.dart ../packages/score_engine/lib/src/web_plugin/package.dart lib/plugins/plugin_actions.dart lib/plugins/plugins.dart lib/web_plugins.dart
+msgid "The plugin has no id Curator can use."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator extension."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator plugin."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "This isn’t a Curator web plugin."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension holds too many files."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin holds too many files."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin holds too many files."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The extension is too big."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The plugin is too big."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "The web plugin is too big."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path an extension may have."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a plugin may have."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a path a web plugin may have."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t text."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t JSON."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/script.dart
+msgid "{path} isn’t a table of texts."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/web_plugin/package.dart
+msgid "The plugin has no main.js: build it first."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} isn’t a file."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} uses compression Curator can’t read."
+msgstr ""
+
+#: ../packages/score_engine/lib/src/zip_entries.dart
+msgid "{file} is too big."
+msgstr ""
+
+#: lib/editor/lane_editing.dart
+msgid "An Align is under way."
+msgstr ""
+
+#: lib/editor/lane_editing.dart
+msgid "This score has no notes to hear."
+msgstr ""
+
+#: lib/editor/lane_editing.dart
+msgid "The recording is still loading."
+msgstr ""
+
+#: lib/editor/lane_editing.dart
+msgid "The anchors follow a MIDI file’s tempo."
+msgstr ""
+
+#: lib/editor/lane_editing.dart
+msgid "None of the recordings is the one synced."
+msgstr ""
+
+#: lib/macros.dart
+msgid "{macro}: {said}"
 msgstr ""
 
