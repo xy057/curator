@@ -378,7 +378,8 @@ class _Cursor {
   int version() {
     if (!word('version')) _fail('“version” and a number are wanted after the module’s name.');
     _spaces();
-    final m = RegExp(r'\d{1,9}').matchAsPrefix(_text, at) ?? _fail('the module’s version is wanted, a whole number.');
+    final m = RegExp(r'\d+').matchAsPrefix(_text, at) ?? _fail('the module’s version is wanted, a whole number.');
+    if (m[0]!.length > 9) _fail('the module’s version is a whole number of nine digits at most.');
     at = m.end;
     return int.parse(m[0]!);
   }
