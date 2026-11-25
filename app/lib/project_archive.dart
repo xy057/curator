@@ -167,9 +167,11 @@ abstract final class ProjectArchive {
 
     final name = documentOf(stub);
     final file = archive.findFile(name) ?? (throw FormatException('The project is damaged: $name is missing.'));
+    // (Too big is said as ZipEntries says it, in the interface's language; not as damage.)
+    final bytes = ZipEntries.read(file, limit: maxDocumentBytes);
     final CuraDocument document;
     try {
-      document = CuraData.read(utf8.decode(ZipEntries.read(file, limit: maxDocumentBytes)));
+      document = CuraData.read(utf8.decode(bytes));
     } on FormatException catch (e) {
       throw FormatException('The project is damaged: $name, ${e.message}');
     }
@@ -196,11 +198,12 @@ abstract final class ProjectArchive {
       return bytes;
     }
 
-    // A layout 2 module's JSON.
+    // A layout 2 module's JSON (too big said as such, not as JSON that isn't).
     Object? decoded(String id, ArchiveFile? file) {
       if (file == null) throw FormatException('The project is damaged: modules/$id.json is missing.');
+      final bytes = ZipEntries.read(file, limit: maxJsonBytes);
       try {
-        return jsonDecode(utf8.decode(ZipEntries.read(file, limit: maxJsonBytes)));
+        return jsonDecode(utf8.decode(bytes));
       } on FormatException {
         throw FormatException('The project is damaged: modules/$id.json is not JSON.');
       }
