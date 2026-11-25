@@ -1951,7 +1951,7 @@ re-engraving after an edit, doesn't show them again.
 since build 688: layout 3). The zip holds `mimetype` (stored, first), a stub `project.json`
 (`{"format": "application/x-curated-score", "version": 27}`: Curator 0.1–0.6.1 read only that file
 and refuse a version past theirs, 26 at most, asking for an update, so every release knows the
-file and none opens it), a stub `manifest.json` (`{"format": …, "layout": 3}`: Curator 0.7–0.11
+file and none opens it), a stub `manifest.json` (`{"format": …, "layout": 3}`: Curator 0.7–0.11.0-beta1
 read their modules from it and refuse a layout past theirs, 2, asking for an update likewise),
 `project.cura`, the project in CuraScript's data (`CuraData`: a field a line, what is in a field
 indented under it, `-` a list's items, `|` the lines of a text of several; `#` a comment), each

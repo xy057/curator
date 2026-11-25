@@ -65,7 +65,7 @@ class ProjectDocument extends ChangeNotifier {
 
   bool get isSaving => _saving != null;
 
-  /// True while the open project is as Curator 0.11 and before saved it ([OpenedProject.olderFormat]),
+  /// True while the open project is as Curator 0.11.0-beta1 and before saved it ([OpenedProject.olderFormat]),
   /// not saved since: the next save (an autosave too) writes it in CuraScript, which they can't open.
   bool get isOlderFormat => _olderFormat;
   bool _olderFormat = false;

@@ -336,9 +336,9 @@ void main() {
     }
   });
 
-  test('older formats and modules: a project in CuraScript, Curator 0.1 to 0.11 ask for an update, a project or settings file saved before modules or in JSON opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
+  test('older formats and modules: a project in CuraScript, Curator 0.1 to 0.11.0-beta1 ask for an update, a project or settings file saved before modules or in JSON opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
     // A project is in CuraScript: its fields, then every module. Curator 0.1 to 0.6.1 know a
-    // project in modules, and 0.7 to 0.11 one in a later layout, and ask for an update.
+    // project in modules, and 0.7 to 0.11.0-beta1 one in a later layout, and ask for an update.
     {
       final path = '${dir.path}/new.ccs';
       await ProjectFile.write(path, contents());
@@ -360,7 +360,7 @@ void main() {
       expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
     }
 
-    // A project of Curator 0.7 to 0.11, its modules in JSON, opens and says it is older, a
+    // A project of Curator 0.7 to 0.11.0-beta1, its modules in JSON, opens and says it is older, a
     // module of a newer build's kept as it came (but one CuraScript couldn't write again: a
     // version that isn't one, a number past a double's, fields too deep); saved here, all of it
     // is in CuraScript, the same.
@@ -651,7 +651,7 @@ void main() {
       expect(read.extensions, {'captions': true});
     }
     {
-      // One of Curator 0.7 to 0.11, its modules in JSON.
+      // One of Curator 0.7 to 0.11.0-beta1, its modules in JSON.
       final path = '${dir.path}/json.ccf';
       File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
         ..add(ArchiveFile.string('mimetype', SettingsFile.mimeType))

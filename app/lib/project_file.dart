@@ -24,7 +24,7 @@ import 'project_state.dart';
 /// all named in its fields in project.cura (`score`, `media`, `takes`, `stems`: the name and the
 /// entry, and a take's or stem's id), with the project's `kind` ([ProjectKind]). Everything the
 /// app changes lives in the modules, so the source score is never rewritten. One saved by
-/// Curator 0.7 to 0.11 has them in manifest.json and its modules in JSON; one saved before
+/// Curator 0.7 to 0.11.0-beta1 has them in manifest.json and its modules in JSON; one saved before
 /// modules ([LegacyProject]), its edits in project.json.
 abstract final class ProjectFile {
   static const extension = 'ccs';
@@ -99,7 +99,7 @@ abstract final class ProjectFile {
       final JsonReader manifest;
       ProjectState state;
       final legacy = !ProjectArchive.isModular(archive);
-      // Saved by an older Curator (0.11 and before), which can't open it once it is saved here.
+      // Saved by an older Curator (0.11.0-beta1 and before), which can't open it once it is saved here.
       final bool older;
       if (legacy) {
         final manifestFile = archive.findFile(stub);
@@ -292,7 +292,7 @@ class OpenedProject {
   final Map<String, String> stems;
 
   /// Whether it was saved in an older format: before modules ([LegacyProject]: Curator 0.6.1
-  /// and before), or with its modules in JSON (layout 2: Curator 0.7 to 0.11). A save writes
+  /// and before), or with its modules in JSON (layout 2: Curator 0.7 to 0.11.0-beta1). A save writes
   /// it in CuraScript, which those versions can't open.
   final bool olderFormat;
 }

@@ -16,7 +16,7 @@ import 'updater.dart' show appReleaseBuild;
 ///     mimetype           the kind of file (stored first, uncompressed)
 ///     project.json       (settings.json for settings) only for Curator 0.6.1 and before, which
 ///                        read nothing else: format 27, past theirs, so they ask for an update
-///     manifest.json      only for Curator 0.7 to 0.11, which read their modules from it: the
+///     manifest.json      only for Curator 0.7 to 0.11.0-beta1, which read their modules from it: the
 ///                        kind of file and the layout, past theirs, so they ask for an update
 ///     project.cura       (settings.cura) the file in CuraScript ([CuraData]): the kind of file,
 ///                        the layout's version, what wrote it, the kind of file's own fields (a
@@ -25,7 +25,7 @@ import 'updater.dart' show appReleaseBuild;
 ///     <id>/…             a module's own files (images/<id>, fonts/<name>.font)
 ///     …                  the kind of file's own (a project's score/ and media/)
 ///
-/// A file of layout 2 (Curator 0.7 to 0.11) has its manifest in manifest.json and each module
+/// A file of layout 2 (Curator 0.7 to 0.11.0-beta1) has its manifest in manifest.json and each module
 /// as compact JSON, `modules/<id>.json`: it is read as it is, and saved again in CuraScript. One
 /// older than that ([LegacyProject]) has no manifest: its stub was all there was.
 abstract final class ProjectArchive {
@@ -290,7 +290,7 @@ final class OpenedArchive {
   /// their entries.
   final JsonReader manifest;
 
-  /// The layout it was written in: [ProjectArchive.layout], or 2 (Curator 0.7 to 0.11's, its
+  /// The layout it was written in: [ProjectArchive.layout], or 2 (Curator 0.7 to 0.11.0-beta1's, its
   /// modules in JSON), which a save writes anew.
   final int layout;
 

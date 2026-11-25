@@ -14,7 +14,7 @@ import 'project_state.dart';
 /// ([ProjectModules.settings]: fonts, with an added music font's file, engraving, display,
 /// extensions), as [of] leaves them: what a page of Project Settings sets for the whole score,
 /// not for one instrument (brackets, groups' members, pairs), which another score's differ in.
-/// Kept in settings.cura, in CuraScript; one saved by Curator 0.7 to 0.11 has its modules in JSON,
+/// Kept in settings.cura, in CuraScript; one saved by Curator 0.7 to 0.11.0-beta1 has its modules in JSON,
 /// and one saved before modules ([LegacyProject]) has them in settings.json, as a project's `state`.
 abstract final class SettingsFile {
   static const extension = 'ccf';
@@ -51,7 +51,7 @@ abstract final class SettingsFile {
 
   /// Reads a settings file: its settings ([of]), and whether it was saved in an older format,
   /// before modules ([LegacyProject]: Curator 0.6.1 and before) or with its modules in JSON
-  /// (Curator 0.7 to 0.11); it is never written so. Throws a [FormatException] saying what is
+  /// (Curator 0.7 to 0.11.0-beta1); it is never written so. Throws a [FormatException] saying what is
   /// wrong.
   static Future<({EditState settings, bool olderFormat})> read(String path) => Isolate.run(() => _read(path));
 
