@@ -619,11 +619,22 @@ void main() {
       expect((doc.isDirty, cura(path).fields['kind']), (false, 'score'));
     }
 
-    // A damaged module says where; CuraScript that doesn't read, its line.
+    // A damaged module says where; CuraScript that doesn't read, its line. As a hand edit may
+    // leave it (Windows' line ends, a byte order mark, tabs to indent, a comment among the
+    // fields), it reads the same.
     {
       final path = '${dir.path}/damaged.ccs';
       await ProjectFile.write(path, contents());
       final (:fields, :modules) = cura(path);
+      final written = CuraData.write(fields, modules: modules);
+      final edited = '﻿${written.replaceAllMapped(RegExp(r'^((?:  )+)', multiLine: true), (m) => '\t' * (m[1]!.length ~/ 2))}'
+          .replaceFirst('\nmodule texts', '\n  # The texts changed.\nmodule texts')
+          .replaceAll('\n', '\r\n');
+      expect(edited, contains('\r\n\t\td1 "hello"\r\n'));
+      expect(jsonEncode([CuraData.read(edited).fields, [for (final m in CuraData.read(edited).modules) [m.id, m.version, m.optional, m.data]]]),
+          jsonEncode([fields, [for (final m in modules) [m.id, m.version, m.optional, m.data]]]));
+      rewrite(path, {'project.cura': utf8.encode(edited)});
+      expect((await open(path)).state.edits.textEdits, {'d1': 'hello'});
       recura(path, fields, [
         for (final m in modules) m.id == 'sync' ? (id: 'sync', version: 1, optional: false, data: {'anchors': [[1, 'x']]}) : m,
       ]);
