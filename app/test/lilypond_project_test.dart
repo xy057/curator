@@ -12,6 +12,7 @@ import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:score_engine/score_engine.dart' show CuraData;
 
 /// The engine's fixture: a score LilyPond 2.26.0 engraved with Curator's settings (its .ly, .svg
 /// and .jsonl).
@@ -53,7 +54,8 @@ void main() {
       final path = '${dir.path}/song.ccs';
       await ProjectFile.write(path, ProjectContents(scoreName: c.source!.name, scoreBytes: c.source!.bytes, state: c.projectState));
       final zip = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
-      expect(jsonDecode(utf8.decode(zip.findFile('modules/lilypond.json')!.content)),
+      final document = CuraData.read(utf8.decode(zip.findFile('project.cura')!.content));
+      expect(document.modules.firstWhere((m) => m.id == 'lilypond').data,
           {'version': LilyPond.version, 'settings': 1, 'folder': 'score', 'files': ['global.ily']});
       expect(utf8.decode(zip.findFile('lilypond/files/global.ily')!.content), 'x = 1\n');
       expect(zip.findFile('lilypond/score.svg'), isNotNull);
@@ -84,9 +86,16 @@ void main() {
       ]) {
         final archive = Archive();
         for (final f in ZipDecoder().decodeBytes(good).files) {
-          archive.addFile(f.name == 'modules/lilypond.json'
-              ? ArchiveFile.string(f.name, jsonEncode({'version': LilyPond.version, 'files': files}))
-              : ArchiveFile.bytes(f.name, f.content));
+          if (f.name != 'project.cura') {
+            archive.addFile(ArchiveFile.bytes(f.name, f.content));
+            continue;
+          }
+          final (:fields, :modules) = CuraData.read(utf8.decode(f.content));
+          archive.addFile(ArchiveFile.string(
+              f.name,
+              CuraData.write(fields, modules: [
+                for (final m in modules) m.id == 'lilypond' ? (id: m.id, version: m.version, optional: m.optional, data: {'version': LilyPond.version, 'files': files}) : m,
+              ])));
         }
         File(path).writeAsBytesSync(ZipEncoder().encodeBytes(archive));
         await expectLater(ProjectFile.read(path, mediaDirectory: '${dir.path}/media'),

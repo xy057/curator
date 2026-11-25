@@ -1,6 +1,7 @@
 /// Curating by writing: a script says when each lane is shown, a statement a line, and running it
 /// does to the lanes what the Instruments tab's tools do ([Curation]'s own edits: Draw is
-/// `show`, Erase is `hide`, Auto-Curate is `auto`…). The language is Curator's own and small:
+/// `show`, Erase is `hide`, Auto-Curate is `auto`…). The language, CuraScript, is Curator's own
+/// and small (its data, [CuraData], is what a project is saved in):
 ///
 /// ```
 /// # The winds come in at bar 9.

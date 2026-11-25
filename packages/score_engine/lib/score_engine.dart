@@ -8,6 +8,7 @@ export 'src/auto_curate.dart';
 export 'src/automation.dart';
 export 'src/beat_grid.dart';
 export 'src/condensing.dart';
+export 'src/cura_data.dart';
 export 'src/curated_scene.dart';
 export 'src/curation.dart';
 export 'src/daw_document.dart';

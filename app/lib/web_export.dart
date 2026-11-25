@@ -148,7 +148,7 @@ abstract final class WebExport {
       final out = OutputFileStream('$folder/${WebPage.projectFile}');
       try {
         final zip = _StoredZip()..startEncode(out);
-        ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+        ProjectArchive.write(zip, state, mimeType: ProjectFile.mimeType, stub: ProjectFile.stub, modules: ProjectModules.all, manifest: {
           'kind': ?kind?.name,
           'score': {'name': 'score.musicxml', 'entry': WebPage.scoreEntry},
         });

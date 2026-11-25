@@ -21,14 +21,18 @@ import 'project_state.dart';
 ///     media/takes/<id>/<name>  each other recording ([EditState.takes])
 ///     media/stems/<id>/<name>  each stem ([EditState.stems])
 ///
-/// all named in the manifest (`score`, `media`, `takes`, `stems`: the name and the entry, and a take's or stem's id), with
-/// the project's `kind` ([ProjectKind]). Everything the app
-/// changes lives in the modules, so the source score is never rewritten. One saved before
-/// modules ([LegacyProject]) has its edits in project.json instead.
+/// all named in its fields in project.cura (`score`, `media`, `takes`, `stems`: the name and the
+/// entry, and a take's or stem's id), with the project's `kind` ([ProjectKind]). Everything the
+/// app changes lives in the modules, so the source score is never rewritten. One saved by
+/// Curator 0.7 to 0.11 has them in manifest.json and its modules in JSON; one saved before
+/// modules ([LegacyProject]), its edits in project.json.
 abstract final class ProjectFile {
   static const extension = 'ccs';
   static const mimeType = 'application/x-curated-score';
 
+  /// The stub Curator 0.6.1 and before read; the project in CuraScript is `project.cura`
+  /// ([ProjectArchive.documentOf]).
+  static const stub = 'project.json';
   static const _notOurs = 'That doesn’t look like a Curator project.';
   static const _newer = 'This project is from a newer Curator. Update to open it!';
 
@@ -52,7 +56,7 @@ abstract final class ProjectFile {
     final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
     ProjectArchive.writeFile(path, (zip, opened) {
-      ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: 'project.json', modules: ProjectModules.all, manifest: {
+      ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: stub, modules: ProjectModules.all, manifest: {
         'kind': c.state.kind.name,
         'score': {'name': c.scoreName, 'entry': scoreEntry},
         if (media != null)
@@ -95,8 +99,10 @@ abstract final class ProjectFile {
       final JsonReader manifest;
       ProjectState state;
       final legacy = !ProjectArchive.isModular(archive);
+      // Saved by an older Curator (0.11 and before), which can't open it once it is saved here.
+      final bool older;
       if (legacy) {
-        final manifestFile = archive.findFile('project.json');
+        final manifestFile = archive.findFile(stub);
         if (manifestFile == null) throw const FormatException(_notOurs);
         manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'project');
         if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
@@ -104,9 +110,12 @@ abstract final class ProjectFile {
         final version = manifest.number('version')?.toInt() ?? 0;
         if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
         state = ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.all);
+        older = true;
       } else {
-        manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
-        state = ProjectArchive.read(archive, manifest, ProjectModules.all, newer: _newer);
+        final opened = ProjectArchive.open(archive, mimeType: mimeType, stub: stub, notOurs: _notOurs, newer: _newer);
+        manifest = opened.manifest;
+        state = ProjectArchive.read(opened, ProjectModules.all, newer: _newer);
+        older = opened.isOlder;
       }
       // A kind this build doesn't know (a newer one's): what its score is.
       if (ProjectKind.values.asNameMap()[manifest.string('kind')] case final kind?) state = state.copyWith(kind: kind);
@@ -168,7 +177,7 @@ abstract final class ProjectFile {
       final takes = <String, String>{};
       final unreadTakes = state.foreign.containsKey(ProjectModules.takes.id);
       for (final (i, value) in manifest.list('takes').indexed) {
-        final t = JsonReader(value, 'manifest.takes[$i]');
+        final t = JsonReader(value, '${manifest.where}.takes[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
         if (!ProjectModules.isTakeId(id) || takes.containsKey(id)) continue;
         if (!unreadTakes && (!state.edits.takes.any((take) => take.id == id) || id == state.edits.focus)) continue;
@@ -179,7 +188,7 @@ abstract final class ProjectFile {
       final stems = <String, String>{};
       final unreadStems = state.foreign.containsKey(ProjectModules.stems.id);
       for (final (i, value) in manifest.list('stems').indexed) {
-        final t = JsonReader(value, 'manifest.stems[$i]');
+        final t = JsonReader(value, '${manifest.where}.stems[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
         if (!Stem.isId(id) || stems.containsKey(id)) continue;
         if (!unreadStems && !state.edits.stems.any((stem) => stem.id == id)) continue;
@@ -193,7 +202,7 @@ abstract final class ProjectFile {
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
         state: state,
         media: media,
-        olderFormat: legacy,
+        olderFormat: older,
       );
     } finally {
       input.closeSync();
@@ -282,8 +291,9 @@ class OpenedProject {
   /// unread (a newer build's), every one the file lists.
   final Map<String, String> stems;
 
-  /// Whether it was saved before modules ([LegacyProject]: Curator 0.6.1 and before). A save
-  /// writes the new format, which those versions can't open.
+  /// Whether it was saved in an older format: before modules ([LegacyProject]: Curator 0.6.1
+  /// and before), or with its modules in JSON (layout 2: Curator 0.7 to 0.11). A save writes
+  /// it in CuraScript, which those versions can't open.
   final bool olderFormat;
 }
 

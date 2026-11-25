@@ -1383,7 +1383,7 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     ));
   }
 
-  /// The project was saved by Curator 0.6.1 or before: saving it here (an autosave too) updates
+  /// The project was saved by Curator 0.11 or before: saving it here (an autosave too) updates
   /// it, and they can't open it then (dismissed by the user).
   void _olderFormat() {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(

@@ -708,14 +708,15 @@ class ProjectState {
           kind: kind ?? this.kind);
 }
 
-/// A module a newer version wrote that this one can't read, as it came: its JSON
-/// (`modules/<id>.json`) and its files (under `<id>/`, by entry name).
+/// A module a newer version wrote that this one can't read, as it came: its data (its fields in
+/// the file's CuraScript, or a layout 2 file's `modules/<id>.json`) and its files (under `<id>/`,
+/// by entry name).
 @immutable
 class ForeignModule {
   const ForeignModule({required this.version, required this.json, this.files = const {}});
 
   final int version;
-  final Uint8List json;
+  final Map<String, Object?> json;
   final Map<String, Uint8List> files;
 }
 

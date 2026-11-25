@@ -18,7 +18,8 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `text_dynamics.dart` | Dynamics another program wrote as text (`TextDynamics`), made dynamics before engraving |
 | `beat_grid.dart` | Where the beats fall in every bar (see *Beats*), and `bar.beat` positions |
 | `curation.dart`, `auto_curate.dart` | When each instrument is shown: one lane of regions per part |
-| `lane_script.dart`, `lane_script_api.dart` | The lanes written (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
+| `lane_script.dart`, `lane_script_api.dart` | The lanes written in CuraScript (see *The lanes can be written*): a script read (`LaneScript.parse`), run or only checked over a `LaneScriptHost` (the project's lanes by name, `ScriptLane`), what is wrong with it by line (`LaneScriptProblem`), and the lanes as they are written as one (`LaneScript.write`); the language as a list (`LaneScriptApi`: its statements and words, plain Dart) |
+| `cura_data.dart` | CuraScript's data (see *A project is saved in CuraScript*): JSON's values written a field a line (`CuraData.write`: fields, `-` items, `\|` lines of text, a module under its `module <id> version <n>` heading) and read back the same (`CuraData.read`, what doesn't read said by its line) |
 | `lane_macro.dart` | Curating without writing (see *The lanes can be written*): a macro (`LaneMacro`) is steps put together from choices (`MacroStep`: a `MacroAction`, its `MacroLanes`, its `MacroRange`, a number, where its node is) wired into a graph (`MacroWire`, `LaneMacro.wires`: what is done after what; `order`, `stages`, `grid`), written as a script for the moment (`LaneMacro.script` over a `MacroContext`: the lanes selected, the playhead, bars asked for), what keeps a step from being written (`MacroProblem`, `MacroFault`), and the app's list of them as JSON |
 | `condensing.dart` | Pairs of players (Flute 1 + 2) that can share a staff, and the shared part written for each |
 | `sync_map.dart` | The tempo track: anchors pinning score positions to recording times, and warps (anchors that jump); `TapPass`, one pass of tapping along |
@@ -114,7 +115,7 @@ changing how a score is engraved, what a project stores, or how edits are made.
 | `code_view.dart` | What the code editors share (the LilyPond editor's, the score editor's MusicXML): the code in re_editor (`CodeView`), each line coloured by its controller as it is drawn (`lilyPondCode`, `musicXmlCode`; not re_highlight, see *The MusicXML view*), folded as its language says, what can be typed offered as it is (`CodePromptList`), Find and Replace (`CodeFindBar`), and what is wrong with it listed under it (`CodeProblemList`) |
 | `lilypond_editor.dart`, `lilypond_language.dart` | The LilyPond editor (`showLilyPondEditor`: Project Info ▸ Score ▸ Edit… of a LilyPond project, File ▸ New LilyPond Score…, Edit… where LilyPond's errors stop an import): the code in a `CodeView` with the score's files beside it, Find and Replace, Engrave (⌘R) and what LilyPond made drawn under the code (a click on a note goes to where it is written; the caret's line marks its notes), LilyPond's problems listed under it; LilyPond coloured a line at a time as it is drawn, its Scheme too, each line from where the one above left off (`lilyPondCode`, `lilyPondTokens`, kept for each line by `LineStates`; `lilyPondTheme`) and what is offered as it is typed (`LilyPondPrompts`) |
 | `project_state.dart`, `edit_history.dart` | What a project stores: its edits (`EditState`, also Undo's snapshots), image files, view and modules it can't read (`ForeignModule`); Undo and Redo |
-| `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`), and reading files saved before modules (formats 1–26) |
+| `project_modules.dart`, `project_archive.dart`, `legacy_project.dart` | How it is saved: one module per part of it (`ProjectModules`, each typed, validated and versioned), the zip layout projects and settings files share (`ProjectArchive`: the file in CuraScript; `OpenedArchive`, one opened, layout 3 or 2), and reading files saved before modules (formats 1–26) |
 | `project_file.dart`, `project_document.dart` | The `.ccs` format; the document around it (path, dirty state, autosave) |
 | `settings_file.dart` | The `.ccf` format: a project's score-wide settings, for other projects (Project Settings ▸ Export… / Import…) |
 | `audio_track.dart`, `audio_format.dart`, `media_converter.dart` | Playback (SoLoud; every take's recording held, a voice per `PlayChunk`), the waveform and onsets, the recording heard for Align on several isolates (`AudioTrack.notes`), converting to FLAC; `MediaFormats` lists what is accepted |
@@ -943,8 +944,8 @@ added between it and its neighbours and, at an outer staff shown, to the instrum
 
 **The lanes can be written.** The Instruments tab's Script (a code button for its bar, `BarItem.script`,
 not there until it is added: Customize Toolbar…;
-`LaneEditing.scripting`: not saved) shows a script in the lanes' place, in a language of Curator's
-own (docs/lane-script.md), a statement a line: `show "Flute 1", "Oboe*" 1-8 transition in 0.5`,
+`LaneEditing.scripting`: not saved) shows a script in the lanes' place, in CuraScript, a language of
+Curator's own (docs/lane-script.md; its data is what a project is saved in, *A project is saved in CuraScript*), a statement a line: `show "Flute 1", "Oboe*" 1-8 transition in 0.5`,
 `hide`, `only`, `clear`, `auto`, `bridge rests`, `remove short`, `copy … to`, `split`, `join`, `move`,
 `restore order`, `transition`, `let`. It is no second way of curating: each statement is one of the
 tab's own edits (`Curation.painted`, `fillGaps`, `removeShort`, `copyLane`, `LaneEditing.autoCurate`,
@@ -1896,7 +1897,7 @@ tied over barlines; drums unpitched), which curation, sync, Align, Find Phrase, 
 and Find Keys read as any score's, and the rows as recorded commands (`MidiScore.engraving`,
 through `CommandWriter`: filled rectangles, so a row's ink is no taller than the row; `Cmd.fade`
 draws a path's ink lighter, a quiet note's and a barline's), so the scene, a video and the web
-page (`EngravingFile`; its project's manifest says `kind: midi`) draw them with nothing of their
+page (`EngravingFile`; its project's file says `kind "midi"`) draw them with nothing of their
 own. How the rows look is a `MidiLook` (`EngraveRequest.midi`, `EditState.midiLook`, saved in the
 optional `midi` module): a change lays them out again as an engraving option's engraves, one Undo
 step. A new MIDI project plays by its file's own tempo map (`EditState.midi`), which
@@ -1946,15 +1947,31 @@ warnings ("Unsupported direction-type 'harp-pedals'") instead of printing them;
 MusicXML score lists them in a dialog (`showImportWarnings`). Opening a project, or
 re-engraving after an edit, doesn't show them again.
 
-**A project is saved in modules** (`ProjectArchive`, since build 131). The zip holds `mimetype`
-(stored, first), a stub `project.json` (`{"format": "application/x-curated-score", "version": 27}`:
-Curator 0.1–0.6.1 read only that file and refuse a version past theirs, 26 at most, asking for an
-update, so every release knows the file and none opens it), `manifest.json` (format, `layout` 2,
-`writer` (`ProjectArchive.writer`: "Curator <release> (<build>)"), the project's `kind` (`ProjectKind`: `score`, `pdf`, `lilypond` or `midi`;
-absent or unknown, what its score is), the score's and recording's names and entries, and each module's
-`version` and whether it is `optional`), `modules/<id>.json` (compact JSON), each module's files
-under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then `media/<name>` (the
-recording heard) and `media/takes/<id>/<name>` (each other, listed in the manifest's `takes`) last.
+**A project is saved in CuraScript** (`ProjectArchive`, in modules since build 131, in CuraScript
+since build 688: layout 3). The zip holds `mimetype` (stored, first), a stub `project.json`
+(`{"format": "application/x-curated-score", "version": 27}`: Curator 0.1–0.6.1 read only that file
+and refuse a version past theirs, 26 at most, asking for an update, so every release knows the
+file and none opens it), a stub `manifest.json` (`{"format": …, "layout": 3}`: Curator 0.7–0.11
+read their modules from it and refuse a layout past theirs, 2, asking for an update likewise),
+`project.cura`, the project in CuraScript's data (`CuraData`: a field a line, what is in a field
+indented under it, `-` a list's items, `|` the lines of a text of several; `#` a comment), each
+module's files under `<id>/` (`images/<id>`, `fonts/<name>.font`), `score/<name>`, then
+`media/<name>` (the recording heard) and `media/takes/<id>/<name>` (each other, listed in the file's
+`takes`) last. `project.cura` says first what the file is: its `format`, `layout` 3, `writer`
+(`ProjectArchive.writer`: "Curator <release> (<build>)"), the project's `kind` (`ProjectKind`:
+`score`, `pdf`, `lilypond` or `midi`; absent or unknown, what its score is), the score's and
+recording's names and entries (`score`, `media`, `takes`, `stems`); then each module under its
+heading, `module sync version 1` (and `optional` after it where it may go unread), its fields as
+its JSON has them. CuraScript holds what JSON does, exactly (a whole number an int and one with a
+point a double, as `jsonDecode` gives them), so a module writes and reads the same map as it did
+when it was `modules/<id>.json` (layout 2), and checks it the same. What it couldn't read back it
+won't write (`CuraData.holds`, `isVersion`: fields and lists more than 256 deep, a number past a
+double's, a version past nine digits), so a save never leaves a file that doesn't open: a newer
+build's module that is so in a layout 2 file isn't kept. A name is written bare only in ASCII,
+the same in every engine's Unicode tables (the web player's too); any other, in quotes. What doesn't read says its line
+("The project is damaged: project.cura, line 12: …"). A file of layout 2 opens as it always did
+(`OpenedArchive`: its manifest.json, each module's JSON read when it is wanted) and says it is older,
+as one saved before modules does; it is saved in CuraScript.
 Everything deflates at zlib's default level, but the recordings and packed images, stored.
 
 Each module (`ProjectModule`, all in `ProjectModules.all`) owns a part of `ProjectState`: `fonts`,
@@ -1974,24 +1991,24 @@ from the old one to its `migrations`; a field an older build would lose or misre
 Something new with no place in a module is a new module (an older project has none: its defaults).
 `ProjectArchive.layout` changes only with the archive's own shape. Opening checks the layout, then
 each module: one this build doesn't know, or of a newer version, refuses the project ("needs a
-newer version") unless the manifest says it is optional (nothing shown or played depends on it,
-as `view`): then it opens without it, and keeps it as it came, JSON and files
+newer version") unless the file says it is optional (nothing shown or played depends on it,
+as `view`): then it opens without it, and keeps it as it came, its fields and files
 (`ProjectState.foreign`, carried by the controller and Replace Score), for the next save to write
 back. Projects saved before modules (formats 1–26: one `state` in `project.json`) are read by
 `LegacyProject`: its frozen migrations to 26, then each field dealt out to its module in that
 module's shape, for the module to check. The bundled demo is one, so every test reads it so.
-Such a project opens as any other, and says so (`OpenedProject.olderFormat`,
+Such a project, or one of layout 2, opens as any other, and says so (`OpenedProject.olderFormat`,
 `ProjectDocument.isOlderFormat` until it is saved): a snack bar that stays until closed warns
 that saving (an autosave too) updates it, and older versions won't open it then. Nothing is ever
 written in an older format; the sample, never saved, says nothing.
 
 **Project Settings travel as a settings file** (`.ccf`, `SettingsFile`; Import… and Export… at the
 foot of Project Settings' sidebar). It is a project's layout (`ProjectArchive`, `mimetype`
-`application/x-curator-settings`, its stub `settings.json`) with only the score-wide modules
+`application/x-curator-settings`, its stub `settings.json`, the file in CuraScript `settings.cura`) with only the score-wide modules
 (`ProjectModules.settings`: fonts with an embedded added font's files, engraving, display,
 extensions), so it is checked and migrated as a project is; a module it can't read is refused,
-optional or not, and one saved before modules (`settings.json`'s `state`) goes through `LegacyProject`:
-it is applied, then a dialog says it is in an older format and to export again to update it
+optional or not, one of layout 2 is read as a project of it is, and one saved before modules (`settings.json`'s `state`) goes through `LegacyProject`:
+either is applied, then a dialog says it is in an older format and to export again to update it
 (`SettingsFile.read`'s `olderFormat`; Export writes only the new one).
 Only what a page sets for the whole score: what it sets per instrument (brackets, groups' members,
 pairs and condensing, names) stays, as another score's instruments differ, and so do the user's own

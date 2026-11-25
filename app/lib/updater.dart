@@ -12,7 +12,7 @@ import 'l10n/l10n.dart';
 const _majorMinor = '0.11';
 
 /// This build's number: what follows `+` in pubspec.yaml's `version`, and its patch too.
-const appBuild = 687;
+const appBuild = 688;
 
 /// The patch of the release this build is (or comes after): kept apart from the build, and
 /// may have letters (`1`, `1a`, `2-rc1`). Bumped only for a release.
