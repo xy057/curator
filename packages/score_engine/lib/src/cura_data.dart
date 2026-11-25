@@ -1,5 +1,5 @@
 /// CuraScript's data: what a file of Curator's is, written down a field a line. Its statements
-/// ([LaneScript]) say what to do to the lanes; its data says what a project holds, and a
+/// (`LaneScript`) say what to do to the lanes; its data says what a project holds, and a
 /// project (`project.cura` in a `.ccs`) and a settings file (`settings.cura` in a `.ccf`) are
 /// kept in it:
 ///
