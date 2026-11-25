@@ -197,8 +197,9 @@ abstract final class CuraData {
 
   // MARK: Reading
 
-  /// [text] read back. Throws a [FormatException] that says the line of what doesn't read.
-  static CuraDocument read(String text) => _Reader(text).document();
+  /// [text] read back. Throws a [FormatException] that says the line of what doesn't read. A
+  /// byte order mark before it (an editor's, saving it by hand) is no part of it.
+  static CuraDocument read(String text) => _Reader(text.startsWith('﻿') ? text.substring(1) : text).document();
 }
 
 /// A line that says something (not blank, not only a comment): its [number] (1 the first), how
