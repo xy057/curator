@@ -49,8 +49,9 @@ from, and a way to take one project's lanes to another. The script is kept with 
 - Statements run in order, each on what the one before left: `clear` first starts from nothing.
 - A script can set the Audio tab's anchors too: `align` is its Align. It listens to the recording
   first, which takes a while (the Audio tab's Align shows how far it has got), and then runs.
-- A project is kept in CuraScript too: a .ccs is a zip, and its `project.cura` says all of the
-  project, a field a line, what is in a field indented under it.
+- A project is kept in CuraScript too: a .ccs is a zip, and its `project.cura` holds all of the
+  project but its files (the score, the recordings, pictures), a field a line, what is in a
+  field indented under it.
 
 ## Macros
 
