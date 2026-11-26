@@ -10,6 +10,7 @@ import 'package:curated_score/image_patch.dart';
 import 'package:curated_score/project_document.dart';
 import 'package:archive/archive_io.dart';
 import 'package:curated_score/legacy_project.dart';
+import 'package:curated_score/project_archive.dart';
 import 'package:curated_score/project_file.dart';
 import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/settings_file.dart';
@@ -52,6 +53,17 @@ void main() {
 
   Map<String, Object?> json(String path, String entry) =>
       jsonDecode(utf8.decode(ZipDecoder().decodeBytes(File(path).readAsBytesSync()).findFile(entry)!.content)) as Map<String, Object?>;
+
+  /// [path]'s file in CuraScript, read.
+  CuraDocument cura(String path, [String entry = 'project.cura']) =>
+      CuraData.read(utf8.decode(ZipDecoder().decodeBytes(File(path).readAsBytesSync()).findFile(entry)!.content));
+
+  /// What [path]'s module [id] holds.
+  Map<String, Object?> module(String path, String id) => cura(path).modules.firstWhere((m) => m.id == id).data;
+
+  /// [path] with its project.cura as [fields] and [modules] write it.
+  void recura(String path, Map<String, Object?> fields, List<CuraModule> modules) =>
+      rewrite(path, {'project.cura': utf8.encode(CuraData.write(fields, modules: modules))});
 
   Future<OpenedProject> open(String path) => ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
 
@@ -324,21 +336,98 @@ void main() {
     }
   });
 
-  test('older formats and modules: Curator 0.1 to 0.6.1 ask for an update, a project or settings file saved before modules opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
-    // Curator 0.1 to 0.6.1 know a project in modules, and ask for an update.
+  test('older formats and modules: a project in CuraScript, Curator 0.1 to 0.11.0-beta1 ask for an update, a project or settings file saved before modules or in JSON opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
+    // A project is in CuraScript: its fields, then every module. Curator 0.1 to 0.6.1 know a
+    // project in modules, and 0.7 to 0.11.0-beta1 one in a later layout, and ask for an update.
     {
       final path = '${dir.path}/new.ccs';
       await ProjectFile.write(path, contents());
       final zip = ZipDecoder().decodeBytes(File(path).readAsBytesSync());
       expect(zip.files.first.name, 'mimetype');
-      // What they read: project.json's format, then its version above theirs (26 at most).
+      // What they read: project.json's format, then its version above theirs (26 at most);
+      // manifest.json's format, then its layout above theirs (2).
       expect(json(path, 'project.json'), {'format': ProjectFile.mimeType, 'version': LegacyProject.lastVersion + 1});
-      final manifest = json(path, 'manifest.json');
-      expect(manifest['modules'], {
-        for (final m in ProjectModules.all) m.id: {'version': m.version, if (m.optional) 'optional': true},
-      });
+      expect(json(path, 'manifest.json'), {'format': ProjectFile.mimeType, 'layout': 3});
+      expect(zip.files.where((f) => f.name.startsWith('modules/')), isEmpty);
+      final document = cura(path);
+      expect([document.fields['format'], document.fields['layout'], document.fields['writer']], [ProjectFile.mimeType, 3, ProjectArchive.writer]);
+      expect([for (final m in document.modules) (m.id, m.version, m.optional)], [for (final m in ProjectModules.all) (m.id, m.version, m.optional)]);
+      // A field a line, what is in a field under it.
+      final text = utf8.decode(zip.findFile('project.cura')!.content);
+      expect(text, contains('\nmodule texts version 1\n  edits\n    d1 "hello"\n'));
+      expect(text, contains('\nmodule curation version 2\n  split ["P2"]\n'));
       final opened = (await open(path)).state.edits;
       expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
+    }
+
+    // A project of Curator 0.7 to 0.11.0-beta1, its modules in JSON, opens and says it is older, a
+    // module of a newer build's kept as it came (but one CuraScript couldn't write again: a
+    // version that isn't one, a number past a double's, fields too deep); saved here, all of it
+    // is in CuraScript, the same.
+    {
+      final path = '${dir.path}/json.ccs';
+      List<int> encoded(Object? json) => utf8.encode(jsonEncode(json));
+      // Whatever JSON holds: a whole number and one with a point apart, text of lines, escapes.
+      final harmony = <String, Object?>{
+        'keys': [1, 2.0, -0.5, 1e-7, 1e21],
+        'text': 'two\n  lines\n\n# not a comment\n',
+        'quoted': 'a "b" \\ c\td',
+        'odd': 'x\u0001\u2028\r\n',
+        'deep': [[1, [2, [3]]], {}, [], {'x': null, 'y': true}, 'a\nb'],
+        'module': 'a field so called',
+        '': 'no name',
+        'é😀 key': 'ü',
+      };
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+        ..add(ArchiveFile.string('mimetype', ProjectFile.mimeType))
+        ..add(ArchiveFile.bytes('project.json', encoded({'format': ProjectFile.mimeType, 'version': LegacyProject.lastVersion + 1})))
+        ..add(ArchiveFile.bytes('manifest.json', encoded({
+          'format': ProjectFile.mimeType,
+          'layout': 2,
+          'writer': 'Curator 0.11.0-beta1 (687)',
+          'kind': 'score',
+          'score': {'name': 'Score.musicxml', 'entry': 'score/Score.musicxml'},
+          'modules': {
+            'texts': {'version': 1},
+            'curation': {'version': 1},
+            'sync': {'version': 1},
+            'harmony': {'version': 3, 'optional': true},
+            'odd': {'version': -1, 'optional': true},
+            'huge': {'version': 2, 'optional': true},
+            'deep': {'version': 2, 'optional': true},
+          },
+        })))
+        ..add(ArchiveFile.bytes('modules/odd.json', encoded({'a': 1})))
+        ..add(ArchiveFile.string('modules/huge.json', '{"n": 1e400}'))
+        ..add(ArchiveFile.string('modules/deep.json', '{"a": ${'[' * CuraData.maxDepth}${']' * CuraData.maxDepth}}'))
+        ..add(ArchiveFile.bytes('modules/texts.json', encoded({'edits': {'d1': 'hello'}})))
+        ..add(ArchiveFile.bytes('modules/curation.json', encoded({'lanes': {'P1': [[1, 2, 0.3, null]]}})))
+        ..add(ArchiveFile.bytes('modules/sync.json', encoded({'leadIn': 1.5, 'anchors': [[8, 4.0, 0], [4, 2]]})))
+        ..add(ArchiveFile.bytes('modules/harmony.json', encoded(harmony)))
+        ..add(ArchiveFile.bytes('harmony/bar-1.bin', [1, 2, 3]))
+        ..add(ArchiveFile.string('score/Score.musicxml', '<score-partwise/>'))));
+      final opened = await open(path);
+      expect(opened.olderFormat, isTrue);
+      final e = opened.state.edits;
+      expect([e.textEdits, e.lanes, e.leadIn, e.anchors], [
+        {'d1': 'hello'},
+        {'P1': [const Region(1, 2, transitionIn: 0.3)]},
+        1.5,
+        [const SyncAnchor(4, 2), const SyncAnchor(8, 4, jumpTo: 0)],
+      ]);
+      expect(opened.state.foreign.keys, ['harmony']);
+
+      final again = '${dir.path}/again.ccs';
+      await ProjectFile.write(again, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: opened.state));
+      final zip = ZipDecoder().decodeBytes(File(again).readAsBytesSync());
+      expect(zip.files.where((f) => f.name.startsWith('modules/')), isEmpty);
+      final kept = cura(again).modules.firstWhere((m) => m.id == 'harmony');
+      expect((kept.version, kept.optional, jsonEncode(kept.data)), (3, true, jsonEncode(harmony)));
+      expect(zip.findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
+      final saved = await open(again);
+      expect(saved.olderFormat, isFalse);
+      expect(jsonEncode(ProjectModules.toJson(saved.state)), jsonEncode(ProjectModules.toJson(opened.state)));
+      expect(jsonEncode(saved.state.foreign['harmony']!.json), jsonEncode(harmony));
     }
 
     // A project saved before modules opens with every field in its module.
@@ -402,32 +491,31 @@ void main() {
     {
       final path = '${dir.path}/later.ccs';
       await ProjectFile.write(path, contents());
-      final manifest = json(path, 'manifest.json');
-      final modules = manifest['modules']! as Map<String, Object?>;
-      List<int> listing(Map<String, Object?> extra) => utf8.encode(jsonEncode({...manifest, 'modules': {...modules, ...extra}}));
+      final (:fields, :modules) = cura(path);
+      List<CuraModule> plus(CuraModule extra) => [...modules.where((m) => m.id != extra.id), extra];
 
-      rewrite(path, {
-        'manifest.json': listing({'harmony': {'version': 3, 'optional': true}}),
-        'modules/harmony.json': utf8.encode('{"keys":[1,2]}'),
-        'harmony/bar-1.bin': [1, 2, 3],
-      });
+      recura(path, fields, plus((id: 'harmony', version: 3, optional: true, data: {'keys': [1, 2]})));
+      rewrite(path, {'harmony/bar-1.bin': [1, 2, 3]});
       final opened = await open(path);
       expect(opened.state.edits.textEdits, {'d1': 'hello'});
       expect(opened.state.foreign.keys, ['harmony']);
       // Saved here: still there, as it came.
       final again = '${dir.path}/again.ccs';
       await ProjectFile.write(again, ProjectContents(scoreName: 'Score.musicxml', scoreBytes: Uint8List(1), state: opened.state));
-      expect(json(again, 'manifest.json')['modules'], containsPair('harmony', {'version': 3, 'optional': true}));
-      expect(json(again, 'modules/harmony.json'), {'keys': [1, 2]});
+      final kept = cura(again).modules.firstWhere((m) => m.id == 'harmony');
+      expect([kept.version, kept.optional, kept.data], [3, true, {'keys': [1, 2]}]);
       expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
 
-      for (final extra in [
-        {'harmony': {'version': 1}}, // a module of a newer version, needed
-        {'sync': {'version': 99}}, // a newer version of one known here
+      for (final extra in <CuraModule>[
+        (id: 'harmony', version: 1, optional: false, data: {}), // a module of a newer version, needed
+        (id: 'sync', version: 99, optional: false, data: {}), // a newer version of one known here
       ]) {
-        rewrite(path, {'manifest.json': listing(extra)});
+        recura(path, fields, plus(extra));
         await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
       }
+      // So is a file of a later layout.
+      recura(path, {...fields, 'layout': 4}, modules);
+      await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
     }
 
     // A project keeps its kind in the manifest; one without a kind is its score's.
@@ -435,8 +523,8 @@ void main() {
       final path = '${dir.path}/kind.ccs';
       await ProjectFile.write(path, ProjectContents(
           scoreName: 'Score.pdf', scoreBytes: Uint8List(1), state: const ProjectState(kind: ProjectKind.pdf)));
-      final manifest = json(path, 'manifest.json');
-      expect(manifest['kind'], 'pdf');
+      final (:fields, :modules) = cura(path);
+      expect(fields['kind'], 'pdf');
       expect((await open(path)).state.kind, ProjectKind.pdf);
       // Carried to its score read again (Edit… done), it is still a PDF's.
       const none = ScoreMetadata(title: '', parts: [], tempo: null, activeMeasures: {});
@@ -445,11 +533,11 @@ void main() {
       expect(carried.state.kind, ProjectKind.pdf);
 
       for (final kind in [null, 'tablature']) { // older than kinds; a newer Curator's kind
-        rewrite(path, {'manifest.json': utf8.encode(jsonEncode({...manifest..remove('kind'), 'kind': ?kind}))});
+        recura(path, {...fields..remove('kind'), 'kind': ?kind}, modules);
         expect((await open(path)).state.kind, ProjectKind.score);
       }
       await ProjectFile.write(path, contents());
-      expect(json(path, 'manifest.json')['kind'], 'score');
+      expect(cura(path).fields['kind'], 'score');
     }
 
     // A MIDI file is a project of its own kind: its notes in rows, in the MIDI view, playing by
@@ -494,8 +582,8 @@ void main() {
 
       final path = '${dir.path}/duet.ccs';
       await doc.save(path);
-      expect(json(path, 'manifest.json')['kind'], 'midi');
-      expect(json(path, 'modules/midi.json'), {'look': look.toJson()});
+      expect(cura(path).fields['kind'], 'midi');
+      expect(jsonEncode(module(path, 'midi')), jsonEncode({'look': look.toJson()}));
       final again = EditorController(vsync: const TestVSync());
       final opened = ProjectDocument(again, AppSettings.memory()..autosave = Duration.zero);
       addTearDown(() {
@@ -510,7 +598,7 @@ void main() {
       final (score, scoreDoc) = await demo();
       final scorePath = '${dir.path}/score.ccs';
       await scoreDoc.save(scorePath);
-      expect(json(scorePath, 'modules/midi.json'), isEmpty);
+      expect(module(scorePath, 'midi'), isEmpty);
       await scoreDoc.replaceScore(await scoreDoc.prepareReplacementWith('duet.mid', duetMidi, midi: true));
       expect((score.isMidi, score.score!.isRoll, score.score!.metadata.parts.length), (true, true, 2));
     }
@@ -528,28 +616,61 @@ void main() {
           ('Melody', 5, true, 'Untitled.musicxml')); // 4 bars and the end
       final path = '${dir.path}/Untitled.ccs';
       await doc.save(path);
-      expect((doc.isDirty, json(path, 'manifest.json')['kind']), (false, 'score'));
+      expect((doc.isDirty, cura(path).fields['kind']), (false, 'score'));
     }
 
-    // A damaged module says where.
+    // A damaged module says where; CuraScript that doesn't read, its line. As a hand edit may
+    // leave it (Windows' line ends, a byte order mark, tabs to indent, a comment among the
+    // fields), it reads the same.
     {
       final path = '${dir.path}/damaged.ccs';
       await ProjectFile.write(path, contents());
-      rewrite(path, {'modules/sync.json': utf8.encode('{"anchors":[[1,"x"]]}')});
+      final (:fields, :modules) = cura(path);
+      final written = CuraData.write(fields, modules: modules);
+      final edited = '﻿${written.replaceAllMapped(RegExp(r'^((?:  )+)', multiLine: true), (m) => '\t' * (m[1]!.length ~/ 2))}'
+          .replaceFirst('\nmodule texts', '\n  # The texts changed.\nmodule texts')
+          .replaceAll('\n', '\r\n');
+      expect(edited, contains('\r\n\t\td1 "hello"\r\n'));
+      expect(jsonEncode([CuraData.read(edited).fields, [for (final m in CuraData.read(edited).modules) [m.id, m.version, m.optional, m.data]]]),
+          jsonEncode([fields, [for (final m in modules) [m.id, m.version, m.optional, m.data]]]));
+      rewrite(path, {'project.cura': utf8.encode(edited)});
+      expect((await open(path)).state.edits.textEdits, {'d1': 'hello'});
+      recura(path, fields, [
+        for (final m in modules) m.id == 'sync' ? (id: 'sync', version: 1, optional: false, data: {'anchors': [[1, 'x']]}) : m,
+      ]);
       await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('sync.anchors[0]'))));
+      final lines = CuraData.write(fields, modules: modules).split('\n');
+      final at = lines.indexWhere((l) => l.trimLeft().startsWith('leadIn '));
+      lines[at] = '  leadIn zero';
+      rewrite(path, {'project.cura': utf8.encode(lines.join('\n'))});
+      await expectLater(
+          open(path),
+          throwsA(isA<FormatException>()
+              .having((e) => e.message, 'message', 'The project is damaged: project.cura, line ${at + 1}: “zero” isn’t a value: text goes in quotes.')));
     }
 
-    // Settings files are in modules too; one saved before modules still imports, and exports in modules.
+    // Settings files are in CuraScript too; one saved before modules still imports, and exports in CuraScript.
     {
       final path = '${dir.path}/look.ccf';
       const settings = EditState(barNumbers: false, colorNames: true, transition: 0.8, extensions: {'captions': true});
       await SettingsFile.write(path, settings);
       expect(json(path, 'settings.json'), {'format': SettingsFile.mimeType, 'version': LegacyProject.lastVersion + 1});
-      expect((json(path, 'manifest.json')['modules']! as Map).keys, [for (final m in ProjectModules.settings) m.id]);
+      expect([for (final m in cura(path, 'settings.cura').modules) m.id], [for (final m in ProjectModules.settings) m.id]);
       final (settings: read, :olderFormat) = await SettingsFile.read(path);
       expect(olderFormat, isFalse);
       expect((read.barNumbers, read.colorNames, read.transition), (false, true, 0.8));
       expect(read.extensions, {'captions': true});
+    }
+    {
+      // One of Curator 0.7 to 0.11.0-beta1, its modules in JSON.
+      final path = '${dir.path}/json.ccf';
+      File(path).writeAsBytesSync(ZipEncoder().encodeBytes(Archive()
+        ..add(ArchiveFile.string('mimetype', SettingsFile.mimeType))
+        ..add(ArchiveFile.string('settings.json', jsonEncode({'format': SettingsFile.mimeType, 'version': LegacyProject.lastVersion + 1})))
+        ..add(ArchiveFile.string('manifest.json', jsonEncode({'format': SettingsFile.mimeType, 'layout': 2, 'modules': {'display': {'version': 1}}})))
+        ..add(ArchiveFile.string('modules/display.json', jsonEncode({'barNumbers': false, 'transition': 0.8})))));
+      final (:settings, :olderFormat) = await SettingsFile.read(path);
+      expect([olderFormat, settings.barNumbers, settings.transition], [true, false, 0.8]);
     }
     {
       final path = '${dir.path}/old.ccf';
@@ -591,7 +712,7 @@ void main() {
 
       await doc.save();
       expect(doc.isOlderFormat, isFalse);
-      expect(json(path, 'manifest.json')['format'], ProjectFile.mimeType);
+      expect(cura(path).fields['format'], ProjectFile.mimeType);
       await doc.open(path);
       expect(doc.isOlderFormat, isFalse);
       expect(jsonEncode(ProjectModules.toJson(c.projectState)), before);

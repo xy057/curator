@@ -14,11 +14,13 @@ import 'project_state.dart';
 /// ([ProjectModules.settings]: fonts, with an added music font's file, engraving, display,
 /// extensions), as [of] leaves them: what a page of Project Settings sets for the whole score,
 /// not for one instrument (brackets, groups' members, pairs), which another score's differ in.
-/// One saved before modules ([LegacyProject]) has them in settings.json, as a project's `state`.
+/// Kept in settings.cura, in CuraScript; one saved by Curator 0.7 to 0.11.0-beta1 has its modules in JSON,
+/// and one saved before modules ([LegacyProject]) has them in settings.json, as a project's `state`.
 abstract final class SettingsFile {
   static const extension = 'ccf';
   static const mimeType = 'application/x-curator-settings';
 
+  static const _stub = 'settings.json';
   static const _notOurs = 'That doesn’t look like a Curator settings file.';
   static const _newer = 'These settings are from a newer Curator. Update to import them!';
 
@@ -47,14 +49,15 @@ abstract final class SettingsFile {
   /// Writes [settings] ([of] them), built beside [path] and moved into place at the end.
   static Future<void> write(String path, EditState settings) => Isolate.run(() => _write(path, of(settings)));
 
-  /// Reads a settings file: its settings ([of]), and whether it was saved before modules
-  /// ([LegacyProject]: Curator 0.6.1 and before; it is never written so). Throws a
-  /// [FormatException] saying what is wrong.
+  /// Reads a settings file: its settings ([of]), and whether it was saved in an older format,
+  /// before modules ([LegacyProject]: Curator 0.6.1 and before) or with its modules in JSON
+  /// (Curator 0.7 to 0.11.0-beta1); it is never written so. Throws a [FormatException] saying what is
+  /// wrong.
   static Future<({EditState settings, bool olderFormat})> read(String path) => Isolate.run(() => _read(path));
 
   static void _write(String path, EditState settings) {
     ProjectArchive.writeFile(path,
-        (zip, _) => ProjectArchive.write(zip, ProjectState(edits: settings), mimeType: mimeType, stub: 'settings.json', modules: ProjectModules.settings));
+        (zip, _) => ProjectArchive.write(zip, ProjectState(edits: settings), mimeType: mimeType, stub: _stub, modules: ProjectModules.settings));
   }
 
   static ({EditState settings, bool olderFormat}) _read(String path) {
@@ -68,10 +71,11 @@ abstract final class SettingsFile {
       }
       try {
         if (ProjectArchive.isModular(archive)) {
-          final manifest = ProjectArchive.manifestOf(archive, mimeType: mimeType, notOurs: _notOurs, newer: _newer);
-          return (settings: of(ProjectArchive.read(archive, manifest, ProjectModules.settings, newer: _newer, keepForeign: false).edits), olderFormat: false);
+          final opened = ProjectArchive.open(archive, mimeType: mimeType, stub: _stub, notOurs: _notOurs, newer: _newer);
+          final settings = ProjectArchive.read(opened, ProjectModules.settings, newer: _newer, keepForeign: false).edits;
+          return (settings: of(settings), olderFormat: opened.isOlder);
         }
-        final manifestFile = archive.findFile('settings.json');
+        final manifestFile = archive.findFile(_stub);
         if (manifestFile == null) throw const FormatException(_notOurs);
         final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'settings');
         if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);

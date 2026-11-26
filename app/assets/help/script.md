@@ -1,7 +1,7 @@
 # Curating by script
 
 The Instruments tab's Script shows a script in the lanes' place (its button is added to the
-tab's bar with View ▸ Customize Toolbar…). A script says when each lane is shown, a statement a line. Run (⌘R) does them all as one Undo
+tab's bar with View ▸ Customize Toolbar…). A script, in CuraScript, Curator's own language, says when each lane is shown, a statement a line. Run (⌘R) does them all as one Undo
 step, and what they do is what the tab's tools do: `show` is Draw, `hide` is Erase, `auto` is
 Auto-Curate. What is wrong with a script is listed under it with its line, and then nothing
 is changed.
@@ -48,6 +48,9 @@ from, and a way to take one project's lanes to another. The script is kept with 
 - Statements run in order, each on what the one before left: `clear` first starts from nothing.
 - A script can set the Audio tab's anchors too: `align` is its Align. It listens to the recording
   first, which takes a while (the Audio tab's Align shows how far it has got), and then runs.
+- A project is kept in CuraScript too: a .ccs is a zip, and its `project.cura` holds all of the
+  project but its files (the score, the recordings, pictures), a field a line, what is in a
+  field indented under it.
 
 ## Macros
 
