@@ -209,10 +209,12 @@ abstract final class ProjectArchive {
     // Each module's own files, by its id: their folder (`images/…`), found in one pass.
     Map<String, List<ArchiveFile>>? filesOf;
     for (final MapEntry(key: id, value: listed) in listing.modules.entries) {
+      // (Never a newer Curator's: every Curator names its modules so.)
+      if (!_isModuleId(id)) throw FormatException('The project is damaged: “$id” isn’t a module’s name.');
       final module = known[id];
       if (module == null || listed.version > module.version) {
         if (!listed.optional) throw FormatException(newer);
-        if (keepForeign && _isModuleId(id) && CuraData.isVersion(listed.version) && (listed.data != null || listed.file != null)) {
+        if (keepForeign && CuraData.isVersion(listed.version) && (listed.data != null || listed.file != null)) {
           if (listed.data ?? kept(listed.file!) case final Map<String, Object?> data) {
             filesOf ??= _byFolder(archive);
             foreign[id] = ForeignModule(version: listed.version, json: data, files: {

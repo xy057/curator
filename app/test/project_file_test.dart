@@ -754,6 +754,9 @@ void main() {
         for (final m in modules) m.id == 'sync' ? (id: 'sync', version: 1, optional: false, data: {'anchors': [[1, 'x']]}) : m,
       ]);
       await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('sync.anchors[0]'))));
+      // A module whose name can't be one's is damage, not a newer Curator's, optional or not.
+      recura(path, fields, [...modules, (id: 'Harmony', version: 1, optional: true, data: {})]);
+      await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', 'The project is damaged: “Harmony” isn’t a module’s name.')));
       final lines = CuraData.write(fields, modules: modules).split('\n');
       final at = lines.indexWhere((l) => l.trimLeft().startsWith('leadIn '));
       lines[at] = '  leadIn zero';

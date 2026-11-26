@@ -106,8 +106,7 @@ quoted   = '"' { character | \" | \\ | \n | \r | \t | \u{hex} } '"'      (hex: 1
   it fits); any other a double. One past a double's range doesn't read.
 - A name appears once among its fields; a module once in its file.
 - Fields and lists may be 256 deep at most, a file's own fields or a module's the first. A
-  module's version is a whole number of nine digits at most. Its id is `[a-z][a-z0-9-]{0,63}`,
-  never `score`, `media` or `modules`.
+  module's version is a whole number of nine digits at most.
 
 What doesn't read says its line ("The project is damaged: project.cura, line 12: …").
 
@@ -161,7 +160,8 @@ score-wide ones. (`app/test/in_step_test.dart` checks this table is `ProjectModu
 
 ## Reading
 
-For each module in the file, in its order:
+A module's id is `[a-z][a-z0-9-]{0,63}`, never `score`, `media` or `modules`: every Curator names
+its modules so, and a file with any other is damaged. For each module in the file, in its order:
 
 - One this Curator knows, of its version or before: its data is brought up to this version, a
   step a version (`ProjectModule.upgrade`, `migrations`), and read, every field checked. A damaged
