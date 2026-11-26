@@ -202,16 +202,26 @@ std::string LinkClient::followers ()
 
 int LinkClient::listen (std::function<void (const Message&)> handler)
 {
+    auto kept = std::make_shared<const Handler> (std::move (handler));
     std::lock_guard<std::mutex> lock (handlersMutex_);
     const int id = nextHandler_++;
-    handlers_[id] = std::move (handler);
+    handlers_[id] = std::move (kept);
     return id;
 }
 
 void LinkClient::unlisten (int id)
 {
-    std::lock_guard<std::mutex> lock (handlersMutex_);
-    handlers_.erase (id);
+    std::shared_ptr<const Handler> gone;  // let go of once the lock is (it may hold anything)
+    std::unique_lock<std::mutex> lock (handlersMutex_);
+    if (const auto found = handlers_.find (id); found != handlers_.end ())
+    {
+        gone = std::move (found->second);
+        handlers_.erase (found);
+    }
+    // Inside a handler, on the connection's thread, the call under way is this one's caller (or
+    // none is of [id]): waiting would be waiting on itself.
+    if (std::this_thread::get_id () != thread_.get_id ())
+        handlerDone_.wait (lock, [&] { return calling_ != id; });
 }
 
 std::string LinkClient::transportMessage ()
@@ -287,9 +297,30 @@ void LinkClient::disconnect ()
 
 void LinkClient::deliver (const Message& message)
 {
-    std::lock_guard<std::mutex> lock (handlersMutex_);
-    for (auto& handler : handlers_)
-        handler.second (message);
+    // The handlers as they are now, in the order they came (by ID), each called with no lock
+    // held: a handler asks the DAW, which may wait on its main thread, and a DAW closes a
+    // document or an instance there (unlisten). One let go of before its turn isn't called; one
+    // let go of during its call, from another thread, is waited for there.
+    std::vector<std::pair<int, std::shared_ptr<const Handler>>> now;
+    {
+        std::lock_guard<std::mutex> lock (handlersMutex_);
+        now.assign (handlers_.begin (), handlers_.end ());
+    }
+    for (const auto& [id, handler] : now)
+    {
+        {
+            std::lock_guard<std::mutex> lock (handlersMutex_);
+            if (!handlers_.count (id))
+                continue;
+            calling_ = id;
+        }
+        (*handler) (message);
+        {
+            std::lock_guard<std::mutex> lock (handlersMutex_);
+            calling_ = 0;
+        }
+        handlerDone_.notify_all ();
+    }
 }
 
 bool LinkClient::sendLine (const std::string& line)

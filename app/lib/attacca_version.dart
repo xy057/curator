@@ -5,4 +5,4 @@
 /// Attacca from before had Curator's build for its version, all lower.) The Makefile reads it
 /// from here for the plug-in, and `make versions` fails when daw_link/ changed since
 /// `make attacca-seal` (which goes with raising it).
-const attaccaVersion = 630;
+const attaccaVersion = 631;

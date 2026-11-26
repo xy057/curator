@@ -8,6 +8,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -66,7 +67,11 @@ public:
 
     // Calls [handler] with each message Curator sends, on the connection's thread, and with
     // {t: "disconnected"} when the connection ends (what Curator asked is no longer awaited).
-    // After unlisten returns, the handler isn't running and won't be called again.
+    // No lock is held while it runs: it may ask the DAW (which may wait on its main thread,
+    // where a document or an instance is being closed and lets go of its own), listen, send, or
+    // let go of itself or another. After unlisten returns the handler isn't called again; on any
+    // other thread it waits for a call under way to end (so its owner may go), on the
+    // connection's own (from inside a handler) it doesn't, the call going on.
     int listen (std::function<void (const Message&)> handler);
     void unlisten (int id);
 
@@ -105,7 +110,8 @@ private:
     void disconnect ();
     bool sendLine (const std::string& line);
     void receive ();
-    // [message] to every handler, under [handlersMutex_] (never with [mutex_] held).
+    // [message] to every handler there is as it comes, with no lock held (see listen); one let
+    // go of meanwhile is passed over. On the connection's thread alone.
     void deliver (const Message& message);
     std::string transportMessage ();
 
@@ -128,9 +134,14 @@ private:
     std::deque<std::string> outbox_;
     std::string inbox_;
 
+    // The handlers by ID (never one again), each kept alive by the delivery calling it, should it
+    // be let go of meanwhile; and the one being called now (0: none), which unlisten waits for.
+    using Handler = std::function<void (const Message&)>;
     std::mutex handlersMutex_;
-    std::map<int, std::function<void (const Message&)>> handlers_;
+    std::condition_variable handlerDone_;
+    std::map<int, std::shared_ptr<const Handler>> handlers_;
     int nextHandler_ { 1 };
+    int calling_ { 0 };
 
     std::atomic<bool> playing_ { false };
     std::atomic<double> seconds_ { 0 };
