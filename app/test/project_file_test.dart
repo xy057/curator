@@ -596,9 +596,20 @@ void main() {
         recura(path, fields, plus(extra));
         await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
       }
-      // So is a file of a later layout.
+      // So is a file of a later layout, whatever it keeps beside the stubs.
       recura(path, {...fields, 'layout': 4}, modules);
       await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
+      rewrite(path, {'manifest.json': utf8.encode(jsonEncode({'format': ProjectFile.mimeType, 'layout': 4})), 'project.cura': null});
+      await expectLater(open(path), throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('newer Curator'))));
+
+      // A module keeps its files under its own folder, where a Curator that keeps it unread
+      // keeps them with it; its steps up are from its versions before its own.
+      expect(
+          () => ProjectArchive.write(ZipEncoder(), const ProjectState(), mimeType: ProjectFile.mimeType, stub: ProjectFile.stub, modules: const [_Stray()]),
+          throwsStateError);
+      for (final m in ProjectModules.all) {
+        expect(m.migrations.keys.where((v) => v < 1 || v >= m.version), isEmpty, reason: m.id);
+      }
     }
 
     // A project keeps its kind in the manifest; one without a kind is its score's.
@@ -801,4 +812,18 @@ void main() {
       expect(jsonEncode(ProjectModules.toJson(c.projectState)), before);
     }
   });
+}
+
+/// A module whose file is outside its folder.
+final class _Stray extends ProjectModule {
+  const _Stray() : super('stray');
+
+  @override
+  Map<String, Object?> write(ProjectState state, ModuleFileWriter files) {
+    files('elsewhere/a.bin', Uint8List(1));
+    return const {};
+  }
+
+  @override
+  ProjectState read(JsonReader json, ProjectState state, ModuleFileReader files) => state;
 }

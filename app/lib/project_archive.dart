@@ -25,23 +25,25 @@ import 'updater.dart' show appReleaseBuild;
 ///     <id>/…             a module's own files (images/<id>, fonts/<name>.font)
 ///     …                  the kind of file's own (a project's score/ and media/)
 ///
-/// A file of layout 2 (Curator 0.7 to 0.11.0-beta1) has its manifest in manifest.json and each module
-/// as compact JSON, `modules/<id>.json`: it is read as it is, and saved again in CuraScript. One
-/// older than that ([LegacyProject]) has no manifest: its stub was all there was.
+/// [load] reads every layout a Curator has written, and [write] writes only the newest
+/// (docs/project-format.md has them all, and the rules that keep them readable).
 abstract final class ProjectArchive {
-  /// The layout's version: changed only when the archive's own shape does, never for a
-  /// module's ([ProjectModule.version]). 3: the file in CuraScript.
+  /// The layout's version: changed only when the archive's own shape does (or CuraScript's
+  /// notation, which an older build would read as damage), never for a module's
+  /// ([ProjectModule.version]). 1: before modules, the stub all there was ([LegacyProject]);
+  /// 2: Curator 0.7 to 0.11.0-beta1's, its manifest in manifest.json, each module in JSON,
+  /// `modules/<id>.json`; 3: the file in CuraScript.
   static const layout = 3;
 
-  /// What [stub] says its format is.
+  /// What the stub says its format is: one past the last a file of layout 1 has.
   static const stubVersion = LegacyProject.lastVersion + 1;
-  static const manifestEntry = 'manifest.json';
+  static const _manifest = 'manifest.json';
 
-  /// The most a layout 2 file's manifest, or one of its modules' JSON, may unpack to; the most
-  /// a file in CuraScript may; and modules this build can't read, with their files, together.
-  /// What a project unpacks is counted as it comes ([ZipEntries]): a damaged or hostile file
-  /// can't fill the memory or the disk.
-  static const maxJsonBytes = 64 << 20, maxDocumentBytes = 128 << 20, maxForeignBytes = 256 << 20;
+  /// The most a stub, a layout 2 manifest or module's JSON may unpack to; the most a file in
+  /// CuraScript may; and modules this build can't read, with their files, together. What a
+  /// project unpacks is counted as it comes ([ZipEntries]): a damaged or hostile file can't
+  /// fill the memory or the disk.
+  static const _maxJsonBytes = 64 << 20, _maxDocumentBytes = 128 << 20, _maxForeignBytes = 256 << 20;
 
   /// Which Curator wrote a file: for a later one to tell, should a build ever save something wrong.
   static const writer = 'Curator $appReleaseBuild';
@@ -55,6 +57,12 @@ abstract final class ProjectArchive {
   /// Ids a module may have: not a folder the archive keeps for itself.
   static bool _isModuleId(String id) =>
       RegExp(r'^[a-z][a-z0-9-]{0,63}$').hasMatch(id) && !const {'score', 'media', 'modules'}.contains(id);
+
+  /// [entry], one of module [id]'s files: under `<id>/`, where a Curator that keeps the module
+  /// unread keeps them with it ([ForeignModule]); anywhere else one would be lost there, or be
+  /// taken for another's.
+  static String _own(String id, String entry) =>
+      entry.length > id.length + 1 && entry.startsWith('$id/') ? entry : throw StateError('The $id module’s file $entry is not under $id/.');
 
   /// Writes a zip at [path] by [body], without ever leaving half a file there: into
   /// `<path>.saving`, then moved in. [body] adds the entries, and the files it opens to read
@@ -102,18 +110,19 @@ abstract final class ProjectArchive {
   }
 
   /// Adds the mimetype, the stubs (`project.json`, `manifest.json`) older Curators read, and the
-  /// file in CuraScript: what it is, [manifest]'s fields (a project's score and media), and
-  /// [state] as [modules] write it, with their files. [state]'s foreign modules go in as they
-  /// came.
+  /// file in CuraScript: what it is, [fields] (a project's score and media), and [state] as
+  /// [modules] write it, with their files. [state]'s foreign modules go in as they came.
   static void write(ZipEncoder zip, ProjectState state,
-      {required String mimeType, required String stub, required List<ProjectModule> modules, Map<String, Object?> manifest = const {}}) {
+      {required String mimeType, required String stub, required List<ProjectModule> modules, Map<String, Object?> fields = const {}}) {
     final files = <ArchiveFile>[];
     void addFile(String entry, Uint8List bytes, {bool compress = true}) =>
         files.add(ArchiveFile.bytes(entry, bytes)..compression = compress ? CompressionType.deflate : CompressionType.none);
     final written = <CuraModule>[];
     for (final m in modules) {
+      if (!_isModuleId(m.id)) throw StateError('${m.id} is not a module’s id.');
       if (state.foreign.containsKey(m.id)) continue; // a newer version's, kept (below)
-      written.add((id: m.id, version: m.version, optional: m.optional, data: m.write(state, addFile)));
+      final data = m.write(state, (entry, bytes, {compress = true}) => addFile(_own(m.id, entry), bytes, compress: compress));
+      written.add((id: m.id, version: m.version, optional: m.optional, data: data));
     }
     for (final MapEntry(key: id, value: f) in state.foreign.entries) {
       written.add((id: id, version: f.version, optional: true, data: f.json));
@@ -122,78 +131,51 @@ abstract final class ProjectArchive {
       }
     }
     final document = CuraData.write(
-      {'format': mimeType, 'layout': layout, 'writer': writer, ...manifest},
+      {'format': mimeType, 'layout': layout, 'writer': writer, ...fields},
       modules: written,
       heading: const ['Written by Curator, in CuraScript: what the file is, then each of its modules.'],
     );
     zip.add(ArchiveFile.noCompress('mimetype', mimeType.length, ascii.encode(mimeType)));
     zip.add(ArchiveFile.string(stub, jsonEncode({'format': mimeType, 'version': stubVersion})));
-    zip.add(ArchiveFile.string(manifestEntry, jsonEncode({'format': mimeType, 'layout': layout})));
+    zip.add(ArchiveFile.string(_manifest, jsonEncode({'format': mimeType, 'layout': layout})));
     zip.add(ArchiveFile.bytes(documentOf(stub), utf8.encode(document)));
     files.forEach(zip.add);
   }
 
-  /// Whether [archive] is in this layout, or layout 2; if not, it is older ([readLegacy]) or not
-  /// Curator's.
-  static bool isModular(Archive archive) => archive.findFile(manifestEntry) != null;
-
-  /// [archive] opened: of [mimeType]'s kind (else [notOurs]), in a layout this build reads (else
-  /// [newer]), its fields and its modules listed, from its file in CuraScript ([documentOf]
-  /// [stub]) or, for layout 2, its manifest.json.
-  static OpenedArchive open(Archive archive,
-      {required String mimeType, required String stub, required String notOurs, required String newer}) {
-    final Object? json;
-    try {
-      json = jsonDecode(utf8.decode(ZipEntries.read(archive.findFile(manifestEntry)!, limit: maxJsonBytes)));
-    } on FormatException {
-      throw FormatException(notOurs);
-    }
-    if (json is! Map || json['format'] != mimeType) throw FormatException(notOurs);
-    final stubbed = JsonReader(json, 'manifest');
-    final layout = stubbed.number('layout')?.toInt() ?? 0;
-    if (layout > ProjectArchive.layout) throw FormatException(newer);
-    if (layout < 3) {
-      final listed = stubbed.child('modules');
-      return OpenedArchive._(archive, stubbed, layout, {
-        for (final id in stubbed.map('modules').keys)
-          id: (
-            version: listed.child(id).number('version', required: true)!.toInt(),
-            optional: listed.child(id).boolean('optional') == true,
-            data: null,
-            file: archive.findFile('modules/$id.json'),
-          ),
-      });
-    }
-
-    final name = documentOf(stub);
-    final file = archive.findFile(name) ?? (throw FormatException('The project is damaged: $name is missing.'));
-    // (Too big is said as ZipEntries says it, in the interface's language; not as damage.)
-    final bytes = ZipEntries.read(file, limit: maxDocumentBytes);
-    final CuraDocument document;
-    try {
-      document = CuraData.read(utf8.decode(bytes));
-    } on FormatException catch (e) {
-      throw FormatException('The project is damaged: $name, ${e.message}');
-    }
-    final fields = JsonReader(document.fields, _nameOf(stub));
-    if (fields.string('format') != mimeType) throw FormatException(notOurs);
-    if ((fields.number('layout') ?? 0) > ProjectArchive.layout) throw FormatException(newer);
-    return OpenedArchive._(archive, fields, layout, {
-      for (final m in document.modules) m.id: (version: m.version, optional: m.optional, data: m.data, file: null),
-    });
-  }
-
-  /// The state [opened]'s modules hold, read by [modules]. A module this build can't read
-  /// (unknown, or a newer version of one) stops it ([newer]), unless the file says it may go
-  /// unread: then it is kept as it came ([ProjectState.foreign]) when [keepForeign].
-  static ProjectState read(OpenedArchive opened, List<ProjectModule> modules, {required String newer, bool keepForeign = true}) {
-    final archive = opened.archive;
+  /// [archive] read, in whichever layout a Curator wrote it: of [mimeType]'s kind (else
+  /// [notOurs]) and a layout this build reads (else [newer]). Its [fields] besides its modules
+  /// (a project's kind, score and recordings), its [state] as [modules] read it, and its
+  /// [layout] (one before this build's: a save writes it anew, which the build that wrote it
+  /// can't read).
+  ///
+  /// Each module's data is brought from the version it was written in to the one here
+  /// ([ProjectModule.upgrade]). A module this build can't read (unknown, or a newer version of
+  /// one) stops it ([newer]), unless the file says it may go unread: then it is kept as it came
+  /// ([ProjectState.foreign]) when [keepForeign]. Throws a [FormatException] saying what is wrong.
+  static ({JsonReader fields, ProjectState state, int layout}) load(Archive archive,
+      {required String mimeType,
+      required String stub,
+      required List<ProjectModule> modules,
+      required String notOurs,
+      required String newer,
+      bool keepForeign = true}) {
     final known = {for (final m in modules) m.id: m};
+    final _Listing listing;
+    if (archive.findFile(_manifest) case final manifest?) {
+      final stubbed = _json(manifest, 'manifest', notOurs: notOurs);
+      if (stubbed.string('format') != mimeType) throw FormatException(notOurs);
+      final layout = stubbed.number('layout')?.toInt() ?? 0;
+      if (layout > ProjectArchive.layout) throw FormatException(newer);
+      listing = layout < 3 ? _layout2(archive, stubbed) : _layout3(archive, stub, mimeType: mimeType, notOurs: notOurs, newer: newer);
+    } else {
+      listing = _layout1(archive, stub, known, mimeType: mimeType, notOurs: notOurs, newer: newer);
+    }
+
     final jsons = <String, Object?>{};
     final foreign = <String, ForeignModule>{};
     var foreignBytes = 0;
     Uint8List take(ArchiveFile file) {
-      final bytes = ZipEntries.read(file, limit: maxForeignBytes - foreignBytes);
+      final bytes = ZipEntries.read(file, limit: _maxForeignBytes - foreignBytes);
       foreignBytes += bytes.length;
       return bytes;
     }
@@ -201,7 +183,7 @@ abstract final class ProjectArchive {
     // A layout 2 module's JSON (too big said as such, not as JSON that isn't).
     Object? decoded(String id, ArchiveFile? file) {
       if (file == null) throw FormatException('The project is damaged: modules/$id.json is missing.');
-      final bytes = ZipEntries.read(file, limit: maxJsonBytes);
+      final bytes = ZipEntries.read(file, limit: _maxJsonBytes);
       try {
         return jsonDecode(utf8.decode(bytes));
       } on FormatException {
@@ -226,7 +208,7 @@ abstract final class ProjectArchive {
 
     // Each module's own files, by its id: their folder (`images/…`), found in one pass.
     Map<String, List<ArchiveFile>>? filesOf;
-    for (final MapEntry(key: id, value: listed) in opened._modules.entries) {
+    for (final MapEntry(key: id, value: listed) in listing.modules.entries) {
       final module = known[id];
       if (module == null || listed.version > module.version) {
         if (!listed.optional) throw FormatException(newer);
@@ -240,13 +222,92 @@ abstract final class ProjectArchive {
         }
         continue;
       }
-      var json = listed.data ?? decoded(id, listed.file);
-      for (var v = listed.version.clamp(1, module.version); v < module.version; v++) {
-        if ((module.migrations[v], json) case (final migrate?, final Map<String, Object?> j)) json = migrate(j);
-      }
-      jsons[id] = json;
+      jsons[id] = module.upgrade(listed.data ?? decoded(id, listed.file), listed.version);
     }
-    return _decode(archive, jsons, modules).copyWith(foreign: foreign);
+
+    var state = const ProjectState();
+    for (final m in modules) {
+      state = m.read(JsonReader(jsons[m.id], m.id), state, (entry, {required limit}) => switch (archive.findFile(_own(m.id, entry))) {
+            final f? when f.isFile => ZipEntries.read(f, limit: limit),
+            _ => null,
+          });
+    }
+    return (fields: listing.fields, state: state.copyWith(foreign: foreign), layout: listing.layout);
+  }
+
+  /// Layout 1, before modules ([LegacyProject]: Curator 0.6.1 and before): the stub held all of
+  /// it, its edits in one `state`, dealt out here to the modules that hold them now ([known]'s),
+  /// each in its first version.
+  static _Listing _layout1(Archive archive, String stub, Map<String, ProjectModule> known,
+      {required String mimeType, required String notOurs, required String newer}) {
+    final fields = _json(archive.findFile(stub) ?? (throw FormatException(notOurs)), _nameOf(stub), notOurs: notOurs);
+    if (fields.string('format') != mimeType) throw FormatException(notOurs);
+    // One past the last format with no manifest beside it is a later layout's, its manifest lost.
+    final version = fields.number('version')?.toInt() ?? 0;
+    if (version > LegacyProject.lastVersion) throw FormatException(newer);
+    return (
+      fields: fields,
+      layout: 1,
+      modules: {
+        for (final MapEntry(key: id, value: data) in LegacyProject.modules(fields.map('state'), version).entries)
+          if (known.containsKey(id)) id: (version: LegacyProject.moduleVersion, optional: false, data: data, file: null),
+      },
+    );
+  }
+
+  /// Layout 2 (Curator 0.7 to 0.11.0-beta1): [manifest] has the fields and lists the modules,
+  /// each one's version and whether it may go unread; each one's data is `modules/<id>.json`,
+  /// read when it is wanted.
+  static _Listing _layout2(Archive archive, JsonReader manifest) {
+    final listed = manifest.child('modules');
+    return (
+      fields: manifest,
+      layout: 2,
+      modules: {
+        for (final id in manifest.map('modules').keys)
+          id: (
+            version: listed.child(id).number('version', required: true)!.toInt(),
+            optional: listed.child(id).boolean('optional') == true,
+            data: null,
+            file: archive.findFile('modules/$id.json'),
+          ),
+      },
+    );
+  }
+
+  /// Layout 3: the file in CuraScript ([documentOf] [stub]) has the fields, then the modules.
+  static _Listing _layout3(Archive archive, String stub, {required String mimeType, required String notOurs, required String newer}) {
+    final name = documentOf(stub);
+    final file = archive.findFile(name) ?? (throw FormatException('The project is damaged: $name is missing.'));
+    // (Too big is said as ZipEntries says it, in the interface's language; not as damage.)
+    final bytes = ZipEntries.read(file, limit: _maxDocumentBytes);
+    final CuraDocument document;
+    try {
+      document = CuraData.read(utf8.decode(bytes));
+    } on FormatException catch (e) {
+      throw FormatException('The project is damaged: $name, ${e.message}');
+    }
+    final fields = JsonReader(document.fields, _nameOf(stub));
+    if (fields.string('format') != mimeType) throw FormatException(notOurs);
+    if ((fields.number('layout') ?? 0) > layout) throw FormatException(newer);
+    return (
+      fields: fields,
+      layout: 3,
+      modules: {
+        for (final m in document.modules) m.id: (version: m.version, optional: m.optional, data: m.data, file: null),
+      },
+    );
+  }
+
+  /// [file]'s JSON object, [where] its name in a message; [notOurs] for anything else.
+  static JsonReader _json(ArchiveFile file, String where, {required String notOurs}) {
+    final bytes = ZipEntries.read(file, limit: _maxJsonBytes);
+    try {
+      if (jsonDecode(utf8.decode(bytes)) case final Map<String, Object?> json) return JsonReader(json, where);
+    } on FormatException {
+      // (Below.)
+    }
+    throw FormatException(notOurs);
   }
 
   /// [archive]'s files by the folder they are in (`images/a.png` in `images`); none at the top.
@@ -258,46 +319,13 @@ abstract final class ProjectArchive {
     }
     return out;
   }
-
-  /// The state in [json], a file's single `state` of format [savedVersion] ([LegacyProject]),
-  /// read by [modules].
-  static ProjectState readLegacy(Archive archive, Map<String, Object?> json, int savedVersion, List<ProjectModule> modules) {
-    if (savedVersion > LegacyProject.lastVersion) throw StateError('A modular file read as an old one.');
-    return _decode(archive, LegacyProject.modules(json, savedVersion), modules);
-  }
-
-  static ProjectState _decode(Archive archive, Map<String, Object?> jsons, List<ProjectModule> modules) {
-    Uint8List? file(String entry, {required int limit}) => switch (archive.findFile(entry)) {
-          final f? when f.isFile => ZipEntries.read(f, limit: limit),
-          _ => null,
-        };
-    var state = const ProjectState();
-    for (final m in modules) {
-      state = m.read(JsonReader(jsons[m.id], m.id), state, file);
-    }
-    return state;
-  }
 }
 
-/// A file in [ProjectArchive]'s layout, opened ([ProjectArchive.open]): what it says it is and
-/// holds besides its modules, and its modules listed.
-final class OpenedArchive {
-  OpenedArchive._(this.archive, this.manifest, this.layout, this._modules);
-
-  final Archive archive;
-
-  /// Its fields besides its modules: its kind, a project's score and recordings, named with
-  /// their entries.
-  final JsonReader manifest;
-
-  /// The layout it was written in: [ProjectArchive.layout], or 2 (Curator 0.7 to 0.11.0-beta1's, its
-  /// modules in JSON), which a save writes anew.
-  final int layout;
-
-  /// Its modules by id, in the file's order: each one's version, whether it may go unread, and
-  /// its data (in CuraScript, read) or its JSON's entry (layout 2, read when wanted).
-  final Map<String, ({int version, bool optional, Map<String, Object?>? data, ArchiveFile? file})> _modules;
-
-  /// Whether a save writes it in a layout a Curator that opened it before can't read.
-  bool get isOlder => layout < ProjectArchive.layout;
-}
+/// What a file says it is and holds besides its modules, the layout it is in, and its modules by
+/// id in the file's order: each one's version, whether it may go unread, and its data (read
+/// already) or, in layout 2, its JSON's entry (read when it is wanted).
+typedef _Listing = ({
+  JsonReader fields,
+  int layout,
+  Map<String, ({int version, bool optional, Map<String, Object?>? data, ArchiveFile? file})> modules,
+});

@@ -43,9 +43,10 @@ class LoadedPage {
 
     const damaged = 'The page’s project is damaged.';
     final archive = ZipDecoder().decodeBytes(projectBytes);
-    final opened = ProjectArchive.open(archive, mimeType: ProjectFile.mimeType, stub: ProjectFile.stub, notOurs: damaged, newer: damaged);
+    final (:fields, state: read, layout: _) = ProjectArchive.load(archive,
+        mimeType: ProjectFile.mimeType, stub: ProjectFile.stub, modules: ProjectModules.all, notOurs: damaged, newer: damaged, keepForeign: false);
     if (BundledExtensions.packages.isEmpty) await BundledExtensions.load(rootBundle); // Curator's own extensions, with the player
-    final state = checkedExtensionData(ProjectArchive.read(opened, ProjectModules.all, newer: damaged, keepForeign: false));
+    final state = checkedExtensionData(read);
     final scoreFile = archive.findFile(WebPage.scoreEntry) ?? (throw const FormatException(damaged));
     final musicXML = utf8.decode(scoreFile.content);
     final edits = state.edits;
@@ -61,7 +62,7 @@ class LoadedPage {
       await ui.loadFontFromList(bytes, fontFamily: family);
     }
     // A MIDI project's: rows of notes, each in its instrument's colour.
-    final roll = opened.manifest.string('kind') == ProjectKind.midi.name;
+    final roll = fields.string('kind') == ProjectKind.midi.name;
     final score = switch (state.pdf) {
       // A PDF score: its systems as printed, cut as in the app.
       final layout? => LoadedScore.fromPdf(PdfScoreArt(layout, _PageSystems(fetch)), WebPage.requestOf(edits, rows: false)),

@@ -22,7 +22,12 @@ abstract final class LegacyProject {
     // image formats: absent meaning none (or the app's).
   };
 
-  /// [json], a state written by format [savedVersion], as each module's JSON, by id.
+  /// The version of every module [modules] deals the state out to: the first, as Curator 0.7
+  /// wrote them; from there each is upgraded as any file's is ([ProjectModule.upgrade]).
+  static const moduleVersion = 1;
+
+  /// [json], a state written by format [savedVersion], as each module's JSON (of
+  /// [moduleVersion]), by id.
   static Map<String, Map<String, Object?>> modules(Map<String, Object?> json, int savedVersion) {
     var state = json;
     // The first format is 1: a file claiming one before it (-1e9) is read as 1, not stepped

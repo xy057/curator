@@ -16,8 +16,9 @@ typedef ModuleFileReader = Uint8List? Function(String entry, {required int limit
 /// Adds one of a module's files to a project; [compress]: whether deflating it gains anything.
 typedef ModuleFileWriter = void Function(String entry, Uint8List bytes, {bool compress});
 
-/// One part of what a project stores: `modules/<id>.json`, and its files under `<id>/`
-/// (`images/<id>`, `fonts/<name>.font`). Each module has a version of its own.
+/// One part of what a project stores: a `module` of its file in CuraScript, its data what JSON
+/// holds, and its own files, all under `<id>/` (`images/<id>`, `fonts/<name>.font`). Each module
+/// has a version of its own (docs/project-format.md).
 ///
 /// To change what a module saves: bump its [version] and add a step from the old one to
 /// [migrations], so older files still open. A Curator that doesn't know the new version refuses
@@ -26,8 +27,8 @@ typedef ModuleFileWriter = void Function(String entry, Uint8List bytes, {bool co
 abstract class ProjectModule {
   const ProjectModule(this.id, {this.version = 1, this.optional = false});
 
-  /// Its file's name (`modules/<id>.json`) and its files' folder: lower-case letters, digits and
-  /// `-`; never `score`, `media` or `modules`.
+  /// Its name in the file and its files' folder: lower-case letters, digits and `-`; never
+  /// `score`, `media` or `modules`.
   final String id;
 
   /// The version [write] writes.
@@ -37,8 +38,19 @@ abstract class ProjectModule {
   /// keep it as it is ([ForeignModule]): nothing the score shows or plays depends on it.
   final bool optional;
 
-  /// Upgrades this module's JSON written by version `n` to version `n + 1`, by `n`.
+  /// Upgrades this module's data written by version `n` to version `n + 1`, by `n` (1 to
+  /// [version] - 1); a version with no step reads its predecessor's data as it is.
   Map<int, Map<String, Object?> Function(Map<String, Object?>)> get migrations => const {};
+
+  /// [json], written by version [from] of this module, as [read] reads it: each of
+  /// [migrations]' steps from [from] on (a version before the first read as the first). What
+  /// isn't an object passes as it is, for [read] to say it is damaged.
+  Object? upgrade(Object? json, int from) {
+    for (var v = from.clamp(1, version); v < version; v++) {
+      if ((migrations[v], json) case (final step?, final Map<String, Object?> data)) json = step(data);
+    }
+    return json;
+  }
 
   /// What it saves of [state], adding its files to [files].
   Map<String, Object?> write(ProjectState state, ModuleFileWriter files);
