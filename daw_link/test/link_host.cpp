@@ -47,8 +47,10 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <unistd.h>
 #endif
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -59,6 +61,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 using namespace ARA;
@@ -152,6 +155,36 @@ void check (bool ok, const std::string& what)
     std::printf ("  ok  %s\n", what.c_str ());
 }
 
+// While it is there, [what] fails if it takes longer than [seconds], rather than hang (a deadlock).
+class Watchdog {
+public:
+    Watchdog (double seconds, std::string what)
+    : thread_ ([this, seconds, what = std::move (what)] {
+          std::unique_lock<std::mutex> lock (mutex_);
+          if (wake_.wait_for (lock, std::chrono::duration<double> (seconds), [this] { return done_; }))
+              return;
+          std::fprintf (stderr, "link_host: FAILED: %s (stuck for %g s)\n", what.c_str (), seconds);
+          std::_Exit (1);
+      })
+    {
+    }
+    ~Watchdog ()
+    {
+        {
+            std::lock_guard<std::mutex> lock (mutex_);
+            done_ = true;
+        }
+        wake_.notify_all ();
+        thread_.join ();
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable wake_;
+    bool done_ { false };
+    std::thread thread_;
+};
+
 // MARK: The host's side of ARA
 
 ARAAudioReaderHostRef ARA_CALL createAudioReader (ARAAudioAccessControllerHostRef, ARAAudioSourceHostRef, ARABool use64)
@@ -211,7 +244,20 @@ std::vector<std::string> waitForAsked (size_t count, const std::function<void ()
     }
     return playbackAsked ();
 }
-void ARA_CALL startPlayback (ARAPlaybackControllerHostRef) { ask ("start"); }
+// What the DAW does, once, inside the plug-in's call asking it to play: as a DAW that has its
+// main thread do it, and waits for it there.
+std::function<void ()> whileStarting;
+void ARA_CALL startPlayback (ARAPlaybackControllerHostRef)
+{
+    ask ("start");
+    std::function<void ()> then;
+    {
+        std::lock_guard<std::mutex> lock (playbackMutex);
+        then = std::exchange (whileStarting, nullptr);
+    }
+    if (then)
+        then ();
+}
 void ARA_CALL stopPlayback (ARAPlaybackControllerHostRef) { ask ("stop"); }
 void ARA_CALL setPosition (ARAPlaybackControllerHostRef, ARATimePosition at) { ask ("at " + std::to_string (at)); }
 void ARA_CALL setCycle (ARAPlaybackControllerHostRef, ARATimePosition, ARATimeDuration) {}
@@ -1097,6 +1143,43 @@ int main (int argc, const char* argv[])
     curator.say ("{\"t\":\"play\",\"document\":\"elsewhere\",\"at\":1}");
     const auto driven = waitForAsked (4, {});
     check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }), "moved, played from there and stopped, at once; another document's passed over");
+
+    // A DAW that waits, inside the plug-in's call, for its main thread, which closes a document
+    // meanwhile; and that closes another inside the call itself, on the plug-in's connection
+    // thread (a handler let go of from inside a handler, its `closed` sent on the same link).
+    // Neither waits on the other, and neither document is called for the message under way.
+    {
+        auto open = [&] (const char* name) {
+            const ARADocumentProperties properties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), name };
+            return factory->createDocumentControllerWithDocument (&hostInstance, &properties);
+        };
+        const auto *other = open ("Other"), *inner = open ("Inner");
+        std::atomic<bool> asked { false }, closedOnMain { false }, gaveUp { false }, left { false };
+        {
+            std::lock_guard<std::mutex> lock (playbackMutex);
+            whileStarting = [&] {
+                inner->documentControllerInterface->destroyDocumentController (inner->documentControllerRef);
+                asked = true;
+                const auto end = std::chrono::steady_clock::now () + std::chrono::seconds (3);
+                while (!closedOnMain && std::chrono::steady_clock::now () < end)
+                    std::this_thread::sleep_for (std::chrono::milliseconds (2));
+                gaveUp = !closedOnMain;
+                left = true;
+            };
+        }
+        const Watchdog watchdog (10, "a document closed while the DAW does what Curator asked");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
+        for (int i = 0; i < 500 && !asked; ++i)
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        check (asked, "a document closed inside the DAW's call, on the plug-in's thread");
+        other->documentControllerInterface->destroyDocumentController (other->documentControllerRef);
+        closedOnMain = true;
+        for (int i = 0; i < 500 && !left; ++i)
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        check (left && !gaveUp, "and one on the DAW's main thread while the call waits for it there: neither waits on the other");
+        auto first = curator.next ("closed", 5), second = curator.next ("closed", 5);
+        check (first["id"] != second["id"] && first["id"] != id && second["id"] != id, "Curator is told both are gone");
+    }
 
     std::printf ("Curator asks for the recording\n");
     curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"take-1\"}");
