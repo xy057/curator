@@ -98,7 +98,7 @@ void main() {
     // version, whether it may go unread and whether a settings file has it.
     String yes(bool b) => b ? 'yes' : 'no';
     expect([
-      for (final m in RegExp(r'^\| `([a-z-]+)` \| (\d+) \| (yes|no) \| (yes|no) \|', multiLine: true).allMatches(File('../docs/project-format.md').readAsStringSync()))
+      for (final m in RegExp(r'^\| `([a-z][a-z0-9-]*)` \| (\d+) \| (yes|no) \| (yes|no) \|', multiLine: true).allMatches(File('../docs/project-format.md').readAsStringSync()))
         '${m[1]} ${m[2]} ${m[3]} ${m[4]}',
     ], [
       for (final m in ProjectModules.all) '${m.id} ${m.version} ${yes(m.optional)} ${yes(ProjectModules.settings.contains(m))}',
