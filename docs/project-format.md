@@ -7,8 +7,8 @@ by the Curators before it as far as they can (future-proof). The code is
 modules), `app/lib/legacy_project.dart` (layout 1) and `packages/score_engine/lib/src/cura_data.dart`
 (the notation). `app/test/formats` holds a project and a settings file in layout 2 and in every
 layout 3 format since, and `app/test/project_file_test.dart` checks each opens as the newest does;
-layout 1 is the bundled demo's (`app/assets/demo`), a project Curator 0.6.1 saved, which the tests
-open.
+layout 1 is the bundled demo's (`app/assets/demo`: format 1, as Curator 0.1.0 saved it), which the
+tests open, with formats 17 and 25 as the test writes them.
 
 ## The archive
 
@@ -17,7 +17,7 @@ A zip. Each entry, in the order Curator writes them:
 | Entry | What it is |
 | --- | --- |
 | `mimetype` | The kind of file, stored first and uncompressed: `application/x-curated-score` (a project) or `application/x-curator-settings` (settings). For other programs; Curator goes by `format` (below). |
-| `project.json` | (`settings.json`) A stub for Curator 0.6.1 and before: `{"format": "<kind>", "version": 27}`. They read nothing else, and ask for an update past version 26. |
+| `project.json` | (`settings.json`) A stub for Curator 0.6.1 and before: `{"format": "<kind>", "version": 27}`. They read nothing else, and ask for an update past their own format (25 at most). |
 | `manifest.json` | A stub for Curator 0.7 to 0.11.0-beta1: `{"format": "<kind>", "layout": 3}`. They ask for an update past layout 2. |
 | `project.cura` | (`settings.cura`) The file in CuraScript: what it is, then each module. |
 | `<id>/…` | A module's own files, all under its id: `images/<image>`, `fonts/<name>.font`. |
@@ -26,7 +26,8 @@ A zip. Each entry, in the order Curator writes them:
 
 ## Which layout a file is in
 
-1. With no `manifest.json`: **layout 1** (formats 1 to 26; Curator 0.6.1 and before). `project.json`
+1. With no `manifest.json`: **layout 1** (formats 1 to 26: Curator 0.6.1 and before wrote up to 25,
+   the builds just after it 26). `project.json`
    is all of it. Its `format` must be the kind; a `version` past 26 is a later layout's whose
    `manifest.json` is lost: refused as newer.
 2. Else `manifest.json`'s `format` must be the kind, and its `layout` 3 at most (else refused as
@@ -114,7 +115,8 @@ What doesn't read says its line ("The project is damaged: project.cura, line 12:
 
 One way to write each file, which `app/test/formats` holds Curator to:
 
-- Line feeds; two spaces an indent; nothing after a line's last character.
+- Line feeds; two spaces an indent; nothing after a line's last character, but what a `|`
+  line's text ends in.
 - The heading comment, the file's fields, then each module after a blank line.
 - A value goes on its name's line (or its `-`'s) when it is a number, `true`, `false`, `none`,
   text of one line (or of several that need an escape), `{}`, `[]`, or a list of only these,
@@ -125,8 +127,9 @@ One way to write each file, which `app/test/formats` holds Curator to:
   `toString`) writes it: the fewest digits that read back as it, plain from 10⁻⁶ up to below
   10²¹, a whole one with `.0` after it (`2.0`, `0.000015`, `100000000000000000000.0`), and with an
   exponent outside that (`1e-7`, `1.5e-7`, `1e+21`).
-- In quotes, `\"`, `\\`, `\n`, `\r`, `\t`; other control characters, U+2028, U+2029 and lone
-  surrogates as `\u{…}`, in lower-case hex; the rest as it is.
+- In quotes, `\"`, `\\`, `\n`, `\r`, `\t`; any other character below U+0020, U+007F, U+2028,
+  U+2029 and lone surrogates as `\u{…}`, in lower-case hex; the rest as it is (U+0080 to U+009F
+  too).
 - A name is bare when it can be, else in quotes; a file's own field named `module`, always quoted.
 
 ## The modules
