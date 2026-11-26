@@ -1,0 +1,19 @@
+--- a/src/waveform/waveform.cpp
++++ b/src/waveform/waveform.cpp
+@@ -130,7 +130,15 @@
+                 pSamples[id] = sqrtf(sum / (framesRead * channels));
+             }
+             else
+-                pSamples[id] = tempBuffer[0];
++            {
++                // [curated-score patch] Every channel of the frame, mixed to one (their mean):
++                // the first channel alone left out whatever was only in the others. One channel
++                // is read as it was, to the bit.
++                float sum = tempBuffer[0];
++                for (ma_uint32 c = 1; c < channels; c++)
++                    sum += tempBuffer[c];
++                pSamples[id] = sum / channels;
++            }
+         }
+         free(tempBuffer);
+         return readSamplesNoError;

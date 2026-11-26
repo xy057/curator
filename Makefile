@@ -4,6 +4,16 @@ VEROVIO_DIR := packages/score_engine/third_party/verovio
 # Written after the patches are applied; hook/build.dart refuses to build when a patch is newer.
 VEROVIO_STAMP := $(VEROVIO_DIR)/.curated-score-patched
 PATCHES := $(sort $(wildcard patches/*.patch))
+# flutter_soloud (playback, and every sample read of a recording), patched: this version's archive
+# from pub.dev, checked against its SHA-256, unpacked where app/pubspec.yaml's path says, with
+# patches/flutter_soloud/*.patch applied (a recording's samples read from every channel, not the
+# first alone). Not in git.
+SOLOUD_VERSION := 5.2.3
+SOLOUD_SHA256 := 9a439ebd477ee7b1c5cdf0f70765fbfae21b484b5b5bfd1446057f61b4111003
+SOLOUD_DIR := packages/third_party/flutter_soloud
+SOLOUD_ARCHIVE := packages/third_party/flutter_soloud-$(SOLOUD_VERSION).tar.gz
+SOLOUD_STAMP := $(SOLOUD_DIR)/.curated-score-patched-$(SOLOUD_VERSION)
+SOLOUD_PATCHES := $(sort $(wildcard patches/flutter_soloud/*.patch))
 # The web player, zipped (see web-player).
 WEB_PLAYER := app/assets/web_player/player.zip
 # Shown in Settings ▸ About.
@@ -37,7 +47,7 @@ export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 .PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs script-docs formats test check versions smoke doctor clean
 
 help:
-	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
+	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG) and flutter_soloud $(SOLOUD_VERSION), get Dart packages"
 	@echo "make run     – launch the app (macOS)"
 	@echo "make build   – build the release app (app/build/macos/Build/Products/Release)"
 	@echo "make web-player – build the web player File ▸ Export to Web… copies (run and build do when it is out of date)"
@@ -58,7 +68,7 @@ help:
 	@echo "make doctor  – check that the required tools are installed"
 	@echo "make clean   – remove build outputs"
 
-setup: $(VEROVIO_STAMP)
+setup: $(VEROVIO_STAMP) $(SOLOUD_STAMP)
 	cd packages/score_engine && flutter pub get
 	cd app && flutter pub get
 
@@ -71,6 +81,21 @@ $(VEROVIO_STAMP): $(VEROVIO_DIR)/src/toolkit.cpp $(PATCHES)
 	git -C $(VEROVIO_DIR) checkout -q -- .
 	git -C $(VEROVIO_DIR) clean -fdq
 	@set -e; for p in $(PATCHES); do echo "applying $$p"; git -C $(VEROVIO_DIR) apply "$(CURDIR)/$$p"; done
+	touch $@
+
+$(SOLOUD_ARCHIVE):
+	mkdir -p $(@D)
+	curl -fL --retry 3 -o $@.part https://pub.dev/api/archives/flutter_soloud-$(SOLOUD_VERSION).tar.gz
+	echo "$(SOLOUD_SHA256)  $@.part" | shasum -a 256 -c -
+	mv $@.part $@
+
+# Likewise: whenever a patch is added or changed (or the version), flutter_soloud as released
+# again, every patch applied to it.
+$(SOLOUD_STAMP): $(SOLOUD_ARCHIVE) $(SOLOUD_PATCHES)
+	rm -rf $(SOLOUD_DIR)
+	mkdir -p $(SOLOUD_DIR)
+	tar -xzf $(SOLOUD_ARCHIVE) -C $(SOLOUD_DIR)
+	@set -e; for p in $(SOLOUD_PATCHES); do echo "applying $$p"; git apply --directory=$(SOLOUD_DIR) "$$p"; done
 	touch $@
 
 run: setup $(WEB_PLAYER) $(DAW_LINK_ZIP)
