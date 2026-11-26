@@ -325,7 +325,7 @@ class AudioEngine {
         source = await _load(playable, LoadMode.memory);
       }
       final plan = AudioFormat.samplingPlan(length, rate);
-      final samples = await _readEvenly(playable, plan.count);
+      final samples = await readEvenly(playable, plan.count);
       final waveform = await Waveform.analyze(samples, plan.rate);
       return AudioTrack._(audio, fileNameOf(audio), source, length, waveform, playable, rate, scratch,
           decodedBytes: inMemory ? decoded : 0);
@@ -337,7 +337,8 @@ class AudioEngine {
   }
 
   /// [count] samples of the recording at [path], spread evenly over it, on an isolate.
-  static Future<Float32List> _readEvenly(String path, int count) => Isolate.run(
+  @visibleForTesting
+  static Future<Float32List> readEvenly(String path, int count) => Isolate.run(
       () => count <= 0 ? Float32List(0) : _withSamples(path, 0, -1, count, Float32List.fromList));
 
   /// Makes [track] take [id]'s recording, letting go of the one it had. Once [close]d, lets go
@@ -559,7 +560,9 @@ class AudioEngine {
 /// [use] given [count] samples of the recording at [path] from [from] to [to] seconds (-1:
 /// its end), spread evenly, as SoLoud's readSamplesFromFile reads them: into memory of our
 /// own, freed after (its own wrapper never frees what it reads into: 14 MB for five minutes,
-/// every time a recording is read). Throws what it says went wrong.
+/// every time a recording is read). Each is a frame's channels mixed to one, their mean (as
+/// patched, patches/flutter_soloud/: released, it reads the first channel alone). Throws what
+/// it says went wrong.
 T _withSamples<T>(String path, double from, double to, int count, T Function(Float32List samples) use) {
   final buffer = malloc<Float>(count), name = path.toNativeUtf8();
   try {

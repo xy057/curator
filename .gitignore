@@ -6,6 +6,7 @@ build/
 .vscode/
 # Fetched by `make setup`
 packages/score_engine/third_party/verovio/
+packages/third_party/
 
 # Local sample projects/media
 /Samples/

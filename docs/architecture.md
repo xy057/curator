@@ -298,7 +298,8 @@ from its edges (the release's windows drift half a percent, 12 s over 40 minutes
 (about 21.5 a second: the notes' mean, the onsets' most) with the samples' mean square beside them. So the
 chunks are heard at once, on isolates as many as half the cores, each taking the next two as it is free
 (some cores are slower) and reading their samples itself through flutter_soloud's binding into a buffer of
-our own (its `readSamplesFromFile` never frees the one it reads into): 36 minutes in about 20 s on an M5
+our own (its `readSamplesFromFile` never frees the one it reads into), each a frame's channels mixed to one
+(patched: see flutter_soloud below): 36 minutes in about 20 s on an M5
 Pro. The score is laid out as played, its passes the warps set by hand, else the score's form's
 (`ScoreForm.passes`), and made into the same frames: how many notes hold each key (none beyond the
 piano's, which Basic Pitch doesn't hear), and how many start on it (a tie's carrying on not one). Silence
@@ -2037,6 +2038,15 @@ at a key change to C (a key change was applied twice, the second time cancelling
 log per thread (engravings run side by side on isolates, each reading its own). Mark changes in
 Verovio's code with `[curated-score patch]`.
 
+**flutter_soloud is pinned and patched** likewise. `make setup` downloads the version the Makefile
+names (`SOLOUD_VERSION`) from pub.dev, checks its archive against `SOLOUD_SHA256`, unpacks it into
+`packages/third_party/flutter_soloud` (app/pubspec.yaml's path) and applies
+`patches/flutter_soloud/*.patch`, again from the archive whenever a patch or the version changes.
+Its build hook compiles the patched C++ like any other. The patch: `readSamplesFromFile` reads a
+frame's channels mixed to one, their mean (released, it reads the first channel alone, so what was
+only on the right went unheard by the waveform, its onsets and Align); a mono file reads as it did,
+to the bit, and the frames read are the same. Mark changes in its code with `[curated-score patch]`.
+
 **Engraving options: offered ones only, the layout ones fixed.** The bridge
 (`vb_engraver_create`) fixes what the curated view relies on: one endless system (`breaks`
 none), no header, footer or page margins, `scale` 100. Everything a score is engraved with besides its MusicXML (text edits, pairs, fonts,
@@ -2596,6 +2606,12 @@ on Windows wherever the registry says that folder now is): it never replaces the
   `fetch --depth 1 origin tag <tag>`, `checkout <tag>`, remove its `.curated-score-patched` and
   `make setup`; write the patch again from the patched tree (above) so its lines are the release's,
   and run Tools/make_licenses.py. `verovioVersion`'s doc comments name the version.
+- **A flutter_soloud change**: edit a copy of its file as released beside the patched one, then
+  `diff -u --label a/<path> --label b/<path> <released> <changed> > patches/flutter_soloud/<what>.patch`
+  (paths from the package's root), then `make setup`.
+- **A flutter_soloud release**: `SOLOUD_VERSION` and `SOLOUD_SHA256` (the archive's, as pubspec.lock
+  would give it) in the Makefile, then `make setup`; a patch that no longer applies stops it, to be
+  written again against the release.
 - **A widget**: Material is the `material_ui` package (`package:material_ui/material_ui.dart`);
   the framework's `package:flutter/material.dart`, deprecated since Flutter 3.50, has a `Theme`, a
   `Scaffold`, a `MaterialLocalizations` of its own, which ours never find. A package still built on

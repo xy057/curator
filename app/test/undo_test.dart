@@ -42,7 +42,7 @@ void main() {
   });
   tearDown(() => c.dispose());
 
-  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems, the mix recorded through an Attacca Capturer', () async {
+  test('Undo: one history through every kind of edit, whichever tab; anchors to a tempo map and back; recordings in lanes, each read from every channel; a DAW followed through Attacca, its recording marked and one a project, its tracks kept as stems, the mix recorded through an Attacca Capturer', () async {
     // One history steps back through every kind of edit, in order, whichever tab is showing; a new edit drops the redo; nothing open, nothing to undo.
     {
       expect(c.canUndo, isFalse, reason: 'opening is not an edit');
@@ -415,7 +415,7 @@ void main() {
       expect(c.sync!.anchors, hand);
     }
 
-    // Recordings in lanes: one heard at a time, a region drawn takes its stretch from the others; picking one edits its sync and keeps the place; Undo keeps the takes.
+    // Recordings in lanes: one heard at a time, a region drawn takes its stretch from the others; picking one edits its sync and keeps the place; Undo keeps the takes; each read from every channel.
     {
       await open();
       final waveform = await Waveform.analyze(Float32List(100), 100);
@@ -467,6 +467,24 @@ void main() {
       await c.removeTake('take-1');
       expect((c.focus, c.editsSync), ('take-2', true));
       expect(c.sync!.anchors, const [SyncAnchor(0, 2), SyncAnchor(8, 6)]);
+
+      // A recording is read from every channel, mixed to one (their mean): what is only on the
+      // right is heard, half as loud; what is on both alike, as from a mono file of it; a mono
+      // file as it is; every frame read, or every fourth, the frames they always were.
+      final sound = [for (var i = 0; i < 4800; i++) i * 389 % 30001 - 15000];
+      final media = await Directory.systemTemp.createTemp('channels');
+      Future<Float32List> decoded(String name, List<int> Function(int s) frame, {int every = 1}) {
+        final file = File('${media.path}/$name.wav');
+        if (!file.existsSync()) file.writeAsBytesSync(_wav([for (final s in sound) ...frame(s)], channels: frame(0).length));
+        return AudioEngine.readEvenly(file.path, sound.length ~/ every);
+      }
+
+      List<double> heard(int scale, {int every = 1}) => [for (var i = 0; i < sound.length; i += every) sound[i] / scale];
+      expect(await decoded('mono', (s) => [s]), heard(32768));
+      expect(await decoded('right', (s) => [0, s]), heard(65536), reason: 'the right channel heard, not the left’s silence');
+      expect(await decoded('both', (s) => [s, s]), heard(32768));
+      expect(await decoded('right', (s) => [0, s], every: 4), heard(65536, every: 4));
+      await media.delete(recursive: true);
     }
 
     // A DAW followed through Attacca, the plug-in's end played here over a socket: only one
@@ -639,22 +657,7 @@ void main() {
         expect((message['t'], message['track'], message['from']), ('stem', track, 0.5), reason: 'the recording’s start: song 0.5 s');
         expect(message['length'] as num, greaterThan(0));
         // A second of 16-bit mono, as any WAV the plug-in might write.
-        final wav = File('${folder.path}/$name.wav');
-        final data = ByteData(44 + 48000 * 2)
-          ..setUint32(0, 0x52494646)
-          ..setUint32(4, 36 + 48000 * 2, Endian.little)
-          ..setUint32(8, 0x57415645)
-          ..setUint32(12, 0x666d7420)
-          ..setUint32(16, 16, Endian.little)
-          ..setUint16(20, 1, Endian.little)
-          ..setUint16(22, 1, Endian.little)
-          ..setUint32(24, 48000, Endian.little)
-          ..setUint32(28, 96000, Endian.little)
-          ..setUint16(32, 2, Endian.little)
-          ..setUint16(34, 16, Endian.little)
-          ..setUint32(36, 0x64617461)
-          ..setUint32(40, 48000 * 2, Endian.little);
-        wav.writeAsBytesSync(data.buffer.asUint8List());
+        final wav = File('${folder.path}/$name.wav')..writeAsBytesSync(_wav(List.filled(48000, 0)));
         say({'t': 'progress', 'document': 'doc', 'track': track, 'done': 0.5});
         say({'t': 'stemmed', 'document': 'doc', 'track': track, 'path': wav.path});
       }
@@ -854,4 +857,26 @@ void main() {
       await folder.delete(recursive: true);
     }
   });
+}
+
+/// A 16-bit WAV at 48 kHz of [samples], its [channels] interleaved.
+Uint8List _wav(List<int> samples, {int channels = 1}) {
+  final data = ByteData(44 + samples.length * 2)
+    ..setUint32(0, 0x52494646) // RIFF
+    ..setUint32(4, 36 + samples.length * 2, Endian.little)
+    ..setUint32(8, 0x57415645) // WAVE
+    ..setUint32(12, 0x666d7420) // fmt
+    ..setUint32(16, 16, Endian.little)
+    ..setUint16(20, 1, Endian.little) // PCM
+    ..setUint16(22, channels, Endian.little)
+    ..setUint32(24, 48000, Endian.little)
+    ..setUint32(28, 48000 * channels * 2, Endian.little)
+    ..setUint16(32, channels * 2, Endian.little)
+    ..setUint16(34, 16, Endian.little)
+    ..setUint32(36, 0x64617461) // data
+    ..setUint32(40, samples.length * 2, Endian.little);
+  for (var i = 0; i < samples.length; i++) {
+    data.setInt16(44 + i * 2, samples[i], Endian.little);
+  }
+  return data.buffer.asUint8List();
 }

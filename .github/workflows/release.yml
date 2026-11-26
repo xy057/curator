@@ -122,7 +122,7 @@ jobs:
           restore-keys: ccache-macos-15-
 
       - name: Build
-        # Fetches and patches Verovio, then `flutter build macos --release`. Xcode has once failed
+        # Fetches and patches Verovio and flutter_soloud, then `flutter build macos --release`. Xcode has once failed
         # a first build with "could not build module 'flutter_soloud'" and passed on the next,
         # so a failed build is tried once more (it is incremental).
         run: make build || make build
@@ -167,7 +167,7 @@ jobs:
       run:
         shell: bash # Git Bash: the same commands as on macOS
     steps:
-      # Keep LF endings: patches/*.patch must apply to Verovio's sources byte for byte.
+      # Keep LF endings: patches/ must apply to Verovio's and flutter_soloud's sources byte for byte.
       - run: git config --global core.autocrlf false
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -186,6 +186,20 @@ jobs:
           git clone --depth 1 --branch "$tag" https://github.com/rism-digital/verovio.git "$dir"
           for p in patches/*.patch; do echo "applying $p"; git -C "$dir" apply "$PWD/$p"; done
           touch "$dir/.curated-score-patched"
+
+      - name: Fetch and patch flutter_soloud
+        # What `make setup` does for it: the version pinned in the Makefile, its archive checked
+        # against the SHA-256 there, unpacked where app/pubspec.yaml's path says, every patch.
+        run: |
+          version=$(sed -n 's/^SOLOUD_VERSION := *//p' Makefile)
+          sha=$(sed -n 's/^SOLOUD_SHA256 := *//p' Makefile)
+          dir=packages/third_party/flutter_soloud
+          mkdir -p "$dir"
+          curl -fL --retry 3 -o soloud.tar.gz "https://pub.dev/api/archives/flutter_soloud-$version.tar.gz"
+          echo "$sha  soloud.tar.gz" | sha256sum -c -
+          tar -xzf soloud.tar.gz -C "$dir"
+          rm soloud.tar.gz
+          for p in patches/flutter_soloud/*.patch; do echo "applying $p"; git apply --directory="$dir" "$p"; done
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
