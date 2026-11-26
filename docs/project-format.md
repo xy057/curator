@@ -117,11 +117,14 @@ One way to write each file, which `app/test/formats` holds Curator to:
 - Line feeds; two spaces an indent; nothing after a line's last character.
 - The heading comment, the file's fields, then each module after a blank line.
 - A value goes on its name's line (or its `-`'s) when it is a number, `true`, `false`, `none`,
-  text of one line (or of several that need an escape), `{}`, `[]`, or a list of only these
-  (no text of several lines). Anything else goes under it: fields, `-` items, `|` lines.
+  text of one line (or of several that need an escape), `{}`, `[]`, or a list of only these,
+  none of them text written as `|` lines. Anything else goes under it: fields, `-` items, `|`
+  lines.
 - Text of several lines that needs no escape (but tabs) goes as `|` lines, an empty one `|` alone.
-- A whole number in digits; a double as the shortest text that reads back as it, always with a
-  point or an exponent (`2.0`, `1e-7`, `1e+21`).
+- A whole number in digits. A double as Dart's `double.toString` (JavaScript's `Number`'s
+  `toString`) writes it: the fewest digits that read back as it, plain from 10⁻⁶ up to below
+  10²¹, a whole one with `.0` after it (`2.0`, `0.000015`, `100000000000000000000.0`), and with an
+  exponent outside that (`1e-7`, `1.5e-7`, `1e+21`).
 - In quotes, `\"`, `\\`, `\n`, `\r`, `\t`; other control characters, U+2028, U+2029 and lone
   surrogates as `\u{…}`, in lower-case hex; the rest as it is.
 - A name is bare when it can be, else in quotes; a file's own field named `module`, always quoted.
