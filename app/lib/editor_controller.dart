@@ -2731,6 +2731,7 @@ class EditorController extends ChangeNotifier {
       );
 
   /// What the open project holds that this version can't read but keeps ([ProjectState.foreign]).
+  Map<String, ForeignModule> get foreign => _foreign;
   Map<String, ForeignModule> _foreign = const {};
 
   bool _disposed = false;

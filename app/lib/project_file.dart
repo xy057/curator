@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -56,7 +55,7 @@ abstract final class ProjectFile {
     final scoreEntry = 'score/${safeFileName(c.scoreName)}';
 
     ProjectArchive.writeFile(path, (zip, opened) {
-      ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: stub, modules: ProjectModules.all, manifest: {
+      ProjectArchive.write(zip, c.state, mimeType: mimeType, stub: stub, modules: ProjectModules.all, fields: {
         'kind': c.state.kind.name,
         'score': {'name': c.scoreName, 'entry': scoreEntry},
         if (media != null)
@@ -96,31 +95,13 @@ abstract final class ProjectFile {
     final input = InputFileStream(path);
     try {
       final archive = ZipDecoder().decodeStream(input);
-      final JsonReader manifest;
-      ProjectState state;
-      final legacy = !ProjectArchive.isModular(archive);
-      // Saved by an older Curator (0.11.0-beta1 and before), which can't open it once it is saved here.
-      final bool older;
-      if (legacy) {
-        final manifestFile = archive.findFile(stub);
-        if (manifestFile == null) throw const FormatException(_notOurs);
-        manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'project');
-        if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
-        // A stub with no manifest (one past the last format) is from a newer layout too.
-        final version = manifest.number('version')?.toInt() ?? 0;
-        if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
-        state = ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.all);
-        older = true;
-      } else {
-        final opened = ProjectArchive.open(archive, mimeType: mimeType, stub: stub, notOurs: _notOurs, newer: _newer);
-        manifest = opened.manifest;
-        state = ProjectArchive.read(opened, ProjectModules.all, newer: _newer);
-        older = opened.isOlder;
-      }
+      final (:fields, :state, :layout) =
+          ProjectArchive.load(archive, mimeType: mimeType, stub: stub, modules: ProjectModules.all, notOurs: _notOurs, newer: _newer);
+      final legacy = layout == 1; // before modules: Curator 0.6.1 and before
       // A kind this build doesn't know (a newer one's): what its score is.
-      if (ProjectKind.values.asNameMap()[manifest.string('kind')] case final kind?) state = state.copyWith(kind: kind);
+      final kind = ProjectKind.values.asNameMap()[fields.string('kind')] ?? state.kind;
 
-      final score = manifest.child('score');
+      final score = fields.child('score');
       final scoreFile = archive.findFile(score.string('entry', required: true)!);
       if (scoreFile == null) throw const FormatException('The project has no score in it.');
 
@@ -146,8 +127,8 @@ abstract final class ProjectFile {
       }
 
       ProjectMediaLocation? media;
-      if (!manifest.isAbsent('media')) {
-        final m = manifest.child('media');
+      if (!fields.isAbsent('media')) {
+        final m = fields.child('media');
         final name = m.string('name', required: true)!;
         // Only a project saved before recordings were always embedded links to one, or one
         // saved since while that recording couldn't be found (it has none embedded).
@@ -176,8 +157,8 @@ abstract final class ProjectFile {
       // writes them back with it.
       final takes = <String, String>{};
       final unreadTakes = state.foreign.containsKey(ProjectModules.takes.id);
-      for (final (i, value) in manifest.list('takes').indexed) {
-        final t = JsonReader(value, '${manifest.where}.takes[$i]');
+      for (final (i, value) in fields.list('takes').indexed) {
+        final t = JsonReader(value, '${fields.where}.takes[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
         if (!ProjectModules.isTakeId(id) || takes.containsKey(id)) continue;
         if (!unreadTakes && (!state.edits.takes.any((take) => take.id == id) || id == state.edits.focus)) continue;
@@ -187,8 +168,8 @@ abstract final class ProjectFile {
       // The stems: each one the stems module names, as the takes are.
       final stems = <String, String>{};
       final unreadStems = state.foreign.containsKey(ProjectModules.stems.id);
-      for (final (i, value) in manifest.list('stems').indexed) {
-        final t = JsonReader(value, '${manifest.where}.stems[$i]');
+      for (final (i, value) in fields.list('stems').indexed) {
+        final t = JsonReader(value, '${fields.where}.stems[$i]');
         final id = t.string('id', required: true)!, entry = t.string('entry', required: true)!;
         if (!Stem.isId(id) || stems.containsKey(id)) continue;
         if (!unreadStems && !state.edits.stems.any((stem) => stem.id == id)) continue;
@@ -200,9 +181,9 @@ abstract final class ProjectFile {
         stems: stems,
         scoreName: score.string('name', required: true)!,
         scoreBytes: ZipEntries.read(scoreFile, limit: ScoreFile.maxBytes),
-        state: state,
+        state: state.copyWith(kind: kind),
         media: media,
-        olderFormat: older,
+        olderFormat: layout < ProjectArchive.layout,
       );
     } finally {
       input.closeSync();

@@ -34,7 +34,7 @@ ATTACCA_SOURCES = find daw_link/CMakeLists.txt daw_link/src daw_link/mac -type f
 XCODE := /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR ?= $(if $(wildcard $(XCODE)),$(XCODE),)
 
-.PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs script-docs test check versions smoke doctor clean
+.PHONY: help setup run build web-player web-plugins web-plugin-docs daw-link daw-link-windows attacca-seal l10n extension-docs plugin-docs script-docs formats test check versions smoke doctor clean
 
 help:
 	@echo "make setup   – one-time: fetch and patch Verovio $(VEROVIO_TAG), get Dart packages"
@@ -49,6 +49,7 @@ help:
 	@echo "make extension-docs – write docs/extension-api.md from the guide and the extension API's own list"
 	@echo "make plugin-docs – write docs/plugin-api.md from the guide and the plugin API's own list"
 	@echo "make script-docs – write docs/lane-script.md from the guide and the script language's own list"
+	@echo "make formats – after changing what a project or settings file holds: keep what this build writes as a format of its own (app/test/formats)"
 	@echo "make test    – run the engine and app tests (builds the native engine on first run)"
 	@echo "make check   – analyze both packages, then run every test"
 	@echo "make versions – check that updater.dart says the version pubspec.yaml does (patch = build), the release patch, and Attacca's seal"
@@ -178,6 +179,14 @@ web-plugin-docs:
 # language's statements, from LaneScriptApi. test/in_step_test.dart fails until it has been run.
 script-docs:
 	cd app && dart run tool/script_docs.dart
+
+# app/test/formats: a project and a settings file in every format a Curator has saved in since
+# layout 2, which every later build must open as the same project (docs/project-format.md). After
+# a change to what they hold, and the build raised, this keeps what this build writes as
+# <build>.ccs and <build>.ccf, never over a folder kept already.
+# test/project_file_test.dart fails until it has been run.
+formats:
+	cd app && flutter test test/project_file_test.dart --plain-name 'older formats' --update-goldens
 
 # Every test runs on the bundled demo project (app/assets/demo), so a fresh clone can run them all.
 test: setup

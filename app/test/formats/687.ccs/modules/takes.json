@@ -1,0 +1,1 @@
+{"focus":"take-1","crossfade":0.25,"takes":[{"id":"take-1","label":"Concert","regions":[[0.0,24.0]]},{"id":"take-2","label":"Rehearsal","regions":[[24.0,48.0,0.5,0.5]],"leadIn":1.5,"anchors":[[0.0,2.0],[24.0,14.0]],"daw":{"host":"Logic Pro","source":"take-2-source","name":"Rehearsal"}}]}

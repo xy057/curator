@@ -1280,6 +1280,8 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
     } else if (path.toLowerCase().endsWith('.${ProjectFile.extension}')) {
       await _guard(() async {
         final problem = await document.open(path);
+        // First: a notice waits for the one before it to be dismissed, and edits made meanwhile would be lost unwarned.
+        if (document.keepsNewerModules && mounted) _newerModules();
         if (controller.fonts.music.isMissing && mounted) _fontMissing(controller.fonts.music.name);
         if (problem != null && mounted) _recordingProblem(problem);
         if (document.isOlderFormat && mounted) _olderFormat();
@@ -1390,6 +1392,17 @@ class _ProjectPageState extends State<ProjectPage> with SingleTickerProviderStat
       persist: true,
       showCloseIcon: true,
       content: Text('A project from an older Curator! Saving updates it, so older versions won’t open it after.'.tr),
+    ));
+  }
+
+  /// The project keeps parts a newer Curator wrote, of ones this version has, as they came: they
+  /// show as nothing, and a save writes them back without changes made to them (dismissed by
+  /// the user).
+  void _newerModules() {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      persist: true,
+      showCloseIcon: true,
+      content: Text('A project from a newer Curator! Parts of it can’t be shown here, and changes to them won’t be saved. Update to edit them!'.tr),
     ));
   }
 

@@ -6419,3 +6419,7 @@ msgstr "还没有选中要同步的录音。"
 #: lib/macros.dart
 msgid "{macro}: {said}"
 msgstr "{macro}：{said}"
+
+#: lib/main.dart
+msgid "A project from a newer Curator! Parts of it can’t be shown here, and changes to them won’t be saved. Update to edit them!"
+msgstr "这个项目来自较新的 Curator！其中有些部分在这里显示不了，对它们的更改也不会保存。更新后就能编辑！"

@@ -1,0 +1,226 @@
+# Written by Curator, in CuraScript: what the file is, then each of its modules.
+format "application/x-curator-settings"
+layout 3
+writer "Curator 0.11.0-beta1 (695)"
+
+module fonts version 1
+  music "Leland"
+  text "Academico"
+  caption "Academico"
+  embed true
+
+module engraving version 1
+  options
+    bottomMarginHarm 4.0
+  typography
+    names
+      size 1.2
+      face "regular"
+      tracking 0.0
+      opacity 1.0
+    barNumbers
+      size 1.0
+      face "italic"
+      tracking 0.0
+      opacity 0.5
+    tempoRow
+      size 1.0
+      face "italic"
+      tracking 0.0
+      opacity 1.0
+    captions
+      size 1.0
+      face "regular"
+      tracking 0.01
+      opacity 1.0
+    tonality
+      size 1.0
+      face "bold"
+      tracking 0.0
+      opacity 1.0
+    tempo
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    expressions
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    rehearsal
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    lyrics
+      size 1.0
+      face "bold"
+      tracking 0.0
+      opacity 1.0
+    fingering
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    chordSymbols
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    clefs
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    keySignatures
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    timeSignatures
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    noteheads
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    flags
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    dots
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    rests
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    accidentals
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    articulations
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    dynamics
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    ornaments
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    fermatas
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    breathMarks
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tremolos
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    arpeggios
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    glissandos
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tupletNumbers
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    pedal
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    octave
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    barRepeats
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    repeatDots
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tablature
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    segnoCoda
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+  textDynamics true
+  rehearsalInRow true
+  centeredLyrics true
+  dynamicsBetween true
+
+module display version 1
+  transition 0.5
+  scrollFollow 0.4
+  motion
+    margin 72.0
+    minGap 4.0
+    maxGap 140.0
+    glide "t*t*(3-2*t)"
+    fade "t*t*(3-2*t)"
+    inkDelay 0.1
+    ink "t*t*(3-2*t)"
+    settle 2.5
+    settleCurve "1-(1-t)^3"
+    slowest 0.25
+    endFade 1.5
+    endCurve "t*t*(3-2*t)"
+    captionFade 0.4
+    captionRise 4.0
+    captionCurve "t*t*(3-2*t)"
+    rowLead 1.2
+    rowCurve "t*t*(3-2*t)"
+    tempoFade 2.0
+    tempoCurve "t*t*(3-2*t)"
+  barNumbers false
+  groupSections true
+  playheadColor "#CC3300"
+  colorNames true
+  familyColors
+    brass "#E0B000"
+
+module extensions version 1
+  enabled
+    attachImage true
+    captions true
+    chapters true
+    tonality true

@@ -632,8 +632,8 @@ class LilyPondProject {
 }
 
 /// Everything a project stores besides the score and the recording: the edits, the image files
-/// they show, and the view. Saved as modules ([ProjectModules]: `modules/<id>.json` in the
-/// project), each checked field by field as it is read.
+/// they show, and the view. Saved as modules ([ProjectModules]: each a `module` of the project's
+/// file in CuraScript, docs/project-format.md), each checked field by field as it is read.
 @immutable
 class ProjectState {
   const ProjectState(

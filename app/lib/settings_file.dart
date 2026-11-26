@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
-import 'package:score_engine/score_engine.dart' show ZipEntries;
 
 import 'legacy_project.dart';
 import 'project_archive.dart';
@@ -70,18 +68,9 @@ abstract final class SettingsFile {
         throw const FormatException(_notOurs);
       }
       try {
-        if (ProjectArchive.isModular(archive)) {
-          final opened = ProjectArchive.open(archive, mimeType: mimeType, stub: _stub, notOurs: _notOurs, newer: _newer);
-          final settings = ProjectArchive.read(opened, ProjectModules.settings, newer: _newer, keepForeign: false).edits;
-          return (settings: of(settings), olderFormat: opened.isOlder);
-        }
-        final manifestFile = archive.findFile(_stub);
-        if (manifestFile == null) throw const FormatException(_notOurs);
-        final manifest = JsonReader(jsonDecode(utf8.decode(ZipEntries.read(manifestFile, limit: ProjectArchive.maxJsonBytes))), 'settings');
-        if (manifest.string('format') != mimeType) throw const FormatException(_notOurs);
-        final version = manifest.number('version')?.toInt() ?? 0;
-        if (version > LegacyProject.lastVersion) throw const FormatException(_newer);
-        return (settings: of(ProjectArchive.readLegacy(archive, manifest.map('state'), version, ProjectModules.settings).edits), olderFormat: true);
+        final (fields: _, :state, :layout) = ProjectArchive.load(archive,
+            mimeType: mimeType, stub: _stub, modules: ProjectModules.settings, notOurs: _notOurs, newer: _newer, keepForeign: false);
+        return (settings: of(state.edits), olderFormat: layout < ProjectArchive.layout);
       } on FormatException catch (e) {
         throw FormatException(e.message.replaceFirst('The project is damaged', 'The settings are damaged'));
       }
