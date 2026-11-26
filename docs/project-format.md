@@ -5,8 +5,10 @@ written them in, and the rules that keep them readable: by every later Curator (
 by the Curators before it as far as they can (future-proof). The code is
 `app/lib/project_archive.dart` (the archive, every layout), `app/lib/project_modules.dart` (the
 modules), `app/lib/legacy_project.dart` (layout 1) and `packages/score_engine/lib/src/cura_data.dart`
-(the notation); `app/test/formats` holds a file in every layout, and
-`app/test/project_file_test.dart` checks each opens as the newest does.
+(the notation). `app/test/formats` holds a project and a settings file in layout 2 and in every
+layout 3 format since, and `app/test/project_file_test.dart` checks each opens as the newest does;
+layout 1 is the bundled demo's (`app/assets/demo`), a project Curator 0.6.1 saved, which the tests
+open.
 
 ## The archive
 
@@ -195,8 +197,10 @@ So that every file ever written still opens, and the Curators before still say w
 - **The layout** changes only with the archive's shape or CuraScript's notation (which a Curator
   before would read as damage). Then `manifest.json` says the new one, so every Curator from 0.7 on
   asks for an update, and every older layout is still read. The stubs are written always.
-- **Freeze it.** Once the format changes, `app/test/project_file_test.dart` fails: `make formats`
-  keeps what this build writes as `app/test/formats/<build>.ccs` and `.ccf`. If a new module or
-  field has nothing in the sample, give it something in the new folder's `project.cura` by hand;
-  the test then checks this build writes it again as it is, and that every older folder opens as
-  it does. The folders are never edited once committed.
+- **Freeze it.** Once the format changes, `app/test/project_file_test.dart` fails. Raise the
+  build, then `make formats` keeps what this build writes as `app/test/formats/<build>.ccs` and
+  `.ccf` (never over a folder there already). If a new module has nothing in the sample, give it
+  something in the new folder's `project.cura` by hand: older folders don't have it, so they are
+  compared without it; the test then checks this build writes it again as it is. Leave every
+  module older folders have as `make formats` wrote it, or they can't open as it. The folders are
+  never edited once committed.

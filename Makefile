@@ -180,9 +180,10 @@ web-plugin-docs:
 script-docs:
 	cd app && dart run tool/script_docs.dart
 
-# app/test/formats: a project and a settings file in every format a Curator has saved in, which
-# every later build must open as the same project (docs/project-format.md). After a change to what
-# they hold, this keeps what this build writes as <build>.ccs and <build>.ccf.
+# app/test/formats: a project and a settings file in every format a Curator has saved in since
+# layout 2, which every later build must open as the same project (docs/project-format.md). After
+# a change to what they hold, and the build raised, this keeps what this build writes as
+# <build>.ccs and <build>.ccf, never over a folder kept already.
 # test/project_file_test.dart fails until it has been run.
 formats:
 	cd app && flutter test test/project_file_test.dart --plain-name 'older formats' --update-goldens

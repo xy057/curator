@@ -376,11 +376,11 @@ void main() {
     // Every format a Curator has saved in opens here as the same project: test/formats keeps a
     // project (.ccs) and a settings file (.ccf) in each, their entries as files, as the build
     // the folder is named after wrote them (687: modules in JSON; 695: in CuraScript), with
-    // something in every module and a module of a later build's. Each opens as the newest does,
-    // in every module it has. This build writes the newest again entry for entry, but for which
-    // build wrote it; when it doesn't, the format has changed, and `make formats` keeps what this
-    // build writes as a format of its own (docs/project-format.md). (Before modules, Curator
-    // 0.6.1's: the demo, below.)
+    // something in every module and a module of a later build's. Each opens as the newest does:
+    // its kind, its score and recordings, and every module it has. This build writes the newest
+    // again entry for entry, but for which build wrote it; when it doesn't, the format has
+    // changed, and `make formats` keeps what this build writes as a format of its own, never over
+    // one kept already (docs/project-format.md). (Before modules, Curator 0.6.1's: the demo, below.)
     {
       int build(Directory d) => int.parse(d.uri.pathSegments.lastWhere((s) => s.isNotEmpty).split('.').first);
       // CuraScript as text, the rest as bytes.
@@ -407,7 +407,16 @@ void main() {
           if (kind == 'ccs') {
             final opened = await open(path);
             final s = opened.state;
+            String bytesAt(String path) => base64Encode(File(path).readAsBytesSync());
             state = {
+              // What it holds besides its modules: its kind, its score, its recordings.
+              '(file)': jsonEncode([
+                s.kind.name,
+                opened.scoreName,
+                base64Encode(opened.scoreBytes),
+                opened.media?.name,
+                for (final path in [?opened.media?.path, ...opened.takes.values, ...opened.stems.values]) [path.substring(dir.path.length), bytesAt(path)],
+              ]),
               for (final MapEntry(key: id, value: json) in ProjectModules.toJson(s).entries) id: jsonEncode(json),
               for (final MapEntry(key: id, value: f) in s.foreign.entries) id: jsonEncode([f.version, f.json, f.files]),
             };
@@ -427,22 +436,25 @@ void main() {
             state = ProjectModules.toJson(ProjectState(edits: settings), ProjectModules.settings).map((id, json) => MapEntry(id, jsonEncode(json)));
             if (newest == null) await SettingsFile.write(again, settings);
           }
-          // In each module its file has: one added since, it can't.
+          // In each module its file has (one added since, it can't), and in all it holds besides.
           final Iterable<String> has = switch (files) {
             {'project.cura': final cura} || {'settings.cura': final cura} => [for (final m in CuraData.read(utf8.decode(cura)).modules) m.id],
             {'manifest.json': final json} => ((jsonDecode(utf8.decode(json)) as Map)['modules'] as Map).keys.cast<String>(),
             _ => state.keys,
           };
           newest ??= state;
-          expect({for (final id in has) id: state[id]}, {for (final id in has) id: newest[id]}, reason: '${build(era)}.$kind opens as the newest');
+          expect({'(file)': state['(file)'], for (final id in has) id: state[id]}, {'(file)': newest['(file)'], for (final id in has) id: newest[id]},
+              reason: '${build(era)}.$kind opens as the newest');
         }
         final written = entriesOf(again);
         if (!autoUpdateGoldenFiles) {
           expect(compared(written), compared(filesIn(eras.last)),
               reason: 'This build writes ${build(eras.last)}.$kind again as it was; if the format changed, make formats keeps it.');
         } else if (!equals(compared(filesIn(eras.last))).matches(compared(written), {})) {
+          // Never over one kept already: a format a build wrote stays as it wrote it.
           final kept = Directory('test/formats/$appBuild.$kind');
-          if (kept.existsSync()) kept.deleteSync(recursive: true);
+          expect(kept.existsSync(), isFalse,
+              reason: '${kept.path} is kept already: raise the build first (or remove the folder, if this change made it and it isn’t committed).');
           for (final MapEntry(key: name, value: bytes) in written.entries) {
             File('${kept.path}/$name')
               ..createSync(recursive: true)

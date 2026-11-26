@@ -1974,9 +1974,10 @@ back. A file of layout 1 or 2 opens as any other and says so (`OpenedProject.old
 `ProjectDocument.isOlderFormat` until it is saved): a snack bar that stays until closed warns that
 saving (an autosave too) updates it, and older versions won't open it then. The bundled demo is
 of layout 1, so every test reads one; the sample, never saved, says nothing. `app/test/formats`
-keeps a project and a settings file in every layout as the build named wrote them, something in
-every module: each opens as the newest does, and this build writes the newest again entry for
-entry, or the test fails until `make formats` keeps the new format beside them.
+keeps a project and a settings file in layout 2 and every layout 3 format since, as the build
+named wrote them, something in every module: each opens as the newest does (its kind, score,
+recordings and every module it has), and this build writes the newest again entry for entry, or
+the test fails until `make formats` keeps the new format beside them (never over one kept).
 
 **Project Settings travel as a settings file** (`.ccf`, `SettingsFile`; Import… and Export… at the
 foot of Project Settings' sidebar). It is a project's layout (`ProjectArchive`, `mimetype`
