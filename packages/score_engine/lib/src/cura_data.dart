@@ -35,7 +35,8 @@
 ///
 /// It holds what JSON does, exactly ([CuraData.holds]): a value read back is the one written, a
 /// whole number (`2`) an int and one with a point (`2.0`) a double, as `jsonDecode` gives them;
-/// and what it can't hold, it neither writes nor reads.
+/// and what it can't hold, it neither writes nor reads. Its grammar in full, and the one way
+/// Curator writes each file: docs/project-format.md. A change to either is a new layout there.
 library;
 
 import 'dart:convert' show JsonUnsupportedObjectError;

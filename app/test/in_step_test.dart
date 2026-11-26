@@ -4,8 +4,8 @@
 // shortcuts' names are there too, docs/extension-api.md, docs/plugin-api.md, docs/lane-script.md
 // and docs/web-plugin-api.md are the guides and the APIs as they are (`make extension-docs`,
 // `make plugin-docs`, `make script-docs`, `make web-plugin-docs`), what is built from TypeScript is built from it
-// as it is (`make web-plugins`), the commands plugins are told of are the app's, and the
-// licence the app carries is the repository's.
+// as it is (`make web-plugins`), docs/project-format.md names every module a project is saved in,
+// the commands plugins are told of are the app's, and the licence the app carries is the repository's.
 
 import 'dart:io';
 
@@ -14,6 +14,7 @@ import 'package:crypto/crypto.dart';
 import 'package:curated_score/key_bindings.dart';
 import 'package:curated_score/l10n/l10n.dart';
 import 'package:curated_score/l10n/po.dart';
+import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/web_player/player.dart' show pageIcons;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,7 +26,7 @@ import '../tool/script_docs.dart';
 import '../tool/web_plugin_docs.dart';
 
 void main() {
-  test('in step: the translations’ template and every language, the shortcuts’ names, the API docs, plugins’ commands, the licence', () {
+  test('in step: the translations’ template and every language, the shortcuts’ names, the API docs, the file format’s modules, plugins’ commands, the licence', () {
     PoFile read(String path) => PoFile.parse(File(path).readAsStringSync());
     final template = read('assets/l10n/curator.pot');
     final keys = {for (final e in template.entries) e.key};
@@ -92,6 +93,16 @@ void main() {
     expect(File('../docs/extension-api.md').readAsStringSync(), extensionDocs(guide), reason: 'run `make extension-docs`');
     expect(File('../docs/plugin-api.md').readAsStringSync(), pluginDocs(File('assets/help/plugins.md').readAsStringSync()), reason: 'run `make plugin-docs`');
     expect(File('../docs/lane-script.md').readAsStringSync(), laneScriptDocs(File('assets/help/script.md').readAsStringSync()), reason: 'run `make script-docs`');
+
+    // docs/project-format.md's table of modules is ProjectModules.all, in its order: each one's id,
+    // version, whether it may go unread and whether a settings file has it.
+    String yes(bool b) => b ? 'yes' : 'no';
+    expect([
+      for (final m in RegExp(r'^\| `([a-z-]+)` \| (\d+) \| (yes|no) \| (yes|no) \|', multiLine: true).allMatches(File('../docs/project-format.md').readAsStringSync()))
+        '${m[1]} ${m[2]} ${m[3]} ${m[4]}',
+    ], [
+      for (final m in ProjectModules.all) '${m.id} ${m.version} ${yes(m.optional)} ${yes(ProjectModules.settings.contains(m))}',
+    ], reason: 'docs/project-format.md names the modules as they are');
 
     // docs/web-plugin-api.md is the web plugins' guide and their API as TypeScript declares it;
     // what is built from TypeScript (the web player's plugin host, Curator's own web plugins'

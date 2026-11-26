@@ -376,10 +376,11 @@ void main() {
     // Every format a Curator has saved in opens here as the same project: test/formats keeps a
     // project (.ccs) and a settings file (.ccf) in each, their entries as files, as the build
     // the folder is named after wrote them (687: modules in JSON; 695: in CuraScript), with
-    // something in every module and a module of a later build's. This build writes the newest
-    // again entry for entry, but for which build wrote it; when it doesn't, the format has
-    // changed, and `make formats` keeps what this build writes as a format of its own. (Before
-    // modules, Curator 0.6.1's: the demo, below.)
+    // something in every module and a module of a later build's. Each opens as the newest does,
+    // in every module it has. This build writes the newest again entry for entry, but for which
+    // build wrote it; when it doesn't, the format has changed, and `make formats` keeps what this
+    // build writes as a format of its own (docs/project-format.md). (Before modules, Curator
+    // 0.6.1's: the demo, below.)
     {
       int build(Directory d) => int.parse(d.uri.pathSegments.lastWhere((s) => s.isNotEmpty).split('.').first);
       // CuraScript as text, the rest as bytes.
@@ -398,7 +399,8 @@ void main() {
         for (final era in eras.reversed) {
           final path = '${dir.path}/${build(era)}.$kind';
           final zip = Archive();
-          filesIn(era).forEach((name, bytes) => zip.add(ArchiveFile.bytes(name, bytes)));
+          final files = filesIn(era);
+          files.forEach((name, bytes) => zip.add(ArchiveFile.bytes(name, bytes)));
           File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
           // Each module as JSON, by id.
           final Map<String, String> state;
@@ -425,7 +427,14 @@ void main() {
             state = ProjectModules.toJson(ProjectState(edits: settings), ProjectModules.settings).map((id, json) => MapEntry(id, jsonEncode(json)));
             if (newest == null) await SettingsFile.write(again, settings);
           }
-          expect(state, newest ??= state, reason: '${build(era)}.$kind opens as the newest');
+          // In each module its file has: one added since, it can't.
+          final Iterable<String> has = switch (files) {
+            {'project.cura': final cura} || {'settings.cura': final cura} => [for (final m in CuraData.read(utf8.decode(cura)).modules) m.id],
+            {'manifest.json': final json} => ((jsonDecode(utf8.decode(json)) as Map)['modules'] as Map).keys.cast<String>(),
+            _ => state.keys,
+          };
+          newest ??= state;
+          expect({for (final id in has) id: state[id]}, {for (final id in has) id: newest[id]}, reason: '${build(era)}.$kind opens as the newest');
         }
         final written = entriesOf(again);
         if (!autoUpdateGoldenFiles) {
