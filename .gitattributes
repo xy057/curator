@@ -1,0 +1,3 @@
+# The formats Curator has saved in, byte for byte as each build wrote them (make formats): never
+# a line end changed on checkout.
+app/test/formats/** -text

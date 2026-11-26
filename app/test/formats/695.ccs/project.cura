@@ -1,0 +1,910 @@
+# Written by Curator, in CuraScript: what the file is, then each of its modules.
+format "application/x-curated-score"
+layout 3
+writer "Curator 0.11.0-beta1 (695)"
+kind "score"
+score
+  name "Score.musicxml"
+  entry "score/Score.musicxml"
+media
+  name "Concert.wav"
+  entry "media/Concert.wav"
+takes
+  -
+    id "take-2"
+    name "Rehearsal.wav"
+    entry "media/takes/take-2/Rehearsal.wav"
+stems
+  -
+    id "stem-1"
+    name "Strings.wav"
+    entry "media/stems/stem-1/Strings.wav"
+
+module pdf version 2
+  layout
+    title ""
+    pages
+      - [240.0, 120.0]
+    instruments
+      -
+        id "P1"
+        name "Violin"
+        abbreviation ""
+        clef "treble"
+        staves 1
+        key "c"
+    systems
+      -
+        page 0
+        left 20.0
+        right 220.0
+        staves
+          -
+            top 20.0
+            space 4.0
+            lines 5
+            part "P1"
+            staff 1
+            region [none, 12.0, none, 44.0]
+        barlines
+          - [120.0, "normal"]
+          - [220.0, "normal"]
+    masks []
+    meter "4/4"
+    fifths 0
+    meters {}
+    keys {}
+    pickup 0.0
+    tempo 100.0
+
+module lilypond version 1
+  version "2.26.0"
+  settings 1
+  folder "score"
+  files ["global.ily"]
+
+module midi version 1 optional
+  look
+    rowHeight 3.125
+    beatWidth 4.0
+    sharedRange false
+    velocity true
+
+module fonts version 1
+  music "Leland"
+  text "Academico"
+  caption "Academico"
+  embed true
+
+module engraving version 1
+  options
+    bottomMarginHarm 4.0
+  typography
+    names
+      size 1.2
+      face "regular"
+      tracking 0.0
+      opacity 1.0
+    barNumbers
+      size 1.0
+      face "italic"
+      tracking 0.0
+      opacity 0.5
+    tempoRow
+      size 1.0
+      face "italic"
+      tracking 0.0
+      opacity 1.0
+    captions
+      size 1.0
+      face "regular"
+      tracking 0.01
+      opacity 1.0
+    tonality
+      size 1.0
+      face "bold"
+      tracking 0.0
+      opacity 1.0
+    tempo
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    expressions
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    rehearsal
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    lyrics
+      size 1.0
+      face "bold"
+      tracking 0.0
+      opacity 1.0
+    fingering
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    chordSymbols
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    clefs
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    keySignatures
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    timeSignatures
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    noteheads
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    flags
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    dots
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    rests
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    accidentals
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    articulations
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    dynamics
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    ornaments
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    fermatas
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    breathMarks
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tremolos
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    arpeggios
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    glissandos
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tupletNumbers
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    pedal
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    octave
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    barRepeats
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    repeatDots
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    tablature
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+    segnoCoda
+      size 1.0
+      face "asWritten"
+      tracking 0.0
+      opacity 1.0
+  textDynamics true
+  rehearsalInRow true
+  centeredLyrics true
+  dynamicsBetween true
+
+module display version 1
+  transition 0.5
+  scrollFollow 0.4
+  motion
+    margin 72.0
+    minGap 4.0
+    maxGap 140.0
+    glide "t*t*(3-2*t)"
+    fade "t*t*(3-2*t)"
+    inkDelay 0.1
+    ink "t*t*(3-2*t)"
+    settle 2.5
+    settleCurve "1-(1-t)^3"
+    slowest 0.25
+    endFade 1.5
+    endCurve "t*t*(3-2*t)"
+    captionFade 0.4
+    captionRise 4.0
+    captionCurve "t*t*(3-2*t)"
+    rowLead 1.2
+    rowCurve "t*t*(3-2*t)"
+    tempoFade 2.0
+    tempoCurve "t*t*(3-2*t)"
+  barNumbers false
+  firstBar 145
+  groupSections true
+  playheadColor "#CC3300"
+  colorNames true
+  familyColors
+    brass "#E0B000"
+
+module extensions version 1
+  enabled
+    attachImage true
+    captions true
+    chapters true
+    tonality true
+
+module instruments version 2
+  order ["P17", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "P15", "P16", "P18", "P19", "P20", "P21"]
+  names
+    P1 ["Solo Piccolo", "Picc."]
+  sections
+    P16 "percussion"
+    P1 none
+    P10 "bracket-1"
+    P11 "bracket-1"
+  groups
+    -
+      id "group-1"
+      name "Solo"
+      color "#123456"
+  groupOf
+    P1 "group-1"
+    P16 none
+  condensed ["cond-P2-P3", "cond-P6-P12"]
+  pairs
+    - ["P6", "P12"]
+  spacing
+    P3 [2.5, -1.0]
+
+module texts version 1
+  edits
+    cs-dir-0 "Presto"
+
+module curation version 2
+  lanes
+    P1
+      - [3.0, 12.0]
+      - [21.0, 27.0, 1.2, 0.15]
+    P2
+      -
+        - 0.0
+        - 6.0
+        - none
+        - none
+        - [2]
+      - [6.0, 9.0]
+    P3
+      -
+        - 0.0
+        - 6.0
+        - none
+        - none
+        - [2]
+      - [6.0, 9.0]
+    P4
+      - [6.0, 12.0]
+      - [45.0, 57.0]
+      - [69.0, 75.0]
+      - [84.0, 105.0]
+    P5
+      - [15.0, 21.0]
+    P6
+      - [0.0, 6.0]
+      - [12.0, 39.0]
+      - [57.0, 69.0]
+      - [108.0, 132.0]
+    P7
+      - [21.0, 33.0]
+      - [45.0, 57.0]
+      - [69.0, 75.0]
+      - [96.0, 105.0]
+      - [117.0, 132.0]
+    P8 []
+    P9
+      - [45.0, 69.0]
+    P10
+      - [18.0, 33.0]
+      - [36.0, 45.0]
+      - [105.0, 132.0]
+    P11
+      - [21.0, 27.0]
+      - [75.0, 87.0]
+      - [108.0, 120.0]
+      - [129.0, 132.0]
+    P12
+      - [0.0, 6.0]
+      - [12.0, 39.0]
+      - [57.0, 69.0]
+      - [108.0, 132.0]
+    P13
+      - [21.0, 39.0]
+      - [45.0, 57.0]
+    P14 []
+    P15
+      - [120.0, 132.0]
+    P16
+      - [39.0, 45.0]
+      - [84.0, 87.0]
+      - [105.0, 117.0]
+    P17
+      - [69.0, 93.0]
+    P18
+      - [12.0, 18.0]
+      - [36.0, 45.0]
+      - [60.0, 93.0]
+    P19
+      - [0.0, 45.0]
+      - [57.0, 93.0]
+    P20
+      - [0.0, 6.0]
+      - [45.0, 57.0]
+      - [96.0, 123.0]
+    P21
+      - [0.0, 21.0]
+      - [57.0, 69.0]
+      - [123.0, 132.0]
+  split ["P2"]
+
+module sync version 1
+  leadIn 1.25
+  anchors
+    - [0.0, 1.25]
+    - [12.0, 7.5]
+    - [24.0, 20.0, 12.0]
+  midi
+    name "tempo.mid"
+    tempos
+      - [0.0, 96.0]
+      - [24.0, 80.0]
+    warps
+      - [48.0, 24.0]
+
+module takes version 1 optional
+  focus "take-1"
+  crossfade 0.25
+  takes
+    -
+      id "take-1"
+      label "Concert"
+      regions
+        - [0.0, 24.0]
+    -
+      id "take-2"
+      label "Rehearsal"
+      regions
+        - [24.0, 48.0, 0.5, 0.5]
+      leadIn 1.5
+      anchors
+        - [0.0, 2.0]
+        - [24.0, 14.0]
+      daw
+        host "Logic Pro"
+        source "take-2-source"
+        name "Rehearsal"
+
+module stems version 1 optional
+  stems
+    -
+      id "stem-1"
+      name "Strings"
+      color "#3366CC"
+      take "take-2"
+      offset 0.25
+      part "P17"
+
+module images version 1
+  patches
+    -
+      image "66125adc89ef5-0-16ff9352.png"
+      quarter 6.0
+      top 2.0
+      width 24.0
+      height 12.0
+      ink true
+
+module captions version 1
+  captions
+    - [3.0, 15.0, "The horns answer"]
+
+module chapters version 1 optional
+  chapters
+    - [0.0, "Opening"]
+    - [12.0, "Second theme"]
+
+module tonality version 1 optional
+  areas
+    - [0.0, 24.0, 3, "minor"]
+    - [24.0, 36.0, -1, "major", "(F major)"]
+    - [36.0, 48.0, 3, "minor"]
+
+module spacers version 1
+  vertical
+    -
+      id "spacer-1"
+      key "bFlat"
+      frozen true
+      lines true
+      height 9.0
+  horizontal
+    -
+      bar 2
+      offset 1.5
+      length 0.5
+      width 12.0
+
+module packages version 1 optional
+  packages
+    -
+      id "com.example.notes"
+      name "Notes"
+      version "1.0.0"
+      entry "packages/com.example.notes.cpe"
+
+module extensiondata version 1 optional
+  data
+    com.example.notes
+      version 2
+      value
+        notes ["first", "second"]
+
+module playermap version 1 optional
+  map
+    aspect 1.7778
+    sections
+      -
+        name "Violin I"
+        color "#c2461c"
+        size 0.0301
+        label [0.2888, 0.755]
+        link
+          part "P17"
+          name "Violin I"
+        seats
+          -
+            - 0.2024
+            - 0.7744
+            -
+              part "P19"
+              name "Viola"
+          - [0.2266, 0.7116]
+          - [0.267, 0.66]
+          - [0.1579, 0.7726]
+          - [0.176, 0.7133]
+          - [0.206, 0.6602]
+          - [0.2462, 0.6163]
+          - [0.1138, 0.7697]
+          - [0.1286, 0.7128]
+          - [0.1526, 0.66]
+          - [0.185, 0.613]
+          - [0.2247, 0.5734]
+        plan
+          kind "sector"
+          at [0.3949, 0.829]
+          unit [0.0437, 0.0486]
+          radius 4.5451
+          angles [0.0942, 1.0268]
+        auto true
+      -
+        name "Violin II"
+        color "#c2461c"
+        size 0.0301
+        label [0.3714, 0.6621]
+        link
+          part "P18"
+          name "Violin II"
+        seats
+          - [0.3149, 0.6269]
+          - [0.3642, 0.6109]
+          - [0.4155, 0.6094]
+          - [0.2973, 0.5824]
+          - [0.3574, 0.5629]
+          - [0.42, 0.5611]
+          - [0.2713, 0.5423]
+          - [0.3234, 0.5211]
+          - [0.3783, 0.5116]
+          - [0.4337, 0.514]
+        plan
+          kind "sector"
+          at [0.3949, 0.829]
+          unit [0.0437, 0.0486]
+          radius 4.5451
+          angles [1.0268, 1.8039]
+        auto true
+      -
+        name "Viola"
+        color "#c2461c"
+        size 0.0301
+        label [0.47, 0.6911]
+        link
+          part "P19"
+          name "Viola"
+        seats
+          - [0.4702, 0.6247]
+          - [0.5229, 0.66]
+          - [0.475, 0.5748]
+          - [0.5204, 0.5985]
+          - [0.5604, 0.6321]
+          - [0.4895, 0.5289]
+          - [0.543, 0.5569]
+          - [0.5902, 0.5966]
+        plan
+          kind "sector"
+          at [0.3949, 0.829]
+          unit [0.0437, 0.0486]
+          radius 4.5451
+          angles [1.8039, 2.4256]
+        auto true
+      -
+        name "Violoncello"
+        color "#c2461c"
+        size 0.0301
+        label [0.495, 0.7813]
+        link
+          part "P20"
+          name "Violoncello"
+        seats
+          - [0.5632, 0.7116]
+          - [0.5875, 0.7744]
+          - [0.5933, 0.6742]
+          - [0.6177, 0.7228]
+          - [0.6326, 0.776]
+          - [0.6291, 0.6462]
+          - [0.6579, 0.7037]
+          - [0.6755, 0.7665]
+        plan
+          kind "sector"
+          at [0.3949, 0.829]
+          unit [0.0437, 0.0486]
+          radius 4.5451
+          angles [2.4256, 3.0473]
+        auto true
+      -
+        name "Double Bass"
+        color "#c2461c"
+        size 0.0301
+        label [0.8362, 0.6547]
+        link
+          part "P21"
+          name "Double Bass"
+        seats
+          - [0.6872, 0.6489]
+          - [0.7099, 0.7046]
+          - [0.724, 0.7637]
+          - [0.7255, 0.6253]
+          - [0.7511, 0.6884]
+          - [0.767, 0.7552]
+        plan
+          kind "sector"
+          at [0.3949, 0.829]
+          unit [0.0437, 0.0486]
+          radius 7.6451
+          angles [2.5529, 3.0473]
+          behind true
+        auto true
+      -
+        name "Flute"
+        color "#4f6d8c"
+        size 0.0301
+        label [0.3274, 0.4733]
+        seats
+          -
+            - 0.3035
+            - 0.4311
+            -
+              part "P2"
+              name "Flute 1"
+          -
+            - 0.3513
+            - 0.4253
+            -
+              part "P3"
+              name "Flute 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 14.2357
+          mid 1.4619
+        auto true
+      -
+        name "Oboe"
+        color "#4f6d8c"
+        size 0.0301
+        label [0.4697, 0.4745]
+        seats
+          -
+            - 0.4458
+            - 0.4259
+            -
+              part "P4"
+              name "Oboe 1"
+          -
+            - 0.4935
+            - 0.4323
+            -
+              part "P5"
+              name "Oboe 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 14.2357
+          mid 1.6913
+        auto true
+      -
+        name "Clarinet in B♭"
+        color "#4f6d8c"
+        size 0.0301
+        label [0.3025, 0.3596]
+        seats
+          -
+            - 0.2787
+            - 0.3174
+            -
+              part "P6"
+              name "Clarinet in B♭ 1"
+          -
+            - 0.3263
+            - 0.3106
+            -
+              part "P7"
+              name "Clarinet in B♭ 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 16.6357
+          mid 1.4433
+        auto true
+      -
+        name "Bassoon"
+        color "#4f6d8c"
+        size 0.0301
+        label [0.5486, 0.3735]
+        seats
+          -
+            - 0.5251
+            - 0.3201
+            -
+              part "P8"
+              name "Bassoon 1"
+          -
+            - 0.5721
+            - 0.3314
+            -
+              part "P9"
+              name "Bassoon 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 16.6357
+          mid 1.7837
+        auto true
+      -
+        name "Horn in F"
+        color "#c9a227"
+        size 0.0301
+        label [0.2497, 0.2518]
+        seats
+          -
+            - 0.2261
+            - 0.2097
+            -
+              part "P10"
+              name "Horn in F 1"
+          -
+            - 0.2734
+            - 0.2004
+            -
+              part "P11"
+              name "Horn in F 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 19.0357
+          mid 1.3954
+        auto true
+      -
+        name "Trumpet in B♭"
+        color "#c9a227"
+        size 0.0301
+        label [0.5051, 0.2446]
+        seats
+          -
+            - 0.4812
+            - 0.1954
+            -
+              part "P12"
+              name "Trumpet in B♭ 1"
+          -
+            - 0.5289
+            - 0.2025
+            -
+              part "P13"
+              name "Trumpet in B♭ 2"
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 19.0357
+          mid 1.7036
+        auto true
+      -
+        name "Timpani"
+        color "#9b59b6"
+        size 0.0301
+        label [0.1416, 0.1548]
+        link
+          part "P14"
+          name "Timpani"
+        seats
+          - [0.1416, 0.1126]
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 21.4357
+          mid 1.2971
+        auto true
+      -
+        name "Glockenspiel"
+        color "#9b59b6"
+        size 0.0301
+        label [0.3683, 0.1164]
+        link
+          part "P15"
+          name "Glockenspiel"
+        seats
+          - [0.3683, 0.0743]
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 21.4357
+          mid 1.5424
+        auto true
+      -
+        name "Snare Drum"
+        color "#9b59b6"
+        size 0.0301
+        label [0.6225, 0.1472]
+        link
+          part "P16"
+          name "Snare Drum"
+        seats
+          - [0.6225, 0.105]
+        plan
+          kind "bow"
+          at [0.3949, 1.1151]
+          unit [0.0437, 0.0486]
+          radius 21.4357
+          mid 1.8161
+        auto true
+      -
+        name "Solo Piccolo"
+        color "#e8dcc8"
+        size 0.0301
+        label [0.3949, 0.9197]
+        link
+          part "P1"
+          name "Solo Piccolo"
+        seats
+          - [0.3949, 0.8776]
+        plan
+          kind "rows"
+          at [0.3949, 0.8776]
+          unit [0.0437, 0.0486]
+        auto true
+
+module automation version 1 optional
+  lanes
+    view
+      kind "steps"
+      stretches
+        -
+          from 6.0
+          to 12.0
+          value
+            kind "map"
+        -
+          from 12.0
+          to 18.0
+          value
+            kind "split"
+            side "bottom"
+            size 0.3
+          fade 0.0
+        -
+          from 18.0
+          to 24.0
+          value
+            kind "map"
+        -
+          from 30.0
+          to 36.0
+          value
+            kind "midi"
+
+module view version 1 optional
+  staffSpace 11.0
+  grid "beat"
+  snapTapsToOnsets false
+  time 12.5
+
+module script version 1 optional
+  text
+    | # The strings open; the winds come in at B.
+    | let winds = "Flute*", "Oboe*", "Clarinet in B♭"
+    | clear
+    | show "Violin I", "Violin II", "Viola" 1-16
+    |
+
+module harmony version 3 optional
+  keys [1, 2.0, -0.5]
+  text
+    | two
+    |   lines
+    |
+  quoted "a \"b\" \\ c\td"

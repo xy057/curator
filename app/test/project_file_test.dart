@@ -16,6 +16,7 @@ import 'package:curated_score/project_modules.dart';
 import 'package:curated_score/settings_file.dart';
 import 'package:curated_score/project_state.dart';
 import 'package:curated_score/score_replacement.dart';
+import 'package:curated_score/updater.dart' show appBuild;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:score_engine/score_engine.dart';
 
@@ -66,6 +67,18 @@ void main() {
       rewrite(path, {'project.cura': utf8.encode(CuraData.write(fields, modules: modules))});
 
   Future<OpenedProject> open(String path) => ProjectFile.read(path, mediaDirectory: '${dir.path}/media');
+
+  /// The files under [folder] by their path in it, as a zip names its entries.
+  Map<String, List<int>> filesIn(Directory folder) => {
+        for (final f in folder.listSync(recursive: true).whereType<File>())
+          if (!f.uri.pathSegments.last.startsWith('.')) f.path.substring(folder.path.length + 1).replaceAll(r'\', '/'): f.readAsBytesSync(),
+      };
+
+  /// [path]'s entries by name.
+  Map<String, List<int>> entriesOf(String path) => {
+        for (final f in ZipDecoder().decodeBytes(File(path).readAsBytesSync()).files)
+          if (f.isFile) f.name: f.content,
+      };
 
   /// The demo imported into a controller and its document, let go after the test.
   Future<(EditorController, ProjectDocument)> demo() async {
@@ -336,7 +349,7 @@ void main() {
     }
   });
 
-  test('older formats and modules: a project in CuraScript, Curator 0.1 to 0.11.0-beta1 ask for an update, a project or settings file saved before modules or in JSON opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
+  test('older formats and modules: a project in CuraScript, Curator 0.1 to 0.11.0-beta1 ask for an update, every format kept in test/formats opens as the same project and the newest is written again as it was, a project or settings file saved before modules or in JSON opens, a module unknown here kept or refused, a kind, a MIDI project, damage said where', () async {
     // A project is in CuraScript: its fields, then every module. Curator 0.1 to 0.6.1 know a
     // project in modules, and 0.7 to 0.11.0-beta1 one in a later layout, and ask for an update.
     {
@@ -358,6 +371,76 @@ void main() {
       expect(text, contains('\nmodule curation version 2\n  split ["P2"]\n'));
       final opened = (await open(path)).state.edits;
       expect([opened.textEdits, opened.split], [{'d1': 'hello'}, {'P2'}]);
+    }
+
+    // Every format a Curator has saved in opens here as the same project: test/formats keeps a
+    // project (.ccs) and a settings file (.ccf) in each, their entries as files, as the build
+    // the folder is named after wrote them (687: modules in JSON; 695: in CuraScript), with
+    // something in every module and a module of a later build's. This build writes the newest
+    // again entry for entry, but for which build wrote it; when it doesn't, the format has
+    // changed, and `make formats` keeps what this build writes as a format of its own. (Before
+    // modules, Curator 0.6.1's: the demo, below.)
+    {
+      int build(Directory d) => int.parse(d.uri.pathSegments.lastWhere((s) => s.isNotEmpty).split('.').first);
+      // CuraScript as text, the rest as bytes.
+      Map<String, String> compared(Map<String, List<int>> files) => {
+            for (final MapEntry(key: name, value: bytes) in files.entries)
+              name: name.endsWith('.cura') ? utf8.decode(bytes).replaceFirst(RegExp(r'^writer .*\n', multiLine: true), '') : base64Encode(bytes),
+          };
+      for (final kind in const ['ccs', 'ccf']) {
+        final eras = [
+          for (final d in Directory('test/formats').listSync().whereType<Directory>())
+            if (d.path.endsWith('.$kind')) d,
+        ]..sort((a, b) => build(a) - build(b));
+        expect(eras.map(build), containsAll([687, 695]));
+        final again = '${dir.path}/again.$kind';
+        Map<String, String>? newest;
+        for (final era in eras.reversed) {
+          final path = '${dir.path}/${build(era)}.$kind';
+          final zip = Archive();
+          filesIn(era).forEach((name, bytes) => zip.add(ArchiveFile.bytes(name, bytes)));
+          File(path).writeAsBytesSync(ZipEncoder().encodeBytes(zip));
+          // Each module as JSON, by id.
+          final Map<String, String> state;
+          if (kind == 'ccs') {
+            final opened = await open(path);
+            final s = opened.state;
+            state = {
+              for (final MapEntry(key: id, value: json) in ProjectModules.toJson(s).entries) id: jsonEncode(json),
+              for (final MapEntry(key: id, value: f) in s.foreign.entries) id: jsonEncode([f.version, f.json, f.files]),
+            };
+            ProjectMedia media(String path) => ProjectMedia(name: File(path).uri.pathSegments.last, embedFrom: path);
+            if (newest == null) {
+              await ProjectFile.write(again, ProjectContents(
+                scoreName: opened.scoreName,
+                scoreBytes: opened.scoreBytes,
+                state: s,
+                media: media(opened.media!.path!),
+                takes: opened.takes.map((id, path) => MapEntry(id, media(path))),
+                stems: opened.stems.map((id, path) => MapEntry(id, media(path))),
+              ));
+            }
+          } else {
+            final (:settings, olderFormat: _) = await SettingsFile.read(path);
+            state = ProjectModules.toJson(ProjectState(edits: settings), ProjectModules.settings).map((id, json) => MapEntry(id, jsonEncode(json)));
+            if (newest == null) await SettingsFile.write(again, settings);
+          }
+          expect(state, newest ??= state, reason: '${build(era)}.$kind opens as the newest');
+        }
+        final written = entriesOf(again);
+        if (!autoUpdateGoldenFiles) {
+          expect(compared(written), compared(filesIn(eras.last)),
+              reason: 'This build writes ${build(eras.last)}.$kind again as it was; if the format changed, make formats keeps it.');
+        } else if (!equals(compared(filesIn(eras.last))).matches(compared(written), {})) {
+          final kept = Directory('test/formats/$appBuild.$kind');
+          if (kept.existsSync()) kept.deleteSync(recursive: true);
+          for (final MapEntry(key: name, value: bytes) in written.entries) {
+            File('${kept.path}/$name')
+              ..createSync(recursive: true)
+              ..writeAsBytesSync(bytes);
+          }
+        }
+      }
     }
 
     // A project of Curator 0.7 to 0.11.0-beta1, its modules in JSON, opens and says it is older, a

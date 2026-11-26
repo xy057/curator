@@ -1,0 +1,1 @@
+{"lanes":{"view":{"kind":"steps","stretches":[{"from":6.0,"to":12.0,"value":{"kind":"map"}},{"from":12.0,"to":18.0,"value":{"kind":"split","side":"bottom","size":0.3},"fade":0.0},{"from":18.0,"to":24.0,"value":{"kind":"map"}},{"from":30.0,"to":36.0,"value":{"kind":"midi"}}]}}}
