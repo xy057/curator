@@ -6394,3 +6394,7 @@ msgstr ""
 #: lib/macros.dart
 msgid "{macro}: {said}"
 msgstr ""
+
+#: lib/main.dart
+msgid "A project from a newer Curator! Parts of it can’t be shown here, and changes to them won’t be saved. Update to edit them!"
+msgstr ""

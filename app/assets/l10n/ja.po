@@ -6419,3 +6419,7 @@ msgstr "同期する録音が選ばれていません。"
 #: lib/macros.dart
 msgid "{macro}: {said}"
 msgstr "{macro}：{said}"
+
+#: lib/main.dart
+msgid "A project from a newer Curator! Parts of it can’t be shown here, and changes to them won’t be saved. Update to edit them!"
+msgstr "このプロジェクトは新しい Curator のものです！一部はここでは表示できず、その変更は保存されません。アップデートすると編集できます！"

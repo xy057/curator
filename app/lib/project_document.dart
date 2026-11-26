@@ -70,6 +70,10 @@ class ProjectDocument extends ChangeNotifier {
   bool get isOlderFormat => _olderFormat;
   bool _olderFormat = false;
 
+  /// True while the open project keeps a module a newer Curator wrote, of one this version has
+  /// ([ProjectModules.keepsNewer]): changes to what it holds aren't saved.
+  bool get keepsNewerModules => ProjectModules.keepsNewer(controller.foreign);
+
   /// True while the bundled demo is open: it can't be saved (Save and Save As are off) and
   /// its changes are never unsaved, so closing it asks nothing.
   bool get isSample => _isSample;

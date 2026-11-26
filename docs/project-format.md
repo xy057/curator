@@ -174,9 +174,11 @@ its modules so, and a file with any other is damaged. For each module in the fil
   one says which (`The project is damaged: sync.anchors[3] …`).
 - One it doesn't know, or of a later version: if the file says it is `optional`, the project opens
   without it and keeps it as it came, its data and its files under `<id>/`, for the next save to
-  write back (`ProjectState.foreign`; a settings file keeps none). If not, the file is refused:
-  "from a newer Curator. Update to open it!" (A layout 2 module's data CuraScript couldn't write
-  again isn't kept.)
+  write back (`ProjectState.foreign`; a settings file keeps none). When it is a later version of
+  one it knows, the project says so on opening: what the module holds shows as nothing, and a save
+  writes it back as it came, without changes made to it (`ProjectModules.keepsNewer`). If not
+  optional, the file is refused: "from a newer Curator. Update to open it!" (A layout 2 module's
+  data CuraScript couldn't write again isn't kept.)
 
 A module the file doesn't have reads as having nothing (its defaults); a field a module doesn't
 know is passed over. What a file unpacks is counted as it comes: a stub or layout 2 JSON 64 MiB at

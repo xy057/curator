@@ -609,6 +609,11 @@ void main() {
       final kept = cura(again).modules.firstWhere((m) => m.id == 'harmony');
       expect([kept.version, kept.optional, kept.data], [3, true, {'keys': [1, 2]}]);
       expect(ZipDecoder().decodeBytes(File(again).readAsBytesSync()).findFile('harmony/bar-1.bin')!.content, [1, 2, 3]);
+      expect(ProjectModules.keepsNewer(opened.state.foreign), isFalse, reason: 'nothing here edits it');
+      // So is a newer version of one known here, and opening says changes to it won't be saved.
+      recura(path, fields, plus((id: 'chapters', version: 2, optional: true, data: {})));
+      final newer = await open(path);
+      expect([newer.state.foreign.keys, ProjectModules.keepsNewer(newer.state.foreign)], [['chapters'], true]);
 
       for (final extra in <CuraModule>[
         (id: 'harmony', version: 1, optional: false, data: {}), // a module of a newer version, needed
