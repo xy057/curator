@@ -604,6 +604,20 @@ void LinkDocumentController::onMessage (const Message& message)
     // On the connection's thread: only noted here, taken up on the host's main thread.
     auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string* t = field ("t");
+    // Curator gone: what it asked is no longer awaited (it failed it as `disconnected`), so the
+    // DAW isn't asked it after all, and a file being written for it stops (the DAW's main thread
+    // lets its writer go as it next asks for updates).
+    if (t && *t == "disconnected")
+    {
+        {
+            std::lock_guard<std::mutex> lock (transportMutex_);
+            transport_.clear ();
+        }
+        std::lock_guard<std::mutex> lock (exportMutex_);
+        pending_.clear ();
+        cancelExport_.store (true);
+        return;
+    }
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;

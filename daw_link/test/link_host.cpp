@@ -418,6 +418,21 @@ struct Curator {
         fail ("no \"" + type + "\" message within " + std::to_string (seconds) + " s");
     }
 
+    // Attacca's connection ended from here, as when Curator quits, and the one it then makes anew
+    // taken as its first again (its hello read; what follows it waiting there).
+    void drop ()
+    {
+        net::close (connections[0]);
+        connections[0] = net::none;
+        pending[0].clear ();
+        next ("hello", 5);
+        connections[0] = connections[from];
+        pending[0] = std::move (pending[from]);
+        connections.erase (connections.begin () + static_cast<std::ptrdiff_t> (from));
+        pending.erase (pending.begin () + static_cast<std::ptrdiff_t> (from));
+        from = 0;
+    }
+
     // [line] said on connection [to] (the first: Attacca's).
     void say (const std::string& line, size_t to = 0)
     {
@@ -1376,6 +1391,17 @@ int main (int argc, const char* argv[])
     VST3StopRendering (effect);
     plugIn->playbackRendererInterface->removePlaybackRegion (plugIn->playbackRendererRef, region);
     VST3DestroyEffect (effect);
+
+    std::printf ("Curator goes with what it asked of the DAW waiting\n");
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
+    curator.drop ();
+    for (int i = 0; i < 10; ++i)
+    {
+        dc->notifyModelUpdates (controller);
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    check (playbackAsked ().empty (), "the DAW isn't asked it once Curator is gone, nor when it is back");
 
     std::printf ("The document closes\n");
     dc->enableAudioSourceSamplesAccess (controller, source, kARAFalse);
