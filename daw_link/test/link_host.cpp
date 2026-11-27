@@ -61,6 +61,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <functional>
 #include <map>
 #include <mutex>
+#include <new>
 #include <string>
 #include <thread>
 #include <utility>
@@ -1284,8 +1285,9 @@ int main (int argc, const char* argv[])
 
     // The line's handlers, on a line of the test's own (no plug-in's handler can be held up on
     // purpose): one let go of on another thread while its call is under way is waited for; one
-    // let go of during a delivery, from inside another, isn't called for it; and a handler may
-    // let go of itself and send on the same line from inside.
+    // let go of during a delivery, from inside another, isn't called for it; a handler may let go
+    // of itself and send on the same line from inside; and one that throws (out of memory) ends
+    // neither the DAW nor the delivery.
     {
         attacca::LinkClient& link = attacca::LinkClient::retain ();
         link.publish ("probe", "{\"t\":\"probe\"}");
@@ -1294,6 +1296,10 @@ int main (int argc, const char* argv[])
         std::atomic<int> holder { 0 }, other { 0 }, late { 0 };
         std::atomic<bool> inside { false }, ended { false };
         auto holds = [] (const attacca::Message& m) { const std::string* t = attacca::fieldOf (m, "t"); return t && *t == "hold"; };
+        const int thrower = link.listen ([&] (const attacca::Message& m) {
+            if (holds (m))
+                throw std::bad_alloc ();
+        });
         holder = link.listen ([&] (const attacca::Message& m) {
             if (!holds (m))
                 return;
@@ -1310,7 +1316,9 @@ int main (int argc, const char* argv[])
         for (int i = 0; i < 500 && !inside; ++i)
             std::this_thread::sleep_for (std::chrono::milliseconds (10));
         link.unlisten (holder);
-        check (inside && ended && late == 0, "a handler let go of during its call is waited for; one let go of during a delivery isn't called");
+        link.unlisten (thrower);
+        check (inside && ended && late == 0,
+               "a handler let go of during its call is waited for; one let go of during a delivery isn't called; one before them that threw passed over");
         curator.next ("held", 5);
         check (curator.from == probeLine, "one sends on the same line from inside");
         attacca::LinkClient::release ();

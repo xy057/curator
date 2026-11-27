@@ -314,7 +314,15 @@ void LinkClient::deliver (const Message& message)
                 continue;
             calling_ = id;
         }
-        (*handler) (message);
+        // One that throws (out of memory, no thread to be had) has failed what it was asked; on
+        // this thread it would end the DAW, and leave unlisten waiting for it.
+        try
+        {
+            (*handler) (message);
+        }
+        catch (...)
+        {
+        }
         {
             std::lock_guard<std::mutex> lock (handlersMutex_);
             calling_ = 0;

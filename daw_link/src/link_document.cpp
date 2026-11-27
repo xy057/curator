@@ -15,6 +15,7 @@
 #include <functional>
 #include <new>
 #include <random>
+#include <system_error>
 #include <utility>
 
 namespace attacca {
@@ -172,11 +173,7 @@ void LinkAudioSource::startReading ()
         }
         samples_.push_back (std::move (room));
     }
-    // ARA lets a reader be made only in calls about this source (or in endEditing); it may be
-    // used from any thread after that.
-    hostReader_ = std::make_unique<ARA::PlugIn::HostAudioReader> (this);
-    cancel_.store (false);
-    reader_ = std::thread ([this, channels] {
+    auto read = [this, channels] {
         std::vector<void*> buffers (static_cast<size_t> (channels));
         for (int64_t at = 0; at < frames_ && !cancel_.load (); at += chunkFrames)
         {
@@ -187,7 +184,23 @@ void LinkAudioSource::startReading ()
             hostReader_->readAudioSamples (at, n, buffers.data ());
             read_.store (at + n, std::memory_order_release);
         }
-    });
+    };
+    // ARA lets a reader be made only in calls about this source (or in endEditing); it may be
+    // used from any thread after that.
+    try
+    {
+        hostReader_ = std::make_unique<ARA::PlugIn::HostAudioReader> (this);
+        cancel_.store (false);
+        reader_ = std::thread (std::move (read));
+    }
+    catch (const std::exception&)
+    {
+        // No reader or thread to be had (the DAW goes on): the samples can't be either.
+        hostReader_.reset ();
+        samples_.clear ();
+        frames_ = 0;
+        problem_ = "out of memory";
+    }
 }
 
 void LinkAudioSource::stopReading ()
@@ -730,11 +743,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
     const char* sourceName = found->getName ();
     const std::string path = nativePath (folder + "/" + safeName (sourceName ? sourceName : "") + ".wav");
 
-    std::lock_guard<std::mutex> lock (exportMutex_);
-    cancelExport_.store (false);
-    using_ = { found };
-    busy_.store (true);
-    exporter_ = std::thread ([this, found, path, reply, sourceID] {
+    auto write = [this, found, path, reply, sourceID] {
         // Written once every sample is read.
         while (found->framesRead () < found->frames () && !cancelExport_.load ())
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
@@ -754,7 +763,22 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);
-    });
+    };
+    std::lock_guard<std::mutex> lock (exportMutex_);
+    cancelExport_.store (false);
+    using_ = { found };
+    busy_.store (true);
+    try
+    {
+        exporter_ = std::thread (std::move (write));
+    }
+    catch (const std::system_error&)
+    {
+        // No thread to be had for it (the DAW goes on).
+        busy_.store (false);
+        using_.clear ();
+        reply ("error", "out of memory");
+    }
 }
 
 void LinkDocumentController::startStem (const ExportJob& job)
@@ -804,11 +828,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
     const std::string path = nativePath (folder + "/" + safeName (trackName && *trackName ? trackName : "Track") + ".wav");
     const double from = job.from;
 
-    std::lock_guard<std::mutex> lock (exportMutex_);
-    cancelExport_.store (false);
-    using_ = sources;
-    busy_.store (true);
-    exporter_ = std::thread ([this, pieces, sources, path, reply, trackID, rate, channels, frames, from] {
+    auto write = [this, pieces, sources, path, reply, trackID, rate, channels, frames, from] {
         for (const auto* source : sources)
         {
             while (source->framesRead () < source->frames () && !cancelExport_.load ())
@@ -836,7 +856,22 @@ void LinkDocumentController::startStem (const ExportJob& job)
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);
-    });
+    };
+    std::lock_guard<std::mutex> lock (exportMutex_);
+    cancelExport_.store (false);
+    using_ = sources;
+    busy_.store (true);
+    try
+    {
+        exporter_ = std::thread (std::move (write));
+    }
+    catch (const std::system_error&)
+    {
+        // No thread to be had for it (the DAW goes on).
+        busy_.store (false);
+        using_.clear ();
+        reply ("error", "out of memory");
+    }
 }
 
 void LinkDocumentController::stopExport (const LinkAudioSource* source)
