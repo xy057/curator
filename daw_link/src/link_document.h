@@ -4,6 +4,7 @@
 #include "ARA_Library/PlugIn/ARAPlug.h"
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -101,14 +102,15 @@ private:
     void publish ();
     void onMessage (const std::map<std::string, std::string>& message);
     // A file Curator asked for: a recording (by persistent ID), or a track as the song plays
-    // it ([stem]: by its ID, from song time [from] for [length] seconds).
+    // it ([stem]: by its ID, from song time [from] for [length] seconds), on connection [asked].
     struct ExportJob {
         bool stem { false };
         std::string id;
         double from { 0 }, length { 0 };
+        uint64_t asked { 0 };
     };
     void startPendingExport ();
-    void startRecording (const std::string& sourceID);
+    void startRecording (const ExportJob& job);
     void startStem (const ExportJob& job);
     void stopExport (const LinkAudioSource* source);
     void lockOutRenderers () noexcept;
@@ -141,6 +143,9 @@ private:
     std::vector<const LinkAudioSource*> using_;
     std::atomic<bool> busy_ { false };
     std::atomic<bool> cancelExport_ { false };
+    // Which of Curator's connections this is (raised as one ends): a file asked on one gone
+    // meanwhile is no one's to write, though it was taken up before word came. Under [exportMutex_].
+    uint64_t connection_ { 0 };
 
 
     std::atomic<bool> renderersMayAccess_ { true };

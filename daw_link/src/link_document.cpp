@@ -630,6 +630,7 @@ void LinkDocumentController::onMessage (const Message& message)
         std::lock_guard<std::mutex> lock (exportMutex_);
         pending_.clear ();
         cancelExport_.store (true);
+        ++connection_;
         return;
     }
     const std::string* document = field ("document");
@@ -675,6 +676,7 @@ void LinkDocumentController::onMessage (const Message& message)
         return;
     }
     std::lock_guard<std::mutex> lock (exportMutex_);
+    job.asked = connection_;
     pending_.push_back (job);
 }
 
@@ -717,11 +719,12 @@ void LinkDocumentController::startPendingExport ()
     if (job.stem)
         startStem (job);
     else
-        startRecording (job.id);
+        startRecording (job);
 }
 
-void LinkDocumentController::startRecording (const std::string& sourceID)
+void LinkDocumentController::startRecording (const ExportJob& job)
 {
+    const std::string sourceID = job.id;
     auto reply = [this, sourceID] (const char* key, const std::string& value) { client_.answer ("exported", id_, "source", sourceID, key, value); };
 
     LinkAudioSource* found = nullptr;
@@ -766,6 +769,9 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
         busy_.store (false);
     };
     std::lock_guard<std::mutex> lock (exportMutex_);
+    // (Asked by a Curator gone since it was taken up: no one waits for it.)
+    if (job.asked != connection_)
+        return;
     cancelExport_.store (false);
     busy_.store (true);
     try
@@ -859,6 +865,9 @@ void LinkDocumentController::startStem (const ExportJob& job)
         busy_.store (false);
     };
     std::lock_guard<std::mutex> lock (exportMutex_);
+    // (Asked by a Curator gone since it was taken up: no one waits for it.)
+    if (job.asked != connection_)
+        return;
     cancelExport_.store (false);
     busy_.store (true);
     try
