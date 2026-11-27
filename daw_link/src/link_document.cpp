@@ -289,6 +289,7 @@ void LinkDocumentController::didEndEditing () noexcept
 {
     letRenderersIn ();
     // Content may be read now, from endEditing, for every object.
+    readContent ();
     publish ();
 }
 
@@ -313,7 +314,8 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
-    // What changed outside an edit (a recording's samples let be read, or no longer) is told here.
+    // What changed outside an edit (a recording's samples let be read, or no longer) is told here,
+    // with the song as read when the last edit ended (it may not be read here).
     if (dirty_ && lockouts_ == 0)
         publish ();
 }
@@ -415,6 +417,72 @@ void LinkDocumentController::letRenderersIn () noexcept
 
 // MARK: Publishing
 
+void LinkDocumentController::readContent ()
+{
+    content_.clear ();
+    for (const auto* context : getDocument ()->getMusicalContexts ())
+    {
+        ContextContent& content = content_[context];
+
+        // The tempo map: pairs of seconds and quarters from the song's start, the tempo
+        // constant between them (and before the first, after the last, as next to them).
+        JsonWriter w;
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempo { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < tempo.getEventCount (); ++i)
+            {
+                const auto e = tempo[i];
+                w.array ().number (e.timePosition).number (e.quarterPosition).endArray ();
+            }
+        }
+        content.tempo = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> bars { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < bars.getEventCount (); ++i)
+            {
+                const auto e = bars[i];
+                w.array ().number (e.numerator).number (e.denominator).number (e.position).endArray ();
+            }
+        }
+        content.bars = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeKeySignatures> keys { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < keys.getEventCount (); ++i)
+            {
+                const auto e = keys[i];
+                w.object ().field ("root", static_cast<double> (e.root)).field ("at", e.position);
+                name (w, "name", e.name);
+                w.key ("intervals").array ();
+                for (auto used : e.intervals)
+                    w.number (used);
+                w.endArray ().endObject ();
+            }
+        }
+        content.keys = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chords { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < chords.getEventCount (); ++i)
+            {
+                const auto e = chords[i];
+                w.object ().field ("root", static_cast<double> (e.root)).field ("bass", static_cast<double> (e.bass)).field ("at", e.position);
+                name (w, "name", e.name);
+                w.endObject ();
+            }
+        }
+        content.chords = w.endArray ().text ();
+    }
+}
+
 std::string LinkDocumentController::snapshot ()
 {
     JsonWriter w;
@@ -443,58 +511,11 @@ std::string LinkDocumentController::snapshot ()
         w.object ().field ("id", hexOf (context)).field ("order", static_cast<double> (context->getOrderIndex ()));
         name (w, "name", context->getName ());
 
-        // The tempo map: pairs of seconds and quarters from the song's start, the tempo
-        // constant between them (and before the first, after the last, as next to them).
-        w.key ("tempo").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempo { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < tempo.getEventCount (); ++i)
-            {
-                const auto e = tempo[i];
-                w.array ().number (e.timePosition).number (e.quarterPosition).endArray ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("bars").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> bars { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < bars.getEventCount (); ++i)
-            {
-                const auto e = bars[i];
-                w.array ().number (e.numerator).number (e.denominator).number (e.position).endArray ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("keys").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeKeySignatures> keys { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < keys.getEventCount (); ++i)
-            {
-                const auto e = keys[i];
-                w.object ().field ("root", static_cast<double> (e.root)).field ("at", e.position);
-                name (w, "name", e.name);
-                w.key ("intervals").array ();
-                for (auto used : e.intervals)
-                    w.number (used);
-                w.endArray ().endObject ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("chords").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chords { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < chords.getEventCount (); ++i)
-            {
-                const auto e = chords[i];
-                w.object ().field ("root", static_cast<double> (e.root)).field ("bass", static_cast<double> (e.bass)).field ("at", e.position);
-                name (w, "name", e.name);
-                w.endObject ();
-            }
-        }
-        w.endArray ();
+        // The song as read when the last edit ended (readContent).
+        static const ContextContent none;
+        const auto read = content_.find (context);
+        const ContextContent& content = read != content_.end () ? read->second : none;
+        w.key ("tempo").raw (content.tempo).key ("bars").raw (content.bars).key ("keys").raw (content.keys).key ("chords").raw (content.chords);
         w.endObject ();
     }
     w.endArray ();

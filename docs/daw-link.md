@@ -334,7 +334,8 @@ every channel. The files are written one at a time, after the recordings they ne
 
 The plug-in sends a document after every edit the DAW makes, but only when something differs.
 A recording's samples let be read (`access`) outside an edit are told when the DAW next asks the
-plug-in for its updates.
+plug-in for its updates, with the song (tempo, bars, keys, chords) as read when the last edit
+ended: ARA lets the song be read only then.
 It also sends every document again whenever it connects. Times are in seconds and positions in
 quarter notes, both measured from the start of the song. Between two tempo entries the tempo is
 constant; before the first entry and after the last, it is the tempo of the nearest stretch (as

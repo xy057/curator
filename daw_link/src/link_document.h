@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -134,6 +135,15 @@ private:
     // Something changed outside an edit, to be published when the DAW next asks for model
     // updates.
     bool dirty_ { false };
+
+    // Each musical context's tempo map, bar and key signatures and chords (JSON arrays), read
+    // as each edit ends: ARA lets the DAW's content be read only then (or as that context is
+    // made or updated), so a publish outside an edit says what was read last.
+    struct ContextContent {
+        std::string tempo { "[]" }, bars { "[]" }, keys { "[]" }, chords { "[]" };
+    };
+    void readContent ();
+    std::map<const ARA::PlugIn::MusicalContext*, ContextContent> content_;
 
     // Files Curator asked for, and the one being written (one at a time): the recordings it
     // reads ([using_], set before it starts), and whether it is still at it.

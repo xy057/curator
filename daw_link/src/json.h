@@ -30,6 +30,8 @@ public:
     JsonWriter& string (const std::string& text) { value (); quoted (text); return *this; }
     JsonWriter& boolean (bool b) { value (); out_ += b ? "true" : "false"; return *this; }
     JsonWriter& null () { value (); out_ += "null"; return *this; }
+    // A value written already (another writer's text).
+    JsonWriter& raw (const std::string& json) { value (); out_ += json; return *this; }
 
     // A number as precise as a double holds, its decimal mark a point whatever locale the DAW set
     // (printf writes the locale's: "0,5" where the mark is a comma, which isn't JSON); NaN and

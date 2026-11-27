@@ -297,8 +297,14 @@ ARABool ARA_CALL contextContentAvailable (ARAContentAccessControllerHostRef, ARA
     return type == kARAContentTypeTempoEntries || type == kARAContentTypeBarSignatures || type == kARAContentTypeKeySignatures;
 }
 ARAContentGrade ARA_CALL contextContentGrade (ARAContentAccessControllerHostRef, ARAMusicalContextHostRef, ARAContentType) { return kARAContentGradeAdjusted; }
+// ARA lets the plug-in read the song only as an object is made or updated, or as an edit ends:
+// while [contentClosed] the host is in none of those, and a reader made then is counted.
+bool contentClosed = false;
+int closedReads = 0;
 ARAContentReaderHostRef ARA_CALL createContextReader (ARAContentAccessControllerHostRef, ARAMusicalContextHostRef, ARAContentType type, const ARAContentTimeRange*)
 {
+    if (contentClosed)
+        ++closedReads;
     switch (type)
     {
         case kARAContentTypeTempoEntries: return tempoReader;
@@ -1180,10 +1186,15 @@ int main (int argc, const char* argv[])
         curator.next ("closed", 5);
     }
 
-    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates.
+    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates,
+    // with the song as read when the edit ended (it may not be read now).
     check (contains (line, "\"access\":false"), "not readable yet as the edit ends");
+    contentClosed = true;
     curator.next ("document", 5, [&] { dc->notifyModelUpdates (controller); });
+    contentClosed = false;
     check (contains (curator.lines.back (), "\"access\":true"), "readable once the DAW lets it be read");
+    check (contains (curator.lines.back (), "\"tempo\":[[0,0],[2,4],[6,10]]") && closedReads == 0,
+           "the song as read when the edit ended, none of it read as the DAW asks for updates");
 
     std::printf ("Curator's transport drives the DAW's\n");
     check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");
