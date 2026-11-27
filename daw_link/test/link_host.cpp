@@ -48,6 +48,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <clocale>
@@ -982,6 +983,18 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
             right = l == (k >= 12000 && k < 24000 ? heard (24000 + k, 0) : 0.0f);
         }
         check (right, "as long as the recording, silent outside the region");
+    }
+
+    // A block with nothing coming in (the DAW's input switched off): silence out, not what the
+    // output's buffers last held.
+    {
+        std::fill (outLeft.begin (), outLeft.end (), 0.5f);
+        std::fill (outRight.begin (), outRight.end (), 0.5f);
+        in.numChannels = 0;
+        processor->process (data);
+        in.numChannels = 2;
+        const auto silent = [] (const std::vector<float>& v) { return std::all_of (v.begin (), v.end (), [] (float f) { return f == 0; }); };
+        check (silent (outLeft) && silent (outRight), "nothing coming in: silence out");
     }
 
     // A capture under way when Curator's connection ends is let go (its file with it): no one

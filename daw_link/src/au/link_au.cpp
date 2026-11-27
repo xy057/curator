@@ -104,12 +104,20 @@ protected:
             CallHostTransportState (&playing, nullptr, &sample, nullptr, nullptr, nullptr);
     }
 
+    // What comes in, passed out as it is; an output channel nothing comes in for, silent rather
+    // than what its buffer last held.
     static void passThrough (const AudioBufferList& in, AudioBufferList& out, UInt32 frames)
     {
-        for (UInt32 c = 0; c < out.mNumberBuffers && c < in.mNumberBuffers; ++c)
+        for (UInt32 c = 0; c < out.mNumberBuffers; ++c)
         {
-            if (out.mBuffers[c].mData != in.mBuffers[c].mData)
-                std::memcpy (out.mBuffers[c].mData, in.mBuffers[c].mData, sizeof (float) * frames);
+            void* to = out.mBuffers[c].mData;
+            const void* from = c < in.mNumberBuffers ? in.mBuffers[c].mData : nullptr;
+            if (!to || to == from)
+                continue;
+            if (from)
+                std::memcpy (to, from, sizeof (float) * frames);
+            else
+                std::memset (to, 0, sizeof (float) * frames);
         }
     }
 };
