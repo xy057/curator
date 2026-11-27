@@ -393,9 +393,10 @@ void Capturer::start (const std::string& document, double from, double length, c
     {
         c->writer = std::thread (std::move (write));
     }
-    catch (const std::system_error&)
+    catch (const std::exception&)
     {
-        // No thread to be had for it: the audio thread lets go of it first.
+        // No memory or thread to be had for it (std::thread throws either): the audio thread lets
+        // go of it first, before it goes with [capture].
         live_.store (nullptr);
         while (processing_.load () != 0)
             std::this_thread::yield ();

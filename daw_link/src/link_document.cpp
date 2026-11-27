@@ -767,15 +767,15 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
     };
     std::lock_guard<std::mutex> lock (exportMutex_);
     cancelExport_.store (false);
-    using_ = { found };
     busy_.store (true);
     try
     {
+        using_ = { found };
         exporter_ = std::thread (std::move (write));
     }
-    catch (const std::system_error&)
+    catch (const std::exception&)
     {
-        // No thread to be had for it (the DAW goes on).
+        // No memory or thread to be had for it (std::thread throws either): the DAW goes on.
         busy_.store (false);
         using_.clear ();
         reply ("error", "out of memory");
@@ -860,15 +860,15 @@ void LinkDocumentController::startStem (const ExportJob& job)
     };
     std::lock_guard<std::mutex> lock (exportMutex_);
     cancelExport_.store (false);
-    using_ = sources;
     busy_.store (true);
     try
     {
+        using_ = sources;
         exporter_ = std::thread (std::move (write));
     }
-    catch (const std::system_error&)
+    catch (const std::exception&)
     {
-        // No thread to be had for it (the DAW goes on).
+        // No memory or thread to be had for it (std::thread throws either): the DAW goes on.
         busy_.store (false);
         using_.clear ();
         reply ("error", "out of memory");
