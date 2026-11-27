@@ -251,7 +251,7 @@ class DawLink extends ChangeNotifier {
 
   /// Asks [document]'s Attacca in [session] to have the DAW's transport [command]: `play` (from
   /// song time [at], if given), `stop`, or `seek` to [at]; where the DAW lets it
-  /// ([DawDocument.playback]), at once.
+  /// ([DawDocument.playback]), the next time the DAW asks Attacca for updates.
   void drive(DawSession session, String document, String command, {double? at}) =>
       session._send({'t': command, 'document': document, 'at': ?at});
 

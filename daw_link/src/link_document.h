@@ -85,6 +85,8 @@ protected:
     void didEnableAudioSourceSamplesAccess (ARA::PlugIn::AudioSource* source, bool enable) noexcept override;
     void willDestroyAudioSource (ARA::PlugIn::AudioSource* source) noexcept override;
 
+    void willDestroyDocument (ARA::PlugIn::Document* document) noexcept override;
+
     bool doRestoreObjectsFromArchive (ARA::PlugIn::HostArchiveReader* reader, const ARA::PlugIn::RestoreObjectsFilter* filter) noexcept override;
     bool doStoreObjectsToArchive (ARA::PlugIn::HostArchiveWriter* writer, const ARA::PlugIn::StoreObjectsFilter* filter) noexcept override;
 
@@ -111,6 +113,17 @@ private:
     std::string id_;
     LinkClient& client_;
     int listener_ { 0 };
+
+    // What Curator asked of the DAW's transport (`play`, `stop`, `seek`; `at`: where, or not a
+    // number), noted on the connection's thread and asked of the DAW on its model thread as it
+    // asks for updates (askTransport), the latest few in the order they came.
+    struct TransportAsk {
+        std::string what;
+        double at;
+    };
+    void askTransport ();
+    std::mutex transportMutex_;
+    std::vector<TransportAsk> transport_;
 
     // Something changed outside an edit, to be published when the DAW next asks for model
     // updates.

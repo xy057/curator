@@ -298,9 +298,9 @@ void LinkClient::disconnect ()
 void LinkClient::deliver (const Message& message)
 {
     // The handlers as they are now, in the order they came (by ID), each called with no lock
-    // held: a handler asks the DAW, which may wait on its main thread, and a DAW closes a
-    // document or an instance there (unlisten). One let go of before its turn isn't called; one
-    // let go of during its call, from another thread, is waited for there.
+    // held, so one may listen, send or let go of handlers, and one let go of on another thread
+    // (a DAW closing a document or an instance) holds up no other. One let go of before its turn
+    // isn't called; one let go of during its call, from another thread, is waited for there.
     std::vector<std::pair<int, std::shared_ptr<const Handler>>> now;
     {
         std::lock_guard<std::mutex> lock (handlersMutex_);

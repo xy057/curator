@@ -67,11 +67,11 @@ public:
 
     // Calls [handler] with each message Curator sends, on the connection's thread, and with
     // {t: "disconnected"} when the connection ends (what Curator asked is no longer awaited).
-    // No lock is held while it runs: it may ask the DAW (which may wait on its main thread,
-    // where a document or an instance is being closed and lets go of its own), listen, send, or
-    // let go of itself or another. After unlisten returns the handler isn't called again; on any
-    // other thread it waits for a call under way to end (so its owner may go), on the
-    // connection's own (from inside a handler) it doesn't, the call going on.
+    // No lock is held while it runs: it may listen, send, or let go of itself or another. After
+    // unlisten returns the handler isn't called again; on any other thread it waits for a call
+    // under way to end (so its owner may go), on the connection's own (from inside a handler) it
+    // doesn't, the call going on. So a handler asks nothing of the DAW, which may wait on its
+    // main thread while that thread lets go of the handler: it only notes what to do there.
     int listen (std::function<void (const Message&)> handler);
     void unlisten (int id);
 

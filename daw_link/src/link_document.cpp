@@ -25,6 +25,10 @@ namespace {
 constexpr int64_t maxSamples = int64_t { 3 } * 3600 * 48000 * 2;
 constexpr int64_t chunkFrames = 32768;
 
+// The most of Curator's asks of the transport kept until the DAW next asks for updates (a seek
+// every 60 ms at most): the oldest go first.
+constexpr size_t maxTransportAsks = 16;
+
 std::string hexOf (const void* pointer)
 {
     char buffer[24];
@@ -241,12 +245,24 @@ LinkDocumentController::LinkDocumentController (const ARA::PlugIn::PlugInEntry* 
 
 LinkDocumentController::~LinkDocumentController ()
 {
+    // (Closed already: willDestroyDocument comes first, from the host's destroyDocumentController.)
+    LinkClient::release ();
+}
+
+void LinkDocumentController::willDestroyDocument (ARA::PlugIn::Document*) noexcept
+{
+    // The host is done with the document (its interfaces are good only until now), though an
+    // instance may keep this controller a while: Curator is told now and asks nothing more of
+    // it, and what it asked that the DAW wasn't asked yet never is.
     client_.unlisten (listener_);
+    {
+        std::lock_guard<std::mutex> lock (transportMutex_);
+        transport_.clear ();
+    }
     stopExport (nullptr);
     JsonWriter closed;
     closed.object ().field ("t", "closed").field ("id", id_).endObject ();
     client_.retract (id_, closed.text ());
-    LinkClient::release ();
 }
 
 void LinkDocumentController::willBeginEditing () noexcept
@@ -263,8 +279,9 @@ void LinkDocumentController::didEndEditing () noexcept
 
 void LinkDocumentController::willNotifyModelUpdates () noexcept
 {
-    // The host calls this on its main thread every so often: a request Curator made since is
-    // taken up here, where the model may be read.
+    // The host calls this on its main thread every so often: what Curator asked since is taken
+    // up here, where the model may be read and the DAW asked.
+    askTransport ();
     {
         std::lock_guard<std::mutex> lock (exportMutex_);
         if (!busy_.load () && exporter_.joinable ())
@@ -580,19 +597,13 @@ void LinkDocumentController::onMessage (const Message& message)
     if (!t || !document || *document != id_)
         return;
     // Curator's transport (following this DAW, or capturing the mix) driving the DAW's: asked of
-    // the host at once, from this thread (ARA lets a plug-in from any but a render thread).
+    // the DAW on its model thread (askTransport), never from here.
     if (*t == "play" || *t == "stop" || *t == "seek")
     {
-        auto* playback = getHostPlaybackController ();
-        const double at = numberOf (message, "at", NAN);
-        if (!playback)
-            return;
-        if (*t != "stop" && std::isfinite (at))
-            playback->requestSetPlaybackPosition (std::max (0.0, at));
-        if (*t == "play")
-            playback->requestStartPlayback ();
-        else if (*t == "stop")
-            playback->requestStopPlayback ();
+        std::lock_guard<std::mutex> lock (transportMutex_);
+        if (transport_.size () >= maxTransportAsks)
+            transport_.erase (transport_.begin ());
+        transport_.push_back ({ *t, numberOf (message, "at", NAN) });
         return;
     }
     ExportJob job;
@@ -615,6 +626,32 @@ void LinkDocumentController::onMessage (const Message& message)
     }
     std::lock_guard<std::mutex> lock (exportMutex_);
     pending_.push_back (job);
+}
+
+// What Curator asked of the transport since, asked of the DAW now, in the order it came. Here, on
+// the DAW's model thread, not on the connection's: a DAW may have its main thread carry out what
+// it is asked and wait for it, while closing a document there, which waits for any call of the
+// document's handler under way (LinkClient::unlisten). Here the DAW does one, then the other,
+// and is never asked for a document it has closed.
+void LinkDocumentController::askTransport ()
+{
+    std::vector<TransportAsk> asked;
+    {
+        std::lock_guard<std::mutex> lock (transportMutex_);
+        asked.swap (transport_);
+    }
+    auto* playback = getHostPlaybackController ();
+    if (!playback)
+        return;
+    for (const auto& [what, at] : asked)
+    {
+        if (what != "stop" && std::isfinite (at))
+            playback->requestSetPlaybackPosition (std::max (0.0, at));
+        if (what == "play")
+            playback->requestStartPlayback ();
+        else if (what == "stop")
+            playback->requestStopPlayback ();
+    }
 }
 
 void LinkDocumentController::startPendingExport ()
