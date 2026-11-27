@@ -50,6 +50,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 
 #include <atomic>
 #include <chrono>
+#include <clocale>
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
@@ -185,6 +186,19 @@ private:
     bool done_ { false };
     std::thread thread_;
 };
+
+// A locale whose decimal mark is a comma set for numbers (LC_NUMERIC), as a DAW may set the
+// user's: its name, or null where this system has none (the C locale then set again).
+const char* commaLocale ()
+{
+    for (const char* name : { "de_DE.UTF-8", "de_DE", "de-DE", "German_Germany.1252" })
+    {
+        if (std::setlocale (LC_NUMERIC, name) && std::localeconv ()->decimal_point[0] == ',')
+            return name;
+    }
+    std::setlocale (LC_NUMERIC, "C");
+    return nullptr;
+}
 
 // MARK: The host's side of ARA
 
@@ -1172,6 +1186,24 @@ int main (int argc, const char* argv[])
     std::this_thread::sleep_for (std::chrono::milliseconds (300));
     const auto dragged = waitForAsked (2, [&] { dc->notifyModelUpdates (controller); });
     check (dragged == std::vector<std::string> ({ "stop", "at 2.000000" }), "a stop, then a long drag: stopped, then moved to where the drag ended");
+
+    // Under a locale whose decimal mark is a comma (as a DAW may set): numbers read and written as
+    // JSON has them all the same.
+    if (const char* comma = commaLocale ())
+    {
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":2.5}");
+        const auto seeked = waitForAsked (1, [&] { dc->notifyModelUpdates (controller); });
+        const std::vector<std::string> sought { "at " + std::to_string (2.5) };  // as the DAW says it here
+        attacca::JsonWriter written;
+        written.array ().number (0.5).number (-1.25).number (3).endArray ();
+        std::setlocale (LC_NUMERIC, "C");
+        check (seeked == sought && written.text () == "[0.5,-1.25,3]", std::string ("under ") + comma + ", numbers read and written with a point");
+    }
+    else
+    {
+        std::printf ("  --  no locale with a decimal comma here: numbers under one not checked\n");
+    }
 
     // A DAW that gives its song and transport but no word of changes (no model-update interface):
     // it asks for updates all the same, as ARA has every DAW do, and is asked then.
