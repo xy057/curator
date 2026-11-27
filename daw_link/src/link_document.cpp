@@ -25,8 +25,9 @@ namespace {
 constexpr int64_t maxSamples = int64_t { 3 } * 3600 * 48000 * 2;
 constexpr int64_t chunkFrames = 32768;
 
-// The most of Curator's asks of the transport kept until the DAW next asks for updates (a seek
-// every 60 ms at most): the oldest go first.
+// The most of Curator's asks of the transport kept until the DAW next asks for updates: the oldest
+// go first. Seeks one after another (one every 60 ms while Curator's is dragged) are kept as the
+// last, so it takes that many plays and stops to fill it.
 constexpr size_t maxTransportAsks = 16;
 
 std::string hexOf (const void* pointer)
@@ -610,10 +611,21 @@ void LinkDocumentController::onMessage (const Message& message)
     // the DAW on its model thread (askTransport), never from here.
     if (*t == "play" || *t == "stop" || *t == "seek")
     {
+        const double at = numberOf (message, "at", NAN);
+        // (A seek to nowhere asks nothing.)
+        if (*t == "seek" && !std::isfinite (at))
+            return;
         std::lock_guard<std::mutex> lock (transportMutex_);
+        // A seek after a seek: only where the last goes matters, and a play or stop before them
+        // is never pushed out by them.
+        if (*t == "seek" && !transport_.empty () && transport_.back ().what == "seek")
+        {
+            transport_.back ().at = at;
+            return;
+        }
         if (transport_.size () >= maxTransportAsks)
             transport_.erase (transport_.begin ());
-        transport_.push_back ({ *t, numberOf (message, "at", NAN) });
+        transport_.push_back ({ *t, at });
         return;
     }
     ExportJob job;
