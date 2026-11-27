@@ -149,9 +149,10 @@ void LinkAudioSource::startReading ()
     problem_.clear ();
     read_.store (0, std::memory_order_release);
     const int channels = static_cast<int> (getChannelCount ());
-    frames_ = getSampleCount ();
     samples_.clear ();
-    if (channels <= 0 || frames_ <= 0)
+    // (With no channels, no frames: none to be read, played or written.)
+    frames_ = channels > 0 ? getSampleCount () : 0;
+    if (frames_ <= 0)
         return;
     if (frames_ * channels > maxSamples)
     {

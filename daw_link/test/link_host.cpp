@@ -1364,6 +1364,23 @@ int main (int argc, const char* argv[])
 #endif
     }
 
+    // A recording the DAW says has no channels: none to read, so none to write.
+    {
+        dc->beginEditing (controller);
+        const ARAAudioSourceProperties emptyProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAAudioSourceProperties, merits64BitSamples),
+                                                           "Nothing", "nothing", sourceFrames, sourceRate, 0, kARAFalse, kARAChannelArrangementUndefined, nullptr };
+        const auto empty = dc->createAudioSource (controller, reinterpret_cast<ARAAudioSourceHostRef> (7), &emptyProperties);
+        dc->endEditing (controller);
+        dc->enableAudioSourceSamplesAccess (controller, empty, kARATrue);
+        curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"nothing\"}");
+        auto none = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
+        check (none["error"] == "unreadable", "a recording of no channels: unreadable, nothing written " + none["path"]);
+        dc->enableAudioSourceSamplesAccess (controller, empty, kARAFalse);
+        dc->beginEditing (controller);
+        dc->destroyAudioSource (controller, empty);
+        dc->endEditing (controller);
+    }
+
     std::printf ("Curator asks for the track as a stem\n");
     const std::string tracksKey = "\"tracks\":[{\"id\":\"";
     const size_t idAt = line.find (tracksKey);
