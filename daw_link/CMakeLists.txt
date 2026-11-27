@@ -236,9 +236,12 @@ target_compile_definitions(AttaccaCapturerVST3 PRIVATE LINK_VST3_CAPTURER=1)
 
 # A DAW in miniature that loads the plug-ins and checks what Curator is told (`make daw-link`
 # and daw_link/windows.sh run it before zipping the bundles): test/link_host.cpp, on the ARA
-# examples' VST3 loader. On macOS it checks the Audio Unit too.
+# examples' VST3 loader. On macOS it checks the Audio Unit too. The line to Curator is built into
+# it as well, to check its handlers where no plug-in can hold them up on purpose.
 add_executable(link_host
     test/link_host.cpp
+    src/link_client.cpp
+    src/link_system.cpp
     "${ARA_SDK}/ARA_Examples/ExamplesCommon/PlugInHosting/VST3Loader.cpp"
     "${VST3_SDK}/public.sdk/source/common/memorystream.cpp"
 )

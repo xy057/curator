@@ -39,6 +39,7 @@ ARA_DISABLE_VST3_WARNINGS_BEGIN
 ARA_DISABLE_VST3_WARNINGS_END
 
 #include "../src/json.h"
+#include "../src/link_client.h"
 #include "../src/link_files.h"
 #include "public.sdk/source/common/memorystream.h"
 
@@ -244,8 +245,9 @@ std::vector<std::string> waitForAsked (size_t count, const std::function<void ()
     }
     return playbackAsked ();
 }
-// What the DAW does, once, inside the plug-in's call asking it to play: as a DAW that has its
-// main thread do it, and waits for it there.
+// The thread the plug-in last asked the DAW to play on, and what the DAW does, once, inside that
+// call (on its model thread, as ARA has it closing documents).
+std::thread::id startedOn;
 std::function<void ()> whileStarting;
 void ARA_CALL startPlayback (ARAPlaybackControllerHostRef)
 {
@@ -253,6 +255,7 @@ void ARA_CALL startPlayback (ARAPlaybackControllerHostRef)
     std::function<void ()> then;
     {
         std::lock_guard<std::mutex> lock (playbackMutex);
+        startedOn = std::this_thread::get_id ();
         then = std::exchange (whileStarting, nullptr);
     }
     if (then)
@@ -1141,44 +1144,92 @@ int main (int argc, const char* argv[])
     curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
     curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
     curator.say ("{\"t\":\"play\",\"document\":\"elsewhere\",\"at\":1}");
-    const auto driven = waitForAsked (4, {});
-    check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }), "moved, played from there and stopped, at once; another document's passed over");
+    const auto driven = waitForAsked (4, [&] { dc->notifyModelUpdates (controller); });
+    check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }) && startedOn == std::this_thread::get_id (),
+           "moved, played from there and stopped, as the DAW asks for updates, on its own thread; another document's passed over");
 
-    // A DAW that waits, inside the plug-in's call, for its main thread, which closes a document
-    // meanwhile; and that closes another inside the call itself, on the plug-in's connection
-    // thread (a handler let go of from inside a handler, its `closed` sent on the same link).
-    // Neither waits on the other, and neither document is called for the message under way.
+    // Documents closed on the DAW's model thread (where ARA has it close them, and where the
+    // plug-in asks it) with a play Curator asked of them pending: Same inside the DAW's call
+    // asking for Symphony's, Kept after it, an instance keeping Attacca's side of it. Nothing
+    // waits, neither is asked for what was pending, and Curator is told of both as they close.
     {
         auto open = [&] (const char* name) {
             const ARADocumentProperties properties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), name };
-            return factory->createDocumentControllerWithDocument (&hostInstance, &properties);
+            const auto* made = factory->createDocumentControllerWithDocument (&hostInstance, &properties);
+            made->documentControllerInterface->beginEditing (made->documentControllerRef);
+            made->documentControllerInterface->endEditing (made->documentControllerRef);
+            std::map<std::string, std::string> told;
+            for (int i = 0; i < 4 && told["name"] != name; ++i)
+                told = curator.next ("document", 5);
+            if (told["name"] != name)
+                fail (std::string ("Curator isn't told of ") + name);
+            return std::pair (made, told["id"]);
         };
-        const auto *other = open ("Other"), *inner = open ("Inner");
-        std::atomic<bool> asked { false }, closedOnMain { false }, gaveUp { false }, left { false };
+        const auto [same, sameId] = open ("Same");
+        const auto [kept, keptId] = open ("Kept");
+        VST3Effect keeper = VST3CreateEffect (binary, nullptr);
+        if (!VST3BindToARADocumentController (keeper, kept->documentControllerRef, kARAPlaybackRendererRole))
+            fail ("an instance not bound to Kept");
+        clearPlaybackAsked ();
+        std::atomic<bool> closedInside { false };
         {
             std::lock_guard<std::mutex> lock (playbackMutex);
-            whileStarting = [&] {
-                inner->documentControllerInterface->destroyDocumentController (inner->documentControllerRef);
-                asked = true;
-                const auto end = std::chrono::steady_clock::now () + std::chrono::seconds (3);
-                while (!closedOnMain && std::chrono::steady_clock::now () < end)
-                    std::this_thread::sleep_for (std::chrono::milliseconds (2));
-                gaveUp = !closedOnMain;
-                left = true;
+            whileStarting = [&, same = same] {
+                same->documentControllerInterface->destroyDocumentController (same->documentControllerRef);
+                closedInside = true;
             };
         }
-        const Watchdog watchdog (10, "a document closed while the DAW does what Curator asked");
-        curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
-        for (int i = 0; i < 500 && !asked; ++i)
-            std::this_thread::sleep_for (std::chrono::milliseconds (10));
-        check (asked, "a document closed inside the DAW's call, on the plug-in's thread");
-        other->documentControllerInterface->destroyDocumentController (other->documentControllerRef);
-        closedOnMain = true;
-        for (int i = 0; i < 500 && !left; ++i)
-            std::this_thread::sleep_for (std::chrono::milliseconds (10));
-        check (left && !gaveUp, "and one on the DAW's main thread while the call waits for it there: neither waits on the other");
+        const Watchdog watchdog (10, "documents closed with a play asked of them pending");
+        for (const std::string& document : { keptId, sameId })
+            curator.say ("{\"t\":\"play\",\"document\":\"" + document + "\",\"at\":1}");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":2}");
+        const auto asked = waitForAsked (2, [&] { dc->notifyModelUpdates (controller); });
+        check (asked == std::vector<std::string> ({ "at 2.000000", "start" }) && startedOn == std::this_thread::get_id () && closedInside,
+               "a document closed inside the DAW's call on its own thread, a play asked of it pending");
+        kept->documentControllerInterface->destroyDocumentController (kept->documentControllerRef);
         auto first = curator.next ("closed", 5), second = curator.next ("closed", 5);
-        check (first["id"] != second["id"] && first["id"] != id && second["id"] != id, "Curator is told both are gone");
+        check (first["id"] == sameId && second["id"] == keptId, "and one an instance keeps: Curator is told of each as it closes");
+        for (int i = 0; i < 10; ++i)
+        {
+            dc->notifyModelUpdates (controller);
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        }
+        check (playbackAsked () == asked, "neither asked for what was pending");
+        VST3DestroyEffect (keeper);
+    }
+
+    // The line's handlers, on a line of the test's own (no plug-in's handler can be held up on
+    // purpose): one let go of on another thread while its call is under way is waited for; one
+    // let go of during a delivery, from inside another, isn't called for it; and a handler may
+    // let go of itself and send on the same line from inside.
+    {
+        attacca::LinkClient& link = attacca::LinkClient::retain ();
+        link.publish ("probe", "{\"t\":\"probe\"}");
+        curator.next ("probe", 5);
+        const size_t probeLine = curator.from;
+        std::atomic<int> holder { 0 }, other { 0 }, late { 0 };
+        std::atomic<bool> inside { false }, ended { false };
+        auto holds = [] (const attacca::Message& m) { const std::string* t = attacca::fieldOf (m, "t"); return t && *t == "hold"; };
+        holder = link.listen ([&] (const attacca::Message& m) {
+            if (!holds (m))
+                return;
+            inside = true;
+            link.unlisten (other);
+            link.unlisten (holder);
+            link.send ("{\"t\":\"held\"}");
+            std::this_thread::sleep_for (std::chrono::milliseconds (300));
+            ended = true;
+        });
+        other = link.listen ([&] (const attacca::Message& m) { late += holds (m) ? 1 : 0; });
+        const Watchdog watchdog (10, "the line's handlers let go of during a call");
+        curator.say ("{\"t\":\"hold\"}", probeLine);
+        for (int i = 0; i < 500 && !inside; ++i)
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        link.unlisten (holder);
+        check (inside && ended && late == 0, "a handler let go of during its call is waited for; one let go of during a delivery isn't called");
+        curator.next ("held", 5);
+        check (curator.from == probeLine, "one sends on the same line from inside");
+        attacca::LinkClient::release ();
     }
 
     std::printf ("Curator asks for the recording\n");
