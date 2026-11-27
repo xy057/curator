@@ -69,6 +69,10 @@ public:
 
     static const ARA::ARAFactory* getARAFactory () noexcept;
 
+    // The DAW asking for updates: ARA's library hears it (willNotifyModelUpdates) only from a DAW
+    // that gives its model-update interface; this one hears it from every DAW (ARA has each ask).
+    void notifyModelUpdates () noexcept override;
+
     // Renderers stay out of the model while the host edits it (and while samples are reallocated).
     bool rendererWillAccessModel () noexcept;
     void rendererDidAccessModel () noexcept;

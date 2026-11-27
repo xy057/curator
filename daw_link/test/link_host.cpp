@@ -1148,6 +1148,33 @@ int main (int argc, const char* argv[])
     check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }) && startedOn == std::this_thread::get_id (),
            "moved, played from there and stopped, as the DAW asks for updates, on its own thread; another document's passed over");
 
+    // A DAW that gives its song and transport but no word of changes (no model-update interface):
+    // it asks for updates all the same, as ARA has every DAW do, and is asked then.
+    {
+        const ARADocumentControllerHostInstance quietHost = {
+            ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
+            reinterpret_cast<ARAAudioAccessControllerHostRef> (10), &audioAccess,
+            reinterpret_cast<ARAArchivingControllerHostRef> (11), &archiving,
+            reinterpret_cast<ARAContentAccessControllerHostRef> (12), &contentAccess,
+            nullptr, nullptr,
+            reinterpret_cast<ARAPlaybackControllerHostRef> (14), &playbackControl };
+        const ARADocumentProperties quietProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), "Quiet" };
+        const auto* quiet = factory->createDocumentControllerWithDocument (&quietHost, &quietProperties);
+        const auto* quietInterface = quiet->documentControllerInterface;
+        quietInterface->beginEditing (quiet->documentControllerRef);
+        quietInterface->endEditing (quiet->documentControllerRef);
+        std::map<std::string, std::string> told;
+        for (int i = 0; i < 4 && told["name"] != "Quiet"; ++i)
+            told = curator.next ("document", 5);
+        check (told["name"] == "Quiet", "a DAW giving no word of changes: its document said");
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"play\",\"document\":\"" + told["id"] + "\",\"at\":3}");
+        const auto quietAsked = waitForAsked (2, [&] { quietInterface->notifyModelUpdates (quiet->documentControllerRef); });
+        check (quietAsked == std::vector<std::string> ({ "at 3.000000", "start" }), "and asked to play as it asks for updates");
+        quietInterface->destroyDocumentController (quiet->documentControllerRef);
+        curator.next ("closed", 5);
+    }
+
     // Documents closed on the DAW's model thread (where ARA has it close them, and where the
     // plug-in asks it) with a play Curator asked of them pending: Same inside the DAW's call
     // asking for Symphony's, Kept after it, an instance keeping Attacca's side of it. Nothing

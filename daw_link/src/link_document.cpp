@@ -277,6 +277,16 @@ void LinkDocumentController::didEndEditing () noexcept
     publish ();
 }
 
+void LinkDocumentController::notifyModelUpdates () noexcept
+{
+    // A DAW that gives no word of changes still asks (ARA has every DAW ask, outside its edits),
+    // but ARA's library takes it up only for one that does: what Curator asked (the transport, a
+    // file) would else never be.
+    if (!getHostModelUpdateController ())
+        willNotifyModelUpdates ();
+    ARA::PlugIn::DocumentController::notifyModelUpdates ();
+}
+
 void LinkDocumentController::willNotifyModelUpdates () noexcept
 {
     // The host calls this on its main thread every so often: what Curator asked since is taken
