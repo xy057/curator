@@ -1196,16 +1196,6 @@ int main (int argc, const char* argv[])
     check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }) && startedOn == std::this_thread::get_id (),
            "moved, played from there and stopped, as the DAW asks for updates, on its own thread; another document's passed over");
 
-    // A stop, then Curator's dragged (a seek every 60 ms) while the DAW is slow to ask for updates:
-    // more seeks than are kept, all there before it asks.
-    clearPlaybackAsked ();
-    curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
-    for (int i = 1; i <= 20; ++i)
-        curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":" + std::to_string (i / 10.0) + "}");
-    std::this_thread::sleep_for (std::chrono::milliseconds (300));
-    const auto dragged = waitForAsked (2, [&] { dc->notifyModelUpdates (controller); });
-    check (dragged == std::vector<std::string> ({ "stop", "at 2.000000" }), "a stop, then a long drag: stopped, then moved to where the drag ended");
-
     // Under a locale whose decimal mark is a comma (as a DAW may set): numbers read and written as
     // JSON has them all the same.
     if (const char* comma = commaLocale ())
@@ -1247,6 +1237,25 @@ int main (int argc, const char* argv[])
         curator.say ("{\"t\":\"play\",\"document\":\"" + told["id"] + "\",\"at\":3}");
         const auto quietAsked = waitForAsked (2, [&] { quietInterface->notifyModelUpdates (quiet->documentControllerRef); });
         check (quietAsked == std::vector<std::string> ({ "at 3.000000", "start" }), "and asked to play as it asks for updates");
+
+        // A stop, then Curator's dragged (a seek every 60 ms) while the DAW is slow to ask for
+        // updates: more seeks than are kept, all there before it asks. (Quiet's play after them,
+        // once asked, says the link has passed every one of them on: it hands lines on in order.)
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
+        for (int i = 1; i <= 20; ++i)
+            curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":" + std::to_string (i / 10.0) + "}");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + told["id"] + "\",\"at\":4}");
+        for (int i = 0; i < 500 && playbackAsked ().size () < 2; ++i)
+        {
+            quietInterface->notifyModelUpdates (quiet->documentControllerRef);
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        }
+        const auto passedOn = playbackAsked ();
+        clearPlaybackAsked ();
+        const auto dragged = waitForAsked (2, [&] { dc->notifyModelUpdates (controller); });
+        check (passedOn == std::vector<std::string> ({ "at 4.000000", "start" }) && dragged == std::vector<std::string> ({ "stop", "at 2.000000" }),
+               "a stop, then a long drag: stopped, then moved to where the drag ended");
         quietInterface->destroyDocumentController (quiet->documentControllerRef);
         curator.next ("closed", 5);
     }
