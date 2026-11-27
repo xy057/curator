@@ -1058,6 +1058,11 @@ int main (int argc, const char* argv[])
         const std::string named = attacca::safeName (strings);
         check (named.size () == 60 && named == strings.substr (0, 60), "a long name cut between characters");
         check (attacca::safeName ("../Take\xe5 1: \xe5\xbc\xa6/a") == "Take 1 \xe5\xbc\xa6" "a", "a name's marks and stray bytes left out");
+#if defined(_WIN32)
+        check (attacca::safeName ("con.txt") == "_con.txt" && attacca::safeName ("COM1") == "_COM1" && attacca::safeName ("com\xc2\xb9") == "_com\xc2\xb9" &&
+                   attacca::safeName ("LPT\xc2\xb3.mix") == "_LPT\xc2\xb3.mix" && attacca::safeName ("COM10") == "COM10" && attacca::safeName ("CON2") == "CON2",
+               "never a name Windows keeps for a device (COM1, COM\xc2\xb9)");
+#endif
     }
 
     // A home of its own, where the plug-in looks for Curator's files: nothing of the real one is
