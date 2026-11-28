@@ -4,6 +4,8 @@
 #include "ARA_Library/PlugIn/ARAPlug.h"
 
 #include <atomic>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -69,6 +71,10 @@ public:
 
     static const ARA::ARAFactory* getARAFactory () noexcept;
 
+    // The DAW asking for updates: ARA's library hears it (willNotifyModelUpdates) only from a DAW
+    // that gives its model-update interface; this one hears it from every DAW (ARA has each ask).
+    void notifyModelUpdates () noexcept override;
+
     // Renderers stay out of the model while the host edits it (and while samples are reallocated).
     bool rendererWillAccessModel () noexcept;
     void rendererDidAccessModel () noexcept;
@@ -97,14 +103,15 @@ private:
     void publish ();
     void onMessage (const std::map<std::string, std::string>& message);
     // A file Curator asked for: a recording (by persistent ID), or a track as the song plays
-    // it ([stem]: by its ID, from song time [from] for [length] seconds).
+    // it ([stem]: by its ID, from song time [from] for [length] seconds), on connection [asked].
     struct ExportJob {
         bool stem { false };
         std::string id;
         double from { 0 }, length { 0 };
+        uint64_t asked { 0 };
     };
     void startPendingExport ();
-    void startRecording (const std::string& sourceID);
+    void startRecording (const ExportJob& job);
     void startStem (const ExportJob& job);
     void stopExport (const LinkAudioSource* source);
     void lockOutRenderers () noexcept;
@@ -129,6 +136,15 @@ private:
     // updates.
     bool dirty_ { false };
 
+    // Each musical context's tempo map, bar and key signatures and chords (JSON arrays), read
+    // as each edit ends: ARA lets the DAW's content be read only then (or as that context is
+    // made or updated), so a publish outside an edit says what was read last.
+    struct ContextContent {
+        std::string tempo { "[]" }, bars { "[]" }, keys { "[]" }, chords { "[]" };
+    };
+    void readContent ();
+    std::map<const ARA::PlugIn::MusicalContext*, ContextContent> content_;
+
     // Files Curator asked for, and the one being written (one at a time): the recordings it
     // reads ([using_], set before it starts), and whether it is still at it.
     std::mutex exportMutex_;
@@ -137,6 +153,9 @@ private:
     std::vector<const LinkAudioSource*> using_;
     std::atomic<bool> busy_ { false };
     std::atomic<bool> cancelExport_ { false };
+    // Which of Curator's connections this is (raised as one ends): a file asked on one gone
+    // meanwhile is no one's to write, though it was taken up before word came. Under [exportMutex_].
+    uint64_t connection_ { 0 };
 
 
     std::atomic<bool> renderersMayAccess_ { true };

@@ -15,6 +15,7 @@
 #include <functional>
 #include <new>
 #include <random>
+#include <system_error>
 #include <utility>
 
 namespace attacca {
@@ -25,8 +26,9 @@ namespace {
 constexpr int64_t maxSamples = int64_t { 3 } * 3600 * 48000 * 2;
 constexpr int64_t chunkFrames = 32768;
 
-// The most of Curator's asks of the transport kept until the DAW next asks for updates (a seek
-// every 60 ms at most): the oldest go first.
+// The most of Curator's asks of the transport kept until the DAW next asks for updates: the oldest
+// go first. Seeks one after another (one every 60 ms while Curator's is dragged) are kept as the
+// last, so it takes that many plays and stops to fill it.
 constexpr size_t maxTransportAsks = 16;
 
 std::string hexOf (const void* pointer)
@@ -147,9 +149,10 @@ void LinkAudioSource::startReading ()
     problem_.clear ();
     read_.store (0, std::memory_order_release);
     const int channels = static_cast<int> (getChannelCount ());
-    frames_ = getSampleCount ();
     samples_.clear ();
-    if (channels <= 0 || frames_ <= 0)
+    // (With no channels, no frames: none to be read, played or written.)
+    frames_ = channels > 0 ? getSampleCount () : 0;
+    if (frames_ <= 0)
         return;
     if (frames_ * channels > maxSamples)
     {
@@ -171,11 +174,7 @@ void LinkAudioSource::startReading ()
         }
         samples_.push_back (std::move (room));
     }
-    // ARA lets a reader be made only in calls about this source (or in endEditing); it may be
-    // used from any thread after that.
-    hostReader_ = std::make_unique<ARA::PlugIn::HostAudioReader> (this);
-    cancel_.store (false);
-    reader_ = std::thread ([this, channels] {
+    auto read = [this, channels] {
         std::vector<void*> buffers (static_cast<size_t> (channels));
         for (int64_t at = 0; at < frames_ && !cancel_.load (); at += chunkFrames)
         {
@@ -186,7 +185,23 @@ void LinkAudioSource::startReading ()
             hostReader_->readAudioSamples (at, n, buffers.data ());
             read_.store (at + n, std::memory_order_release);
         }
-    });
+    };
+    // ARA lets a reader be made only in calls about this source (or in endEditing); it may be
+    // used from any thread after that.
+    try
+    {
+        hostReader_ = std::make_unique<ARA::PlugIn::HostAudioReader> (this);
+        cancel_.store (false);
+        reader_ = std::thread (std::move (read));
+    }
+    catch (const std::exception&)
+    {
+        // No reader or thread to be had (the DAW goes on): the samples can't be either.
+        hostReader_.reset ();
+        samples_.clear ();
+        frames_ = 0;
+        problem_ = "out of memory";
+    }
 }
 
 void LinkAudioSource::stopReading ()
@@ -274,7 +289,18 @@ void LinkDocumentController::didEndEditing () noexcept
 {
     letRenderersIn ();
     // Content may be read now, from endEditing, for every object.
+    readContent ();
     publish ();
+}
+
+void LinkDocumentController::notifyModelUpdates () noexcept
+{
+    // A DAW that gives no word of changes still asks (ARA has every DAW ask, outside its edits),
+    // but ARA's library takes it up only for one that does: what Curator asked (the transport, a
+    // file) would else never be.
+    if (!getHostModelUpdateController ())
+        willNotifyModelUpdates ();
+    ARA::PlugIn::DocumentController::notifyModelUpdates ();
 }
 
 void LinkDocumentController::willNotifyModelUpdates () noexcept
@@ -288,7 +314,8 @@ void LinkDocumentController::willNotifyModelUpdates () noexcept
             exporter_.join ();
     }
     startPendingExport ();
-    // What changed outside an edit (a recording's samples let be read, or no longer) is told here.
+    // What changed outside an edit (a recording's samples let be read, or no longer) is told here,
+    // with the song as read when the last edit ended (it may not be read here).
     if (dirty_ && lockouts_ == 0)
         publish ();
 }
@@ -390,6 +417,72 @@ void LinkDocumentController::letRenderersIn () noexcept
 
 // MARK: Publishing
 
+void LinkDocumentController::readContent ()
+{
+    content_.clear ();
+    for (const auto* context : getDocument ()->getMusicalContexts ())
+    {
+        ContextContent& content = content_[context];
+
+        // The tempo map: pairs of seconds and quarters from the song's start, the tempo
+        // constant between them (and before the first, after the last, as next to them).
+        JsonWriter w;
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempo { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < tempo.getEventCount (); ++i)
+            {
+                const auto e = tempo[i];
+                w.array ().number (e.timePosition).number (e.quarterPosition).endArray ();
+            }
+        }
+        content.tempo = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> bars { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < bars.getEventCount (); ++i)
+            {
+                const auto e = bars[i];
+                w.array ().number (e.numerator).number (e.denominator).number (e.position).endArray ();
+            }
+        }
+        content.bars = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeKeySignatures> keys { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < keys.getEventCount (); ++i)
+            {
+                const auto e = keys[i];
+                w.object ().field ("root", static_cast<double> (e.root)).field ("at", e.position);
+                name (w, "name", e.name);
+                w.key ("intervals").array ();
+                for (auto used : e.intervals)
+                    w.number (used);
+                w.endArray ().endObject ();
+            }
+        }
+        content.keys = w.endArray ().text ();
+
+        w = JsonWriter ();
+        w.array ();
+        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chords { context })
+        {
+            for (ARA::ARAInt32 i = 0; i < chords.getEventCount (); ++i)
+            {
+                const auto e = chords[i];
+                w.object ().field ("root", static_cast<double> (e.root)).field ("bass", static_cast<double> (e.bass)).field ("at", e.position);
+                name (w, "name", e.name);
+                w.endObject ();
+            }
+        }
+        content.chords = w.endArray ().text ();
+    }
+}
+
 std::string LinkDocumentController::snapshot ()
 {
     JsonWriter w;
@@ -418,58 +511,11 @@ std::string LinkDocumentController::snapshot ()
         w.object ().field ("id", hexOf (context)).field ("order", static_cast<double> (context->getOrderIndex ()));
         name (w, "name", context->getName ());
 
-        // The tempo map: pairs of seconds and quarters from the song's start, the tempo
-        // constant between them (and before the first, after the last, as next to them).
-        w.key ("tempo").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeTempoEntries> tempo { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < tempo.getEventCount (); ++i)
-            {
-                const auto e = tempo[i];
-                w.array ().number (e.timePosition).number (e.quarterPosition).endArray ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("bars").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeBarSignatures> bars { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < bars.getEventCount (); ++i)
-            {
-                const auto e = bars[i];
-                w.array ().number (e.numerator).number (e.denominator).number (e.position).endArray ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("keys").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeKeySignatures> keys { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < keys.getEventCount (); ++i)
-            {
-                const auto e = keys[i];
-                w.object ().field ("root", static_cast<double> (e.root)).field ("at", e.position);
-                name (w, "name", e.name);
-                w.key ("intervals").array ();
-                for (auto used : e.intervals)
-                    w.number (used);
-                w.endArray ().endObject ();
-            }
-        }
-        w.endArray ();
-
-        w.key ("chords").array ();
-        if (const ARA::PlugIn::HostContentReader<ARA::kARAContentTypeSheetChords> chords { context })
-        {
-            for (ARA::ARAInt32 i = 0; i < chords.getEventCount (); ++i)
-            {
-                const auto e = chords[i];
-                w.object ().field ("root", static_cast<double> (e.root)).field ("bass", static_cast<double> (e.bass)).field ("at", e.position);
-                name (w, "name", e.name);
-                w.endObject ();
-            }
-        }
-        w.endArray ();
+        // The song as read when the last edit ended (readContent).
+        static const ContextContent none;
+        const auto read = content_.find (context);
+        const ContextContent& content = read != content_.end () ? read->second : none;
+        w.key ("tempo").raw (content.tempo).key ("bars").raw (content.bars).key ("keys").raw (content.keys).key ("chords").raw (content.chords);
         w.endObject ();
     }
     w.endArray ();
@@ -593,6 +639,21 @@ void LinkDocumentController::onMessage (const Message& message)
     // On the connection's thread: only noted here, taken up on the host's main thread.
     auto field = [&] (const char* key) { return fieldOf (message, key); };
     const std::string* t = field ("t");
+    // Curator gone: what it asked is no longer awaited (it failed it as `disconnected`), so the
+    // DAW isn't asked it after all, and a file being written for it stops (the DAW's main thread
+    // lets its writer go as it next asks for updates).
+    if (t && *t == "disconnected")
+    {
+        {
+            std::lock_guard<std::mutex> lock (transportMutex_);
+            transport_.clear ();
+        }
+        std::lock_guard<std::mutex> lock (exportMutex_);
+        pending_.clear ();
+        cancelExport_.store (true);
+        ++connection_;
+        return;
+    }
     const std::string* document = field ("document");
     if (!t || !document || *document != id_)
         return;
@@ -600,10 +661,21 @@ void LinkDocumentController::onMessage (const Message& message)
     // the DAW on its model thread (askTransport), never from here.
     if (*t == "play" || *t == "stop" || *t == "seek")
     {
+        const double at = numberOf (message, "at", NAN);
+        // (A seek to nowhere asks nothing.)
+        if (*t == "seek" && !std::isfinite (at))
+            return;
         std::lock_guard<std::mutex> lock (transportMutex_);
+        // A seek after a seek: only where the last goes matters, and a play or stop before them
+        // is never pushed out by them.
+        if (*t == "seek" && !transport_.empty () && transport_.back ().what == "seek")
+        {
+            transport_.back ().at = at;
+            return;
+        }
         if (transport_.size () >= maxTransportAsks)
             transport_.erase (transport_.begin ());
-        transport_.push_back ({ *t, numberOf (message, "at", NAN) });
+        transport_.push_back ({ *t, at });
         return;
     }
     ExportJob job;
@@ -625,6 +697,7 @@ void LinkDocumentController::onMessage (const Message& message)
         return;
     }
     std::lock_guard<std::mutex> lock (exportMutex_);
+    job.asked = connection_;
     pending_.push_back (job);
 }
 
@@ -667,11 +740,12 @@ void LinkDocumentController::startPendingExport ()
     if (job.stem)
         startStem (job);
     else
-        startRecording (job.id);
+        startRecording (job);
 }
 
-void LinkDocumentController::startRecording (const std::string& sourceID)
+void LinkDocumentController::startRecording (const ExportJob& job)
 {
+    const std::string sourceID = job.id;
     auto reply = [this, sourceID] (const char* key, const std::string& value) { client_.answer ("exported", id_, "source", sourceID, key, value); };
 
     LinkAudioSource* found = nullptr;
@@ -694,11 +768,7 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
     const char* sourceName = found->getName ();
     const std::string path = nativePath (folder + "/" + safeName (sourceName ? sourceName : "") + ".wav");
 
-    std::lock_guard<std::mutex> lock (exportMutex_);
-    cancelExport_.store (false);
-    using_ = { found };
-    busy_.store (true);
-    exporter_ = std::thread ([this, found, path, reply, sourceID] {
+    auto write = [this, found, path, reply, sourceID] {
         // Written once every sample is read.
         while (found->framesRead () < found->frames () && !cancelExport_.load ())
             std::this_thread::sleep_for (std::chrono::milliseconds (50));
@@ -718,7 +788,25 @@ void LinkDocumentController::startRecording (const std::string& sourceID)
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);
-    });
+    };
+    std::lock_guard<std::mutex> lock (exportMutex_);
+    // (Asked by a Curator gone since it was taken up: no one waits for it.)
+    if (job.asked != connection_)
+        return;
+    cancelExport_.store (false);
+    busy_.store (true);
+    try
+    {
+        using_ = { found };
+        exporter_ = std::thread (std::move (write));
+    }
+    catch (const std::exception&)
+    {
+        // No memory or thread to be had for it (std::thread throws either): the DAW goes on.
+        busy_.store (false);
+        using_.clear ();
+        reply ("error", "out of memory");
+    }
 }
 
 void LinkDocumentController::startStem (const ExportJob& job)
@@ -768,11 +856,7 @@ void LinkDocumentController::startStem (const ExportJob& job)
     const std::string path = nativePath (folder + "/" + safeName (trackName && *trackName ? trackName : "Track") + ".wav");
     const double from = job.from;
 
-    std::lock_guard<std::mutex> lock (exportMutex_);
-    cancelExport_.store (false);
-    using_ = sources;
-    busy_.store (true);
-    exporter_ = std::thread ([this, pieces, sources, path, reply, trackID, rate, channels, frames, from] {
+    auto write = [this, pieces, sources, path, reply, trackID, rate, channels, frames, from] {
         for (const auto* source : sources)
         {
             while (source->framesRead () < source->frames () && !cancelExport_.load ())
@@ -800,7 +884,25 @@ void LinkDocumentController::startStem (const ExportJob& job)
         else
             reply ("error", cancelExport_.load () ? "cancelled" : "unwritable");
         busy_.store (false);
-    });
+    };
+    std::lock_guard<std::mutex> lock (exportMutex_);
+    // (Asked by a Curator gone since it was taken up: no one waits for it.)
+    if (job.asked != connection_)
+        return;
+    cancelExport_.store (false);
+    busy_.store (true);
+    try
+    {
+        using_ = sources;
+        exporter_ = std::thread (std::move (write));
+    }
+    catch (const std::exception&)
+    {
+        // No memory or thread to be had for it (std::thread throws either): the DAW goes on.
+        busy_.store (false);
+        using_.clear ();
+        reply ("error", "out of memory");
+    }
 }
 
 void LinkDocumentController::stopExport (const LinkAudioSource* source)

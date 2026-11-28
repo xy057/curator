@@ -7,9 +7,11 @@
 #include <cstdlib>
 #include <deque>
 #include <functional>
+#include <locale>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
@@ -27,11 +29,18 @@ inline const std::string* fieldOf (const Message& message, const char* key)
     return found == message.end () ? nullptr : &found->second;
 }
 
-// [message]'s field [key] as a number; [otherwise] when it hasn't one.
+// [message]'s field [key] as a number (0: not one); [otherwise] when it hasn't one. Read as JSON
+// writes it whatever locale the DAW set (strtod stops at the point where the mark is a comma).
 inline double numberOf (const Message& message, const char* key, double otherwise)
 {
     const std::string* field = fieldOf (message, key);
-    return field ? std::strtod (field->c_str (), nullptr) : otherwise;
+    if (!field)
+        return otherwise;
+    std::istringstream in (*field);
+    in.imbue (std::locale::classic ());
+    double d = 0;
+    in >> d;
+    return d;
 }
 
 // The connection to Curator, kept up on a thread of its own: Curator listens on the loopback

@@ -257,16 +257,25 @@ public:
     tresult PLUGIN_API canProcessSampleSize (int32 size) override { return size == Vst::kSample32 ? kResultTrue : kResultFalse; }
 
 protected:
-    // What comes in, passed out as it is.
+    // What comes in, passed out as it is; an output channel nothing comes in for (the DAW's input
+    // switched off), silent rather than what its buffer last held.
     static void passThrough (Vst::ProcessData& data)
     {
-        if (!data.inputs || data.numInputs == 0 || !data.outputs || data.numOutputs == 0)
+        if (!data.outputs || data.numOutputs == 0 || !data.outputs[0].channelBuffers32 || data.numSamples <= 0)
             return;
-        auto &in = data.inputs[0], &out = data.outputs[0];
-        for (int32 c = 0; c < out.numChannels && c < in.numChannels; ++c)
+        auto& out = data.outputs[0];
+        const Vst::AudioBusBuffers* in = data.inputs && data.numInputs > 0 && data.inputs[0].channelBuffers32 ? &data.inputs[0] : nullptr;
+        const size_t bytes = sizeof (float) * static_cast<size_t> (data.numSamples);
+        for (int32 c = 0; c < out.numChannels; ++c)
         {
-            if (out.channelBuffers32[c] != in.channelBuffers32[c])
-                std::memcpy (out.channelBuffers32[c], in.channelBuffers32[c], sizeof (float) * static_cast<size_t> (data.numSamples));
+            float* to = out.channelBuffers32[c];
+            const float* from = in && c < in->numChannels ? in->channelBuffers32[c] : nullptr;
+            if (!to || to == from)
+                continue;
+            if (from)
+                std::memcpy (to, from, bytes);
+            else
+                std::memset (to, 0, bytes);
         }
     }
 };
@@ -432,12 +441,13 @@ public:
 
     tresult PLUGIN_API process (Vst::ProcessData& data) override
     {
-        if (!data.inputs || data.numInputs == 0 || data.inputs[0].numChannels == 0)
-            return kResultTrue;
-        auto& in = data.inputs[0];
-        if (const auto* context = data.processContext)
-            capturer_.process (in.channelBuffers32, in.numChannels, data.numSamples, (context->state & Vst::ProcessContext::kPlaying) != 0,
-                               context->projectTimeSamples);
+        if (data.inputs && data.numInputs > 0 && data.inputs[0].numChannels > 0)
+        {
+            auto& in = data.inputs[0];
+            if (const auto* context = data.processContext)
+                capturer_.process (in.channelBuffers32, in.numChannels, data.numSamples, (context->state & Vst::ProcessContext::kPlaying) != 0,
+                                   context->projectTimeSamples);
+        }
         passThrough (data);
         return kResultTrue;
     }

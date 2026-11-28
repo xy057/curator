@@ -320,13 +320,13 @@ project, because everything it knows the DAW sends again.
 | `link` | plug-in | `capturer`: the Capturer linked to this DAW's Attacca (chosen in its window, kept in its instances' state; empty: none); sent when chosen or restored, and on connecting |
 | `inserts` | Curator | `ids`, `names` (one a line): the Capturers in the same DAW process, for Attacca's Capturer menu |
 | `capture` | Curator | `document`, `capturer`, `from` and `length` (seconds of the song), `name`: keep what the Capturer hears there (sent on the Capturer's connection); `start` and `end` (optional): the song time the DAW plays of it, the only part to be heard, the rest of the file silence (Record from DAW…: the whole recording's length, lined up with it, and its region) |
-| `play` | Curator | `document`, `at` (song seconds, optional): the document's Attacca asks the DAW to play (from `at`, no earlier than 0) the next time the DAW asks it for updates (`notifyModelUpdates`, on the DAW's model thread, where it closes documents too: a DAW that waits there for what it is asked can't be waited on by a document closing), as it asks for `stop` and `seek`, in the order they came: Curator's play while following, or a capture starting (a second before its span) |
+| `play` | Curator | `document`, `at` (song seconds, optional): the document's Attacca asks the DAW to play (from `at`, no earlier than 0) the next time the DAW asks it for updates (`notifyModelUpdates`, on the DAW's model thread, where it closes documents too: a DAW that waits there for what it is asked can't be waited on by a document closing; every DAW asks, whether or not it gives `updates`), as it asks for `stop` and `seek`, in the order they came (seeks one after another as the last; none once Curator's connection ends): Curator's play while following, or a capture starting (a second before its span) |
 | `stop` | Curator | `document`: the DAW asked to stop (Curator's pause; a capture starting, before it is `ready`; a capture done, failed or cancelled) |
 | `seek` | Curator | `document`, `at`: the DAW asked to go there (Curator's playhead moved while following; at most one every 60 ms, the last where it ended) |
 | `linked` | Curator | `ids` (one a line): to a connection with Capturers, those linked to an Attacca with a document in the same DAW process |
 | `cancel` | Curator | `document`, `capturer`: the capture under way ends (`captured` with `error`: `cancelled`) |
 | `ready` | plug-in | `document`, `capturer`: a capture asked for listens now, the DAW stopped and fallen quiet (what it heard before is dropped); Curator asks the DAW to play then |
-| `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
+| `captured` | plug-in | `document`, `capturer`, then `path` (a 32-bit float WAV under `DAW Link/Captures/`, `name`.wav) once every frame was heard, or `error` (`empty`, `too long`, `out of memory`, `unwritable`, `cancelled`); `progress` with `capturer` before it says how much was heard |
 
 A stem has the most channels and the highest sample rate of the recordings on its track. Each
 region plays in it as it plays in the song, unstretched; one of another layout is averaged into
@@ -334,7 +334,8 @@ every channel. The files are written one at a time, after the recordings they ne
 
 The plug-in sends a document after every edit the DAW makes, but only when something differs.
 A recording's samples let be read (`access`) outside an edit are told when the DAW next asks the
-plug-in for its updates.
+plug-in for its updates, with the song (tempo, bars, keys, chords) as read when the last edit
+ended: ARA lets the song be read only then.
 It also sends every document again whenever it connects. Times are in seconds and positions in
 quarter notes, both measured from the start of the song. Between two tempo entries the tempo is
 constant; before the first entry and after the last, it is the tempo of the nearest stretch (as

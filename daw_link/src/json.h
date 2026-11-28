@@ -30,16 +30,28 @@ public:
     JsonWriter& string (const std::string& text) { value (); quoted (text); return *this; }
     JsonWriter& boolean (bool b) { value (); out_ += b ? "true" : "false"; return *this; }
     JsonWriter& null () { value (); out_ += "null"; return *this; }
+    // A value written already (another writer's text).
+    JsonWriter& raw (const std::string& json) { value (); out_ += json; return *this; }
 
-    // A number as precise as a double holds; NaN and infinities, which JSON has no word for, as null.
+    // A number as precise as a double holds, its decimal mark a point whatever locale the DAW set
+    // (printf writes the locale's: "0,5" where the mark is a comma, which isn't JSON); NaN and
+    // infinities, which JSON has no word for, as null.
     JsonWriter& number (double d)
     {
         if (!std::isfinite (d))
             return null ();
         value ();
-        char buffer[32];
+        char buffer[40];
         std::snprintf (buffer, sizeof buffer, "%.17g", d);
-        out_ += buffer;
+        // Digits, signs and the exponent are the same in every locale: anything else is the mark.
+        bool marked = false;
+        for (const char* c = buffer; *c; ++c)
+        {
+            if ((*c >= '0' && *c <= '9') || *c == '-' || *c == '+' || *c == 'e' || *c == 'E')
+                out_ += *c;
+            else if (!marked)
+                out_ += '.', marked = true;
+        }
         return *this;
     }
 

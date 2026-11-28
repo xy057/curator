@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <exception>
 #include <fstream>
 #include <sstream>
 
@@ -28,8 +29,10 @@ using Clock = std::chrono::steady_clock;
 LinkClient& LinkClient::retain ()
 {
     std::lock_guard<std::mutex> lock (sharedMutex);
-    if (sharedCount++ == 0)
+    // Counted once it is made: one that couldn't be (out of memory) leaves none counted.
+    if (sharedCount == 0)
         shared = new LinkClient ();
+    ++sharedCount;
     return *shared;
 }
 
@@ -50,7 +53,16 @@ void LinkClient::release ()
 LinkClient::LinkClient ()
 {
     net::begin ();
-    thread_ = std::thread ([this] { run (); });
+    // Where no thread can be had, no connection: the plug-in goes on without Curator rather than
+    // throw into the DAW's call (a document controller's is noexcept), and is made again (and
+    // tries again) once every instance has let go of it.
+    try
+    {
+        thread_ = std::thread ([this] { run (); });
+    }
+    catch (const std::exception&)
+    {
+    }
 }
 
 LinkClient::~LinkClient ()
@@ -314,7 +326,15 @@ void LinkClient::deliver (const Message& message)
                 continue;
             calling_ = id;
         }
-        (*handler) (message);
+        // One that throws (out of memory, no thread to be had) has failed what it was asked; on
+        // this thread it would end the DAW, and leave unlisten waiting for it.
+        try
+        {
+            (*handler) (message);
+        }
+        catch (...)
+        {
+        }
         {
             std::lock_guard<std::mutex> lock (handlersMutex_);
             calling_ = 0;

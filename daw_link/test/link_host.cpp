@@ -48,8 +48,10 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <clocale>
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
@@ -60,6 +62,7 @@ ARA_DISABLE_VST3_WARNINGS_END
 #include <functional>
 #include <map>
 #include <mutex>
+#include <new>
 #include <string>
 #include <thread>
 #include <utility>
@@ -186,6 +189,19 @@ private:
     std::thread thread_;
 };
 
+// A locale whose decimal mark is a comma set for numbers (LC_NUMERIC), as a DAW may set the
+// user's: its name, or null where this system has none (the C locale then set again).
+const char* commaLocale ()
+{
+    for (const char* name : { "de_DE.UTF-8", "de_DE", "de-DE", "German_Germany.1252" })
+    {
+        if (std::setlocale (LC_NUMERIC, name) && std::localeconv ()->decimal_point[0] == ',')
+            return name;
+    }
+    std::setlocale (LC_NUMERIC, "C");
+    return nullptr;
+}
+
 // MARK: The host's side of ARA
 
 ARAAudioReaderHostRef ARA_CALL createAudioReader (ARAAudioAccessControllerHostRef, ARAAudioSourceHostRef, ARABool use64)
@@ -281,8 +297,14 @@ ARABool ARA_CALL contextContentAvailable (ARAContentAccessControllerHostRef, ARA
     return type == kARAContentTypeTempoEntries || type == kARAContentTypeBarSignatures || type == kARAContentTypeKeySignatures;
 }
 ARAContentGrade ARA_CALL contextContentGrade (ARAContentAccessControllerHostRef, ARAMusicalContextHostRef, ARAContentType) { return kARAContentGradeAdjusted; }
+// ARA lets the plug-in read the song only as an object is made or updated, or as an edit ends:
+// while [contentClosed] the host is in none of those, and a reader made then is counted.
+bool contentClosed = false;
+int closedReads = 0;
 ARAContentReaderHostRef ARA_CALL createContextReader (ARAContentAccessControllerHostRef, ARAMusicalContextHostRef, ARAContentType type, const ARAContentTimeRange*)
 {
+    if (contentClosed)
+        ++closedReads;
     switch (type)
     {
         case kARAContentTypeTempoEntries: return tempoReader;
@@ -416,6 +438,21 @@ struct Curator {
                 idle ();
         }
         fail ("no \"" + type + "\" message within " + std::to_string (seconds) + " s");
+    }
+
+    // Attacca's connection ended from here, as when Curator quits, and the one it then makes anew
+    // taken as its first again (its hello read; what follows it waiting there).
+    void drop ()
+    {
+        net::close (connections[0]);
+        connections[0] = net::none;
+        pending[0].clear ();
+        next ("hello", 5);
+        connections[0] = connections[from];
+        pending[0] = std::move (pending[from]);
+        connections.erase (connections.begin () + static_cast<std::ptrdiff_t> (from));
+        pending.erase (pending.begin () + static_cast<std::ptrdiff_t> (from));
+        from = 0;
     }
 
     // [line] said on connection [to] (the first: Attacca's).
@@ -954,6 +991,18 @@ void checkCapturer (const char* path, Curator& curator, const std::string& docum
         check (right, "as long as the recording, silent outside the region");
     }
 
+    // A block with nothing coming in (the DAW's input switched off): silence out, not what the
+    // output's buffers last held.
+    {
+        std::fill (outLeft.begin (), outLeft.end (), 0.5f);
+        std::fill (outRight.begin (), outRight.end (), 0.5f);
+        in.numChannels = 0;
+        processor->process (data);
+        in.numChannels = 2;
+        const auto silent = [] (const std::vector<float>& v) { return std::all_of (v.begin (), v.end (), [] (float f) { return f == 0; }); };
+        check (silent (outLeft) && silent (outRight), "nothing coming in: silence out");
+    }
+
     // A capture under way when Curator's connection ends is let go (its file with it): no one
     // waits for it, and the Capturer would else say it captures until the DAW played the span.
     {
@@ -1015,6 +1064,11 @@ int main (int argc, const char* argv[])
         const std::string named = attacca::safeName (strings);
         check (named.size () == 60 && named == strings.substr (0, 60), "a long name cut between characters");
         check (attacca::safeName ("../Take\xe5 1: \xe5\xbc\xa6/a") == "Take 1 \xe5\xbc\xa6" "a", "a name's marks and stray bytes left out");
+#if defined(_WIN32)
+        check (attacca::safeName ("con.txt") == "_con.txt" && attacca::safeName ("COM1") == "_COM1" && attacca::safeName ("com\xc2\xb9") == "_com\xc2\xb9" &&
+                   attacca::safeName ("LPT\xc2\xb3.mix") == "_LPT\xc2\xb3.mix" && attacca::safeName ("COM10") == "COM10" && attacca::safeName ("CON2") == "CON2",
+               "never a name Windows keeps for a device (COM1, COM\xc2\xb9)");
+#endif
     }
 
     // A home of its own, where the plug-in looks for Curator's files: nothing of the real one is
@@ -1132,10 +1186,15 @@ int main (int argc, const char* argv[])
         curator.next ("closed", 5);
     }
 
-    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates.
+    // Its samples let be read after the edit ended (as DAWs do): told once the DAW asks for updates,
+    // with the song as read when the edit ended (it may not be read now).
     check (contains (line, "\"access\":false"), "not readable yet as the edit ends");
+    contentClosed = true;
     curator.next ("document", 5, [&] { dc->notifyModelUpdates (controller); });
+    contentClosed = false;
     check (contains (curator.lines.back (), "\"access\":true"), "readable once the DAW lets it be read");
+    check (contains (curator.lines.back (), "\"tempo\":[[0,0],[2,4],[6,10]]") && closedReads == 0,
+           "the song as read when the edit ended, none of it read as the DAW asks for updates");
 
     std::printf ("Curator's transport drives the DAW's\n");
     check (contains (line, "\"playback\":true"), "the DAW lets it (a playback controller)");
@@ -1147,6 +1206,70 @@ int main (int argc, const char* argv[])
     const auto driven = waitForAsked (4, [&] { dc->notifyModelUpdates (controller); });
     check (driven == std::vector<std::string> ({ "at 2.500000", "at 1.000000", "start", "stop" }) && startedOn == std::this_thread::get_id (),
            "moved, played from there and stopped, as the DAW asks for updates, on its own thread; another document's passed over");
+
+    // Under a locale whose decimal mark is a comma (as a DAW may set): numbers read and written as
+    // JSON has them all the same.
+    if (const char* comma = commaLocale ())
+    {
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":2.5}");
+        const auto seeked = waitForAsked (1, [&] { dc->notifyModelUpdates (controller); });
+        const std::vector<std::string> sought { "at " + std::to_string (2.5) };  // as the DAW says it here
+        attacca::JsonWriter written;
+        written.array ().number (0.5).number (-1.25).number (3).endArray ();
+        std::setlocale (LC_NUMERIC, "C");
+        check (seeked == sought && written.text () == "[0.5,-1.25,3]", std::string ("under ") + comma + ", numbers read and written with a point");
+    }
+    else
+    {
+        std::printf ("  --  no locale with a decimal comma here: numbers under one not checked\n");
+    }
+
+    // A DAW that gives its song and transport but no word of changes (no model-update interface):
+    // it asks for updates all the same, as ARA has every DAW do, and is asked then.
+    {
+        const ARADocumentControllerHostInstance quietHost = {
+            ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentControllerHostInstance, playbackControllerInterface),
+            reinterpret_cast<ARAAudioAccessControllerHostRef> (10), &audioAccess,
+            reinterpret_cast<ARAArchivingControllerHostRef> (11), &archiving,
+            reinterpret_cast<ARAContentAccessControllerHostRef> (12), &contentAccess,
+            nullptr, nullptr,
+            reinterpret_cast<ARAPlaybackControllerHostRef> (14), &playbackControl };
+        const ARADocumentProperties quietProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARADocumentProperties, name), "Quiet" };
+        const auto* quiet = factory->createDocumentControllerWithDocument (&quietHost, &quietProperties);
+        const auto* quietInterface = quiet->documentControllerInterface;
+        quietInterface->beginEditing (quiet->documentControllerRef);
+        quietInterface->endEditing (quiet->documentControllerRef);
+        std::map<std::string, std::string> told;
+        for (int i = 0; i < 4 && told["name"] != "Quiet"; ++i)
+            told = curator.next ("document", 5);
+        check (told["name"] == "Quiet", "a DAW giving no word of changes: its document said");
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"play\",\"document\":\"" + told["id"] + "\",\"at\":3}");
+        const auto quietAsked = waitForAsked (2, [&] { quietInterface->notifyModelUpdates (quiet->documentControllerRef); });
+        check (quietAsked == std::vector<std::string> ({ "at 3.000000", "start" }), "and asked to play as it asks for updates");
+
+        // A stop, then Curator's dragged (a seek every 60 ms) while the DAW is slow to ask for
+        // updates: more seeks than are kept, all there before it asks. (Quiet's play after them,
+        // once asked, says the link has passed every one of them on: it hands lines on in order.)
+        clearPlaybackAsked ();
+        curator.say ("{\"t\":\"stop\",\"document\":\"" + id + "\"}");
+        for (int i = 1; i <= 20; ++i)
+            curator.say ("{\"t\":\"seek\",\"document\":\"" + id + "\",\"at\":" + std::to_string (i / 10.0) + "}");
+        curator.say ("{\"t\":\"play\",\"document\":\"" + told["id"] + "\",\"at\":4}");
+        for (int i = 0; i < 500 && playbackAsked ().size () < 2; ++i)
+        {
+            quietInterface->notifyModelUpdates (quiet->documentControllerRef);
+            std::this_thread::sleep_for (std::chrono::milliseconds (10));
+        }
+        const auto passedOn = playbackAsked ();
+        clearPlaybackAsked ();
+        const auto dragged = waitForAsked (2, [&] { dc->notifyModelUpdates (controller); });
+        check (passedOn == std::vector<std::string> ({ "at 4.000000", "start" }) && dragged == std::vector<std::string> ({ "stop", "at 2.000000" }),
+               "a stop, then a long drag: stopped, then moved to where the drag ended");
+        quietInterface->destroyDocumentController (quiet->documentControllerRef);
+        curator.next ("closed", 5);
+    }
 
     // Documents closed on the DAW's model thread (where ARA has it close them, and where the
     // plug-in asks it) with a play Curator asked of them pending: Same inside the DAW's call
@@ -1200,8 +1323,9 @@ int main (int argc, const char* argv[])
 
     // The line's handlers, on a line of the test's own (no plug-in's handler can be held up on
     // purpose): one let go of on another thread while its call is under way is waited for; one
-    // let go of during a delivery, from inside another, isn't called for it; and a handler may
-    // let go of itself and send on the same line from inside.
+    // let go of during a delivery, from inside another, isn't called for it; a handler may let go
+    // of itself and send on the same line from inside; and one that throws (out of memory) ends
+    // neither the DAW nor the delivery.
     {
         attacca::LinkClient& link = attacca::LinkClient::retain ();
         link.publish ("probe", "{\"t\":\"probe\"}");
@@ -1210,6 +1334,10 @@ int main (int argc, const char* argv[])
         std::atomic<int> holder { 0 }, other { 0 }, late { 0 };
         std::atomic<bool> inside { false }, ended { false };
         auto holds = [] (const attacca::Message& m) { const std::string* t = attacca::fieldOf (m, "t"); return t && *t == "hold"; };
+        const int thrower = link.listen ([&] (const attacca::Message& m) {
+            if (holds (m))
+                throw std::bad_alloc ();
+        });
         holder = link.listen ([&] (const attacca::Message& m) {
             if (!holds (m))
                 return;
@@ -1226,7 +1354,9 @@ int main (int argc, const char* argv[])
         for (int i = 0; i < 500 && !inside; ++i)
             std::this_thread::sleep_for (std::chrono::milliseconds (10));
         link.unlisten (holder);
-        check (inside && ended && late == 0, "a handler let go of during its call is waited for; one let go of during a delivery isn't called");
+        link.unlisten (thrower);
+        check (inside && ended && late == 0,
+               "a handler let go of during its call is waited for; one let go of during a delivery isn't called; one before them that threw passed over");
         curator.next ("held", 5);
         check (curator.from == probeLine, "one sends on the same line from inside");
         attacca::LinkClient::release ();
@@ -1270,6 +1400,23 @@ int main (int argc, const char* argv[])
 #if defined(_WIN32)
         check (again["path"] != path && std::filesystem::file_size (fileOf (path), sizeError) == bytes.size (), "beside the one open, which is left alone");
 #endif
+    }
+
+    // A recording the DAW says has no channels: none to read, so none to write.
+    {
+        dc->beginEditing (controller);
+        const ARAAudioSourceProperties emptyProperties = { ARA_IMPLEMENTED_STRUCT_SIZE (ARAAudioSourceProperties, merits64BitSamples),
+                                                           "Nothing", "nothing", sourceFrames, sourceRate, 0, kARAFalse, kARAChannelArrangementUndefined, nullptr };
+        const auto empty = dc->createAudioSource (controller, reinterpret_cast<ARAAudioSourceHostRef> (7), &emptyProperties);
+        dc->endEditing (controller);
+        dc->enableAudioSourceSamplesAccess (controller, empty, kARATrue);
+        curator.say ("{\"t\":\"export\",\"document\":\"" + id + "\",\"source\":\"nothing\"}");
+        auto none = curator.next ("exported", 10, [&] { dc->notifyModelUpdates (controller); });
+        check (none["error"] == "unreadable", "a recording of no channels: unreadable, nothing written " + none["path"]);
+        dc->enableAudioSourceSamplesAccess (controller, empty, kARAFalse);
+        dc->beginEditing (controller);
+        dc->destroyAudioSource (controller, empty);
+        dc->endEditing (controller);
     }
 
     std::printf ("Curator asks for the track as a stem\n");
@@ -1339,6 +1486,17 @@ int main (int argc, const char* argv[])
     VST3StopRendering (effect);
     plugIn->playbackRendererInterface->removePlaybackRegion (plugIn->playbackRendererRef, region);
     VST3DestroyEffect (effect);
+
+    std::printf ("Curator goes with what it asked of the DAW waiting\n");
+    clearPlaybackAsked ();
+    curator.say ("{\"t\":\"play\",\"document\":\"" + id + "\",\"at\":1}");
+    curator.drop ();
+    for (int i = 0; i < 10; ++i)
+    {
+        dc->notifyModelUpdates (controller);
+        std::this_thread::sleep_for (std::chrono::milliseconds (10));
+    }
+    check (playbackAsked ().empty (), "the DAW isn't asked it once Curator is gone, nor when it is back");
 
     std::printf ("The document closes\n");
     dc->enableAudioSourceSamplesAccess (controller, source, kARAFalse);

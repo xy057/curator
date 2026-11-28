@@ -9,6 +9,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <new>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -296,10 +298,21 @@ void Capturer::start (const std::string& document, double from, double length, c
 
     // Four seconds of blocks between the audio thread and the file; before song time 0, heard
     // already (silence: no DAW plays there).
+    // (Hundreds of megabytes at most: where they can't be had, the capture can't, and the DAW
+    // goes on.)
     capture->slots = static_cast<size_t> (std::max<int64_t> (64, std::llround (capture->rate * 4) / blockFrames));
-    capture->blocks.resize (capture->slots);
-    capture->samples.resize (capture->slots * static_cast<size_t> (blockFrames * capture->channels));
-    capture->heard.assign (static_cast<size_t> ((capture->frames + 63) / 64), 0);
+    try
+    {
+        capture->blocks.resize (capture->slots);
+        capture->samples.resize (capture->slots * static_cast<size_t> (blockFrames * capture->channels));
+        capture->heard.assign (static_cast<size_t> ((capture->frames + 63) / 64), 0);
+    }
+    catch (const std::bad_alloc&)
+    {
+        capture->file.close ();
+        removeFile (partial);
+        return reply ("error", "out of memory");
+    }
     if (capture->start < 0)
         capture->hear (0, std::min (capture->frames, -capture->start));
     // Outside what the DAW plays (the recording's region), heard already: silence there, so the
@@ -311,9 +324,7 @@ void Capturer::start (const std::string& document, double from, double length, c
     capture->heardAtStart = capture->heardCount;
 
     Capture* c = capture.get ();
-    capturing.fetch_add (1);
-    live_.store (c);
-    c->writer = std::thread ([this, c, reply, partial, me] {
+    auto write = [this, c, reply, partial, me] {
         bool ok = true;
         const auto begun = std::chrono::steady_clock::now ();
         auto said = begun, called = begun;
@@ -375,7 +386,25 @@ void Capturer::start (const std::string& document, double from, double length, c
             reply ("error", c->cancel.load () ? "cancelled" : "unwritable");
         }
         capturing.fetch_sub (1);
-    });
+    };
+    capturing.fetch_add (1);
+    live_.store (c);
+    try
+    {
+        c->writer = std::thread (std::move (write));
+    }
+    catch (const std::exception&)
+    {
+        // No memory or thread to be had for it (std::thread throws either): the audio thread lets
+        // go of it first, before it goes with [capture].
+        live_.store (nullptr);
+        while (processing_.load () != 0)
+            std::this_thread::yield ();
+        capturing.fetch_sub (1);
+        c->file.close ();
+        removeFile (partial);
+        return reply ("error", "out of memory");
+    }
     capture_ = std::move (capture);
 }
 

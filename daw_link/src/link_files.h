@@ -26,7 +26,7 @@ inline std::string randomId ()
 // A file name of [text]: letters, digits, spaces and a few marks; at most 60 bytes, of whole
 // characters (a name cut inside one isn't UTF-8, and macOS makes no file by such a name), a
 // byte that is no character's left out. Never one of the names Windows keeps for its devices
-// ("CON", "COM1": a file so named, whatever follows its dot, is the device there).
+// ("CON", "COM1", "COM¹": a file so named, whatever follows its dot, is the device there).
 inline std::string safeName (const std::string& text)
 {
     std::string out;
@@ -56,8 +56,14 @@ inline std::string safeName (const std::string& text)
     while (!stem.empty () && stem.back () == ' ')
         stem.pop_back ();
     for (char& c : stem)
-        c = static_cast<char> (std::toupper (static_cast<unsigned char> (c)));
-    const bool numbered = stem.size () == 4 && (stem.compare (0, 3, "COM") == 0 || stem.compare (0, 3, "LPT") == 0) && std::isdigit (static_cast<unsigned char> (stem[3]));
+    {
+        if (c >= 'a' && c <= 'z')
+            c = static_cast<char> (c - 'a' + 'A');
+    }
+    // COM and LPT with a digit, or with a superscript one, two or three (two bytes in UTF-8).
+    const bool port = stem.compare (0, 3, "COM") == 0 || stem.compare (0, 3, "LPT") == 0;
+    const bool numbered = port && ((stem.size () == 4 && stem[3] >= '0' && stem[3] <= '9') ||
+                                   (stem.size () == 5 && (stem.compare (3, 2, "\xc2\xb9") == 0 || stem.compare (3, 2, "\xc2\xb2") == 0 || stem.compare (3, 2, "\xc2\xb3") == 0)));
     if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL" || numbered)
         out.insert (out.begin (), '_');
 #endif
